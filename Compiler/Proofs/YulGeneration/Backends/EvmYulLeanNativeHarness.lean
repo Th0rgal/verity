@@ -1637,6 +1637,21 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.codeOwner.val)) := by
   rfl
 
+@[simp] theorem step_balance_ok
+    (state : EvmYul.Yul.State)
+    (account : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.BALANCE none state [account] =
+      let (state', value) := state.toState.balance account
+      .ok (state.setSharedState { state.toSharedState with toState := state' },
+        some value) := by
+  rfl
+
+@[simp] theorem step_origin_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.ORIGIN none state [] =
+      .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.sender.val)) := by
+  rfl
+
 @[simp] theorem step_caller_ok
     (state : EvmYul.Yul.State) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.CALLER none state [] =
@@ -1655,6 +1670,42 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some state.toState.number) := by
   rfl
 
+@[simp] theorem step_chainid_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CHAINID none state [] =
+      .ok (state, some state.toState.chainId) := by
+  rfl
+
+@[simp] theorem step_blobbasefee_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.BLOBBASEFEE none state [] =
+      .ok (state, some state.executionEnv.getBlobGasprice) := by
+  rfl
+
+@[simp] theorem step_gasprice_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.GASPRICE none state [] =
+      .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.gasPrice)) := by
+  rfl
+
+@[simp] theorem step_coinbase_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.COINBASE none state [] =
+      .ok (state, some (EvmYul.UInt256.ofNat state.toState.coinBase.val)) := by
+  rfl
+
+@[simp] theorem step_gaslimit_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.GASLIMIT none state [] =
+      .ok (state, some state.toState.gasLimit) := by
+  rfl
+
+@[simp] theorem step_selfbalance_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.SELFBALANCE none state [] =
+      .ok (state, some state.toState.selfbalance) := by
+  rfl
+
 @[simp] theorem step_and_ok
     (state : EvmYul.Yul.State)
     (left right : EvmYul.UInt256) :
@@ -1667,6 +1718,14 @@ theorem lowerExprNative_selectorExpr :
     (offset value : EvmYul.UInt256) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.MSTORE none state [offset, value] =
       .ok (state.setMachineState (state.toMachineState.mstore offset value),
+        none) := by
+  rfl
+
+@[simp] theorem step_mstore8_ok
+    (state : EvmYul.Yul.State)
+    (offset value : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MSTORE8 none state [offset, value] =
+      .ok (state.setMachineState (state.toMachineState.mstore8 offset value),
         none) := by
   rfl
 
@@ -1687,11 +1746,126 @@ theorem lowerExprNative_selectorExpr :
       .ok (state.setMachineState machineState', some value) := by
   rfl
 
+@[simp] theorem step_keccak256_ok
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.KECCAK256 none state [offset, size] =
+      let (value, machineState') := state.toMachineState.keccak256 offset size
+      .ok (state.setMachineState machineState', some value) := by
+  rfl
+
+@[simp] theorem step_log0_ok
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG0 none state [offset, size] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[] state.toSharedState), none) := by
+  rfl
+
+@[simp] theorem step_log1_ok
+    (state : EvmYul.Yul.State)
+    (offset size topic0 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG1 none state
+        [offset, size, topic0] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0] state.toSharedState), none) := by
+  rfl
+
+@[simp] theorem step_log2_ok
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG2 none state
+        [offset, size, topic0, topic1] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0, topic1]
+          state.toSharedState), none) := by
+  rfl
+
+@[simp] theorem step_log3_ok
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 topic2 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG3 none state
+        [offset, size, topic0, topic1, topic2] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0, topic1, topic2]
+          state.toSharedState), none) := by
+  rfl
+
+@[simp] theorem step_log4_ok
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 topic2 topic3 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG4 none state
+        [offset, size, topic0, topic1, topic2, topic3] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0, topic1, topic2, topic3]
+          state.toSharedState), none) := by
+  rfl
+
 @[simp] theorem step_sstore_ok
     (state : EvmYul.Yul.State)
     (slot value : EvmYul.UInt256) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.SSTORE none state [slot, value] =
       .ok (state.setState (state.toState.sstore slot value), none) := by
+  rfl
+
+@[simp] theorem step_tload_ok
+    (state : EvmYul.Yul.State)
+    (slot : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.TLOAD none state [slot] =
+      let (state', value) := state.toState.tload slot
+      .ok (state.setSharedState { state.toSharedState with toState := state' },
+        some value) := by
+  rfl
+
+@[simp] theorem step_tstore_ok
+    (state : EvmYul.Yul.State)
+    (slot value : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.TSTORE none state [slot, value] =
+      .ok (state.setState (state.toState.tstore slot value), none) := by
+  rfl
+
+@[simp] theorem step_msize_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MSIZE none state [] =
+      .ok (state, some (state.toMachineState.msize)) := by
+  rfl
+
+@[simp] theorem step_gas_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.GAS none state [] =
+      .ok (state, some (state.toMachineState.gas)) := by
+  rfl
+
+@[simp] theorem step_returndatasize_ok
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.RETURNDATASIZE none state [] =
+      .ok (state, some (state.toMachineState.returndatasize)) := by
+  rfl
+
+@[simp] theorem step_calldatacopy_ok
+    (state : EvmYul.Yul.State)
+    (mstart datastart size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLDATACOPY none state
+        [mstart, datastart, size] =
+      .ok (state.setSharedState
+        (state.toSharedState.calldatacopy mstart datastart size), none) := by
+  rfl
+
+@[simp] theorem step_returndatacopy_ok
+    (state : EvmYul.Yul.State)
+    (mstart rstart size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.RETURNDATACOPY none state
+        [mstart, rstart, size] =
+      .ok (state.setMachineState
+        (state.toSharedState.toMachineState.returndatacopy mstart rstart size),
+        none) := by
+  rfl
+
+@[simp] theorem step_pop_ok
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.POP none state [value] =
+      .ok (state, none) := by
   rfl
 
 @[simp] theorem step_stop_ok
@@ -2046,6 +2220,25 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.codeOwner.val]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+@[simp] theorem primCall_balance_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (account : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.BALANCE [account] =
+      let (state', value) := state.toState.balance account
+      .ok (state.setSharedState { state.toSharedState with toState := state' },
+        [value]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_origin_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.ORIGIN [] =
+      .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.sender.val]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
 @[simp] theorem primCall_caller_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State) :
@@ -2068,6 +2261,54 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
     EvmYul.Yul.primCall (fuel + 1) state
         EvmYul.Operation.NUMBER [] =
       .ok (state, [state.toState.number]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_chainid_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.CHAINID [] =
+      .ok (state, [state.toState.chainId]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_blobbasefee_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.BLOBBASEFEE [] =
+      .ok (state, [state.executionEnv.getBlobGasprice]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_gasprice_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.GASPRICE [] =
+      .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.gasPrice]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_coinbase_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.COINBASE [] =
+      .ok (state, [EvmYul.UInt256.ofNat state.toState.coinBase.val]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_gaslimit_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.GASLIMIT [] =
+      .ok (state, [state.toState.gasLimit]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_selfbalance_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.SELFBALANCE [] =
+      .ok (state, [state.toState.selfbalance]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
 @[simp] theorem primCall_and_ok
@@ -2143,6 +2384,16 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
         []) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+@[simp] theorem primCall_mstore8_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset value : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.MSTORE8 [offset, value] =
+      .ok (state.setMachineState (state.toMachineState.mstore8 offset value),
+        []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
 @[simp] theorem primCall_sload_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -2164,6 +2415,74 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state.setMachineState machineState', [value]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+@[simp] theorem primCall_keccak256_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.KECCAK256 [offset, size] =
+      let (value, machineState') := state.toMachineState.keccak256 offset size
+      .ok (state.setMachineState machineState', [value]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_log0_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.LOG0 [offset, size] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[] state.toSharedState), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_log1_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size topic0 : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.LOG1 [offset, size, topic0] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0] state.toSharedState), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_log2_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.LOG2 [offset, size, topic0, topic1] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0, topic1]
+          state.toSharedState), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_log3_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 topic2 : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.LOG3 [offset, size, topic0, topic1, topic2] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0, topic1, topic2]
+          state.toSharedState), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_log4_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 topic2 topic3 : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.LOG4 [offset, size, topic0, topic1, topic2, topic3] =
+      .ok (state.setSharedState
+        (EvmYul.SharedState.logOp offset size #[topic0, topic1, topic2, topic3]
+          state.toSharedState), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
 @[simp] theorem primCall_sstore_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -2173,6 +2492,77 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
         EvmYul.Operation.SSTORE [slot, value] =
       .ok (state.setState (state.toState.sstore slot value), []) := by
   cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_tload_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (slot : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.TLOAD [slot] =
+      let (state', value) := state.toState.tload slot
+      .ok (state.setSharedState { state.toSharedState with toState := state' },
+        [value]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_tstore_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (slot value : EvmYul.UInt256)
+    (hPerm : state.executionEnv.perm = true) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.TSTORE [slot, value] =
+      .ok (state.setState (state.toState.tstore slot value), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, hPerm]
+
+@[simp] theorem primCall_msize_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.MSIZE [] =
+      .ok (state, [state.toMachineState.msize]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_gas_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.GAS [] =
+      .ok (state, [state.toMachineState.gas]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_returndatasize_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.RETURNDATASIZE [] =
+      .ok (state, [state.toMachineState.returndatasize]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_calldatacopy_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (mstart datastart size : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.CALLDATACOPY [mstart, datastart, size] =
+      .ok (state.setSharedState
+        (state.toSharedState.calldatacopy mstart datastart size), []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_returndatacopy_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (mstart rstart size : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.RETURNDATACOPY [mstart, rstart, size] =
+      .ok (state.setMachineState
+        (state.toSharedState.toMachineState.returndatacopy mstart rstart size),
+        []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
+
+@[simp] theorem primCall_pop_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (value : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.POP [value] =
+      .ok (state, []) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall]
 
 @[simp] theorem primCall_stop_ok
     (fuel : Nat)
@@ -4481,6 +4871,47 @@ theorem NativePrimCallPreservesWord_address
       cases hExec
       exact hLookup
 
+theorem NativePrimCallPreservesWord_balance
+    (name : EvmYul.Identifier)
+    (expected account : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.BALANCE [account] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_balance_ok] at hExec
+      cases hExec
+      cases state with
+      | Ok shared store =>
+          simpa [EvmYul.Yul.State.setSharedState] using hLookup
+      | OutOfFuel =>
+          simpa [EvmYul.Yul.State.setSharedState] using hLookup
+      | Checkpoint jump =>
+          cases jump <;>
+            simpa [EvmYul.Yul.State.setSharedState] using hLookup
+
+theorem NativePrimCallPreservesWord_origin
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.ORIGIN [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_origin_ok] at hExec
+      cases hExec
+      exact hLookup
+
 theorem NativePrimCallPreservesWord_caller
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal) :
@@ -4529,6 +4960,108 @@ theorem NativePrimCallPreservesWord_number
       simp [EvmYul.Yul.primCall] at hExec
   | succ fuel' =>
       rw [primCall_number_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_chainid
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CHAINID [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_chainid_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_blobbasefee
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.BLOBBASEFEE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_blobbasefee_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_gasprice
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.GASPRICE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_gasprice_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_coinbase
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.COINBASE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_coinbase_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_gaslimit
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.GASLIMIT [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_gaslimit_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_selfbalance
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SELFBALANCE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_selfbalance_ok] at hExec
       cases hExec
       exact hLookup
 
@@ -4968,6 +5501,429 @@ theorem NativePrimCallPreservesWord_mload
           rw [state_getElem_setMachineState]
           exact hLookup
 
+theorem NativePrimCallPreservesWord_mstore
+    (name : EvmYul.Identifier)
+    (expected offset value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MSTORE [offset, value] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_mstore_ok] at hExec
+      cases hExec
+      rw [state_getElem_setMachineState]
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_mstore8
+    (name : EvmYul.Identifier)
+    (expected offset value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MSTORE8 [offset, value] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_mstore8_ok] at hExec
+      cases hExec
+      rw [state_getElem_setMachineState]
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_tload
+    (name : EvmYul.Identifier)
+    (expected slot : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.TLOAD [slot] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_tload_ok] at hExec
+      cases hTload : state.toState.tload slot with
+      | mk state' value =>
+          simp [hTload] at hExec
+          cases hExec
+          subst final
+          rw [state_getElem_setSharedState]
+          exact hLookup
+
+theorem NativePrimCallPreservesWord_tstore
+    (name : EvmYul.Identifier)
+    (expected slot value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.TSTORE [slot, value] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_tstore_ok fuel' state slot value hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setState]
+        exact hLookup
+      · simp [EvmYul.Yul.primCall, hPerm] at hExec
+        change
+          (Except.error EvmYul.Yul.Exception.StaticModeViolation :
+              Except EvmYul.Yul.Exception
+                (EvmYul.Yul.State × List EvmYul.Literal)) =
+            Except.ok (final, rets) at hExec
+        cases hExec
+
+theorem NativePrimCallPreservesWord_sstore
+    (name : EvmYul.Identifier)
+    (expected slot value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SSTORE [slot, value] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_sstore_ok fuel' state slot value hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setState]
+        exact hLookup
+      · simp [EvmYul.Yul.primCall, hPerm] at hExec
+        change
+          (Except.error EvmYul.Yul.Exception.StaticModeViolation :
+              Except EvmYul.Yul.Exception
+                (EvmYul.Yul.State × List EvmYul.Literal)) =
+            Except.ok (final, rets) at hExec
+        cases hExec
+
+theorem NativePrimCallPreservesWord_stop
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.STOP [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets _hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_stop_ok] at hExec
+      cases hExec
+
+theorem NativePrimCallPreservesWord_return
+    (name : EvmYul.Identifier)
+    (expected offset size : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.RETURN [offset, size] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets _hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_return_ok fuel' state offset size] at hExec
+      cases hReturn :
+          EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmReturn
+            state [offset, size] with
+      | error err =>
+          simp [hReturn] at hExec
+      | ok ret =>
+          rcases ret with ⟨returnState, value⟩
+          simp [hReturn] at hExec
+
+theorem NativePrimCallPreservesWord_revert
+    (name : EvmYul.Identifier)
+    (expected offset size : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.REVERT [offset, size] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets _hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_revert_ok fuel' state offset size] at hExec
+      cases hRevert :
+          EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmRevert
+            state [offset, size] with
+      | error err =>
+          simp [hRevert] at hExec
+      | ok ret =>
+          rcases ret with ⟨revertState, value⟩
+          simp [hRevert] at hExec
+
+theorem NativePrimCallPreservesWord_msize
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MSIZE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_msize_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_gas
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.GAS [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_gas_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_returndatasize
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.RETURNDATASIZE [] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_returndatasize_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_calldatacopy
+    (name : EvmYul.Identifier)
+    (expected mstart datastart size : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CALLDATACOPY
+          [mstart, datastart, size] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_calldatacopy_ok] at hExec
+      cases hExec
+      rw [state_getElem_setSharedState]
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_returndatacopy
+    (name : EvmYul.Identifier)
+    (expected mstart rstart size : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.RETURNDATACOPY
+          [mstart, rstart, size] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_returndatacopy_ok] at hExec
+      cases hExec
+      rw [state_getElem_setMachineState]
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_pop
+    (name : EvmYul.Identifier)
+    (expected value : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.POP [value] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_pop_ok] at hExec
+      cases hExec
+      exact hLookup
+
+theorem NativePrimCallPreservesWord_keccak256
+    (name : EvmYul.Identifier)
+    (expected offset size : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.KECCAK256
+          [offset, size] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      rw [primCall_keccak256_ok] at hExec
+      cases hKeccak : state.toMachineState.keccak256 offset size with
+      | mk value machineState' =>
+          simp [hKeccak] at hExec
+          cases hExec
+          subst final
+          rw [state_getElem_setMachineState]
+          exact hLookup
+
+theorem NativePrimCallPreservesWord_log0
+    (name : EvmYul.Identifier)
+    (expected offset size : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG0 [offset, size] =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_log0_ok fuel' state offset size hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setSharedState]
+        exact hLookup
+      · have hPermFalse : state.executionEnv.perm = false := by
+          cases hp : state.executionEnv.perm
+          · rfl
+          · exact False.elim (hPerm hp)
+        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+        cases hExec
+
+theorem NativePrimCallPreservesWord_log1
+    (name : EvmYul.Identifier)
+    (expected offset size topic0 : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG1
+          [offset, size, topic0] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_log1_ok fuel' state offset size topic0 hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setSharedState]
+        exact hLookup
+      · have hPermFalse : state.executionEnv.perm = false := by
+          cases hp : state.executionEnv.perm
+          · rfl
+          · exact False.elim (hPerm hp)
+        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+        cases hExec
+
+theorem NativePrimCallPreservesWord_log2
+    (name : EvmYul.Identifier)
+    (expected offset size topic0 topic1 : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG2
+          [offset, size, topic0, topic1] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_log2_ok fuel' state offset size topic0 topic1 hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setSharedState]
+        exact hLookup
+      · have hPermFalse : state.executionEnv.perm = false := by
+          cases hp : state.executionEnv.perm
+          · rfl
+          · exact False.elim (hPerm hp)
+        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+        cases hExec
+
+theorem NativePrimCallPreservesWord_log3
+    (name : EvmYul.Identifier)
+    (expected offset size topic0 topic1 topic2 : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG3
+          [offset, size, topic0, topic1, topic2] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_log3_ok fuel' state offset size topic0 topic1 topic2 hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setSharedState]
+        exact hLookup
+      · have hPermFalse : state.executionEnv.perm = false := by
+          cases hp : state.executionEnv.perm
+          · rfl
+          · exact False.elim (hPerm hp)
+        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+        cases hExec
+
+theorem NativePrimCallPreservesWord_log4
+    (name : EvmYul.Identifier)
+    (expected offset size topic0 topic1 topic2 topic3 : EvmYul.Literal) :
+    ∀ fuel state final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG4
+          [offset, size, topic0, topic1, topic2, topic3] = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state final rets hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall] at hExec
+  | succ fuel' =>
+      by_cases hPerm : state.executionEnv.perm = true
+      · rw [primCall_log4_ok fuel' state offset size topic0 topic1 topic2 topic3 hPerm] at hExec
+        cases hExec
+        rw [state_getElem_setSharedState]
+        exact hLookup
+      · have hPermFalse : state.executionEnv.perm = false := by
+          cases hp : state.executionEnv.perm
+          · rfl
+          · exact False.elim (hPerm hp)
+        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+        cases hExec
+
 theorem NativeExprPreservesWord_var
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -5061,6 +6017,89 @@ theorem NativeEvalArgsPreservesWord_cons
                   exact hArgs tailFuel argState argsState values
                     hArgLookup hEvalArgs
 
+theorem NativeEvalArgsPreservesWord_map_lowerExprNative
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        NativeExprPreservesWord name expected
+          (Backends.lowerExprNative arg) codeOverride) :
+    NativeEvalArgsPreservesWord name expected
+      (args.map Backends.lowerExprNative) codeOverride := by
+  induction args with
+  | nil =>
+      exact NativeEvalArgsPreservesWord_nil name expected codeOverride
+  | cons arg rest ih =>
+      exact NativeEvalArgsPreservesWord_cons name expected
+        (Backends.lowerExprNative arg) (rest.map Backends.lowerExprNative)
+        codeOverride
+        (hArgs arg (by simp))
+        (ih (by
+          intro restArg hRest
+          exact hArgs restArg (by simp [hRest])))
+
+theorem NativeEvalArgsPreservesWord_map_lowerExprNative_reverse
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        NativeExprPreservesWord name expected
+          (Backends.lowerExprNative arg) codeOverride) :
+    NativeEvalArgsPreservesWord name expected
+      ((args.map Backends.lowerExprNative).reverse) codeOverride := by
+  simpa [List.map_reverse] using
+    NativeEvalArgsPreservesWord_map_lowerExprNative name expected
+      args.reverse codeOverride
+      (by
+        intro arg hArg
+        exact hArgs arg (by simpa using hArg))
+
+theorem NativeExprPreservesWord_lowerExprNative_lit
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (value : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeExprPreservesWord name expected
+      (Backends.lowerExprNative (.lit value)) codeOverride := by
+  simpa [Backends.lowerExprNative] using
+    NativeExprPreservesWord_lit name expected (EvmYul.UInt256.ofNat value)
+      codeOverride
+
+theorem NativeExprPreservesWord_lowerExprNative_hex
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (value : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeExprPreservesWord name expected
+      (Backends.lowerExprNative (.hex value)) codeOverride := by
+  simpa [Backends.lowerExprNative] using
+    NativeExprPreservesWord_lit name expected (EvmYul.UInt256.ofNat value)
+      codeOverride
+
+theorem NativeExprPreservesWord_lowerExprNative_str
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (identifier : EvmYul.Identifier)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeExprPreservesWord name expected
+      (Backends.lowerExprNative (.str identifier)) codeOverride := by
+  simpa [Backends.lowerExprNative] using
+    NativeExprPreservesWord_var name expected identifier codeOverride
+
+theorem NativeExprPreservesWord_lowerExprNative_ident
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (identifier : EvmYul.Identifier)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeExprPreservesWord name expected
+      (Backends.lowerExprNative (.ident identifier)) codeOverride := by
+  simpa [Backends.lowerExprNative] using
+    NativeExprPreservesWord_var name expected identifier codeOverride
+
 theorem NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -5111,6 +6150,28 @@ theorem NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
                   exact hPrim fuel' argState values.reverse primState (ret :: rest)
                     hArgLookup hPrimCall
 
+theorem NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (op : EvmYul.Operation .Yul)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hOp : Backends.lookupRuntimePrimOp func = some op)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hPrim :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state op values = .ok (final, rets) →
+          final[name]! = expected) :
+    NativeExprPreservesWord name expected
+      (Backends.lowerExprNative (.call func args)) codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp func args op hOp]
+  exact NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
+    name expected op (args.map Backends.lowerExprNative) codeOverride hArgs
+    hPrim
+
 theorem NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
     (name : EvmYul.Identifier) (expected : EvmYul.Literal)
     (functionName : EvmYul.Yul.Ast.YulFunctionName) (args : List EvmYul.Yul.Ast.Expr)
@@ -5159,6 +6220,28 @@ theorem NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
                       rcases hEval with ⟨rfl, _⟩
                       exact hCall callFuel argState values.reverse callState
                         (ret :: rest) hArgLookup hUserCall
+
+theorem NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hOp : Backends.lookupRuntimePrimOp func = none)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hCall :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some func) codeOverride state =
+            .ok (final, rets) →
+          final[name]! = expected) :
+    NativeExprPreservesWord name expected
+      (Backends.lowerExprNative (.call func args)) codeOverride := by
+  rw [Backends.lowerExprNative_call_userFunction func args hOp]
+  exact NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
+    name expected func (args.map Backends.lowerExprNative) codeOverride hArgs
+    hCall
 
 theorem state_getElem_overwrite?_left
     (state next : EvmYul.Yul.State)
@@ -5406,6 +6489,21 @@ theorem NativeStmtPreservesWord_block
     NativeStmtPreservesWord name value (.Block body) codeOverride :=
   hBody
 
+theorem NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames body)
+    (hPreserves :
+      ∀ stmt, stmt ∈ body →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeStmtPreservesWord name value (.Block body) codeOverride :=
+  NativeStmtPreservesWord_block name value body codeOverride
+    (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+      name value body codeOverride hFresh hPreserves)
+
 theorem NativeStmtPreservesWord_if_of_eval_self
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
@@ -5467,6 +6565,30 @@ theorem NativeStmtPreservesWord_if_of_eval_preserves
         simp [hCondZero] at hExec
         cases hExec
         exact hCondLookup
+
+theorem NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond :
+      ∀ fuel state,
+        state[name]! = value →
+          ∃ condState condValue,
+            EvmYul.Yul.eval fuel cond codeOverride state =
+              .ok (condState, condValue) ∧
+            condState[name]! = value)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames body)
+    (hPreserves :
+      ∀ stmt, stmt ∈ body →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeStmtPreservesWord name value (.If cond body) codeOverride :=
+  NativeStmtPreservesWord_if_of_eval_preserves name value cond body codeOverride
+    hCond
+    (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+      name value body codeOverride hFresh hPreserves)
 
 theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
     (name target : EvmYul.Identifier)
@@ -5607,6 +6729,66 @@ theorem NativeStmtPreservesWord_let_lit_of_not_mem
       rw [state_getElem_insert_of_ne state name head literal hneq]
       exact hLookup
 
+theorem NativeStmtPreservesWord_let_lowerExprNative_lit_of_not_mem
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (literal : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hvars : vars ≠ [])
+    (hnot : name ∉ vars) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.lit literal))))
+      codeOverride := by
+  simpa [Backends.lowerExprNative] using
+    NativeStmtPreservesWord_let_lit_of_not_mem name expected vars
+      (EvmYul.UInt256.ofNat literal) codeOverride hvars hnot
+
+theorem NativeStmtPreservesWord_let_lowerExprNative_hex_of_not_mem
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (literal : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hvars : vars ≠ [])
+    (hnot : name ∉ vars) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.hex literal))))
+      codeOverride := by
+  simpa [Backends.lowerExprNative] using
+    NativeStmtPreservesWord_let_lit_of_not_mem name expected vars
+      (EvmYul.UInt256.ofNat literal) codeOverride hvars hnot
+
+theorem NativeStmtPreservesWord_let_lowerExprNative_str_of_not_mem
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (identifier : EvmYul.Identifier)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hvars : vars ≠ [])
+    (hnot : name ∉ vars) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.str identifier))))
+      codeOverride := by
+  simpa [Backends.lowerExprNative] using
+    NativeStmtPreservesWord_let_var_of_not_mem name expected vars identifier
+      codeOverride hvars hnot
+
+theorem NativeStmtPreservesWord_let_lowerExprNative_ident_of_not_mem
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (identifier : EvmYul.Identifier)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hvars : vars ≠ [])
+    (hnot : name ∉ vars) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.ident identifier))))
+      codeOverride := by
+  simpa [Backends.lowerExprNative] using
+    NativeStmtPreservesWord_let_var_of_not_mem name expected vars identifier
+      codeOverride hvars hnot
+
 theorem NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves
     (name : EvmYul.Identifier) (expected : EvmYul.Literal)
     (vars : List EvmYul.Identifier) (prim : EvmYul.Yul.Ast.PrimOp)
@@ -5701,6 +6883,208 @@ theorem NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves
                   rw [state_getElem_multifill_of_not_mem callState name vars rets hnot]
                   exact hCallLookup
 
+theorem NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (args : List YulExpr)
+    (op : EvmYul.Operation .Yul)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hnot : name ∉ vars)
+    (hOp : Backends.lookupRuntimePrimOp func = some op)
+    (hArgs :
+      ∀ fuel state argState values,
+        state[name]! = expected →
+          EvmYul.Yul.evalArgs fuel
+              ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+            .ok (argState, values) →
+          argState[name]! = expected)
+    (hPrim :
+      ∀ fuel state values primState rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state op values = .ok (primState, rets) →
+          primState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.call func args))))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp func args op hOp]
+  exact NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves
+    name expected vars op (args.map Backends.lowerExprNative) codeOverride
+    hnot hArgs hPrim
+
+theorem NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hnot : name ∉ vars)
+    (hOp : Backends.lookupRuntimePrimOp func = none)
+    (hArgs :
+      ∀ fuel state argState values,
+        state[name]! = expected →
+          EvmYul.Yul.evalArgs fuel
+              ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+            .ok (argState, values) →
+          argState[name]! = expected)
+    (hCall :
+      ∀ fuel state values callState rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some func) codeOverride state =
+            .ok (callState, rets) →
+          callState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.call func args))))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_userFunction func args hOp]
+  exact NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves
+    name expected vars func (args.map Backends.lowerExprNative) codeOverride
+    hnot hArgs hCall
+
+theorem NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (args : List YulExpr)
+    (op : EvmYul.Operation .Yul)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hnot : name ∉ vars)
+    (hOp : Backends.lookupRuntimePrimOp func = some op)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hPrim :
+      ∀ fuel state values primState rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state op values = .ok (primState, rets) →
+          primState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.call func args))))
+      codeOverride :=
+  NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+    name func expected vars args op codeOverride hnot hOp hArgs hPrim
+
+theorem NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hnot : name ∉ vars)
+    (hOp : Backends.lookupRuntimePrimOp func = none)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hCall :
+      ∀ fuel state values callState rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some func) codeOverride state =
+            .ok (callState, rets) →
+          callState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.call func args))))
+      codeOverride :=
+  NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
+    name func expected vars args codeOverride hnot hOp hArgs hCall
+
+theorem NativeStmtPreservesWord_lowerAssignNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+    (name target func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (op : EvmYul.Operation .Yul)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hne : name ≠ target)
+    (hOp : Backends.lookupRuntimePrimOp func = some op)
+    (hArgs :
+      ∀ fuel state argState values,
+        state[name]! = expected →
+          EvmYul.Yul.evalArgs fuel
+              ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+            .ok (argState, values) →
+          argState[name]! = expected)
+    (hPrim :
+      ∀ fuel state values primState rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state op values = .ok (primState, rets) →
+          primState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (Backends.lowerAssignNative target (.call func args)) codeOverride := by
+  rw [Backends.lowerAssignNative,
+    Backends.lowerExprNative_call_runtimePrimOp func args op hOp]
+  exact NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves
+    name expected [target] op (args.map Backends.lowerExprNative) codeOverride
+    (by simp [hne]) hArgs hPrim
+
+theorem NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_evalArgs_call_preserves
+    (name target func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hne : name ≠ target)
+    (hOp : Backends.lookupRuntimePrimOp func = none)
+    (hArgs :
+      ∀ fuel state argState values,
+        state[name]! = expected →
+          EvmYul.Yul.evalArgs fuel
+              ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+            .ok (argState, values) →
+          argState[name]! = expected)
+    (hCall :
+      ∀ fuel state values callState rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some func) codeOverride state =
+            .ok (callState, rets) →
+          callState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (Backends.lowerAssignNative target (.call func args)) codeOverride := by
+  rw [Backends.lowerAssignNative,
+    Backends.lowerExprNative_call_userFunction func args hOp]
+  exact NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves
+    name expected [target] func (args.map Backends.lowerExprNative) codeOverride
+    (by simp [hne]) hArgs hCall
+
+theorem NativeStmtPreservesWord_lowerAssignNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+    (name target func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (op : EvmYul.Operation .Yul)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hne : name ≠ target)
+    (hOp : Backends.lookupRuntimePrimOp func = some op)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hPrim :
+      ∀ fuel state values primState rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state op values = .ok (primState, rets) →
+          primState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (Backends.lowerAssignNative target (.call func args)) codeOverride :=
+  NativeStmtPreservesWord_lowerAssignNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+    name target func expected args op codeOverride hne hOp hArgs hPrim
+
+theorem NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_nativeEvalArgs_call_preserves
+    (name target func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hne : name ≠ target)
+    (hOp : Backends.lookupRuntimePrimOp func = none)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hCall :
+      ∀ fuel state values callState rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some func) codeOverride state =
+            .ok (callState, rets) →
+          callState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (Backends.lowerAssignNative target (.call func args)) codeOverride :=
+  NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_evalArgs_call_preserves
+    name target func expected args codeOverride hne hOp hArgs hCall
+
 theorem NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -5794,6 +7178,102 @@ theorem NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves
                       hArgLookup hUserCall
                   cases callState <;> simpa using hCallLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (op : EvmYul.Operation .Yul)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hOp : Backends.lookupRuntimePrimOp func = some op)
+    (hArgs :
+      ∀ fuel state argState values,
+        state[name]! = expected →
+          EvmYul.Yul.evalArgs fuel
+              ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+            .ok (argState, values) →
+          argState[name]! = expected)
+    (hPrim :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state op values = .ok (final, rets) →
+          final[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call func args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp func args op hOp]
+  exact NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves
+    name expected op (args.map Backends.lowerExprNative) codeOverride hArgs
+    hPrim
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hOp : Backends.lookupRuntimePrimOp func = none)
+    (hArgs :
+      ∀ fuel state argState values,
+        state[name]! = expected →
+          EvmYul.Yul.evalArgs fuel
+              ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+            .ok (argState, values) →
+          argState[name]! = expected)
+    (hCall :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some func) codeOverride state =
+            .ok (final, rets) →
+          final[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call func args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_userFunction func args hOp]
+  exact NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves
+    name expected func (args.map Backends.lowerExprNative) codeOverride hArgs
+    hCall
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (op : EvmYul.Operation .Yul)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hOp : Backends.lookupRuntimePrimOp func = some op)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hPrim :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state op values = .ok (final, rets) →
+          final[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call func args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+    name func expected args op codeOverride hOp hArgs hPrim
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hOp : Backends.lookupRuntimePrimOp func = none)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hCall :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some func) codeOverride state =
+            .ok (final, rets) →
+          final[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call func args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
+    name func expected args codeOverride hOp hArgs hCall
+
 theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -5833,6 +7313,27 @@ theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
           | Checkpoint jump =>
               cases jump <;>
                 simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "mstore" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "mstore" args
+    EvmYul.Operation.MSTORE (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
 theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
     (name : EvmYul.Identifier)
@@ -5877,6 +7378,177 @@ theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
             | Checkpoint jump =>
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, slot]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "sstore" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "sstore" args
+    EvmYul.Operation.SSTORE (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.RETURN) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, hEval, _hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ returnFuel =>
+          rw [primCall_return_ok returnFuel argState offset size] at hExec
+          cases hReturn :
+              EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmReturn
+                argState [offset, size] with
+          | error err =>
+              simp [hReturn] at hExec
+          | ok ret =>
+              rcases ret with ⟨returnState, value⟩
+              simp [hReturn] at hExec
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "return" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "return" args
+    EvmYul.Operation.RETURN (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.REVERT) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, hEval, _hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ revertFuel =>
+          rw [primCall_revert_ok revertFuel argState offset size] at hExec
+          cases hRevert :
+              EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmRevert
+                argState [offset, size] with
+          | error err =>
+              simp [hRevert] at hExec
+          | ok ret =>
+              rcases ret with ⟨revertState, value⟩
+              simp [hRevert] at hExec
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "revert" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "revert" args
+    EvmYul.Operation.REVERT (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_stop
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.STOP) []))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.exec, EvmYul.Yul.execPrimCall,
+            EvmYul.Yul.evalArgs, EvmYul.Yul.reverse'] at hExec
+      | succ stopFuel =>
+          simp [EvmYul.Yul.exec, EvmYul.Yul.execPrimCall,
+            EvmYul.Yul.evalArgs, EvmYul.Yul.reverse'] at hExec
+          simp [EvmYul.Yul.multifill'] at hExec
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_stop
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "stop" [])))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "stop" []
+    EvmYul.Operation.STOP (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_stop name expected codeOverride
 
 theorem nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
     (switchId tag : Nat)
