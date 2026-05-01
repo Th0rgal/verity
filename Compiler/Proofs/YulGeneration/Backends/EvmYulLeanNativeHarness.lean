@@ -6563,6 +6563,19 @@ theorem nativeStmtsWriteNames_append_not_mem_iff
     · exact hLeft hMem
     · exact hRight hMem
 
+theorem nativeStmtsWriteNames_singleton_not_mem_iff
+    (name : EvmYul.Identifier)
+    (stmt : EvmYul.Yul.Ast.Stmt) :
+    name ∉ Backends.nativeStmtsWriteNames [stmt] ↔
+      name ∉ Backends.nativeStmtWriteNames stmt := by
+  rw [nativeStmtsWriteNames_cons_not_mem_iff]
+  constructor
+  · intro hFresh
+    exact hFresh.1
+  · intro hFresh
+    exact ⟨hFresh, by simp [Backends.nativeStmtsWriteNames,
+      Backends.collectNativeStmtWriteNames]⟩
+
 theorem NativeBlockPreservesWord_append_of_forall_stmt
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
@@ -6624,6 +6637,20 @@ theorem NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem
     (hRest
       (nativeStmtsWriteNames_tail_not_mem_of_cons_not_mem
         name stmt rest hFresh))
+
+theorem NativeBlockPreservesWord_singleton_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames [stmt])
+    (hStmt :
+      name ∉ Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeBlockPreservesWord name value [stmt] codeOverride :=
+  NativeBlockPreservesWord_singleton name value stmt codeOverride
+    (hStmt
+      ((nativeStmtsWriteNames_singleton_not_mem_iff name stmt).mp hFresh))
 
 theorem NativeStmtPreservesWord_block
     (name : EvmYul.Identifier)
