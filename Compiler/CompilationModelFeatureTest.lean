@@ -1034,6 +1034,29 @@ example : failWithModelUsesDeclaredCustomError = true := by native_decide
 
 end MacroStatelessSectionsSmoke
 
+namespace MacroSafeMulRequireSmoke
+
+def safeMulRequireLowersToOverflowGuard : Bool :=
+  match Contracts.Smoke.SafeMulRequireSmoke.multiplyStored_modelBody with
+  | [ Stmt.letVar "current" (Expr.storage "product"),
+      Stmt.require
+        (Expr.logicalOr
+          (Expr.eq (Expr.param "factor") (Expr.literal 0))
+          (Expr.eq
+            (Expr.div
+              (Expr.mul (Expr.localVar "current") (Expr.param "factor"))
+              (Expr.param "factor"))
+            (Expr.localVar "current")))
+        "Product overflow",
+      Stmt.letVar "next" (Expr.mul (Expr.localVar "current") (Expr.param "factor")),
+      Stmt.setStorage "product" (Expr.localVar "next"),
+      Stmt.return (Expr.localVar "next") ] => true
+  | _ => false
+
+example : safeMulRequireLowersToOverflowGuard = true := by native_decide
+
+end MacroSafeMulRequireSmoke
+
 namespace MacroInt256LoweringSmoke
 
 open Contracts.Smoke

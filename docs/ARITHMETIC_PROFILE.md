@@ -72,7 +72,7 @@ For contracts that require overflow protection, the EDSL provides checked operat
 | `safeMul a b` | `Option Uint256` | `none` if `a * b > 2^256 - 1` |
 | `safeDiv a b` | `Option Uint256` | `none` if `b = 0` |
 
-Checked operations are **EDSL-level constructs**. They are not compiler-enforced; the compiler always uses wrapping arithmetic. Contracts that need checked behavior must explicitly use `safeAdd`/`safeSub`/`safeMul` and handle the `Option` result (e.g., via `requireSomeUint` to revert on `none`).
+Checked operations are **explicit EDSL-level constructs**. The compiler does not insert overflow checks for bare `add`/`sub`/`mul`; those operations still use wrapping arithmetic. Contracts that need checked behavior must explicitly use `safeAdd`/`safeSub`/`safeMul` and handle the `Option` result. In `verity_contract`, `requireSomeUint (safeAdd ...)`, `requireSomeUint (safeSub ...)`, and `requireSomeUint (safeMul ...)` lower to concrete `require` guards followed by the corresponding arithmetic result binding.
 
 **Correctness proofs**: `Verity/Proofs/Stdlib/Math.lean` proves that checked operations return the correct result within bounds and `none` otherwise (e.g., `safeAdd_some`, `safeAdd_none`).
 

@@ -314,6 +314,16 @@ verity_contract CustomErrorSmoke where
   function echo (amount : Uint256) : Uint256 := do
     return amount
 
+verity_contract SafeMulRequireSmoke where
+  storage
+    product : Uint256 := slot 0
+
+  function multiplyStored (factor : Uint256) : Uint256 := do
+    let current ← getStorage product
+    let next ← requireSomeUint (safeMul current factor) "Product overflow"
+    setStorage product next
+    return next
+
 verity_contract SignedBuiltinSmoke where
   storage
     signedSlot : Int256 := slot 0
@@ -1791,6 +1801,7 @@ end SpecGenSmoke
 #check_contract MappingWordSmoke
 #check_contract StorageWordsSmoke
 #check_contract CustomErrorSmoke
+#check_contract SafeMulRequireSmoke
 #check_contract SignedBuiltinSmoke
 #check_contract StatelessSmoke
 #check_contract SpecialEntrypointSmoke
