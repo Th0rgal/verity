@@ -93,7 +93,8 @@ Checked operations are **EDSL-level constructs**. They are not compiler-enforced
 
 The sandwich bounds are especially useful for AMM reserve/share proofs.
 For BN254/Groth16 public-input proofs, `modField_nat_eq`, `modField_lt`,
-and `modField_eq_self_of_lt` expose the exact `SNARK_SCALAR_FIELD` reduction
+`modField_eq_self_of_lt`, `modField_nat_mod_eq`, and
+`modField_idempotent` expose the exact `SNARK_SCALAR_FIELD` reduction
 semantics used by `Stdlib.Math.modField`.
 
 **Example**: See `Contracts/SafeCounter/SafeCounter.lean` and `Contracts/SafeCounter/Proofs/Basic.lean` for a contract using checked arithmetic with proven overflow/underflow behavior.

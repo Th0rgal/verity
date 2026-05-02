@@ -575,6 +575,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Verity.Proofs.Stdlib.Math.modField_nat_eq
 #print axioms Verity.Proofs.Stdlib.Math.modField_lt
 #print axioms Verity.Proofs.Stdlib.Math.modField_eq_self_of_lt
+#print axioms Verity.Proofs.Stdlib.Math.modField_nat_mod_eq
+#print axioms Verity.Proofs.Stdlib.Math.modField_idempotent
 -- #print axioms Verity.Proofs.Stdlib.Math.modulus_eq_max_succ  -- private
 -- #print axioms Verity.Proofs.Stdlib.Math.lt_modulus_of_le_max  -- private
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_nat_eq
@@ -3804,4 +3806,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3628 theorems/lemmas (2682 public, 946 private, 0 sorry'd)
+-- Total: 3630 theorems/lemmas (2684 public, 946 private, 0 sorry'd)

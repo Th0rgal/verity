@@ -56,6 +56,14 @@ theorem modField_eq_self_of_lt (x : Uint256)
   rw [modField_nat_eq]
   exact Nat.mod_eq_of_lt h
 
+theorem modField_nat_mod_eq (x : Uint256) :
+    (modField x : Nat) % (SNARK_SCALAR_FIELD : Nat) = (modField x : Nat) := by
+  exact Nat.mod_eq_of_lt (modField_lt x)
+
+theorem modField_idempotent (x : Uint256) :
+    modField (modField x) = modField x := by
+  exact modField_eq_self_of_lt (modField x) (modField_lt x)
+
 /-! ## mulDiv / wad Helpers -/
 
 private theorem modulus_eq_max_succ :
