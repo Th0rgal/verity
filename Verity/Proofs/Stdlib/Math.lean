@@ -56,6 +56,26 @@ theorem modField_eq_self_of_lt (x : Uint256)
   rw [modField_nat_eq]
   exact Nat.mod_eq_of_lt h
 
+theorem modField_zero :
+    modField 0 = 0 := by
+  apply Verity.Core.Uint256.ext
+  rw [modField_nat_eq]
+  simp
+
+theorem modField_SNARK_SCALAR_FIELD :
+    modField SNARK_SCALAR_FIELD = 0 := by
+  apply Verity.Core.Uint256.ext
+  rw [modField_nat_eq]
+  exact Nat.mod_self _
+
+theorem modField_eq_of_nat_mod_eq {x y : Uint256}
+    (h : (x : Nat) % (SNARK_SCALAR_FIELD : Nat) =
+      (y : Nat) % (SNARK_SCALAR_FIELD : Nat)) :
+    modField x = modField y := by
+  apply Verity.Core.Uint256.ext
+  rw [modField_nat_eq, modField_nat_eq]
+  exact h
+
 theorem modField_nat_mod_eq (x : Uint256) :
     (modField x : Nat) % (SNARK_SCALAR_FIELD : Nat) = (modField x : Nat) := by
   exact Nat.mod_eq_of_lt (modField_lt x)
