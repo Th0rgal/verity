@@ -753,6 +753,39 @@ theorem mulDivUp_nat_eq (a b c : Uint256)
             simp [hNumerator]
     _ = (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) := Nat.mod_eq_of_lt hDivLt
 
+/-- `mulDiv512Down?` agrees with the existing `mulDivDown` helper when the
+intermediate product fits in `uint256`. -/
+theorem mulDiv512Down?_eq_mulDivDown_of_no_overflow (a b c : Uint256)
+    (hC : (c : Nat) ≠ 0)
+    (hMul : (a : Nat) * (b : Nat) ≤ MAX_UINT256) :
+    mulDiv512Down? a b c = some (mulDivDown a b c) := by
+  have hQuotFit : ((a : Nat) * (b : Nat)) / (c : Nat) ≤ MAX_UINT256 :=
+    Nat.le_trans (Nat.div_le_self _ _) hMul
+  rw [mulDiv512Down?_some (a := a) (b := b) (c := c) hC hQuotFit]
+  congr
+  apply Verity.Core.Uint256.ext
+  rw [mulDivDown_nat_eq a b c hMul]
+  simp [hC, Nat.mod_eq_of_lt (lt_modulus_of_le_max hQuotFit)]
+
+/-- `mulDiv512Up?` agrees with the existing `mulDivUp` helper when the
+rounded numerator expression fits in `uint256`. -/
+theorem mulDiv512Up?_eq_mulDivUp_of_no_overflow (a b c : Uint256)
+    (hC : c ≠ 0)
+    (hNum : (a : Nat) * (b : Nat) + ((c : Nat) - 1) ≤ MAX_UINT256) :
+    mulDiv512Up? a b c = some (mulDivUp a b c) := by
+  have hCVal : (c : Nat) ≠ 0 := by
+    intro h
+    apply hC
+    exact Verity.Core.Uint256.ext (by simpa using h)
+  have hQuotFit :
+      (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256 :=
+    Nat.le_trans (Nat.div_le_self _ _) hNum
+  rw [mulDiv512Up?_some (a := a) (b := b) (c := c) hCVal hQuotFit]
+  congr
+  apply Verity.Core.Uint256.ext
+  rw [mulDivUp_nat_eq a b c hC hNum]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hQuotFit)]
+
 /-- The ceil helper never rounds below the floor helper when both are exact. -/
 theorem mulDivDown_le_mulDivUp (a b c : Uint256)
     (hC : c ≠ 0)
