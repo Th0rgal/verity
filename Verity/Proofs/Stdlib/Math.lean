@@ -146,6 +146,13 @@ theorem mulDiv512Down?_lt_succ_mul (a b c out : Uint256)
   simpa [Nat.mul_comm] using
     Nat.lt_mul_div_succ ((b : Nat) * (a : Nat)) (Nat.pos_of_ne_zero hC)
 
+/-- A successful full-precision floor result undershoots the exact product by
+less than one divisor-width. -/
+theorem mulDiv512Down?_mul_lt_add (a b c out : Uint256)
+    (h : mulDiv512Down? a b c = some out) :
+    (a : Nat) * (b : Nat) < (out : Nat) * (c : Nat) + (c : Nat) := by
+  simpa [Nat.right_distrib] using mulDiv512Down?_lt_succ_mul a b c out h
+
 /-- `mulDiv512Down?` rejects exactly zero divisors or overflowing floor quotients. -/
 theorem mulDiv512Down?_isNone_iff (a b c : Uint256) :
     (mulDiv512Down? a b c).isNone ↔
@@ -371,6 +378,16 @@ theorem mulDiv512Up?_mul_le_add_pred (a b c out : Uint256)
   rw [← hOut]
   simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit)]
   exact ceil_mul_div_le_add_pred ((a : Nat) * (b : Nat)) (c : Nat)
+
+/-- A successful full-precision ceil result overshoots the exact product by
+less than one divisor-width. -/
+theorem mulDiv512Up?_mul_lt_add (a b c out : Uint256)
+    (h : mulDiv512Up? a b c = some out) :
+    (out : Nat) * (c : Nat) < (a : Nat) * (b : Nat) + (c : Nat) := by
+  rcases (mulDiv512Up?_eq_some_iff a b c out).mp h with ⟨hC, _hFit, _hOut⟩
+  exact Nat.lt_of_le_of_lt
+    (mulDiv512Up?_mul_le_add_pred a b c out h)
+    (Nat.add_lt_add_left (Nat.sub_lt (Nat.pos_of_ne_zero hC) (by decide)) _)
 
 /-- `mulDiv512Up?` rejects exactly zero divisors or overflowing rounded-up quotients. -/
 theorem mulDiv512Up?_isNone_iff (a b c : Uint256) :
@@ -1639,6 +1656,7 @@ Full-precision mulDiv512 helpers:
 - `mulDiv512Down?_isSome_iff` / `mulDiv512Up?_isSome_iff` — characterize fit conditions
 - `mulDiv512Down?_isNone_iff` / `mulDiv512Up?_isNone_iff` — characterize rejection conditions
 - `mulDiv512Down?_mul_le` / `mulDiv512Down?_lt_succ_mul` — floor sandwich bounds
+- `mulDiv512Down?_mul_lt_add` / `mulDiv512Up?_mul_lt_add` — one-divisor error bounds
 - `mulDiv512Up?_mul_ge` / `mulDiv512Up?_mul_le_add_pred` — ceil sandwich bounds
 - `mulDiv512Down?_comm` / `mulDiv512Up?_comm` — numerator multiplication order does not matter
 - `mulDiv512Down?_monotone_left/right` / `mulDiv512Up?_monotone_left/right` — numerator monotonicity

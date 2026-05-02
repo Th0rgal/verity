@@ -92,10 +92,11 @@ and the final quotient fits; the matching `_none_of_zero_divisor`,
 expose the failure boundary. Successful full-precision results also have
 direct sandwich lemmas: `mulDiv512Down?_mul_le`,
 `mulDiv512Down?_lt_succ_mul`, `mulDiv512Up?_mul_ge`, and
-`mulDiv512Up?_mul_le_add_pred`. They also mirror the existing `mulDiv`
-convenience surface with numerator commutativity, successful-result numerator
-monotonicity, divisor antitonicity, positivity, zero-numerator, and exact
-same-denominator cancellation lemmas. Compatibility bridge lemmas
+`mulDiv512Up?_mul_le_add_pred`, plus one-divisor error-bound lemmas
+`mulDiv512Down?_mul_lt_add` and `mulDiv512Up?_mul_lt_add`. They also mirror the
+existing `mulDiv` convenience surface with numerator commutativity,
+successful-result numerator monotonicity, divisor antitonicity, positivity,
+zero-numerator, and exact same-denominator cancellation lemmas. Compatibility bridge lemmas
 `mulDiv512Down?_eq_mulDivDown_of_no_overflow` and
 `mulDiv512Up?_eq_mulDivUp_of_no_overflow` connect the full-precision helpers to
 the existing 256-bit helpers under the older no-overflow preconditions.
