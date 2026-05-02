@@ -90,6 +90,18 @@ theorem modField_eq_of_nat_mod_eq {x y : Uint256}
   rw [modField_nat_eq, modField_nat_eq]
   exact h
 
+theorem modField_eq_iff_nat_mod_eq (x y : Uint256) :
+    modField x = modField y ↔
+      (x : Nat) % (SNARK_SCALAR_FIELD : Nat) =
+        (y : Nat) % (SNARK_SCALAR_FIELD : Nat) := by
+  constructor
+  · intro h
+    have hNat : (modField x : Nat) = (modField y : Nat) := by
+      simpa using congrArg (fun z : Uint256 => (z : Nat)) h
+    rw [modField_nat_eq, modField_nat_eq] at hNat
+    exact hNat
+  · exact modField_eq_of_nat_mod_eq
+
 theorem modField_nat_mod_eq (x : Uint256) :
     (modField x : Nat) % (SNARK_SCALAR_FIELD : Nat) = (modField x : Nat) := by
   exact Nat.mod_eq_of_lt (modField_lt x)
