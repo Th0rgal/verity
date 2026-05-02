@@ -35,13 +35,19 @@ private def packedWordTempStores (wordCount : Nat) : List YulStmt :=
 private def alignUp32 (n : Nat) : Nat :=
   ((n + 31) / 32) * 32
 
+private def packedSegmentMask (width : Nat) : Nat :=
+  2 ^ (width * 8) - 1
+
 private def packedSegmentTempStore (offset width idx : Nat) : YulStmt :=
   let value := YulExpr.ident (packedWordTempName idx)
   let stored :=
     if width == 32 then
       value
     else
-      YulExpr.call "shl" [YulExpr.lit ((32 - width) * 8), value]
+      YulExpr.call "shl" [
+        YulExpr.lit ((32 - width) * 8),
+        YulExpr.call "and" [value, YulExpr.hex (packedSegmentMask width)]
+      ]
   YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit offset, stored])
 
 private def packedSegmentTempStoresAux (offset : Nat) : List Nat → Nat → List YulStmt
@@ -92,7 +98,8 @@ def abiEncodePacked (resultVar : String) (words : List Expr) : Stmt :=
 /-- Keccak-256 over packed static byte-width segments.
     Each argument is encoded as exactly the matching byte width from `widths`,
     using Solidity's left-aligned memory representation for sub-word static
-    values. Widths must be between 1 and 32 bytes. -/
+    values. Sub-word values are masked to their requested width before being
+    shifted into position. Widths must be between 1 and 32 bytes. -/
 def abiEncodePackedStaticSegmentsModule (resultVar : String) (widths : List Nat) : ExternalCallModule where
   name := "abiEncodePackedStaticSegments"
   numArgs := widths.length
@@ -157,7 +164,9 @@ def sha256Packed (resultVar : String) (words : List Expr) : Stmt :=
 
 /-- SHA-256 over packed static byte-width segments.
     The digest is written at the next 32-byte-aligned offset after the preimage
-    to avoid overlapping with non-word-sized packed input bytes. -/
+    to avoid overlapping with non-word-sized packed input bytes. Sub-word
+    values are masked to their requested width before being shifted into
+    position. -/
 def sha256PackedStaticSegmentsModule (resultVar : String) (widths : List Nat) : ExternalCallModule where
   name := "sha256PackedStaticSegments"
   numArgs := widths.length

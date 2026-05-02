@@ -142,9 +142,10 @@ Compiler.Modules.Hashing.abiEncodePackedStaticSegments
   [(Expr.param "who", 20), (Expr.param "amount", 32)]
 ```
 
-Sub-word segments are left-aligned before `mstore`, then subsequent segments are
-placed at byte-precise offsets so later writes overwrite the unused tail bytes
-from earlier sub-word stores. These segment helpers expose
+Sub-word segments are masked to their requested width and left-aligned before
+`mstore`, then subsequent segments are placed at byte-precise offsets so later
+writes overwrite the unused tail bytes from earlier sub-word stores. These
+segment helpers expose
 `abi_packed_static_segment_layout` separately from the word-only layout
 assumption. Dynamic packed inputs should still be spelled out explicitly or
 added through a focused helper with its own tests and trust-report assumption.

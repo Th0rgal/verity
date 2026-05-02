@@ -61,9 +61,9 @@ Modules.Hashing.sha256PackedStaticSegments
 ```
 
 Segment widths are explicit byte counts from 1 to 32. Sub-word values are
-left-aligned before `mstore`, and subsequent segments are placed at byte-precise
-offsets. These helpers still do not implement dynamic Solidity packed encoding
-for `bytes` or `string`.
+masked to their requested width and left-aligned before `mstore`, and subsequent
+segments are placed at byte-precise offsets. These helpers still do not
+implement dynamic Solidity packed encoding for `bytes` or `string`.
 
 ## Writing a New Standard Module
 

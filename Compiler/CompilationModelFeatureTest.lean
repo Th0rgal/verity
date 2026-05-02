@@ -3873,8 +3873,9 @@ set_option maxRecDepth 4096 in
       contains sha256PackedWordsTrustReport "\"status\":\"assumed\"")
   let abiEncodePackedStaticSegmentsYul ←
     expectCompileToYul "abiEncodePackedStaticSegments smoke spec" abiEncodePackedStaticSegmentsSmokeSpec
-  expectTrue "abiEncodePackedStaticSegments left-aligns sub-word static values"
-    (contains abiEncodePackedStaticSegmentsYul "mstore(0, shl(96, __packed_word_0))")
+  expectTrue "abiEncodePackedStaticSegments masks and left-aligns sub-word static values"
+    (contains abiEncodePackedStaticSegmentsYul
+      "mstore(0, shl(96, and(__packed_word_0, 0xffffffffffffffffffffffffffffffffffffffff)))")
   expectTrue "abiEncodePackedStaticSegments places the next segment at the byte-precise offset"
     (contains abiEncodePackedStaticSegmentsYul "mstore(20, __packed_word_1)")
   expectTrue "abiEncodePackedStaticSegments hashes the exact byte length"
@@ -3891,8 +3892,9 @@ set_option maxRecDepth 4096 in
       contains abiEncodePackedStaticSegmentsTrustReport "\"assumption\":\"keccak256_memory_slice_matches_evm\"")
   let sha256PackedStaticSegmentsYul ←
     expectCompileToYul "sha256PackedStaticSegments smoke spec" sha256PackedStaticSegmentsSmokeSpec
-  expectTrue "sha256PackedStaticSegments left-aligns sub-word static values"
-    (contains sha256PackedStaticSegmentsYul "mstore(0, shl(96, __packed_word_0))")
+  expectTrue "sha256PackedStaticSegments masks and left-aligns sub-word static values"
+    (contains sha256PackedStaticSegmentsYul
+      "mstore(0, shl(96, and(__packed_word_0, 0xffffffffffffffffffffffffffffffffffffffff)))")
   expectTrue "sha256PackedStaticSegments hashes the exact byte length through precompile 0x02"
     (contains sha256PackedStaticSegmentsYul "staticcall(gas(), 2, 0, 52, 64, 32)")
   expectTrue "sha256PackedStaticSegments returns the digest from aligned non-overlapping output memory"
