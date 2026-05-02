@@ -89,6 +89,7 @@ Recent progress for low-level calls + returndata handling (`#622`):
 Recent progress for dynamic ABI-shaped parameters:
 - `verity_contract` now accepts dynamic array parameters whose element type is a static tuple of ABI words, e.g. `Array (Tuple [Uint256, Uint256, Int256])`, on tuple destructuring and tuple-return `arrayElement` paths. Those paths lower to checked word reads with the tuple element stride, which covers Solidity memory arrays of small fixed-size structs such as `CurveCut[]`; plain scalar `arrayElement` remains limited to single-word static element arrays.
 - `verity_contract` now accepts named `struct` declarations for function parameters as ABI tuple aliases. Executable contracts get Lean structures and field projection syntax, while the compilation model keeps the existing tuple ABI lowering. Nested static struct fields are supported for parameter field reads, covering the #1750 TermMax-style `config.feeConfig.borrowTakerFeeRatio` shape.
+- Top-level named `struct` storage fields remain unsupported (#1758) and now fail fast with a targeted diagnostic. Until first-class top-level storage structs exist, flatten nested Solidity storage structs into explicit scalar fields with fixed slots; use `MappingStruct(...)` / `MappingStruct2(...)` only for struct-valued mappings.
 - ABI artifact emission now reflects explicit function mutability markers (`isView`, `isPure`) as `stateMutability: "view" | "pure"` in generated JSON.
 
 Recent progress for custom errors (`#586`):

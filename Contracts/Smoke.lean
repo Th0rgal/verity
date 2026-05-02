@@ -952,6 +952,21 @@ verity_contract NamedStructParamSmoke where
     return config.maker
 
 /--
+error: top-level named struct storage fields are not supported yet (#1758); flatten the struct into explicit scalar storage fields with fixed slots, or use MappingStruct/MappingStruct2 for struct-valued mappings
+-/
+#guard_msgs in
+verity_contract NamedStructStorageRejected where
+  storage
+    feeConfig : FeeConfig := slot 0
+
+  struct FeeConfig where
+    borrowTakerFeeRatio : Uint256,
+    lendMakerFeeRatio : Uint256
+
+  function readBorrowFee () : Uint256 := do
+    return 0
+
+/--
 error: non-leaf struct parameter projection is not supported; project a scalar or static single-word leaf field instead
 -/
 #guard_msgs in
