@@ -3299,6 +3299,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_sedecim_not_mem_iff
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_septendecim_not_mem_iff
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_octodecim_not_mem_iff
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_nonadecim_not_mem_iff
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_forall_stmt
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem
@@ -3320,6 +3321,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_sedecim_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_septendecim_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_octodecim_of_nativeStmtsWriteNames_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_nonadecim_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem
@@ -3875,4 +3877,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3699 theorems/lemmas (2753 public, 946 private, 0 sorry'd)
+-- Total: 3701 theorems/lemmas (2755 public, 946 private, 0 sorry'd)
