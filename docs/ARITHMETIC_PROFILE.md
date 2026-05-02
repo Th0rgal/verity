@@ -96,6 +96,12 @@ direct sandwich lemmas: `mulDiv512Down?_mul_le`,
 convenience surface with numerator commutativity, zero-numerator, and exact
 same-denominator cancellation lemmas.
 
+`Verity.Proofs.Stdlib.Automation` mirrors the full-precision fit/rejection iff
+lemmas under automation-friendly names (`mulDiv512Down?_some_iff`,
+`mulDiv512Down?_none_iff`, `mulDiv512Up?_some_iff`,
+`mulDiv512Up?_none_iff`), so downstream proofs can rewrite common quotient-fit
+side conditions without importing the full arithmetic proof module directly.
+
 | Lemma family | Generic helpers | Wad-specialized helpers |
 |--------------|----------------|------------------------|
 | Monotonicity (numerator) | `mulDivDown_monotone_left/right`, `mulDivUp_monotone_left/right` | `wMulDown_monotone_left/right`, `wDivUp_monotone_left` |
