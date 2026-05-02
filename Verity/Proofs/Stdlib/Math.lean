@@ -32,6 +32,18 @@ private theorem max_uint256_lt_modulus :
 
 /-! ## Full-precision mulDiv512 helpers -/
 
+private theorem ceil_mul_div_ge (n d : Nat) (hd : 0 < d) :
+    n ≤ ((n + (d - 1)) / d) * d := by
+  have hdiv : (n + (d - 1)) / d ≤ (n + (d - 1)) / d := Nat.le_refl _
+  have hle := (Nat.div_le_iff_le_mul_add_pred (b := d) (a := n + (d - 1))
+    (c := (n + (d - 1)) / d) hd).mp hdiv
+  have h : n ≤ d * ((n + (d - 1)) / d) := Nat.le_of_add_le_add_right hle
+  simpa [Nat.mul_comm] using h
+
+private theorem ceil_mul_div_le_add_pred (n d : Nat) :
+    ((n + (d - 1)) / d) * d ≤ n + (d - 1) := by
+  simpa [Nat.mul_comm] using Nat.mul_div_le (n + (d - 1)) d
+
 /-- `mulDiv512Down?` returns the exact full-precision floor quotient when it fits. -/
 theorem mulDiv512Down?_some (a b c : Uint256)
     (hC : (c : Nat) ≠ 0)
@@ -82,6 +94,26 @@ theorem mulDiv512Down?_isSome_iff (a b c : Uint256) :
       simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow, hNotFit]
     · have hFit : ((a : Nat) * (b : Nat)) / (c : Nat) ≤ MAX_UINT256 := Nat.le_of_not_gt hOverflow
       simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow, hFit]
+
+/-- A successful full-precision floor result is below the exact product. -/
+theorem mulDiv512Down?_mul_le (a b c out : Uint256)
+    (h : mulDiv512Down? a b c = some out) :
+    (out : Nat) * (c : Nat) ≤ (a : Nat) * (b : Nat) := by
+  rcases (mulDiv512Down?_eq_some_iff a b c out).mp h with ⟨_hC, hFit, hOut⟩
+  rw [← hOut]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit)]
+  exact Nat.div_mul_le_self ((a : Nat) * (b : Nat)) (c : Nat)
+
+/-- A successful full-precision floor result is the greatest quotient below
+the exact product. -/
+theorem mulDiv512Down?_lt_succ_mul (a b c out : Uint256)
+    (h : mulDiv512Down? a b c = some out) :
+    (a : Nat) * (b : Nat) < ((out : Nat) + 1) * (c : Nat) := by
+  rcases (mulDiv512Down?_eq_some_iff a b c out).mp h with ⟨hC, hFit, hOut⟩
+  rw [← hOut]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit)]
+  simpa [Nat.mul_comm] using
+    Nat.lt_mul_div_succ ((b : Nat) * (a : Nat)) (Nat.pos_of_ne_zero hC)
 
 /-- `mulDiv512Down?` rejects exactly zero divisors or overflowing floor quotients. -/
 theorem mulDiv512Down?_isNone_iff (a b c : Uint256) :
@@ -172,6 +204,25 @@ theorem mulDiv512Up?_isSome_iff (a b c : Uint256) :
           (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256 :=
         Nat.le_of_not_gt hOverflow
       simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow, hFit]
+
+/-- A successful full-precision ceil result is above the exact product. -/
+theorem mulDiv512Up?_mul_ge (a b c out : Uint256)
+    (h : mulDiv512Up? a b c = some out) :
+    (a : Nat) * (b : Nat) ≤ (out : Nat) * (c : Nat) := by
+  rcases (mulDiv512Up?_eq_some_iff a b c out).mp h with ⟨hC, hFit, hOut⟩
+  rw [← hOut]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit)]
+  exact ceil_mul_div_ge ((a : Nat) * (b : Nat)) (c : Nat) (Nat.pos_of_ne_zero hC)
+
+/-- A successful full-precision ceil result exceeds the exact product by less
+than one divisor. -/
+theorem mulDiv512Up?_mul_le_add_pred (a b c out : Uint256)
+    (h : mulDiv512Up? a b c = some out) :
+    (out : Nat) * (c : Nat) ≤ (a : Nat) * (b : Nat) + ((c : Nat) - 1) := by
+  rcases (mulDiv512Up?_eq_some_iff a b c out).mp h with ⟨_hC, hFit, hOut⟩
+  rw [← hOut]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit)]
+  exact ceil_mul_div_le_add_pred ((a : Nat) * (b : Nat)) (c : Nat)
 
 /-- `mulDiv512Up?` rejects exactly zero divisors or overflowing rounded-up quotients. -/
 theorem mulDiv512Up?_isNone_iff (a b c : Uint256) :

@@ -88,7 +88,11 @@ Checked operations are **EDSL-level constructs**. They are not compiler-enforced
 For full-precision modeling, `mulDiv512Down?_some` and `mulDiv512Up?_some`
 state the exact natural-number quotient returned when the divisor is nonzero
 and the final quotient fits; the matching `_none_of_zero_divisor`,
-`_none_of_overflow`, and `_eq_some_iff` lemmas expose the failure boundary.
+`_none_of_overflow`, `_eq_some_iff`, `_isSome_iff`, and `_isNone_iff` lemmas
+expose the failure boundary. Successful full-precision results also have
+direct sandwich lemmas: `mulDiv512Down?_mul_le`,
+`mulDiv512Down?_lt_succ_mul`, `mulDiv512Up?_mul_ge`, and
+`mulDiv512Up?_mul_le_add_pred`.
 
 | Lemma family | Generic helpers | Wad-specialized helpers |
 |--------------|----------------|------------------------|

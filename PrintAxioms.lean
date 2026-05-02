@@ -573,11 +573,15 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Verity.Proofs.Stdlib.Math.modulus_eq_max_succ  -- private
 -- #print axioms Verity.Proofs.Stdlib.Math.lt_modulus_of_le_max  -- private
 -- #print axioms Verity.Proofs.Stdlib.Math.max_uint256_lt_modulus  -- private
+-- #print axioms Verity.Proofs.Stdlib.Math.ceil_mul_div_ge  -- private
+-- #print axioms Verity.Proofs.Stdlib.Math.ceil_mul_div_le_add_pred  -- private
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_some
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_none_of_zero_divisor
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_none_of_overflow
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_eq_some_iff
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_isSome_iff
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_mul_le
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_lt_succ_mul
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_isNone_iff
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_wide_product_regression
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_some
@@ -585,6 +589,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_none_of_overflow
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_eq_some_iff
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_isSome_iff
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_mul_ge
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_mul_le_add_pred
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_isNone_iff
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_wide_product_regression
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_nat_eq
@@ -3814,4 +3820,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3638 theorems/lemmas (2691 public, 947 private, 0 sorry'd)
+-- Total: 3644 theorems/lemmas (2695 public, 949 private, 0 sorry'd)
