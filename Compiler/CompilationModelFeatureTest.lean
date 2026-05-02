@@ -3022,6 +3022,31 @@ private def bubblingValueCallViewRejectedSpec : CompilationModel := {
   ]
 }
 
+private def bubblingValueCallNoOutputSmokeSpec : CompilationModel := {
+  name := "BubblingValueCallNoOutputSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "forward"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "ethValue", ty := ParamType.uint256 }
+        , { name := "inputOffset", ty := ParamType.uint256 }
+        , { name := "inputSize", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := [
+        Compiler.Modules.Calls.bubblingValueCallNoOutput
+          (Expr.param "target")
+          (Expr.param "ethValue")
+          (Expr.param "inputOffset")
+          (Expr.param "inputSize"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def erc20BalanceOfSmokeSpec : CompilationModel := {
   name := "ERC20BalanceOfSmoke"
   fields := []
@@ -3877,6 +3902,18 @@ set_option maxRecDepth 4096 in
     (contains bubblingValueCallTrustReport "\"module\":\"bubblingValueCall\"" &&
       contains bubblingValueCallTrustReport "\"assumption\":\"generic_low_level_value_call_interface\"" &&
       contains bubblingValueCallTrustReport "\"status\":\"assumed\"")
+  let bubblingValueCallNoOutputYul ←
+    expectCompileToYul "bubbling value call no-output smoke spec" bubblingValueCallNoOutputSmokeSpec
+  expectTrue "bubbling value call no-output helper fixes output slice to zero"
+    (contains bubblingValueCallNoOutputYul
+      "call(gas(), target, ethValue, inputOffset, inputSize, 0, 0)")
+  let bubblingValueCallNoOutputTrustReport :=
+    emitTrustReportJson [bubblingValueCallNoOutputSmokeSpec]
+  expectTrue "bubbling value call no-output helper preserves the generic call assumption"
+    (contains bubblingValueCallNoOutputTrustReport "\"module\":\"bubblingValueCall\"" &&
+      contains bubblingValueCallNoOutputTrustReport
+        "\"assumption\":\"generic_low_level_value_call_interface\"" &&
+      contains bubblingValueCallNoOutputTrustReport "\"status\":\"assumed\"")
   let erc20BalanceOfYul ←
     expectCompileToYul "erc20 balanceOf smoke spec" erc20BalanceOfSmokeSpec
   expectTrue "erc20 balanceOf ECM lowers to staticcall"

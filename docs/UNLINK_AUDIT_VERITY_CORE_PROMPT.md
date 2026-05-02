@@ -31,7 +31,9 @@ expected Verity-core surface is:
 
 - `Compiler.Modules.Calls.bubblingValueCall` for generic
   `call{value: v}(data)` over explicit memory slices, with revert-returndata
-  bubbling and trust-report metadata.
+  bubbling and trust-report metadata. Use
+  `Compiler.Modules.Calls.bubblingValueCallNoOutput` for the common adapter
+  path that ignores successful returndata.
 - `Compiler.Modules.Precompiles.sha256Memory` and the shorter
   `Compiler.Modules.Precompiles.sha256` alias for SHA-256 precompile 0x02 over
   caller-provided memory slices.

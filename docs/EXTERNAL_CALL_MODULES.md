@@ -81,7 +81,7 @@ Standard modules ship in `Compiler/Modules/`:
 | `Precompiles.sha256Memory` / `Precompiles.sha256` | Precompile 0x02 | SHA-256 over an existing memory slice, binds digest word | `evm_sha256_precompile` |
 | `Callbacks.callback` | Parameterized | ABI-encode selector + static args + bytes, call target | `callback_target_interface` |
 | `Calls.withReturn` | Parameterized | Generic call/staticcall with single uint256 return | `external_call_abi_interface` |
-| `Calls.bubblingValueCall` | `call{value: v}(data)` shape | Generic low-level value call over caller-provided memory slices; bubbles exact revert returndata on failure | `generic_low_level_value_call_interface` |
+| `Calls.bubblingValueCall` / `Calls.bubblingValueCallNoOutput` | `call{value: v}(data)` shape | Generic low-level value call over caller-provided memory slices; bubbles exact revert returndata on failure | `generic_low_level_value_call_interface` |
 
 See `Compiler/Modules/README.md` for the full checklist on adding new standard modules.
 
@@ -110,6 +110,13 @@ entrypoints rather than being treated as a read-only interface.
 This module models only generic EVM call mechanics. The meaning of the calldata,
 the callee's behavior, and protocol-specific postconditions remain assumptions
 of the package that uses the call.
+
+For adapter/router calls that intentionally ignore successful returndata, use
+`Compiler.Modules.Calls.bubblingValueCallNoOutput target value inputOffset
+inputSize`. It is a convenience wrapper over the same ECM with
+`outputOffset = 0` and `outputSize = 0`, so trust reports still surface the
+audited `bubblingValueCall` module and `generic_low_level_value_call_interface`
+assumption.
 
 ### Packed Hashing Helpers
 

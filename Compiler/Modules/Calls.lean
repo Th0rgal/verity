@@ -143,4 +143,10 @@ def bubblingValueCall
     (target value inputOffset inputSize outputOffset outputSize : Expr) : Stmt :=
   .ecm bubblingValueCallModule [target, value, inputOffset, inputSize, outputOffset, outputSize]
 
+/-- Convenience constructor for the common adapter/router shape that ignores
+    successful returndata while still bubbling failure returndata exactly. -/
+def bubblingValueCallNoOutput
+    (target value inputOffset inputSize : Expr) : Stmt :=
+  bubblingValueCall target value inputOffset inputSize (Expr.literal 0) (Expr.literal 0)
+
 end Compiler.Modules.Calls
