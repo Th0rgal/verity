@@ -44,6 +44,37 @@ private theorem ceil_mul_div_le_add_pred (n d : Nat) :
     ((n + (d - 1)) / d) * d ≤ n + (d - 1) := by
   simpa [Nat.mul_comm] using Nat.mul_div_le (n + (d - 1)) d
 
+private theorem nat_ceil_div_antitone_divisor (n c₁ c₂ : Nat)
+    (hC : c₁ ≤ c₂)
+    (hC₁ : c₁ ≠ 0)
+    (hC₂ : c₂ ≠ 0) :
+    (n + (c₂ - 1)) / c₂ ≤ (n + (c₁ - 1)) / c₁ := by
+  have hC₂Pos : 0 < c₂ := Nat.pos_of_ne_zero hC₂
+  have hUpper :
+      ((n + (c₂ - 1)) / c₂) * c₂ < n + c₂ := by
+    calc
+      ((n + (c₂ - 1)) / c₂) * c₂ ≤ n + (c₂ - 1) :=
+        ceil_mul_div_le_add_pred n c₂
+      _ < n + c₂ := Nat.add_lt_add_left (Nat.sub_lt hC₂Pos (by decide)) _
+  have hLower :
+      n ≤ ((n + (c₁ - 1)) / c₁) * c₂ := by
+    exact Nat.le_trans
+      (ceil_mul_div_ge n c₁ (Nat.pos_of_ne_zero hC₁))
+      (Nat.mul_le_mul_left _ hC)
+  have hLt :
+      ((n + (c₂ - 1)) / c₂) * c₂ <
+        (((n + (c₁ - 1)) / c₁) + 1) * c₂ := by
+    calc
+      ((n + (c₂ - 1)) / c₂) * c₂ < n + c₂ := hUpper
+      _ ≤ ((n + (c₁ - 1)) / c₁) * c₂ + c₂ := Nat.add_le_add_right hLower _
+      _ = (((n + (c₁ - 1)) / c₁) + 1) * c₂ := by
+            simp [Nat.right_distrib]
+  have hLt' :
+      c₂ * ((n + (c₂ - 1)) / c₂) <
+        c₂ * (((n + (c₁ - 1)) / c₁) + 1) := by
+    simpa [Nat.mul_comm] using hLt
+  exact Nat.lt_succ_iff.mp (Nat.lt_of_mul_lt_mul_left hLt')
+
 /-- `mulDiv512Down?` returns the exact full-precision floor quotient when it fits. -/
 theorem mulDiv512Down?_some (a b c : Uint256)
     (hC : (c : Nat) ≠ 0)
@@ -192,6 +223,21 @@ theorem mulDiv512Down?_monotone_right (a b₁ b₂ c out₁ out₂ : Uint256)
   simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₁),
     Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₂)]
   exact Nat.div_le_div_right (Nat.mul_le_mul_left _ hB)
+
+/-- Full-precision floor multiplication is antitone in the divisor for
+successful results. -/
+theorem mulDiv512Down?_antitone_divisor (a b c₁ c₂ out₁ out₂ : Uint256)
+    (hC : (c₁ : Nat) ≤ (c₂ : Nat))
+    (hC₁ : (c₁ : Nat) ≠ 0)
+    (h₁ : mulDiv512Down? a b c₁ = some out₁)
+    (h₂ : mulDiv512Down? a b c₂ = some out₂) :
+    (out₂ : Nat) ≤ (out₁ : Nat) := by
+  rcases (mulDiv512Down?_eq_some_iff a b c₁ out₁).mp h₁ with ⟨_hC₁Some, hFit₁, hOut₁⟩
+  rcases (mulDiv512Down?_eq_some_iff a b c₂ out₂).mp h₂ with ⟨_hC₂Some, hFit₂, hOut₂⟩
+  rw [← hOut₁, ← hOut₂]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₁),
+    Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₂)]
+  exact Nat.div_le_div_left hC (Nat.pos_of_ne_zero hC₁)
 
 /-- Regression: full-precision floor `mulDiv512` permits a 256-bit-overflowing
 intermediate product when the final quotient fits. -/
@@ -385,6 +431,20 @@ theorem mulDiv512Up?_monotone_right (a b₁ b₂ c out₁ out₂ : Uint256)
   simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₁),
     Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₂)]
   exact Nat.div_le_div_right (Nat.add_le_add_right (Nat.mul_le_mul_left _ hB) _)
+
+/-- Full-precision ceil multiplication is antitone in the divisor for
+successful results. -/
+theorem mulDiv512Up?_antitone_divisor (a b c₁ c₂ out₁ out₂ : Uint256)
+    (hC : (c₁ : Nat) ≤ (c₂ : Nat))
+    (h₁ : mulDiv512Up? a b c₁ = some out₁)
+    (h₂ : mulDiv512Up? a b c₂ = some out₂) :
+    (out₂ : Nat) ≤ (out₁ : Nat) := by
+  rcases (mulDiv512Up?_eq_some_iff a b c₁ out₁).mp h₁ with ⟨hC₁, hFit₁, hOut₁⟩
+  rcases (mulDiv512Up?_eq_some_iff a b c₂ out₂).mp h₂ with ⟨hC₂, hFit₂, hOut₂⟩
+  rw [← hOut₁, ← hOut₂]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₁),
+    Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₂)]
+  exact nat_ceil_div_antitone_divisor ((a : Nat) * (b : Nat)) (c₁ : Nat) (c₂ : Nat) hC hC₁ hC₂
 
 /-- Regression: full-precision ceil `mulDiv512` permits a 256-bit-overflowing
 intermediate product when the rounded quotient fits. -/
@@ -1450,6 +1510,7 @@ Full-precision mulDiv512 helpers:
 - `mulDiv512Up?_mul_ge` / `mulDiv512Up?_mul_le_add_pred` — ceil sandwich bounds
 - `mulDiv512Down?_comm` / `mulDiv512Up?_comm` — numerator multiplication order does not matter
 - `mulDiv512Down?_monotone_left/right` / `mulDiv512Up?_monotone_left/right` — numerator monotonicity
+- `mulDiv512Down?_antitone_divisor` / `mulDiv512Up?_antitone_divisor` — divisor antitonicity
 - `mulDiv512Down?_zero_left/right` / `mulDiv512Up?_zero_left/right` — zero numerators collapse helpers
 - `mulDiv512Down?_cancel_right/left` / `mulDiv512Up?_cancel_right/left` — exact same-denominator cancellation
 - `mulDiv512Down?_wide_product_regression` / `mulDiv512Up?_wide_product_regression` — products may exceed 256 bits when quotients fit
