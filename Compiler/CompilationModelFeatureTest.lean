@@ -2816,6 +2816,30 @@ private def callWithValueBytesSmokeSpec : CompilationModel := {
   ]
 }
 
+private def callWithValueBytesViewRejectedSpec : CompilationModel := {
+  name := "CallWithValueBytesViewRejected"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "execute"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.uint256 }
+        , { name := "data", ty := ParamType.bytes }
+      ]
+      returnType := none
+      isView := true
+      body := [
+        Compiler.Modules.Calls.callWithValueBytes
+          (Expr.param "target")
+          (Expr.param "amount")
+          "data",
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def erc20AllowanceSmokeSpec : CompilationModel := {
   name := "ERC20AllowanceSmoke"
   fields := []
@@ -3549,6 +3573,10 @@ set_option maxRecDepth 4096 in
     (contains callWithValueBytesYul "calldatacopy(0, data_data_offset, data_length)")
   expectTrue "callWithValue bytes ECM lowers to an ETH-aware generic bytes call"
     (contains callWithValueBytesYul "call(gas(), target, amount, 0, data_length, 0, 0)")
+  expectCompileErrorContains
+    "state-changing callWithValue bytes ECM is rejected in view functions"
+    callWithValueBytesViewRejectedSpec
+    "function 'execute' is marked view but writes state"
   let macroCallWithValueYul ←
     expectCompileToYul "macro callWithValue smoke spec" Contracts.Smoke.CallWithValueSmoke.spec
   expectTrue "macro callWithValue surface elaborates to the generic call ECM"
