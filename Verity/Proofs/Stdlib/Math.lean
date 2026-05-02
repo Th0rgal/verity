@@ -228,11 +228,10 @@ theorem mulDiv512Down?_monotone_right (a b₁ b₂ c out₁ out₂ : Uint256)
 successful results. -/
 theorem mulDiv512Down?_antitone_divisor (a b c₁ c₂ out₁ out₂ : Uint256)
     (hC : (c₁ : Nat) ≤ (c₂ : Nat))
-    (hC₁ : (c₁ : Nat) ≠ 0)
     (h₁ : mulDiv512Down? a b c₁ = some out₁)
     (h₂ : mulDiv512Down? a b c₂ = some out₂) :
     (out₂ : Nat) ≤ (out₁ : Nat) := by
-  rcases (mulDiv512Down?_eq_some_iff a b c₁ out₁).mp h₁ with ⟨_hC₁Some, hFit₁, hOut₁⟩
+  rcases (mulDiv512Down?_eq_some_iff a b c₁ out₁).mp h₁ with ⟨hC₁, hFit₁, hOut₁⟩
   rcases (mulDiv512Down?_eq_some_iff a b c₂ out₂).mp h₂ with ⟨_hC₂Some, hFit₂, hOut₂⟩
   rw [← hOut₁, ← hOut₂]
   simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₁),
