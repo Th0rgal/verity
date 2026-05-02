@@ -816,20 +816,19 @@ theorem mulDiv512Down?_eq_mulDivDown_of_no_overflow (a b c : Uint256)
 /-- `mulDiv512Up?` agrees with the existing `mulDivUp` helper when the
 rounded numerator expression fits in `uint256`. -/
 theorem mulDiv512Up?_eq_mulDivUp_of_no_overflow (a b c : Uint256)
-    (hC : c ≠ 0)
+    (hC : (c : Nat) ≠ 0)
     (hNum : (a : Nat) * (b : Nat) + ((c : Nat) - 1) ≤ MAX_UINT256) :
     mulDiv512Up? a b c = some (mulDivUp a b c) := by
-  have hCVal : (c : Nat) ≠ 0 := by
+  have hCUint : c ≠ 0 := by
     intro h
-    apply hC
-    exact Verity.Core.Uint256.ext (by simpa using h)
+    exact hC (by simpa using congrArg (fun x : Uint256 => (x : Nat)) h)
   have hQuotFit :
       (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256 :=
     Nat.le_trans (Nat.div_le_self _ _) hNum
-  rw [mulDiv512Up?_some (a := a) (b := b) (c := c) hCVal hQuotFit]
+  rw [mulDiv512Up?_some (a := a) (b := b) (c := c) hC hQuotFit]
   congr
   apply Verity.Core.Uint256.ext
-  rw [mulDivUp_nat_eq a b c hC hNum]
+  rw [mulDivUp_nat_eq a b c hCUint hNum]
   simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hQuotFit)]
 
 /-- The ceil helper never rounds below the floor helper when both are exact. -/
