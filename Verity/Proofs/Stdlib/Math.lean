@@ -68,6 +68,20 @@ theorem modField_SNARK_SCALAR_FIELD :
   rw [modField_nat_eq]
   exact Nat.mod_self _
 
+theorem modField_eq_zero_iff (x : Uint256) :
+    modField x = 0 ↔ (x : Nat) % (SNARK_SCALAR_FIELD : Nat) = 0 := by
+  constructor
+  · intro h
+    have hNat := congrArg (fun y : Uint256 => (y : Nat)) h
+    have hNat' : (modField x : Nat) = 0 := by
+      simpa using hNat
+    rw [modField_nat_eq] at hNat'
+    exact hNat'
+  · intro h
+    apply Verity.Core.Uint256.ext
+    rw [modField_nat_eq]
+    exact h
+
 theorem modField_eq_of_nat_mod_eq {x y : Uint256}
     (h : (x : Nat) % (SNARK_SCALAR_FIELD : Nat) =
       (y : Nat) % (SNARK_SCALAR_FIELD : Nat)) :

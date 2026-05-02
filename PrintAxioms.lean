@@ -577,6 +577,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Verity.Proofs.Stdlib.Math.modField_eq_self_of_lt
 #print axioms Verity.Proofs.Stdlib.Math.modField_zero
 #print axioms Verity.Proofs.Stdlib.Math.modField_SNARK_SCALAR_FIELD
+#print axioms Verity.Proofs.Stdlib.Math.modField_eq_zero_iff
 #print axioms Verity.Proofs.Stdlib.Math.modField_eq_of_nat_mod_eq
 #print axioms Verity.Proofs.Stdlib.Math.modField_nat_mod_eq
 #print axioms Verity.Proofs.Stdlib.Math.modField_idempotent
@@ -3809,4 +3810,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3633 theorems/lemmas (2687 public, 946 private, 0 sorry'd)
+-- Total: 3634 theorems/lemmas (2688 public, 946 private, 0 sorry'd)
