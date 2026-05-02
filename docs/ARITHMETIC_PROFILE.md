@@ -94,7 +94,7 @@ direct sandwich lemmas: `mulDiv512Down?_mul_le`,
 `mulDiv512Down?_lt_succ_mul`, `mulDiv512Up?_mul_ge`, and
 `mulDiv512Up?_mul_le_add_pred`. They also mirror the existing `mulDiv`
 convenience surface with numerator commutativity, successful-result numerator
-monotonicity, divisor antitonicity, zero-numerator, and exact
+monotonicity, divisor antitonicity, positivity, zero-numerator, and exact
 same-denominator cancellation lemmas.
 Full-precision ceil/floor exactness is
 covered by `mulDiv512Up?_eq_down_of_dvd` and

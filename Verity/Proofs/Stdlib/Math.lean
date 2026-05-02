@@ -174,6 +174,18 @@ theorem mulDiv512Down?_zero_right (a c : Uint256)
     mulDiv512Down? a 0 c = some 0 := by
   simpa [mulDiv512Down?_comm] using mulDiv512Down?_zero_left a c hC
 
+/-- A successful full-precision floor result is positive once the exact product
+reaches at least one divisor-width. -/
+theorem mulDiv512Down?_pos (a b c out : Uint256)
+    (hLower : (c : Nat) ≤ (a : Nat) * (b : Nat))
+    (h : mulDiv512Down? a b c = some out) :
+    0 < (out : Nat) := by
+  rcases (mulDiv512Down?_eq_some_iff a b c out).mp h with ⟨hC, hFit, hOut⟩
+  have hCPos : 0 < (c : Nat) := Nat.pos_of_ne_zero hC
+  rw [← hOut]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit)]
+  simpa [Nat.div_pos_iff, hCPos] using hLower
+
 /-- Exact full-precision floor cancellation by the right numerator operand. -/
 theorem mulDiv512Down?_cancel_right (a c : Uint256)
     (hC : (c : Nat) ≠ 0) :
@@ -396,6 +408,23 @@ theorem mulDiv512Up?_zero_right (a c : Uint256)
     (hC : (c : Nat) ≠ 0) :
     mulDiv512Up? a 0 c = some 0 := by
   simpa [mulDiv512Up?_comm] using mulDiv512Up?_zero_left a c hC
+
+/-- A successful full-precision ceil result is positive whenever both numerator
+factors are positive. -/
+theorem mulDiv512Up?_pos (a b c out : Uint256)
+    (hA : 0 < (a : Nat))
+    (hB : 0 < (b : Nat))
+    (h : mulDiv512Up? a b c = some out) :
+    0 < (out : Nat) := by
+  rcases (mulDiv512Up?_eq_some_iff a b c out).mp h with ⟨hC, hFit, hOut⟩
+  have hCPos : 0 < (c : Nat) := Nat.pos_of_ne_zero hC
+  have hProdPos : 0 < (a : Nat) * (b : Nat) := Nat.mul_pos hA hB
+  have hDivisorLe :
+      (c : Nat) ≤ (a : Nat) * (b : Nat) + ((c : Nat) - 1) := by
+    omega
+  rw [← hOut]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit)]
+  simpa [Nat.div_pos_iff, hCPos] using hDivisorLe
 
 /-- Exact full-precision ceil cancellation by the right numerator operand. -/
 theorem mulDiv512Up?_cancel_right (a c : Uint256)
@@ -1537,6 +1566,7 @@ Full-precision mulDiv512 helpers:
 - `mulDiv512Down?_monotone_left/right` / `mulDiv512Up?_monotone_left/right` — numerator monotonicity
 - `mulDiv512Down?_antitone_divisor` / `mulDiv512Up?_antitone_divisor` — divisor antitonicity
 - `mulDiv512Down?_isSome_of_up_isSome` / `mulDiv512Up?_isNone_of_down_isNone` — ceil/floor success and rejection bridge
+- `mulDiv512Down?_pos` / `mulDiv512Up?_pos` — positive full-precision results under nonzero-output conditions
 - `mulDiv512Down?_zero_left/right` / `mulDiv512Up?_zero_left/right` — zero numerators collapse helpers
 - `mulDiv512Down?_cancel_right/left` / `mulDiv512Up?_cancel_right/left` — exact same-denominator cancellation
 - `mulDiv512Down?_wide_product_regression` / `mulDiv512Up?_wide_product_regression` — products may exceed 256 bits when quotients fit
