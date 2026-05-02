@@ -94,7 +94,10 @@ direct sandwich lemmas: `mulDiv512Down?_mul_le`,
 `mulDiv512Down?_lt_succ_mul`, `mulDiv512Up?_mul_ge`, and
 `mulDiv512Up?_mul_le_add_pred`. They also mirror the existing `mulDiv`
 convenience surface with numerator commutativity, zero-numerator, and exact
-same-denominator cancellation lemmas.
+same-denominator cancellation lemmas. Full-precision ceil/floor exactness is
+covered by `mulDiv512Up?_eq_down_of_dvd` and
+`mulDiv512Up?_some_succ_of_not_dvd`, matching the older 256-bit `mulDiv`
+divisibility proof shape.
 
 `Verity.Proofs.Stdlib.Automation` mirrors the full-precision fit/rejection iff
 lemmas under automation-friendly names (`mulDiv512Down?_some_iff`,

@@ -638,6 +638,37 @@ private theorem nat_ceil_div_eq_div_add_one_of_not_dvd (n c : Nat) (hC : c ≠ 0
   simp
   simpa [Nat.mod_eq_of_lt hSubLt] using hCarry
 
+/-- Exact divisibility removes the full-precision ceil/floor gap. -/
+theorem mulDiv512Up?_eq_down_of_dvd (a b c : Uint256)
+    (hC : (c : Nat) ≠ 0)
+    (hFit : (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256)
+    (hDvd : (c : Nat) ∣ (a : Nat) * (b : Nat)) :
+    mulDiv512Up? a b c = mulDiv512Down? a b c := by
+  have hCeil :
+      (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) =
+        ((a : Nat) * (b : Nat)) / (c : Nat) :=
+    nat_ceil_div_eq_div_of_dvd ((a : Nat) * (b : Nat)) (c : Nat) hC hDvd
+  rw [mulDiv512Up?_some (a := a) (b := b) (c := c) hC hFit]
+  rw [mulDiv512Down?_some (a := a) (b := b) (c := c) hC]
+  · congr
+  · simpa [← hCeil] using hFit
+
+/-- If the full-precision numerator is not divisible by the divisor, ceil
+division is the successor of floor division. -/
+theorem mulDiv512Up?_some_succ_of_not_dvd (a b c : Uint256)
+    (hC : (c : Nat) ≠ 0)
+    (hFit : (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256)
+    (hNotDvd : ¬ (c : Nat) ∣ (a : Nat) * (b : Nat)) :
+    mulDiv512Up? a b c =
+      some (Verity.Core.Uint256.ofNat (((a : Nat) * (b : Nat)) / (c : Nat) + 1)) := by
+  have hCeil :
+      (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) =
+        ((a : Nat) * (b : Nat)) / (c : Nat) + 1 :=
+    nat_ceil_div_eq_div_add_one_of_not_dvd
+      ((a : Nat) * (b : Nat)) (c : Nat) hC hNotDvd
+  rw [mulDiv512Up?_some (a := a) (b := b) (c := c) hC hFit]
+  congr
+
 /-- The ceil helper exceeds the floor helper by at most one quotient step when both are exact. -/
 theorem mulDivUp_le_mulDivDown_add_one (a b c : Uint256)
     (hC : c ≠ 0)
