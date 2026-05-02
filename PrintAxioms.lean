@@ -598,6 +598,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_monotone_right
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_antitone_divisor
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_wide_product_regression
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_final_overflow_regression
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_some
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_none_of_zero_divisor
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_none_of_overflow
@@ -618,6 +619,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_monotone_right
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_antitone_divisor
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_wide_product_regression
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_final_overflow_regression
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_nat_eq
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_mul_le
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_pos
@@ -3852,4 +3854,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3676 theorems/lemmas (2726 public, 950 private, 0 sorry'd)
+-- Total: 3678 theorems/lemmas (2728 public, 950 private, 0 sorry'd)
