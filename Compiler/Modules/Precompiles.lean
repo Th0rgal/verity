@@ -79,17 +79,19 @@ def sha256MemoryModule (resultVar : String) : ExternalCallModule where
     let (inputOffset, inputSize, outputOffset) ← match args with
       | [inputOffset, inputSize, outputOffset] => pure (inputOffset, inputSize, outputOffset)
       | _ => throw "sha256Memory expects 3 arguments (inputOffset, inputSize, outputOffset)"
+    let outputOffsetTemp := YulExpr.ident "__sha256_output_offset"
     let callExpr := YulExpr.call "staticcall" [
       YulExpr.call "gas" [],
       YulExpr.lit 2,
       inputOffset, inputSize,
-      outputOffset, YulExpr.lit 32
+      outputOffsetTemp, YulExpr.lit 32
     ]
     let revertBlock := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__sha256_success"]) [
       YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
     ]
-    let bindResult := YulStmt.let_ resultVar (YulExpr.call "mload" [outputOffset])
+    let bindResult := YulStmt.let_ resultVar (YulExpr.call "mload" [outputOffsetTemp])
     pure [YulStmt.block [
+      YulStmt.let_ "__sha256_output_offset" outputOffset,
       YulStmt.let_ "__sha256_success" callExpr,
       revertBlock
     ], bindResult]

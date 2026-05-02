@@ -3854,12 +3854,14 @@ set_option maxRecDepth 4096 in
     (contains ecrecoverYul "let signer := and(mload(0), 0xffffffffffffffffffffffffffffffffffffffff)")
   let sha256MemoryYul ←
     expectCompileToYul "sha256 memory smoke spec" sha256MemorySmokeSpec
+  expectTrue "sha256Memory ECM binds output offset once before the precompile call"
+    (contains sha256MemoryYul "let __sha256_output_offset := outputOffset")
   expectTrue "sha256Memory ECM lowers to precompile 0x02 staticcall"
-    (contains sha256MemoryYul "staticcall(gas(), 2, inputOffset, inputSize, outputOffset, 32)")
+    (contains sha256MemoryYul "staticcall(gas(), 2, inputOffset, inputSize, __sha256_output_offset, 32)")
   expectTrue "sha256Memory ECM reverts when the precompile call fails"
     (contains sha256MemoryYul "if iszero(__sha256_success) {")
   expectTrue "sha256Memory ECM returns the digest word from output memory"
-    (contains sha256MemoryYul "let digest := mload(outputOffset)")
+    (contains sha256MemoryYul "let digest := mload(__sha256_output_offset)")
   expectCompileErrorContains
     "sha256Memory ECM rejects invalid argument counts"
     sha256MemoryBadAritySpec
