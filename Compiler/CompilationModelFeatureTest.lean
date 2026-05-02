@@ -2917,6 +2917,40 @@ private def sha256PackedStaticSegmentsBadWidthSpec : CompilationModel := {
   ]
 }
 
+private def abiEncodePackedStaticSegmentsBadAritySpec : CompilationModel := {
+  name := "AbiEncodePackedStaticSegmentsBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "who", ty := ParamType.address }]
+      returnType := none
+      body := [
+        Stmt.ecm (Compiler.Modules.Hashing.abiEncodePackedStaticSegmentsModule "digest" [20, 32])
+          [Expr.param "who"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def sha256PackedStaticSegmentsBadAritySpec : CompilationModel := {
+  name := "Sha256PackedStaticSegmentsBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "who", ty := ParamType.address }]
+      returnType := none
+      body := [
+        Stmt.ecm (Compiler.Modules.Hashing.sha256PackedStaticSegmentsModule "digest" [20, 32])
+          [Expr.param "who"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def oracleReadSmokeSpec : CompilationModel := {
   name := "OracleReadSmoke"
   fields := []
@@ -3884,6 +3918,10 @@ set_option maxRecDepth 4096 in
     "abiEncodePackedStaticSegments rejects invalid segment widths"
     abiEncodePackedStaticSegmentsBadWidthSpec
     "abiEncodePackedStaticSegments segment widths must be between 1 and 32 bytes"
+  expectCompileErrorContains
+    "abiEncodePackedStaticSegments ECM rejects invalid argument counts"
+    abiEncodePackedStaticSegmentsBadAritySpec
+    "uses ECM 'abiEncodePackedStaticSegments' with 1 arguments but it expects 2"
   let abiEncodePackedStaticSegmentsTrustReport :=
     emitTrustReportJson [abiEncodePackedStaticSegmentsSmokeSpec]
   expectTrue "abiEncodePackedStaticSegments trust report surfaces segment-layout and keccak assumptions"
@@ -3903,6 +3941,10 @@ set_option maxRecDepth 4096 in
     "sha256PackedStaticSegments rejects invalid segment widths"
     sha256PackedStaticSegmentsBadWidthSpec
     "sha256PackedStaticSegments segment widths must be between 1 and 32 bytes"
+  expectCompileErrorContains
+    "sha256PackedStaticSegments ECM rejects invalid argument counts"
+    sha256PackedStaticSegmentsBadAritySpec
+    "uses ECM 'sha256PackedStaticSegments' with 1 arguments but it expects 2"
   let sha256PackedStaticSegmentsTrustReport :=
     emitTrustReportJson [sha256PackedStaticSegmentsSmokeSpec]
   expectTrue "sha256PackedStaticSegments trust report surfaces segment-layout and SHA-256 assumptions"
