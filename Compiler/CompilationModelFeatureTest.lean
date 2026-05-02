@@ -3560,6 +3560,7 @@ set_option maxRecDepth 4096 in
   let macroCallWithValueTrustReport := emitTrustReportJson [Contracts.Smoke.CallWithValueSmoke.spec]
   expectTrue "macro callWithValue trust report surfaces the generic call assumption"
     (contains macroCallWithValueTrustReport "\"module\":\"callWithValue\"" &&
+      contains macroCallWithValueTrustReport "\"module\":\"callWithValueBytes\"" &&
       contains macroCallWithValueTrustReport "\"assumption\":\"generic_call_with_value_interface\"")
   let erc20AllowanceYul ←
     expectCompileToYul "erc20 allowance smoke spec" erc20AllowanceSmokeSpec

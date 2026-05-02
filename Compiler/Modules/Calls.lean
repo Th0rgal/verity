@@ -143,7 +143,7 @@ def callWithValue (target value inOffset inSize : Expr) : Stmt :=
     patterns. The raw-slice `callWithValueModule` remains available when callers
     have already prepared calldata in memory. -/
 def callWithValueBytesModule (bytesParam : String) : ExternalCallModule where
-  name := "callWithValue"
+  name := "callWithValueBytes"
   numArgs := 2
   resultVars := []
   writesState := true

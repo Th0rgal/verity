@@ -89,7 +89,9 @@ ignored; wrappers that need typed return decoding should build a narrower ECM.
 `Calls.callWithValueBytes target value "data"` is the higher-level
 `(target, value, data)` wrapper: it copies the named `Bytes` parameter payload
 to memory offset 0 and then emits `call(gas(), target, value, 0, data_length,
-0, 0)`.
+0, 0)`. Trust reports surface raw slice calls as `callWithValue` and bytes
+wrapper calls as `callWithValueBytes` so audit manifests can distinguish which
+adapter surface a contract used.
 
 ## Writing Your Own ECM
 

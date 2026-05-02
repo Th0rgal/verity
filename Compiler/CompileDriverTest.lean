@@ -633,6 +633,29 @@ private def callWithValueTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def callWithValueBytesTrustSurfaceSpec : CompilationModel := {
+  name := "CallWithValueBytesTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "execute"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.uint256 }
+        , { name := "data", ty := ParamType.bytes }
+      ]
+      returnType := none
+      body := [
+        Compiler.Modules.Calls.callWithValueBytes
+          (Expr.param "target")
+          (Expr.param "amount")
+          "data",
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def erc20BalanceOfTrustSurfaceSpec : CompilationModel := {
   name := "ERC20BalanceOfTrustSurface"
   fields := []
@@ -1410,6 +1433,16 @@ unsafe def runTests : IO Unit := do
   if !contains callWithValueTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"callWithValue\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ callWithValue trust report emits assumed ECM proof-status bucket")
   IO.println "✓ callWithValue trust report emits generic call module assumption"
+
+  let callWithValueBytesTrustReport := emitTrustReportJson [callWithValueBytesTrustSurfaceSpec]
+  if !contains callWithValueBytesTrustReport "\"contract\":\"CallWithValueBytesTrustSurface\"" then
+    throw (IO.userError "✗ callWithValueBytes trust report emits contract name")
+  if !contains callWithValueBytesTrustReport "\"module\":\"callWithValueBytes\"" ||
+      !contains callWithValueBytesTrustReport "\"assumption\":\"generic_call_with_value_interface\"" then
+    throw (IO.userError "✗ callWithValueBytes trust report emits generic call module assumption")
+  if !contains callWithValueBytesTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"callWithValueBytes\"],\"localObligations\":[]}" then
+    throw (IO.userError "✗ callWithValueBytes trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ callWithValueBytes trust report emits generic call module assumption"
 
   let erc20BalanceOfTrustReport := emitTrustReportJson [erc20BalanceOfTrustSurfaceSpec]
   if !contains erc20BalanceOfTrustReport "\"contract\":\"ERC20BalanceOfTrustSurface\"" then
