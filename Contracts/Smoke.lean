@@ -1472,11 +1472,15 @@ verity_contract GenericECMWriteSmoke where
   function runEffect (lhs : Uint256, rhs : Uint256) : Unit := do
     ecmDo genericECMEffectDemoModule [lhs, rhs]
 
+set_option linter.unusedVariables false in
 verity_contract CallWithValueSmoke where
   storage
 
   function execute (target : Address, value : Uint256, dataOffset : Uint256, dataSize : Uint256) : Unit := do
     ecmDo Compiler.Modules.Calls.callWithValueModule [addressToWord target, value, dataOffset, dataSize]
+
+  function executeBytes (target : Address, value : Uint256, data : Bytes) : Unit := do
+    ecmDo (Compiler.Modules.Calls.callWithValueBytesModule "data") [addressToWord target, value]
 
 set_option linter.unusedVariables false in
 verity_contract LowLevelTryCatchSmoke where
@@ -2105,6 +2109,16 @@ example :
           , Compiler.CompilationModel.Expr.param "value"
           , Compiler.CompilationModel.Expr.param "dataOffset"
           , Compiler.CompilationModel.Expr.param "dataSize"
+          ]
+      , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+example :
+    CallWithValueSmoke.executeBytes_modelBody =
+      [ Compiler.CompilationModel.Stmt.ecm
+          (Compiler.Modules.Calls.callWithValueBytesModule "data")
+          [ Compiler.CompilationModel.Expr.param "target"
+          , Compiler.CompilationModel.Expr.param "value"
           ]
       , Compiler.CompilationModel.Stmt.stop
       ] := rfl

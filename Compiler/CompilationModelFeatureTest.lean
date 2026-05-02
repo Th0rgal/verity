@@ -2793,6 +2793,29 @@ private def callWithValueViewRejectedSpec : CompilationModel := {
   ]
 }
 
+private def callWithValueBytesSmokeSpec : CompilationModel := {
+  name := "CallWithValueBytesSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "execute"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.uint256 }
+        , { name := "data", ty := ParamType.bytes }
+      ]
+      returnType := none
+      body := [
+        Compiler.Modules.Calls.callWithValueBytes
+          (Expr.param "target")
+          (Expr.param "amount")
+          "data",
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def erc20AllowanceSmokeSpec : CompilationModel := {
   name := "ERC20AllowanceSmoke"
   fields := []
@@ -3520,10 +3543,20 @@ set_option maxRecDepth 4096 in
     "state-changing callWithValue ECM is rejected in view functions"
     callWithValueViewRejectedSpec
     "function 'execute' is marked view but writes state"
+  let callWithValueBytesYul ←
+    expectCompileToYul "generic callWithValue bytes smoke spec" callWithValueBytesSmokeSpec
+  expectTrue "callWithValue bytes ECM copies calldata bytes payload to memory"
+    (contains callWithValueBytesYul "calldatacopy(0, data_data_offset, data_length)")
+  expectTrue "callWithValue bytes ECM lowers to an ETH-aware generic bytes call"
+    (contains callWithValueBytesYul "call(gas(), target, amount, 0, data_length, 0, 0)")
   let macroCallWithValueYul ←
     expectCompileToYul "macro callWithValue smoke spec" Contracts.Smoke.CallWithValueSmoke.spec
   expectTrue "macro callWithValue surface elaborates to the generic call ECM"
     (contains macroCallWithValueYul "call(gas(), target, value, dataOffset, dataSize, 0, 0)")
+  expectTrue "macro callWithValue bytes surface copies calldata bytes payload to memory"
+    (contains macroCallWithValueYul "calldatacopy(0, data_data_offset, data_length)")
+  expectTrue "macro callWithValue bytes surface elaborates to the generic bytes call ECM"
+    (contains macroCallWithValueYul "call(gas(), target, value, 0, data_length, 0, 0)")
   let macroCallWithValueTrustReport := emitTrustReportJson [Contracts.Smoke.CallWithValueSmoke.spec]
   expectTrue "macro callWithValue trust report surfaces the generic call assumption"
     (contains macroCallWithValueTrustReport "\"module\":\"callWithValue\"" &&

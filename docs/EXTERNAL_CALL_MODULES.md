@@ -77,6 +77,7 @@ Standard modules ship in `Compiler/Modules/`:
 | `Callbacks.callback` | Parameterized | ABI-encode selector + static args + bytes, call target | `callback_target_interface` |
 | `Calls.withReturn` | Parameterized | Generic call/staticcall with single uint256 return | `external_call_abi_interface` |
 | `Calls.callWithValue` | Parameterized | Generic `call{value:v}` over an already prepared calldata slice, with revert bubbling | `generic_call_with_value_interface` |
+| `Calls.callWithValueBytes` | Parameterized | Generic `call{value:v}` over a `bytes` parameter, with revert bubbling | `generic_call_with_value_interface` |
 
 See `Compiler/Modules/README.md` for the full checklist on adding new standard modules.
 
@@ -85,6 +86,10 @@ escape hatch for patterns such as arbitrary DeFi routers: the caller prepares
 calldata in memory, the ECM emits `call(gas(), target, value, inOffset, inSize,
 0, 0)`, and failures bubble returndata. Successful returndata is intentionally
 ignored; wrappers that need typed return decoding should build a narrower ECM.
+`Calls.callWithValueBytes target value "data"` is the higher-level
+`(target, value, data)` wrapper: it copies the named `Bytes` parameter payload
+to memory offset 0 and then emits `call(gas(), target, value, 0, data_length,
+0, 0)`.
 
 ## Writing Your Own ECM
 

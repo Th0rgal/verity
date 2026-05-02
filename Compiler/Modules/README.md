@@ -13,7 +13,7 @@ structure that the compiler can plug in without modification.
 | `Oracle.lean` | `oracleReadUint256` | canonical oracle read wrappers |
 | `Precompiles.lean` | `ecrecover` | `Stmt.ecrecover` |
 | `Callbacks.lean` | `callback` | `Stmt.callback` |
-| `Calls.lean` | `withReturn`, `callWithValue` | `Stmt.externalCallWithReturn`; generic `call{value:v}` adapter calls |
+| `Calls.lean` | `withReturn`, `callWithValue`, `callWithValueBytes` | `Stmt.externalCallWithReturn`; generic `call{value:v}` adapter calls |
 
 ## Usage
 

@@ -106,7 +106,7 @@ Legend: **ok** = supported, **0** = returns 0 (not modeled), **del** = delegated
 | Revert returndata | `Stmt.revertReturndata` | **rev** | **rev** | -- | n/m |
 | Raw log | `Stmt.rawLog` | **rev** | **rev** | -- | n/m |
 | External call bind | `Stmt.externalCallBind` | **rev** | **rev** | -- | n/m |
-| ECM (`callWithValue` included) | `Stmt.ecm` | **rev** | **rev** | -- | n/m |
+| ECM (`callWithValue` / `callWithValueBytes` included) | `Stmt.ecm` | **rev** | **rev** | -- | n/m |
 
 Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (codegen concern), **--** = not applicable, **n/m** = not modeled.
 
@@ -179,7 +179,7 @@ Proof-boundary features split across two buckets. Partially modeled features cur
 
 3. **Linear memory**: The IRInterpreter has single-word memory support. `mload`, `mstore`, `calldatacopy`, `returndataCopy`, and `returndataOptionalBoolAt` therefore remain only partially modeled or not modeled in the proof interpreters today. Full linear memory coverage requires EVMYulLean semantic integration.
 
-4. **Low-level calls**: `call`/`staticcall`/`delegatecall` and `externalCallBind`/`ecm` are compiler-only features validated by Foundry testing, not modeled in proof interpreters. The standard `Calls.callWithValue` ECM is part of this compiler-only surface for generic `call{value:v}` adapter/router flows and is surfaced as an assumed ECM in trust reports. `delegatecall` additionally remains a dedicated proxy / upgradeability trust boundary; use `--trust-report` / `--deny-proxy-upgradeability` when those semantics must stay outside the selected verification envelope (issue [#1420](https://github.com/lfglabs-dev/verity/issues/1420)).
+4. **Low-level calls**: `call`/`staticcall`/`delegatecall` and `externalCallBind`/`ecm` are compiler-only features validated by Foundry testing, not modeled in proof interpreters. The standard `Calls.callWithValue` and `Calls.callWithValueBytes` ECMs are part of this compiler-only surface for generic `call{value:v}` adapter/router flows and are surfaced as assumed ECMs in trust reports. `delegatecall` additionally remains a dedicated proxy / upgradeability trust boundary; use `--trust-report` / `--deny-proxy-upgradeability` when those semantics must stay outside the selected verification envelope (issue [#1420](https://github.com/lfglabs-dev/verity/issues/1420)).
 
 5. **Internal helper compositional proofs**: `Stmt.internalCall` / `Expr.internalCall` execute in the fuel-based interpreter path, but helper-level theorem reuse across callers is not yet surfaced as a first-class proof interface. The `verity_contract` user surface for these is ordinary direct function-name calls; `internalCall` / `internalCallAssign` remain lower-level compilation-model constructors. The current proof-level gap is tracked under the Layer 2 completeness roadmap in [#1630](https://github.com/lfglabs-dev/verity/issues/1630), with the interface/boundary refactor in [#1633](https://github.com/lfglabs-dev/verity/pull/1633).
 
