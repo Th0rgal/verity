@@ -92,6 +92,9 @@ Checked operations are **EDSL-level constructs**. They are not compiler-enforced
 | Ceil sandwich bounds | `mulDivUp_mul_ge`, `mulDivUp_mul_lt_add` | `wDivUp_mul_ge`, `wDivUp_mul_lt_add` |
 
 The sandwich bounds are especially useful for AMM reserve/share proofs.
+For BN254/Groth16 public-input proofs, `modField_nat_eq`, `modField_lt`,
+and `modField_eq_self_of_lt` expose the exact `SNARK_SCALAR_FIELD` reduction
+semantics used by `Stdlib.Math.modField`.
 
 **Example**: See `Contracts/SafeCounter/SafeCounter.lean` and `Contracts/SafeCounter/Proofs/Basic.lean` for a contract using checked arithmetic with proven overflow/underflow behavior.
 
