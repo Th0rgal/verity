@@ -99,9 +99,12 @@ same-denominator cancellation lemmas.
 Full-precision ceil/floor exactness is
 covered by `mulDiv512Up?_eq_down_of_dvd` and
 `mulDiv512Up?_some_succ_of_not_dvd`, matching the older 256-bit `mulDiv`
-divisibility proof shape. Successful ceil/floor result pairs also expose the
-same one-step rounding boundary through `mulDiv512Down?_le_up`,
-`mulDiv512Up?_le_down_add_one`, and `mulDiv512Up?_eq_down_or_succ`.
+divisibility proof shape. The success/rejection bridge lemmas
+`mulDiv512Down?_isSome_of_up_isSome` and
+`mulDiv512Up?_isNone_of_down_isNone` connect the two rounding modes. Successful
+ceil/floor result pairs also expose the same one-step rounding boundary through
+`mulDiv512Down?_le_up`, `mulDiv512Up?_le_down_add_one`, and
+`mulDiv512Up?_eq_down_or_succ`.
 
 `Verity.Proofs.Stdlib.Automation` mirrors the full-precision fit/rejection iff
 lemmas under automation-friendly names (`mulDiv512Down?_some_iff`,

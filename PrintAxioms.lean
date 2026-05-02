@@ -605,6 +605,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_mul_ge
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_mul_le_add_pred
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_isNone_iff
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_isSome_of_up_isSome
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_isNone_of_down_isNone
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_comm
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_zero_left
 #print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_zero_right
@@ -3846,4 +3848,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3670 theorems/lemmas (2720 public, 950 private, 0 sorry'd)
+-- Total: 3672 theorems/lemmas (2722 public, 950 private, 0 sorry'd)

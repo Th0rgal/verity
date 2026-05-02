@@ -350,6 +350,32 @@ theorem mulDiv512Up?_isNone_iff (a b c : Uint256) :
     · simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow]
     · simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow]
 
+/-- If the rounded-up full-precision quotient fits, the matching floor
+quotient also fits. -/
+theorem mulDiv512Down?_isSome_of_up_isSome (a b c : Uint256)
+    (h : (mulDiv512Up? a b c).isSome) :
+    (mulDiv512Down? a b c).isSome := by
+  rw [mulDiv512Up?_isSome_iff] at h
+  rw [mulDiv512Down?_isSome_iff]
+  rcases h with ⟨hC, hFit⟩
+  refine ⟨hC, ?_⟩
+  exact Nat.le_trans
+    (Nat.div_le_div_right (Nat.le_add_right ((a : Nat) * (b : Nat)) ((c : Nat) - 1)))
+    hFit
+
+/-- If the full-precision floor quotient is rejected, the matching rounded-up
+quotient is rejected too. -/
+theorem mulDiv512Up?_isNone_of_down_isNone (a b c : Uint256)
+    (h : (mulDiv512Down? a b c).isNone) :
+    (mulDiv512Up? a b c).isNone := by
+  rw [mulDiv512Down?_isNone_iff] at h
+  rw [mulDiv512Up?_isNone_iff]
+  rcases h with hZero | hOverflow
+  · exact Or.inl hZero
+  · exact Or.inr (Nat.lt_of_lt_of_le hOverflow
+      (Nat.div_le_div_right
+        (Nat.le_add_right ((a : Nat) * (b : Nat)) ((c : Nat) - 1))))
+
 /-- Full-precision ceil multiplication is commutative in its numerator operands. -/
 theorem mulDiv512Up?_comm (a b c : Uint256) :
     mulDiv512Up? a b c = mulDiv512Up? b a c := by
@@ -1511,6 +1537,7 @@ Full-precision mulDiv512 helpers:
 - `mulDiv512Down?_comm` / `mulDiv512Up?_comm` — numerator multiplication order does not matter
 - `mulDiv512Down?_monotone_left/right` / `mulDiv512Up?_monotone_left/right` — numerator monotonicity
 - `mulDiv512Down?_antitone_divisor` / `mulDiv512Up?_antitone_divisor` — divisor antitonicity
+- `mulDiv512Down?_isSome_of_up_isSome` / `mulDiv512Up?_isNone_of_down_isNone` — ceil/floor success and rejection bridge
 - `mulDiv512Down?_zero_left/right` / `mulDiv512Up?_zero_left/right` — zero numerators collapse helpers
 - `mulDiv512Down?_cancel_right/left` / `mulDiv512Up?_cancel_right/left` — exact same-denominator cancellation
 - `mulDiv512Down?_wide_product_regression` / `mulDiv512Up?_wide_product_regression` — products may exceed 256 bits when quotients fit
