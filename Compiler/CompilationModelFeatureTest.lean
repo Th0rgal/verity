@@ -3047,6 +3047,32 @@ private def bubblingValueCallNoOutputSmokeSpec : CompilationModel := {
   ]
 }
 
+private def bubblingValueCallNoOutputViewRejectedSpec : CompilationModel := {
+  name := "BubblingValueCallNoOutputViewRejected"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "forward"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "ethValue", ty := ParamType.uint256 }
+        , { name := "inputOffset", ty := ParamType.uint256 }
+        , { name := "inputSize", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      isView := true
+      body := [
+        Compiler.Modules.Calls.bubblingValueCallNoOutput
+          (Expr.param "target")
+          (Expr.param "ethValue")
+          (Expr.param "inputOffset")
+          (Expr.param "inputSize"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def erc20BalanceOfSmokeSpec : CompilationModel := {
   name := "ERC20BalanceOfSmoke"
   fields := []
@@ -3907,6 +3933,10 @@ set_option maxRecDepth 4096 in
   expectTrue "bubbling value call no-output helper fixes output slice to zero"
     (contains bubblingValueCallNoOutputYul
       "call(gas(), target, ethValue, inputOffset, inputSize, 0, 0)")
+  expectCompileErrorContains
+    "bubbling value call no-output helper remains rejected from view functions"
+    bubblingValueCallNoOutputViewRejectedSpec
+    "function 'forward' is marked view but writes state"
   let bubblingValueCallNoOutputTrustReport :=
     emitTrustReportJson [bubblingValueCallNoOutputSmokeSpec]
   expectTrue "bubbling value call no-output helper preserves the generic call assumption"
