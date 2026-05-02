@@ -5,6 +5,7 @@ import Compiler.Selector
 import Compiler.Hex
 import Contracts
 import Contracts.Smoke
+import Contracts.Smoke.PackedHashECMSmoke
 import Contracts.Smoke.SelfBalanceSmoke
 import Contracts.ProxyUpgradeabilityMacroSmoke
 import Contracts.ProxyUpgradeabilityLayoutCompatibleSmoke
@@ -335,6 +336,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.GenericECMReadSmoke.spec
   , Contracts.Smoke.GenericECMWriteSmoke.spec
   , Contracts.Smoke.BubblingValueCallECMSmoke.spec
+  , Contracts.Smoke.PackedHashECMSmoke.spec
   , Contracts.Smoke.LowLevelTryCatchSmoke.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeFunctionBoundary.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeConstructorBoundary.spec
@@ -461,6 +463,8 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("GenericECMReadSmoke", ["snapshotQuote(address,address)"])
   , ("GenericECMWriteSmoke", ["runEffect(uint256,uint256)"])
   , ("BubblingValueCallECMSmoke", ["forwardNoOutput(address,uint256,uint256,uint256)"])
+  , ("PackedHashECMSmoke", ["hashAddressAmount(address,uint256)", "hashLowByteAmount(uint256,uint256)",
+      "sha256AddressAmount(address,uint256)"])
   , ("LowLevelTryCatchSmoke", ["catchFailure()", "skipCatchOnSuccess()", "catchFailureWithShadowedParam(uint256)"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["preview()"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["noop()"])
@@ -569,6 +573,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("GenericECMReadSmoke", ["0x78f2e50f"])
   , ("GenericECMWriteSmoke", ["0xc1192eb1"])
   , ("BubblingValueCallECMSmoke", ["0x7ba1ade4"])
+  , ("PackedHashECMSmoke", ["0xffba6b66", "0xb70f2d26", "0x9c3e158c"])
   , ("LowLevelTryCatchSmoke", ["0x42d9c6d1", "0xdaf546c4", "0xa4660933"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["0xefae2305"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["0x5dfc2e4a"])
