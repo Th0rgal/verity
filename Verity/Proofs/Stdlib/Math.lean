@@ -68,6 +68,32 @@ theorem mulDiv512Down?_eq_some_iff (a b c out : Uint256) :
     · have hFit : ((a : Nat) * (b : Nat)) / (c : Nat) ≤ MAX_UINT256 := Nat.le_of_not_gt hOverflow
       simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow, hFit]
 
+/-- `mulDiv512Down?` succeeds exactly when the divisor is nonzero and the
+full-precision floor quotient fits in `uint256`. -/
+theorem mulDiv512Down?_isSome_iff (a b c : Uint256) :
+    (mulDiv512Down? a b c).isSome ↔
+      (c : Nat) ≠ 0 ∧
+      ((a : Nat) * (b : Nat)) / (c : Nat) ≤ MAX_UINT256 := by
+  by_cases hC : (c : Nat) = 0
+  · simp [Verity.Stdlib.Math.mulDiv512Down?, hC]
+  · by_cases hOverflow : ((a : Nat) * (b : Nat)) / (c : Nat) > MAX_UINT256
+    · have hNotFit : ¬((a : Nat) * (b : Nat)) / (c : Nat) ≤ MAX_UINT256 := by
+        exact Nat.not_le_of_gt hOverflow
+      simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow, hNotFit]
+    · have hFit : ((a : Nat) * (b : Nat)) / (c : Nat) ≤ MAX_UINT256 := Nat.le_of_not_gt hOverflow
+      simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow, hFit]
+
+/-- `mulDiv512Down?` rejects exactly zero divisors or overflowing floor quotients. -/
+theorem mulDiv512Down?_isNone_iff (a b c : Uint256) :
+    (mulDiv512Down? a b c).isNone ↔
+      (c : Nat) = 0 ∨
+      MAX_UINT256 < ((a : Nat) * (b : Nat)) / (c : Nat) := by
+  by_cases hC : (c : Nat) = 0
+  · simp [Verity.Stdlib.Math.mulDiv512Down?, hC]
+  · by_cases hOverflow : ((a : Nat) * (b : Nat)) / (c : Nat) > MAX_UINT256
+    · simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow]
+    · simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow]
+
 /-- Regression: full-precision floor `mulDiv512` permits a 256-bit-overflowing
 intermediate product when the final quotient fits. -/
 theorem mulDiv512Down?_wide_product_regression :
@@ -127,6 +153,38 @@ theorem mulDiv512Up?_eq_some_iff (a b c out : Uint256) :
           (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256 :=
         Nat.le_of_not_gt hOverflow
       simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow, hFit]
+
+/-- `mulDiv512Up?` succeeds exactly when the divisor is nonzero and the
+full-precision rounded-up quotient fits in `uint256`. -/
+theorem mulDiv512Up?_isSome_iff (a b c : Uint256) :
+    (mulDiv512Up? a b c).isSome ↔
+      (c : Nat) ≠ 0 ∧
+      (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256 := by
+  by_cases hC : (c : Nat) = 0
+  · simp [Verity.Stdlib.Math.mulDiv512Up?, hC]
+  · by_cases hOverflow :
+        (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) > MAX_UINT256
+    · have hNotFit :
+          ¬((((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256) := by
+        exact Nat.not_le_of_gt hOverflow
+      simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow, hNotFit]
+    · have hFit :
+          (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤ MAX_UINT256 :=
+        Nat.le_of_not_gt hOverflow
+      simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow, hFit]
+
+/-- `mulDiv512Up?` rejects exactly zero divisors or overflowing rounded-up quotients. -/
+theorem mulDiv512Up?_isNone_iff (a b c : Uint256) :
+    (mulDiv512Up? a b c).isNone ↔
+      (c : Nat) = 0 ∨
+      MAX_UINT256 <
+        (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) := by
+  by_cases hC : (c : Nat) = 0
+  · simp [Verity.Stdlib.Math.mulDiv512Up?, hC]
+  · by_cases hOverflow :
+        (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) > MAX_UINT256
+    · simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow]
+    · simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow]
 
 /-- Regression: full-precision ceil `mulDiv512` permits a 256-bit-overflowing
 intermediate product when the rounded quotient fits. -/
