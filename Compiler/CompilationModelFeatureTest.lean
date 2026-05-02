@@ -3520,6 +3520,14 @@ set_option maxRecDepth 4096 in
     "state-changing callWithValue ECM is rejected in view functions"
     callWithValueViewRejectedSpec
     "function 'execute' is marked view but writes state"
+  let macroCallWithValueYul ←
+    expectCompileToYul "macro callWithValue smoke spec" Contracts.Smoke.CallWithValueSmoke.spec
+  expectTrue "macro callWithValue surface elaborates to the generic call ECM"
+    (contains macroCallWithValueYul "call(gas(), target, value, dataOffset, dataSize, 0, 0)")
+  let macroCallWithValueTrustReport := emitTrustReportJson [Contracts.Smoke.CallWithValueSmoke.spec]
+  expectTrue "macro callWithValue trust report surfaces the generic call assumption"
+    (contains macroCallWithValueTrustReport "\"module\":\"callWithValue\"" &&
+      contains macroCallWithValueTrustReport "\"assumption\":\"generic_call_with_value_interface\"")
   let erc20AllowanceYul ←
     expectCompileToYul "erc20 allowance smoke spec" erc20AllowanceSmokeSpec
   expectTrue "erc20 allowance ECM lowers to staticcall"

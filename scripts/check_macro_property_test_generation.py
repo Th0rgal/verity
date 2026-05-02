@@ -23,6 +23,9 @@ EXCLUDED_CONTRACTS = {
     # arrays of tuple/struct values with nested dynamic members. This smoke is
     # covered by Lean macro invariant and round-trip tests instead.
     "DynamicStructArraySmoke",
+    # The generated no-revert stub cannot currently fund the contract before
+    # exercising `callWithValue`; Lean/Yul/trust-report tests cover this ECM.
+    "CallWithValueSmoke",
 }
 
 

@@ -90,6 +90,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
   , Contracts.Smoke.GenericECMWriteSmoke.spec
+  , Contracts.Smoke.CallWithValueSmoke.spec
   , Contracts.Smoke.LowLevelTryCatchSmoke.spec
   , Contracts.Smoke.ModifiesSmoke.spec
   , Contracts.Smoke.NoExternalCallsSmoke.spec

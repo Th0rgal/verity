@@ -10,6 +10,7 @@ import Contracts.Vault.Vault
 import Contracts.SimpleToken.SimpleToken
 import Contracts.ERC20.ERC20
 import Contracts.ERC721.ERC721
+import Compiler.Modules.Calls
 import Compiler.Modules.ERC20
 import Compiler.Modules.Oracle
 
@@ -1471,6 +1472,12 @@ verity_contract GenericECMWriteSmoke where
   function runEffect (lhs : Uint256, rhs : Uint256) : Unit := do
     ecmDo genericECMEffectDemoModule [lhs, rhs]
 
+verity_contract CallWithValueSmoke where
+  storage
+
+  function execute (target : Address, value : Uint256, dataOffset : Uint256, dataSize : Uint256) : Unit := do
+    ecmDo Compiler.Modules.Calls.callWithValueModule [addressToWord target, value, dataOffset, dataSize]
+
 set_option linter.unusedVariables false in
 verity_contract LowLevelTryCatchSmoke where
   storage
@@ -2080,6 +2087,24 @@ example :
           genericECMEffectDemoModule
           [ Compiler.CompilationModel.Expr.param "lhs"
           , Compiler.CompilationModel.Expr.param "rhs"
+          ]
+      , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+example :
+    (Compiler.CompilationModel.FunctionSpec.body
+      (CallWithValueSmoke.execute_model : Compiler.CompilationModel.FunctionSpec)) =
+    CallWithValueSmoke.execute_modelBody := by
+  simpa using CallWithValueSmoke.execute_semantic_preservation
+
+example :
+    CallWithValueSmoke.execute_modelBody =
+      [ Compiler.CompilationModel.Stmt.ecm
+          Compiler.Modules.Calls.callWithValueModule
+          [ Compiler.CompilationModel.Expr.param "target"
+          , Compiler.CompilationModel.Expr.param "value"
+          , Compiler.CompilationModel.Expr.param "dataOffset"
+          , Compiler.CompilationModel.Expr.param "dataSize"
           ]
       , Compiler.CompilationModel.Stmt.stop
       ] := rfl
