@@ -6,6 +6,7 @@ import Compiler.CompilationModel.LayoutReport
 import Compiler.CompilationModel.TrustSurface
 import Compiler.ECM
 import Compiler.ModuleInput
+import Compiler.Modules.Calls
 import Compiler.Modules.ERC4626
 import Compiler.Modules.ERC20
 import Compiler.Modules.Oracle
@@ -602,6 +603,31 @@ private def oracleTrustSurfaceSpec : CompilationModel := {
           0xfeaf968c
           [Expr.param "asset"],
         Stmt.returnValues [Expr.localVar "answer"]
+      ]
+    }
+  ]
+}
+
+private def callWithValueTrustSurfaceSpec : CompilationModel := {
+  name := "CallWithValueTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "execute"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.uint256 }
+        , { name := "dataOffset", ty := ParamType.uint256 }
+        , { name := "dataSize", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := [
+        Compiler.Modules.Calls.callWithValue
+          (Expr.param "target")
+          (Expr.param "amount")
+          (Expr.param "dataOffset")
+          (Expr.param "dataSize"),
+        Stmt.stop
       ]
     }
   ]
@@ -1374,6 +1400,16 @@ unsafe def runTests : IO Unit := do
   if !contains oracleTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"oracleReadUint256\"],\"localObligations\":[]}" then
     throw (IO.userError "✗ oracle trust report emits assumed ECM proof-status bucket")
   IO.println "✓ oracle trust report emits standard oracle module assumption"
+
+  let callWithValueTrustReport := emitTrustReportJson [callWithValueTrustSurfaceSpec]
+  if !contains callWithValueTrustReport "\"contract\":\"CallWithValueTrustSurface\"" then
+    throw (IO.userError "✗ callWithValue trust report emits contract name")
+  if !contains callWithValueTrustReport "\"module\":\"callWithValue\"" ||
+      !contains callWithValueTrustReport "\"assumption\":\"generic_call_with_value_interface\"" then
+    throw (IO.userError "✗ callWithValue trust report emits generic call module assumption")
+  if !contains callWithValueTrustReport "\"assumed\":{\"axiomatizedPrimitives\":[],\"linkedExternals\":[],\"ecmModules\":[\"callWithValue\"],\"localObligations\":[]}" then
+    throw (IO.userError "✗ callWithValue trust report emits assumed ECM proof-status bucket")
+  IO.println "✓ callWithValue trust report emits generic call module assumption"
 
   let erc20BalanceOfTrustReport := emitTrustReportJson [erc20BalanceOfTrustSurfaceSpec]
   if !contains erc20BalanceOfTrustReport "\"contract\":\"ERC20BalanceOfTrustSurface\"" then
