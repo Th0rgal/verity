@@ -4,9 +4,12 @@
   Standard ECM for ABI-encoded external calls with a single uint256 return:
   - `withReturn`: call/staticcall with selector + args, revert-forward on failure,
     validate return data, bind result variable
+  - `callWithValue`: generic ETH-aware call over an already prepared calldata
+    slice, revert-forward on failure
 
   Trust assumption: the target contract's function matches the declared
-  selector and ABI encoding.
+  selector and ABI encoding. For `callWithValue`, the caller is responsible for
+  preparing calldata at the supplied memory slice.
 -/
 
 import Compiler.ECM
@@ -81,5 +84,48 @@ def withReturnModule (resultVar : String) (selector : Nat) (numArgs : Nat) (isSt
 def withReturn (resultVar : String) (target : Expr) (selector : Nat)
     (args : List Expr) (isStatic : Bool := false) : Stmt :=
   .ecm (withReturnModule resultVar selector args.length isStatic) ([target] ++ args)
+
+/-- ETH-aware generic external call over an already prepared calldata slice.
+
+    Arguments passed to compile: [target, value, inOffset, inSize].
+    The module emits `call(gas(), target, value, inOffset, inSize, 0, 0)`,
+    bubbles revert returndata on failure, and ignores successful returndata.
+
+    This is intentionally lower-level than `withReturn`: it is the standard ECM
+    for adapter/router patterns that need arbitrary calldata plus `call{value:v}`.
+    The caller is responsible for constructing calldata and decoding or ignoring
+    any successful returndata. -/
+def callWithValueModule : ExternalCallModule where
+  name := "callWithValue"
+  numArgs := 4
+  resultVars := []
+  writesState := true
+  readsState := true
+  axioms := ["generic_call_with_value_interface"]
+  compile := fun _ctx args => do
+    match args with
+    | [targetExpr, valueExpr, inOffsetExpr, inSizeExpr] =>
+        let callExpr := YulExpr.call "call" [
+          YulExpr.call "gas" [],
+          targetExpr,
+          valueExpr,
+          inOffsetExpr, inSizeExpr,
+          YulExpr.lit 0, YulExpr.lit 0
+        ]
+        let letSuccess := YulStmt.let_ "__cwv_success" callExpr
+        let revertBlock := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__cwv_success"]) [
+          YulStmt.let_ "__cwv_rds" (YulExpr.call "returndatasize" []),
+          YulStmt.expr (YulExpr.call "returndatacopy" [
+            YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__cwv_rds"
+          ]),
+          YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__cwv_rds"])
+        ]
+        pure [YulStmt.block [letSuccess, revertBlock]]
+    | _ =>
+        throw "callWithValue expects 4 arguments (target, value, inOffset, inSize)"
+
+/-- Convenience: create a `Stmt.ecm` for an ETH-aware generic call. -/
+def callWithValue (target value inOffset inSize : Expr) : Stmt :=
+  .ecm callWithValueModule [target, value, inOffset, inSize]
 
 end Compiler.Modules.Calls

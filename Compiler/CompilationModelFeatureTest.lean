@@ -1,6 +1,7 @@
 import Compiler.CompilationModel
 import Compiler.ABI
 import Compiler.Codegen
+import Compiler.Modules.Calls
 import Compiler.Modules.ERC4626
 import Compiler.Modules.ERC20
 import Compiler.Modules.Oracle
@@ -2741,6 +2742,57 @@ private def erc20BalanceOfSmokeSpec : CompilationModel := {
   ]
 }
 
+private def callWithValueSmokeSpec : CompilationModel := {
+  name := "CallWithValueSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "execute"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.uint256 }
+        , { name := "dataOffset", ty := ParamType.uint256 }
+        , { name := "dataSize", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := [
+        Compiler.Modules.Calls.callWithValue
+          (Expr.param "target")
+          (Expr.param "amount")
+          (Expr.param "dataOffset")
+          (Expr.param "dataSize"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def callWithValueViewRejectedSpec : CompilationModel := {
+  name := "CallWithValueViewRejected"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "execute"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.uint256 }
+        , { name := "dataOffset", ty := ParamType.uint256 }
+        , { name := "dataSize", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      isView := true
+      body := [
+        Compiler.Modules.Calls.callWithValue
+          (Expr.param "target")
+          (Expr.param "amount")
+          (Expr.param "dataOffset")
+          (Expr.param "dataSize"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def erc20AllowanceSmokeSpec : CompilationModel := {
   name := "ERC20AllowanceSmoke"
   fields := []
@@ -3456,6 +3508,18 @@ set_option maxRecDepth 4096 in
     (contains erc20BalanceOfYul "if iszero(eq(returndatasize(), 32)) {")
   expectTrue "erc20 balanceOf ECM ABI-encodes the selector"
     (contains erc20BalanceOfYul "mstore(0, shl(224, 0x70a08231))")
+  let callWithValueYul ←
+    expectCompileToYul "generic callWithValue smoke spec" callWithValueSmokeSpec
+  expectTrue "callWithValue ECM lowers to an ETH-aware generic call"
+    (contains callWithValueYul "call(gas(), target, amount, dataOffset, dataSize, 0, 0)")
+  expectTrue "callWithValue ECM forwards revert returndata"
+    (contains callWithValueYul "returndatacopy(0, 0, __cwv_rds)")
+  expectTrue "callWithValue ECM bubbles forwarded revert data"
+    (contains callWithValueYul "revert(0, __cwv_rds)")
+  expectCompileErrorContains
+    "state-changing callWithValue ECM is rejected in view functions"
+    callWithValueViewRejectedSpec
+    "function 'execute' is marked view but writes state"
   let erc20AllowanceYul ←
     expectCompileToYul "erc20 allowance smoke spec" erc20AllowanceSmokeSpec
   expectTrue "erc20 allowance ECM lowers to staticcall"

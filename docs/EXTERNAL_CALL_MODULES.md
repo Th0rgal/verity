@@ -76,8 +76,15 @@ Standard modules ship in `Compiler/Modules/`:
 | `Precompiles.ecrecover` | Precompile 0x01 | ECDSA recovery, binds result address | `evm_ecrecover_precompile` |
 | `Callbacks.callback` | Parameterized | ABI-encode selector + static args + bytes, call target | `callback_target_interface` |
 | `Calls.withReturn` | Parameterized | Generic call/staticcall with single uint256 return | `external_call_abi_interface` |
+| `Calls.callWithValue` | Parameterized | Generic `call{value:v}` over an already prepared calldata slice, with revert bubbling | `generic_call_with_value_interface` |
 
 See `Compiler/Modules/README.md` for the full checklist on adding new standard modules.
+
+`Calls.callWithValue target value inOffset inSize` is the low-level adapter
+escape hatch for patterns such as arbitrary DeFi routers: the caller prepares
+calldata in memory, the ECM emits `call(gas(), target, value, inOffset, inSize,
+0, 0)`, and failures bubble returndata. Successful returndata is intentionally
+ignored; wrappers that need typed return decoding should build a narrower ECM.
 
 ## Writing Your Own ECM
 
