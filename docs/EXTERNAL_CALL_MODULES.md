@@ -113,10 +113,11 @@ of the package that uses the call.
 
 For adapter/router calls that intentionally ignore successful returndata, use
 `Compiler.Modules.Calls.bubblingValueCallNoOutput target value inputOffset
-inputSize`. It is a convenience wrapper over the same ECM with
-`outputOffset = 0` and `outputSize = 0`, so trust reports still surface the
-audited `bubblingValueCall` module and `generic_low_level_value_call_interface`
-assumption.
+inputSize`. It is backed by the four-argument
+`bubblingValueCallNoOutputModule`, which is suitable for `verity_contract`
+`ecmDo` call sites. Trust reports surface the distinct
+`bubblingValueCallNoOutput` module name with the same
+`generic_low_level_value_call_interface` assumption.
 
 ### Packed Hashing Helpers
 

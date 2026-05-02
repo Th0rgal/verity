@@ -11,6 +11,7 @@ import Contracts.SimpleToken.SimpleToken
 import Contracts.ERC20.ERC20
 import Contracts.ERC721.ERC721
 import Compiler.Modules.ERC20
+import Compiler.Modules.Calls
 import Compiler.Modules.Oracle
 
 namespace Contracts.Smoke
@@ -1489,6 +1490,13 @@ verity_contract GenericECMWriteSmoke where
   function runEffect (lhs : Uint256, rhs : Uint256) : Unit := do
     ecmDo genericECMEffectDemoModule [lhs, rhs]
 
+verity_contract BubblingValueCallECMSmoke where
+  storage
+
+  function forwardNoOutput (target : Address, ethValue : Uint256, inputOffset : Uint256, inputSize : Uint256) : Unit := do
+    ecmDo Compiler.Modules.Calls.bubblingValueCallNoOutputModule
+      [addressToWord target, ethValue, inputOffset, inputSize]
+
 set_option linter.unusedVariables false in
 verity_contract LowLevelTryCatchSmoke where
   storage
@@ -2099,6 +2107,24 @@ example :
           genericECMEffectDemoModule
           [ Compiler.CompilationModel.Expr.param "lhs"
           , Compiler.CompilationModel.Expr.param "rhs"
+          ]
+      , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+example :
+    (Compiler.CompilationModel.FunctionSpec.body
+      (BubblingValueCallECMSmoke.forwardNoOutput_model : Compiler.CompilationModel.FunctionSpec)) =
+    BubblingValueCallECMSmoke.forwardNoOutput_modelBody := by
+  simpa using BubblingValueCallECMSmoke.forwardNoOutput_semantic_preservation
+
+example :
+    BubblingValueCallECMSmoke.forwardNoOutput_modelBody =
+      [ Compiler.CompilationModel.Stmt.ecm
+          Compiler.Modules.Calls.bubblingValueCallNoOutputModule
+          [ Compiler.CompilationModel.Expr.param "target"
+          , Compiler.CompilationModel.Expr.param "ethValue"
+          , Compiler.CompilationModel.Expr.param "inputOffset"
+          , Compiler.CompilationModel.Expr.param "inputSize"
           ]
       , Compiler.CompilationModel.Stmt.stop
       ] := rfl

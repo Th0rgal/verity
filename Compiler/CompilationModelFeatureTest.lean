@@ -3073,6 +3073,28 @@ private def bubblingValueCallNoOutputViewRejectedSpec : CompilationModel := {
   ]
 }
 
+private def bubblingValueCallNoOutputBadAritySpec : CompilationModel := {
+  name := "BubblingValueCallNoOutputBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "ethValue", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := [
+        Stmt.ecm Compiler.Modules.Calls.bubblingValueCallNoOutputModule [
+          Expr.param "target",
+          Expr.param "ethValue"
+        ],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def erc20BalanceOfSmokeSpec : CompilationModel := {
   name := "ERC20BalanceOfSmoke"
   fields := []
@@ -3937,10 +3959,14 @@ set_option maxRecDepth 4096 in
     "bubbling value call no-output helper remains rejected from view functions"
     bubblingValueCallNoOutputViewRejectedSpec
     "function 'forward' is marked view but writes state"
+  expectCompileErrorContains
+    "bubbling value call no-output ECM rejects invalid argument counts"
+    bubblingValueCallNoOutputBadAritySpec
+    "uses ECM 'bubblingValueCallNoOutput' with 2 arguments but it expects 4"
   let bubblingValueCallNoOutputTrustReport :=
     emitTrustReportJson [bubblingValueCallNoOutputSmokeSpec]
   expectTrue "bubbling value call no-output helper preserves the generic call assumption"
-    (contains bubblingValueCallNoOutputTrustReport "\"module\":\"bubblingValueCall\"" &&
+    (contains bubblingValueCallNoOutputTrustReport "\"module\":\"bubblingValueCallNoOutput\"" &&
       contains bubblingValueCallNoOutputTrustReport
         "\"assumption\":\"generic_low_level_value_call_interface\"" &&
       contains bubblingValueCallNoOutputTrustReport "\"status\":\"assumed\"")

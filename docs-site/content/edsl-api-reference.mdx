@@ -634,6 +634,10 @@ def Compiler.Modules.Precompiles.sha256Memory
   (resultVar : String) (inputOffset inputSize outputOffset : Expr) : Stmt
 def Compiler.Modules.Precompiles.sha256
   (resultVar : String) (inputOffset inputSize outputOffset : Expr) : Stmt
+def Compiler.Modules.Calls.bubblingValueCall
+  (target value inputOffset inputSize outputOffset outputSize : Expr) : Stmt
+def Compiler.Modules.Calls.bubblingValueCallNoOutput
+  (target value inputOffset inputSize : Expr) : Stmt
 def Compiler.Modules.Hashing.abiEncodePackedWords
   (resultVar : String) (words : List Expr) : Stmt
 def Compiler.Modules.Hashing.abiEncodePacked

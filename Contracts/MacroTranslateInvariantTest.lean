@@ -334,6 +334,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
   , Contracts.Smoke.GenericECMWriteSmoke.spec
+  , Contracts.Smoke.BubblingValueCallECMSmoke.spec
   , Contracts.Smoke.LowLevelTryCatchSmoke.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeFunctionBoundary.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeConstructorBoundary.spec
@@ -459,6 +460,7 @@ private def expectedExternalSignatures : List (String × List String) :=
       "snapshotAllowance(address,address,address)", "snapshotSupply(address)"])
   , ("GenericECMReadSmoke", ["snapshotQuote(address,address)"])
   , ("GenericECMWriteSmoke", ["runEffect(uint256,uint256)"])
+  , ("BubblingValueCallECMSmoke", ["forwardNoOutput(address,uint256,uint256,uint256)"])
   , ("LowLevelTryCatchSmoke", ["catchFailure()", "skipCatchOnSuccess()", "catchFailureWithShadowedParam(uint256)"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["preview()"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["noop()"])
@@ -566,6 +568,7 @@ private def expectedExternalSelectors : List (String × List String) :=
       "0x7247c4a5"])
   , ("GenericECMReadSmoke", ["0x78f2e50f"])
   , ("GenericECMWriteSmoke", ["0xc1192eb1"])
+  , ("BubblingValueCallECMSmoke", ["0x7ba1ade4"])
   , ("LowLevelTryCatchSmoke", ["0x42d9c6d1", "0xdaf546c4", "0xa4660933"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["0xefae2305"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["0x5dfc2e4a"])

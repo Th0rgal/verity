@@ -113,9 +113,11 @@ Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (co
 ECMs include standard Verity-core modules for generic external-call mechanics,
 including `Compiler.Modules.Calls.bubblingValueCall`, which lowers
 Solidity-style `call{value: v}(data)` wrappers to Yul `call` and forwards exact
-revert returndata on failure. These mechanics remain explicit trust-report
-surfaces: Verity models the generic call choreography, while package-specific
-callee behavior and protocol assumptions belong in dependent packages.
+revert returndata on failure. `bubblingValueCallNoOutputModule` exposes the
+same no-output adapter/router shape directly to `verity_contract` `ecmDo` call
+sites. These mechanics remain explicit trust-report surfaces: Verity models the
+generic call choreography, while package-specific callee behavior and protocol
+assumptions belong in dependent packages.
 
 The standard ECM library also includes static-word packed hashing helpers:
 `Compiler.Modules.Hashing.abiEncodePackedWords` and

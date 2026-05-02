@@ -22,6 +22,29 @@ open Compiler.Yul
 open Compiler.ECM
 open Compiler.CompilationModel (Stmt Expr)
 
+private def bubblingValueCallYul
+    (targetExpr valueExpr inputOffsetExpr inputSizeExpr outputOffsetExpr outputSizeExpr : YulExpr) :
+    List YulStmt :=
+  let callExpr := YulExpr.call "call" [
+    YulExpr.call "gas" [],
+    targetExpr,
+    valueExpr,
+    inputOffsetExpr,
+    inputSizeExpr,
+    outputOffsetExpr,
+    outputSizeExpr
+  ]
+  [YulStmt.block [
+    YulStmt.let_ "__bvc_success" callExpr,
+    YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__bvc_success"]) [
+      YulStmt.let_ "__bvc_rds" (YulExpr.call "returndatasize" []),
+      YulStmt.expr (YulExpr.call "returndatacopy" [
+        YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__bvc_rds"
+      ]),
+      YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__bvc_rds"])
+    ]
+  ]]
+
 /-- Generic external call with single uint256 return.
     ABI-encodes `selector(args...)`, calls/staticcalls target, reverts on failure,
     validates returndatasize >= 32, and binds the result.
@@ -118,25 +141,30 @@ def bubblingValueCallModule : ExternalCallModule where
           pure (target, value, inputOffset, inputSize, outputOffset, outputSize)
       | _ =>
           throw "bubblingValueCall expects 6 arguments (target, value, inputOffset, inputSize, outputOffset, outputSize)"
-    let callExpr := YulExpr.call "call" [
-      YulExpr.call "gas" [],
-      targetExpr,
-      valueExpr,
-      inputOffsetExpr,
-      inputSizeExpr,
-      outputOffsetExpr,
-      outputSizeExpr
-    ]
-    pure [YulStmt.block [
-      YulStmt.let_ "__bvc_success" callExpr,
-      YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__bvc_success"]) [
-        YulStmt.let_ "__bvc_rds" (YulExpr.call "returndatasize" []),
-        YulStmt.expr (YulExpr.call "returndatacopy" [
-          YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__bvc_rds"
-        ]),
-        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__bvc_rds"])
-      ]
-    ]]
+    pure <| bubblingValueCallYul
+      targetExpr valueExpr inputOffsetExpr inputSizeExpr outputOffsetExpr outputSizeExpr
+
+/-- Four-argument no-output variant of `bubblingValueCallModule`.
+
+    This is useful for `verity_contract` `ecmDo` call sites and for adapter or
+    router calls where successful returndata is intentionally ignored. Failure
+    returndata is still bubbled exactly. -/
+def bubblingValueCallNoOutputModule : ExternalCallModule where
+  name := "bubblingValueCallNoOutput"
+  numArgs := 4
+  resultVars := []
+  writesState := true
+  readsState := true
+  axioms := ["generic_low_level_value_call_interface"]
+  compile := fun _ctx args => do
+    let (targetExpr, valueExpr, inputOffsetExpr, inputSizeExpr) ←
+      match args with
+      | [target, value, inputOffset, inputSize] =>
+          pure (target, value, inputOffset, inputSize)
+      | _ =>
+          throw "bubblingValueCallNoOutput expects 4 arguments (target, value, inputOffset, inputSize)"
+    pure <| bubblingValueCallYul
+      targetExpr valueExpr inputOffsetExpr inputSizeExpr (YulExpr.lit 0) (YulExpr.lit 0)
 
 /-- Convenience constructor for `bubblingValueCallModule`. -/
 def bubblingValueCall
@@ -147,6 +175,6 @@ def bubblingValueCall
     successful returndata while still bubbling failure returndata exactly. -/
 def bubblingValueCallNoOutput
     (target value inputOffset inputSize : Expr) : Stmt :=
-  bubblingValueCall target value inputOffset inputSize (Expr.literal 0) (Expr.literal 0)
+  .ecm bubblingValueCallNoOutputModule [target, value, inputOffset, inputSize]
 
 end Compiler.Modules.Calls
