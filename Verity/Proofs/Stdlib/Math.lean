@@ -669,6 +669,45 @@ theorem mulDiv512Up?_some_succ_of_not_dvd (a b c : Uint256)
   rw [mulDiv512Up?_some (a := a) (b := b) (c := c) hC hFit]
   congr
 
+/-- A successful full-precision ceil result never rounds below the matching
+floor result. -/
+theorem mulDiv512Down?_le_up (a b c down up : Uint256)
+    (hDown : mulDiv512Down? a b c = some down)
+    (hUp : mulDiv512Up? a b c = some up) :
+    (down : Nat) ≤ (up : Nat) := by
+  rcases (mulDiv512Down?_eq_some_iff a b c down).mp hDown with ⟨_hCDown, hDownFit, hDownOut⟩
+  rcases (mulDiv512Up?_eq_some_iff a b c up).mp hUp with ⟨_hCUp, hUpFit, hUpOut⟩
+  rw [← hDownOut, ← hUpOut]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hDownFit),
+    Nat.mod_eq_of_lt (lt_modulus_of_le_max hUpFit)]
+  apply Nat.div_le_div_right
+  exact Nat.le_add_right _ _
+
+/-- A successful full-precision ceil result is at most one quotient step above
+the matching floor result. -/
+theorem mulDiv512Up?_le_down_add_one (a b c down up : Uint256)
+    (hDown : mulDiv512Down? a b c = some down)
+    (hUp : mulDiv512Up? a b c = some up) :
+    (up : Nat) ≤ (down : Nat) + 1 := by
+  rcases (mulDiv512Down?_eq_some_iff a b c down).mp hDown with ⟨hC, hDownFit, hDownOut⟩
+  rcases (mulDiv512Up?_eq_some_iff a b c up).mp hUp with ⟨_hCUp, hUpFit, hUpOut⟩
+  rw [← hDownOut, ← hUpOut]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hDownFit),
+    Nat.mod_eq_of_lt (lt_modulus_of_le_max hUpFit)]
+  exact nat_ceil_div_le_div_add_one ((a : Nat) * (b : Nat)) (c : Nat) hC
+
+/-- Successful full-precision ceil and floor results either match exactly or
+differ by one quotient step. -/
+theorem mulDiv512Up?_eq_down_or_succ (a b c down up : Uint256)
+    (hDown : mulDiv512Down? a b c = some down)
+    (hUp : mulDiv512Up? a b c = some up) :
+    (up : Nat) = (down : Nat) ∨ (up : Nat) = (down : Nat) + 1 := by
+  have hLower : (down : Nat) ≤ (up : Nat) :=
+    mulDiv512Down?_le_up a b c down up hDown hUp
+  have hUpper : (up : Nat) ≤ (down : Nat) + 1 :=
+    mulDiv512Up?_le_down_add_one a b c down up hDown hUp
+  omega
+
 /-- The ceil helper exceeds the floor helper by at most one quotient step when both are exact. -/
 theorem mulDivUp_le_mulDivDown_add_one (a b c : Uint256)
     (hC : c ≠ 0)
@@ -1343,6 +1382,22 @@ safeDiv:
 -/
 
 /-! ## Fixed-point Helper Summary
+
+Full-precision mulDiv512 helpers:
+- `mulDiv512Down?_some` / `mulDiv512Up?_some` — return exact natural quotients when they fit
+- `mulDiv512Down?_none_of_zero_divisor` / `mulDiv512Up?_none_of_zero_divisor` — reject zero divisors
+- `mulDiv512Down?_none_of_overflow` / `mulDiv512Up?_none_of_overflow` — reject overflowing quotients
+- `mulDiv512Down?_eq_some_iff` / `mulDiv512Up?_eq_some_iff` — characterize successful results
+- `mulDiv512Down?_isSome_iff` / `mulDiv512Up?_isSome_iff` — characterize fit conditions
+- `mulDiv512Down?_isNone_iff` / `mulDiv512Up?_isNone_iff` — characterize rejection conditions
+- `mulDiv512Down?_mul_le` / `mulDiv512Down?_lt_succ_mul` — floor sandwich bounds
+- `mulDiv512Up?_mul_ge` / `mulDiv512Up?_mul_le_add_pred` — ceil sandwich bounds
+- `mulDiv512Down?_comm` / `mulDiv512Up?_comm` — numerator multiplication order does not matter
+- `mulDiv512Down?_zero_left/right` / `mulDiv512Up?_zero_left/right` — zero numerators collapse helpers
+- `mulDiv512Down?_cancel_right/left` / `mulDiv512Up?_cancel_right/left` — exact same-denominator cancellation
+- `mulDiv512Down?_wide_product_regression` / `mulDiv512Up?_wide_product_regression` — products may exceed 256 bits when quotients fit
+- `mulDiv512Up?_eq_down_of_dvd` / `mulDiv512Up?_some_succ_of_not_dvd` — ceil/floor divisibility shape
+- `mulDiv512Down?_le_up` / `mulDiv512Up?_le_down_add_one` / `mulDiv512Up?_eq_down_or_succ` — ceil/floor one-step rounding boundary
 
 26. mulDivDown_nat_eq — exact floor division when the numerator fits
 27. mulDivDown_mul_le — floor result never overshoots the numerator
