@@ -165,6 +165,34 @@ theorem mulDiv512Down?_cancel_left (a c : Uint256)
   rw [mulDiv512Down?_comm c a c]
   exact mulDiv512Down?_cancel_right a c hC
 
+/-- Full-precision floor multiplication is monotone in its left numerator
+operand for successful results. -/
+theorem mulDiv512Down?_monotone_left (a₁ a₂ b c out₁ out₂ : Uint256)
+    (hA : (a₁ : Nat) ≤ (a₂ : Nat))
+    (h₁ : mulDiv512Down? a₁ b c = some out₁)
+    (h₂ : mulDiv512Down? a₂ b c = some out₂) :
+    (out₁ : Nat) ≤ (out₂ : Nat) := by
+  rcases (mulDiv512Down?_eq_some_iff a₁ b c out₁).mp h₁ with ⟨_hC₁, hFit₁, hOut₁⟩
+  rcases (mulDiv512Down?_eq_some_iff a₂ b c out₂).mp h₂ with ⟨_hC₂, hFit₂, hOut₂⟩
+  rw [← hOut₁, ← hOut₂]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₁),
+    Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₂)]
+  exact Nat.div_le_div_right (Nat.mul_le_mul_right _ hA)
+
+/-- Full-precision floor multiplication is monotone in its right numerator
+operand for successful results. -/
+theorem mulDiv512Down?_monotone_right (a b₁ b₂ c out₁ out₂ : Uint256)
+    (hB : (b₁ : Nat) ≤ (b₂ : Nat))
+    (h₁ : mulDiv512Down? a b₁ c = some out₁)
+    (h₂ : mulDiv512Down? a b₂ c = some out₂) :
+    (out₁ : Nat) ≤ (out₂ : Nat) := by
+  rcases (mulDiv512Down?_eq_some_iff a b₁ c out₁).mp h₁ with ⟨_hC₁, hFit₁, hOut₁⟩
+  rcases (mulDiv512Down?_eq_some_iff a b₂ c out₂).mp h₂ with ⟨_hC₂, hFit₂, hOut₂⟩
+  rw [← hOut₁, ← hOut₂]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₁),
+    Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₂)]
+  exact Nat.div_le_div_right (Nat.mul_le_mul_left _ hB)
+
 /-- Regression: full-precision floor `mulDiv512` permits a 256-bit-overflowing
 intermediate product when the final quotient fits. -/
 theorem mulDiv512Down?_wide_product_regression :
@@ -329,6 +357,34 @@ theorem mulDiv512Up?_cancel_left (a c : Uint256)
     mulDiv512Up? c a c = some a := by
   rw [mulDiv512Up?_comm c a c]
   exact mulDiv512Up?_cancel_right a c hC
+
+/-- Full-precision ceil multiplication is monotone in its left numerator
+operand for successful results. -/
+theorem mulDiv512Up?_monotone_left (a₁ a₂ b c out₁ out₂ : Uint256)
+    (hA : (a₁ : Nat) ≤ (a₂ : Nat))
+    (h₁ : mulDiv512Up? a₁ b c = some out₁)
+    (h₂ : mulDiv512Up? a₂ b c = some out₂) :
+    (out₁ : Nat) ≤ (out₂ : Nat) := by
+  rcases (mulDiv512Up?_eq_some_iff a₁ b c out₁).mp h₁ with ⟨_hC₁, hFit₁, hOut₁⟩
+  rcases (mulDiv512Up?_eq_some_iff a₂ b c out₂).mp h₂ with ⟨_hC₂, hFit₂, hOut₂⟩
+  rw [← hOut₁, ← hOut₂]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₁),
+    Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₂)]
+  exact Nat.div_le_div_right (Nat.add_le_add_right (Nat.mul_le_mul_right _ hA) _)
+
+/-- Full-precision ceil multiplication is monotone in its right numerator
+operand for successful results. -/
+theorem mulDiv512Up?_monotone_right (a b₁ b₂ c out₁ out₂ : Uint256)
+    (hB : (b₁ : Nat) ≤ (b₂ : Nat))
+    (h₁ : mulDiv512Up? a b₁ c = some out₁)
+    (h₂ : mulDiv512Up? a b₂ c = some out₂) :
+    (out₁ : Nat) ≤ (out₂ : Nat) := by
+  rcases (mulDiv512Up?_eq_some_iff a b₁ c out₁).mp h₁ with ⟨_hC₁, hFit₁, hOut₁⟩
+  rcases (mulDiv512Up?_eq_some_iff a b₂ c out₂).mp h₂ with ⟨_hC₂, hFit₂, hOut₂⟩
+  rw [← hOut₁, ← hOut₂]
+  simp [Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₁),
+    Nat.mod_eq_of_lt (lt_modulus_of_le_max hFit₂)]
+  exact Nat.div_le_div_right (Nat.add_le_add_right (Nat.mul_le_mul_left _ hB) _)
 
 /-- Regression: full-precision ceil `mulDiv512` permits a 256-bit-overflowing
 intermediate product when the rounded quotient fits. -/
@@ -1393,6 +1449,7 @@ Full-precision mulDiv512 helpers:
 - `mulDiv512Down?_mul_le` / `mulDiv512Down?_lt_succ_mul` — floor sandwich bounds
 - `mulDiv512Up?_mul_ge` / `mulDiv512Up?_mul_le_add_pred` — ceil sandwich bounds
 - `mulDiv512Down?_comm` / `mulDiv512Up?_comm` — numerator multiplication order does not matter
+- `mulDiv512Down?_monotone_left/right` / `mulDiv512Up?_monotone_left/right` — numerator monotonicity
 - `mulDiv512Down?_zero_left/right` / `mulDiv512Up?_zero_left/right` — zero numerators collapse helpers
 - `mulDiv512Down?_cancel_right/left` / `mulDiv512Up?_cancel_right/left` — exact same-denominator cancellation
 - `mulDiv512Down?_wide_product_regression` / `mulDiv512Up?_wide_product_regression` — products may exceed 256 bits when quotients fit

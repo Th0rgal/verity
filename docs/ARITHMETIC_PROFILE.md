@@ -93,8 +93,9 @@ expose the failure boundary. Successful full-precision results also have
 direct sandwich lemmas: `mulDiv512Down?_mul_le`,
 `mulDiv512Down?_lt_succ_mul`, `mulDiv512Up?_mul_ge`, and
 `mulDiv512Up?_mul_le_add_pred`. They also mirror the existing `mulDiv`
-convenience surface with numerator commutativity, zero-numerator, and exact
-same-denominator cancellation lemmas. Full-precision ceil/floor exactness is
+convenience surface with numerator commutativity, successful-result numerator
+monotonicity, zero-numerator, and exact same-denominator cancellation lemmas.
+Full-precision ceil/floor exactness is
 covered by `mulDiv512Up?_eq_down_of_dvd` and
 `mulDiv512Up?_some_succ_of_not_dvd`, matching the older 256-bit `mulDiv`
 divisibility proof shape. Successful ceil/floor result pairs also expose the
