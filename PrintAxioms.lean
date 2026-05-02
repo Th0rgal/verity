@@ -3293,6 +3293,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_deca_not_mem_iff
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_undeca_not_mem_iff
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_duodeca_not_mem_iff
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_tredeca_not_mem_iff
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_forall_stmt
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem
@@ -3308,6 +3309,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_deca_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_undeca_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_duodeca_of_nativeStmtsWriteNames_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_tredeca_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem
@@ -3863,4 +3865,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3687 theorems/lemmas (2741 public, 946 private, 0 sorry'd)
+-- Total: 3689 theorems/lemmas (2743 public, 946 private, 0 sorry'd)
