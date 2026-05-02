@@ -92,7 +92,9 @@ and the final quotient fits; the matching `_none_of_zero_divisor`,
 expose the failure boundary. Successful full-precision results also have
 direct sandwich lemmas: `mulDiv512Down?_mul_le`,
 `mulDiv512Down?_lt_succ_mul`, `mulDiv512Up?_mul_ge`, and
-`mulDiv512Up?_mul_le_add_pred`.
+`mulDiv512Up?_mul_le_add_pred`. They also mirror the existing `mulDiv`
+convenience surface with numerator commutativity, zero-numerator, and exact
+same-denominator cancellation lemmas.
 
 | Lemma family | Generic helpers | Wad-specialized helpers |
 |--------------|----------------|------------------------|

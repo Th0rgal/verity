@@ -126,6 +126,45 @@ theorem mulDiv512Down?_isNone_iff (a b c : Uint256) :
     · simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow]
     · simp [Verity.Stdlib.Math.mulDiv512Down?, hC, hOverflow]
 
+/-- Full-precision floor multiplication is commutative in its numerator operands. -/
+theorem mulDiv512Down?_comm (a b c : Uint256) :
+    mulDiv512Down? a b c = mulDiv512Down? b a c := by
+  simp [Verity.Stdlib.Math.mulDiv512Down?, Nat.mul_comm]
+
+/-- A zero left numerator collapses full-precision floor multiplication to zero. -/
+theorem mulDiv512Down?_zero_left (b c : Uint256)
+    (hC : (c : Nat) ≠ 0) :
+    mulDiv512Down? 0 b c = some 0 := by
+  simp [Verity.Stdlib.Math.mulDiv512Down?, hC]
+
+/-- A zero right numerator collapses full-precision floor multiplication to zero. -/
+theorem mulDiv512Down?_zero_right (a c : Uint256)
+    (hC : (c : Nat) ≠ 0) :
+    mulDiv512Down? a 0 c = some 0 := by
+  simpa [mulDiv512Down?_comm] using mulDiv512Down?_zero_left a c hC
+
+/-- Exact full-precision floor cancellation by the right numerator operand. -/
+theorem mulDiv512Down?_cancel_right (a c : Uint256)
+    (hC : (c : Nat) ≠ 0) :
+    mulDiv512Down? a c c = some a := by
+  have hCPos : 0 < (c : Nat) := Nat.pos_of_ne_zero hC
+  have hQuot : (a : Nat) * (c : Nat) / (c : Nat) = (a : Nat) := by
+    simpa [Nat.mul_comm] using Nat.mul_div_right (a : Nat) hCPos
+  have hFit : (a : Nat) ≤ MAX_UINT256 := Verity.Core.Uint256.val_le_max a
+  rw [mulDiv512Down?_some (a := a) (b := c) (c := c) hC]
+  · congr
+    apply Verity.Core.Uint256.ext
+    rw [hQuot]
+    exact Nat.mod_eq_of_lt a.isLt
+  · simpa [hQuot] using hFit
+
+/-- Exact full-precision floor cancellation by the left numerator operand. -/
+theorem mulDiv512Down?_cancel_left (a c : Uint256)
+    (hC : (c : Nat) ≠ 0) :
+    mulDiv512Down? c a c = some a := by
+  rw [mulDiv512Down?_comm c a c]
+  exact mulDiv512Down?_cancel_right a c hC
+
 /-- Regression: full-precision floor `mulDiv512` permits a 256-bit-overflowing
 intermediate product when the final quotient fits. -/
 theorem mulDiv512Down?_wide_product_regression :
@@ -236,6 +275,60 @@ theorem mulDiv512Up?_isNone_iff (a b c : Uint256) :
         (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) > MAX_UINT256
     · simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow]
     · simp [Verity.Stdlib.Math.mulDiv512Up?, hC, hOverflow]
+
+/-- Full-precision ceil multiplication is commutative in its numerator operands. -/
+theorem mulDiv512Up?_comm (a b c : Uint256) :
+    mulDiv512Up? a b c = mulDiv512Up? b a c := by
+  simp [Verity.Stdlib.Math.mulDiv512Up?, Nat.mul_comm]
+
+/-- A zero left numerator collapses full-precision ceil multiplication to zero. -/
+theorem mulDiv512Up?_zero_left (b c : Uint256)
+    (hC : (c : Nat) ≠ 0) :
+    mulDiv512Up? 0 b c = some 0 := by
+  have hCeilZero : (((0 : Uint256) : Nat) * (b : Nat) + ((c : Nat) - 1)) / (c : Nat) = 0 := by
+    simpa using Nat.div_eq_of_lt (Nat.pred_lt hC)
+  rw [mulDiv512Up?_some (a := 0) (b := b) (c := c) hC]
+  · congr
+  · rw [hCeilZero]
+    exact Nat.zero_le _
+
+/-- A zero right numerator collapses full-precision ceil multiplication to zero. -/
+theorem mulDiv512Up?_zero_right (a c : Uint256)
+    (hC : (c : Nat) ≠ 0) :
+    mulDiv512Up? a 0 c = some 0 := by
+  simpa [mulDiv512Up?_comm] using mulDiv512Up?_zero_left a c hC
+
+/-- Exact full-precision ceil cancellation by the right numerator operand. -/
+theorem mulDiv512Up?_cancel_right (a c : Uint256)
+    (hC : (c : Nat) ≠ 0) :
+    mulDiv512Up? a c c = some a := by
+  have hCPos : 0 < (c : Nat) := Nat.pos_of_ne_zero hC
+  have hQuot :
+      (((a : Nat) * (c : Nat)) + ((c : Nat) - 1)) / (c : Nat) = (a : Nat) := by
+    calc
+      (((a : Nat) * (c : Nat)) + ((c : Nat) - 1)) / (c : Nat)
+          = (((c : Nat) - 1) + (c : Nat) * (a : Nat)) / (c : Nat) := by
+              rw [Nat.mul_comm, Nat.add_comm]
+      _ = ((c : Nat) - 1) / (c : Nat) + (a : Nat) :=
+              Nat.add_mul_div_left ((c : Nat) - 1) (a : Nat) hCPos
+      _ = (a : Nat) := by
+              have hPredDiv : ((c : Nat) - 1) / (c : Nat) = 0 :=
+                Nat.div_eq_of_lt (Nat.pred_lt hC)
+              omega
+  have hFit : (a : Nat) ≤ MAX_UINT256 := Verity.Core.Uint256.val_le_max a
+  rw [mulDiv512Up?_some (a := a) (b := c) (c := c) hC]
+  · congr
+    apply Verity.Core.Uint256.ext
+    rw [hQuot]
+    exact Nat.mod_eq_of_lt a.isLt
+  · simpa [hQuot] using hFit
+
+/-- Exact full-precision ceil cancellation by the left numerator operand. -/
+theorem mulDiv512Up?_cancel_left (a c : Uint256)
+    (hC : (c : Nat) ≠ 0) :
+    mulDiv512Up? c a c = some a := by
+  rw [mulDiv512Up?_comm c a c]
+  exact mulDiv512Up?_cancel_right a c hC
 
 /-- Regression: full-precision ceil `mulDiv512` permits a 256-bit-overflowing
 intermediate product when the rounded quotient fits. -/
