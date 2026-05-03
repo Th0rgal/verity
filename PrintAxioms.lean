@@ -574,6 +574,18 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Verity.Proofs.Stdlib.MappingAutomation.setMapping2_preserves_events
 
 -- Verity/Proofs/Stdlib/Math.lean
+#print axioms Verity.Proofs.Stdlib.Math.SNARK_SCALAR_FIELD_ne_zero
+#print axioms Verity.Proofs.Stdlib.Math.SNARK_SCALAR_FIELD_lt_modulus
+#print axioms Verity.Proofs.Stdlib.Math.modField_nat_eq
+#print axioms Verity.Proofs.Stdlib.Math.modField_lt
+#print axioms Verity.Proofs.Stdlib.Math.modField_eq_self_of_lt
+#print axioms Verity.Proofs.Stdlib.Math.modField_zero
+#print axioms Verity.Proofs.Stdlib.Math.modField_SNARK_SCALAR_FIELD
+#print axioms Verity.Proofs.Stdlib.Math.modField_eq_zero_iff
+#print axioms Verity.Proofs.Stdlib.Math.modField_eq_of_nat_mod_eq
+#print axioms Verity.Proofs.Stdlib.Math.modField_eq_iff_nat_mod_eq
+#print axioms Verity.Proofs.Stdlib.Math.modField_nat_mod_eq
+#print axioms Verity.Proofs.Stdlib.Math.modField_idempotent
 -- #print axioms Verity.Proofs.Stdlib.Math.modulus_eq_max_succ  -- private
 -- #print axioms Verity.Proofs.Stdlib.Math.lt_modulus_of_le_max  -- private
 -- #print axioms Verity.Proofs.Stdlib.Math.max_uint256_lt_modulus  -- private
@@ -3896,4 +3908,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3720 theorems/lemmas (2770 public, 950 private, 0 sorry'd)
+-- Total: 3732 theorems/lemmas (2782 public, 950 private, 0 sorry'd)

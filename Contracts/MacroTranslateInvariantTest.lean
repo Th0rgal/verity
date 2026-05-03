@@ -5,6 +5,7 @@ import Compiler.Selector
 import Compiler.Hex
 import Contracts
 import Contracts.Smoke
+import Contracts.Smoke.PackedHashECMSmoke
 import Contracts.Smoke.SelfBalanceSmoke
 import Contracts.ProxyUpgradeabilityMacroSmoke
 import Contracts.ProxyUpgradeabilityLayoutCompatibleSmoke
@@ -299,12 +300,14 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.StorageWordsAddressSmoke.spec
   , Contracts.Smoke.StorageWordsBoolSmoke.spec
   , Contracts.Smoke.CustomErrorSmoke.spec
+  , Contracts.Smoke.SafeMulRequireSmoke.spec
   , Contracts.Smoke.SignedBuiltinSmoke.spec
   , Contracts.Smoke.StatelessSmoke.spec
   , Contracts.Smoke.MutabilitySmoke.spec
   , Contracts.Smoke.SpecialEntrypointSmoke.spec
   , Contracts.Smoke.LeanDefHelperSmoke.spec
   , Contracts.Smoke.DirectHelperCallSmoke.spec
+  , Contracts.Smoke.MultiReturnHelperSmoke.spec
   , Contracts.Smoke.InitializerSmoke.spec
   , Contracts.Smoke.ConstantSmoke.spec
   , Contracts.Smoke.ImmutableSmoke.spec
@@ -334,6 +337,8 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
   , Contracts.Smoke.GenericECMWriteSmoke.spec
+  , Contracts.Smoke.BubblingValueCallECMSmoke.spec
+  , Contracts.Smoke.PackedHashECMSmoke.spec
   , Contracts.Smoke.LowLevelTryCatchSmoke.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeFunctionBoundary.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeConstructorBoundary.spec
@@ -405,6 +410,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("StorageWordsAddressSmoke", ["extSloadsLike(address[])"])
   , ("StorageWordsBoolSmoke", ["extSloadsLike(bool[])"])
   , ("CustomErrorSmoke", ["echo(uint256)"])
+  , ("SafeMulRequireSmoke", ["multiplyStored(uint256)", "divideStored(uint256)"])
   , ("SignedBuiltinSmoke", ["signedDiv(uint256,uint256)", "signedMod(uint256,uint256)", "signedLt(uint256,uint256)",
       "signedGt(uint256,uint256)", "arithmeticShift(uint256,uint256)", "signExtended()", "shiftedMask()",
       "signedDivSurface(int256,int256)", "signedModSurface(int256,int256)", "signedDivViaLocal(uint256,int256)",
@@ -416,6 +422,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("LeanDefHelperSmoke", ["addOffset(uint256,int256)", "sameWord(uint256,uint256)"])
   , ("DirectHelperCallSmoke", ["addToTotal(uint256)", "readTotalPlus(uint256)", "pairWithTotal(uint256)",
       "runHelpers(uint256,uint256,uint256)", "snapshot()"])
+  , ("MultiReturnHelperSmoke", ["summarize(uint256)", "useSummary(uint256)"])
   , ("InitializerSmoke", ["initOwner(address)", "upgradeToV2()"])
   , ("ConstantSmoke", ["feeOn(uint256)", "treasuryAddr()"])
   , ("ImmutableSmoke", ["supplyCap()", "treasuryAddr()", "shadowed(uint256)"])
@@ -459,6 +466,9 @@ private def expectedExternalSignatures : List (String × List String) :=
       "snapshotAllowance(address,address,address)", "snapshotSupply(address)"])
   , ("GenericECMReadSmoke", ["snapshotQuote(address,address)"])
   , ("GenericECMWriteSmoke", ["runEffect(uint256,uint256)"])
+  , ("BubblingValueCallECMSmoke", ["forwardNoOutput(address,uint256,uint256,uint256)"])
+  , ("PackedHashECMSmoke", ["hashAddressAmount(address,uint256)", "hashLowByteAmount(uint256,uint256)",
+      "sha256AddressAmount(address,uint256)"])
   , ("LowLevelTryCatchSmoke", ["catchFailure()", "skipCatchOnSuccess()", "catchFailureWithShadowedParam(uint256)"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["preview()"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["noop()"])
@@ -525,6 +535,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StorageWordsAddressSmoke", ["0x28054813"])
   , ("StorageWordsBoolSmoke", ["0x873bc011"])
   , ("CustomErrorSmoke", ["0x6279e43c"])
+  , ("SafeMulRequireSmoke", ["0x678f717b", "0x2b0262e3"])
   , ("SignedBuiltinSmoke", ["0x5aafa47b", "0x1c781eb5", "0x2ff7ce03", "0x5f28fa76", "0x49795601",
       "0xcc634d7f", "0x7c4ab1e5", "0x44b95b1e", "0x17ea5a3e", "0x6344ce8c", "0xf6814165", "0xae1a9a3e",
       "0x6622d274", "0x176a2ce1", "0x504d2488", "0xd5451d16", "0x22cfe3c6"])
@@ -533,6 +544,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("SpecialEntrypointSmoke", ["0x931999fb", "0x74b204a4"])
   , ("LeanDefHelperSmoke", ["0x42dbad08", "0x9ca603a4"])
   , ("DirectHelperCallSmoke", ["0x623f577a", "0xe9696d56", "0xe176587e", "0xa392867e", "0x9711715a"])
+  , ("MultiReturnHelperSmoke", ["0x9c9c9cd5", "0xbe1e29cd"])
   , ("InitializerSmoke", ["0x0d009297", "0xcc01053e"])
   , ("ConstantSmoke", ["0x9c421eb5", "0x30d9a62a"])
   , ("ImmutableSmoke", ["0x8f770ad0", "0x30d9a62a", "0x655b96ec"])
@@ -566,6 +578,8 @@ private def expectedExternalSelectors : List (String × List String) :=
       "0x7247c4a5"])
   , ("GenericECMReadSmoke", ["0x78f2e50f"])
   , ("GenericECMWriteSmoke", ["0xc1192eb1"])
+  , ("BubblingValueCallECMSmoke", ["0x7ba1ade4"])
+  , ("PackedHashECMSmoke", ["0xffba6b66", "0xb70f2d26", "0x9c3e158c"])
   , ("LowLevelTryCatchSmoke", ["0x42d9c6d1", "0xdaf546c4", "0xa4660933"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["0xefae2305"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["0x5dfc2e4a"])
@@ -899,6 +913,15 @@ private def checkDirectHelperCallSmoke : IO Unit := do
     (contains (reprStr runHelpers.body) "Stmt.internalCallAssign" &&
       contains (reprStr runHelpers.body) "\"internal_pairWithTotal\"")
 
+private def checkMultiReturnHelperSmoke : IO Unit := do
+  expectTrue
+    "MultiReturnHelperSmoke: tuple-return helper binds lower to internalCallAssign"
+    (match Contracts.Smoke.MultiReturnHelperSmoke.useSummary_modelBody with
+    | [Stmt.internalCallAssign ["head", "tail"] helperName [Expr.param "seed"],
+        Stmt.return (Expr.add (Expr.localVar "head") (Expr.localVar "tail"))] =>
+        helperName == "internal_summarize"
+    | _ => false)
+
 private def checkNamedStructParamSmoke : IO Unit := do
   expectTrue
     "NamedStructParamSmoke: nested struct leaf projection uses recursive tuple binding"
@@ -1091,6 +1114,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
   checkLowLevelTryCatchSmoke
   checkSpecialEntrypointSmoke
   checkDirectHelperCallSmoke
+  checkMultiReturnHelperSmoke
   checkNamedStructParamSmoke
   checkCurveCutArraySmoke
   checkDynamicStructArraySmoke
