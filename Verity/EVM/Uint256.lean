@@ -18,6 +18,7 @@ abbrev modulus := Verity.Core.Uint256.modulus
 abbrev add := Verity.Core.Uint256.add
 abbrev sub := Verity.Core.Uint256.sub
 abbrev mul := Verity.Core.Uint256.mul
+abbrev pow := Verity.Core.Uint256.pow
 abbrev div := Verity.Core.Uint256.div
 abbrev mod := Verity.Core.Uint256.mod
 

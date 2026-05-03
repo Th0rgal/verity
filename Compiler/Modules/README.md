@@ -10,10 +10,11 @@ structure that the compiler can plug in without modification.
 |------|---------|----------|
 | `ERC20.lean` | `safeTransfer`, `safeTransferFrom`, `safeApprove`, `balanceOf`, `allowance`, `totalSupply` | `Stmt.safeTransfer`, `Stmt.safeTransferFrom`, canonical ERC-20 read wrappers |
 | `ERC4626.lean` | `previewDeposit`, `previewMint`, `previewWithdraw`, `previewRedeem`, `convertToAssets`, `convertToShares`, `totalAssets`, `asset`, `maxDeposit`, `maxMint`, `maxWithdraw`, `maxRedeem`, `deposit` | canonical vault preview/conversion wrappers plus a standard deposit wrapper |
+| `Hashing.lean` | `abiEncodePackedWords` / `abiEncodePacked`, `sha256PackedWords` / `sha256Packed`, `abiEncodePackedStaticSegments`, `sha256PackedStaticSegments` | handwritten static packed hash preimage `mstore` choreography |
 | `Oracle.lean` | `oracleReadUint256` | canonical oracle read wrappers |
-| `Precompiles.lean` | `ecrecover` | `Stmt.ecrecover` |
+| `Precompiles.lean` | `ecrecover`, `sha256Memory` / `sha256` | `Stmt.ecrecover`, handwritten SHA-256 precompile calls |
 | `Callbacks.lean` | `callback` | `Stmt.callback` |
-| `Calls.lean` | `withReturn`, `callWithValue`, `callWithValueBytes` | `Stmt.externalCallWithReturn`; generic `call{value:v}` adapter calls |
+| `Calls.lean` | `withReturn`, `callWithValue`, `callWithValueBytes`, `bubblingValueCall`, `bubblingValueCallNoOutput` | `Stmt.externalCallWithReturn`; generic `call{value:v}` adapter calls; handwritten low-level `call{value: ...}` wrappers |
 
 ## Usage
 
@@ -29,6 +30,40 @@ body := [
   Stmt.stop
 ]
 ```
+
+Static-word packed hashing helpers are available for ZK/audit preimages whose
+items are already 32-byte words:
+
+```lean
+Modules.Hashing.abiEncodePackedWords
+  "digest"
+  [Expr.param "root", Expr.param "contextHash", Expr.param "nullifier"]
+
+Modules.Hashing.sha256PackedWords
+  "publicSignalDigest"
+  [Expr.param "root", Expr.param "contextHash"]
+```
+
+The shorter `Modules.Hashing.abiEncodePacked` and
+`Modules.Hashing.sha256Packed` aliases are available for the same static-word
+semantics. These helpers write words contiguously at scratch memory offset zero.
+For static packed preimages with byte-width segments such as address-sized
+values, use the segment helpers:
+
+```lean
+Modules.Hashing.abiEncodePackedStaticSegments
+  "digest"
+  [(Expr.param "who", 20), (Expr.param "amount", 32)]
+
+Modules.Hashing.sha256PackedStaticSegments
+  "publicSignalDigest"
+  [(Expr.param "who", 20), (Expr.param "contextHash", 32)]
+```
+
+Segment widths are explicit byte counts from 1 to 32. Sub-word values are
+masked to their requested width and left-aligned before `mstore`, and subsequent
+segments are placed at byte-precise offsets. These helpers still do not
+implement dynamic Solidity packed encoding for `bytes` or `string`.
 
 ## Writing a New Standard Module
 

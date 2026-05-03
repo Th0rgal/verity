@@ -223,6 +223,13 @@ forEach "i" count (do
 )
 ```
 
+The compilation model supports accumulator-style loops by placing `Stmt.assignVar`
+inside `Stmt.forEach`; generated Yul preserves assignment to the outer local.
+The `verity_contract` source fallback currently rejects mutating a Lean
+`let mut` local from inside the nested `forEach` body term, so macro-authored
+contracts should use explicit memory scratch space for loop accumulators until
+that executable-path limitation is removed.
+
 Reference points:
 
 - `Stmt.forEach` in `Compiler/CompilationModel.lean`
@@ -263,16 +270,18 @@ emitEvent "Transfer" [amount] [fromAddr, toAddr]
 Verity.EVM.Uint256.add : Uint256 -> Uint256 -> Uint256
 Verity.EVM.Uint256.sub : Uint256 -> Uint256 -> Uint256
 Verity.EVM.Uint256.mul : Uint256 -> Uint256 -> Uint256
+Verity.EVM.Uint256.pow : Uint256 -> Uint256 -> Uint256
 Verity.EVM.Uint256.div : Uint256 -> Uint256 -> Uint256
 Verity.EVM.Uint256.mod : Uint256 -> Uint256 -> Uint256
 ```
 
-These model EVM modular arithmetic.
+These model EVM modular arithmetic. `pow a b` and `a ^ b` compile to Yul/EVM `exp(a, b)`.
 
 **Example**
 
 ```lean
 let z : Uint256 := add x y
+let scale : Uint256 := pow 10 decimals
 ```
 
 **Proof lemmas**
@@ -296,7 +305,11 @@ def requireSomeUint (opt : Option Uint256) (message : String) : Contract Uint256
 
 ```lean
 let sum <- requireSomeUint (safeAdd a b) "overflow"
+let product <- requireSomeUint (safeMul a b) "overflow"
+let quotient <- requireSomeUint (safeDiv a b) "division by zero"
 ```
+
+`verity_contract` lowers `requireSomeUint` over `safeAdd`, `safeSub`, `safeMul`, and `safeDiv` to explicit compiled `require` guards before binding the arithmetic result. Bare `add`, `sub`, `mul`, and `div` remain wrapping EVM arithmetic.
 
 **Proof lemmas**
 
@@ -315,11 +328,17 @@ def mulDivUp (a b c : Uint256) : Uint256
 def wMulDown (a b : Uint256) : Uint256
 
 def wDivUp (a b : Uint256) : Uint256
+
+def SNARK_SCALAR_FIELD : Uint256
+
+def modField (x : Uint256) : Uint256
 ```
 
 **Proof lemmas**
 
 - `mulDivDown_nat_eq`, `mulDivUp_nat_eq`, `mulDivDown_le_mulDivUp`, `mulDivDown_antitone_divisor`, `mulDivUp_antitone_divisor`, `mulDivDown_comm`, `mulDivUp_comm`, `wMulDown_comm` (`Verity/Proofs/Stdlib/Math.lean`)
+- `SNARK_SCALAR_FIELD_val`, `modField_def` (`Verity/Stdlib/Math.lean`)
+- BN254 field lemmas: `SNARK_SCALAR_FIELD_ne_zero`, `SNARK_SCALAR_FIELD_lt_modulus`, `modField_nat_eq`, `modField_lt`, `modField_zero`, `modField_SNARK_SCALAR_FIELD`, `modField_eq_zero_iff`, `modField_eq_of_nat_mod_eq`, `modField_eq_iff_nat_mod_eq`, `modField_eq_self_of_lt`, `modField_nat_mod_eq`, `modField_idempotent` (`Verity/Proofs/Stdlib/Math.lean`)
 - Rounding-gap lemmas: `mulDivUp_le_mulDivDown_add_one`, `mulDivUp_eq_mulDivDown_or_succ`, `mulDivUp_eq_mulDivDown_of_dvd`, `mulDivUp_eq_mulDivDown_add_one_of_not_dvd` (`Verity/Proofs/Stdlib/Math.lean`)
 - Positivity lemmas: `mulDivDown_pos`, `mulDivUp_pos`, `wMulDown_pos`, `wDivUp_pos` (`Verity/Proofs/Stdlib/Math.lean`)
 - Zero-case lemmas: `mulDivDown_zero_left/right`, `mulDivUp_zero_left/right`, `wMulDown_zero_left/right`, `wDivUp_zero` (`Verity/Proofs/Stdlib/Math.lean`)
@@ -643,6 +662,26 @@ def Compiler.Modules.ERC4626.deposit
 def Compiler.Modules.Oracle.oracleReadUint256
   (resultVar : String) (target : Expr) (selector : Nat)
   (staticArgs : List Expr) : Stmt
+def Compiler.Modules.Precompiles.sha256Memory
+  (resultVar : String) (inputOffset inputSize outputOffset : Expr) : Stmt
+def Compiler.Modules.Precompiles.sha256
+  (resultVar : String) (inputOffset inputSize outputOffset : Expr) : Stmt
+def Compiler.Modules.Calls.bubblingValueCall
+  (target value inputOffset inputSize outputOffset outputSize : Expr) : Stmt
+def Compiler.Modules.Calls.bubblingValueCallNoOutput
+  (target value inputOffset inputSize : Expr) : Stmt
+def Compiler.Modules.Hashing.abiEncodePackedWords
+  (resultVar : String) (words : List Expr) : Stmt
+def Compiler.Modules.Hashing.abiEncodePacked
+  (resultVar : String) (words : List Expr) : Stmt
+def Compiler.Modules.Hashing.sha256PackedWords
+  (resultVar : String) (words : List Expr) : Stmt
+def Compiler.Modules.Hashing.sha256Packed
+  (resultVar : String) (words : List Expr) : Stmt
+def Compiler.Modules.Hashing.abiEncodePackedStaticSegments
+  (resultVar : String) (segments : List (Expr × Nat)) : Stmt
+def Compiler.Modules.Hashing.sha256PackedStaticSegments
+  (resultVar : String) (segments : List (Expr × Nat)) : Stmt
 ```
 
 These are emitted as `Stmt.ecm ...` with explicit module metadata and trust assumptions.
@@ -694,6 +733,43 @@ This elaborates to `Compiler.CompilationModel.Expr.keccak256` and lowers to the 
 
 `Expr.keccak256` also remains an explicit proof boundary today: the compiler supports it directly, but the current proof stack still treats it as an axiomatized primitive instead of a fully modeled operation. When it appears, archive `--trust-report` and use `--deny-axiomatized-primitives` for proof-strict runs (see issue `#1411`).
 
+### Static-word packed hashing
+
+For packed preimages where each item is already a full 32-byte word, use the
+standard hashing ECMs instead of open-coded offset arithmetic:
+
+```lean
+Compiler.Modules.Hashing.abiEncodePackedWords
+  "digest"
+  [Expr.param "root", Expr.param "contextHash", Expr.param "nullifier"]
+
+Compiler.Modules.Hashing.sha256PackedWords
+  "publicSignalDigest"
+  [Expr.param "root", Expr.param "contextHash"]
+```
+
+These helpers lower to contiguous `mstore` calls starting at scratch memory
+offset zero. The shorter `abiEncodePacked` and `sha256Packed` names are aliases
+for the same static-word semantics. `abiEncodePackedWords` binds
+`keccak256(0, wordCount * 32)`; `sha256PackedWords` calls precompile `0x02`,
+reverts on precompile failure, and binds the digest word.
+
+For static mixed-width preimages, use explicit byte-width segment helpers:
+
+```lean
+Compiler.Modules.Hashing.abiEncodePackedStaticSegments
+  "digest"
+  [(Expr.param "who", 20), (Expr.param "amount", 32)]
+
+Compiler.Modules.Hashing.sha256PackedStaticSegments
+  "publicSignalDigest"
+  [(Expr.param "who", 20), (Expr.param "contextHash", 32)]
+```
+
+Segment widths must be between 1 and 32 bytes. Sub-word values are left-aligned
+before `mstore`, and later segments are placed at byte-precise offsets. Dynamic
+`bytes` and `string` packed encoding remains outside this core helper surface.
+
 ### `ecrecover` precompile
 
 `verity_contract` can bind the standard `ecrecover` precompile directly:
@@ -703,6 +779,12 @@ let signer <- ecrecover digest v r s
 ```
 
 This elaborates to `Compiler.Modules.Precompiles.ecrecoverModule` and the trust report records the explicit assumption `evm_ecrecover_precompile`.
+
+`Compiler.Modules.Precompiles.sha256Memory` covers SHA-256 over an existing
+memory slice. The shorter `Compiler.Modules.Precompiles.sha256` name is an
+alias for the same ECM. It emits precompile `0x02`, reverts on precompile
+failure, binds `mload(outputOffset)`, and records the explicit assumption
+`evm_sha256_precompile`.
 
 `Compiler.Modules.Oracle.oracleReadUint256` covers the common read-only oracle case: it ABI-encodes the selector plus static arguments, performs a `staticcall`, requires exactly one 32-byte return word, and binds that word to a local result variable. The trust report records the explicit ECM assumption `oracle_read_uint256_interface`.
 

@@ -21,6 +21,8 @@ Use this table as your first-pass conversion checklist.
 | `require(cond, "msg")` | `require cond "msg"` |
 | `x = y + z` (checked) | `let sum <- requireSomeUint (safeAdd y z) "overflow"` then `setStorage xSlot sum` |
 | `x = y - z` (checked) | `let d <- requireSomeUint (safeSub y z) "underflow"` then `setStorage xSlot d` |
+| `x = y * z` (checked) | `let p <- requireSomeUint (safeMul y z) "overflow"` then `setStorage xSlot p` |
+| `x = y / z` (checked) | `let q <- requireSomeUint (safeDiv y z) "division by zero"` then `setStorage xSlot q` |
 | `balances[a]` | `let m <- getStorage balances; pure (m a)` |
 | `balances[a] = v` | `let m <- getStorage balances; setStorage balances (fun k => if k == a then v else m k)` |
 | `emit Transfer(from, to, amount)` | `emit [from.toNat, to.toNat, amount.toNat]` (or contract-specific event encoding) |
@@ -204,7 +206,7 @@ Changing slot numbers after writing proofs is a common source of silent mismatch
 ### 3) Checked vs wrapping arithmetic
 
 Solidity `^0.8` arithmetic is checked by default.
-If you want Solidity-equivalent behavior, use `safeAdd` / `safeSub` + `requireSomeUint`.
+If you want Solidity-equivalent behavior, use `safeAdd` / `safeSub` / `safeMul` / `safeDiv` with `requireSomeUint`.
 
 ### 4) Revert ordering
 

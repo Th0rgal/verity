@@ -26,6 +26,14 @@ EXCLUDED_CONTRACTS = {
     # The generated no-revert stub cannot currently fund the contract before
     # exercising `callWithValue`; Lean/Yul/trust-report tests cover this ECM.
     "CallWithValueSmoke",
+    # The generator does not fund the deployed contract before calling value
+    # forwarding ECM smoke entrypoints. Lean macro/model tests cover this
+    # low-level surface; a generated no-revert Foundry stub would be invalid.
+    "BubblingValueCallECMSmoke",
+    # External-call-module specs with hashing compile closures are covered by
+    # Lean macro/model tests; the standalone compiler artifact path does not
+    # materialize these ECM smoke contracts for generated no-revert stubs.
+    "PackedHashECMSmoke",
 }
 
 

@@ -4,6 +4,7 @@ import Compiler.Codegen
 import Compiler.Modules.Calls
 import Compiler.Modules.ERC4626
 import Compiler.Modules.ERC20
+import Compiler.Modules.Hashing
 import Compiler.Modules.Oracle
 import Compiler.Modules.Precompiles
 import Compiler.Yul.PrettyPrint
@@ -591,6 +592,43 @@ def feeOnModelInlinesContractConstants : Bool :=
 
 example : feeOnModelInlinesContractConstants = true := by native_decide
 
+def uint256PowSmokeLowersToBuiltinExp : Bool :=
+  match Contracts.Smoke.Uint256PowSmoke.scale_modelBody with
+  | [Stmt.letVar "exponent" (Expr.sub (Expr.literal 18) (Expr.param "decimals")),
+      Stmt.return (Expr.externalCall name [Expr.literal 10, Expr.localVar "exponent"])] =>
+      name == builtinExpName
+  | _ => false
+
+example : uint256PowSmokeLowersToBuiltinExp = true := by native_decide
+
+def uint256PowInfixLowersToBuiltinExp : Bool :=
+  match Contracts.Smoke.Uint256PowSmoke.scaleInfix_modelBody with
+  | [Stmt.letVar "exponent" (Expr.sub (Expr.literal 18) (Expr.param "decimals")),
+      Stmt.return (Expr.externalCall name [Expr.literal 10, Expr.localVar "exponent"])] =>
+      name == builtinExpName
+  | _ => false
+
+example : uint256PowInfixLowersToBuiltinExp = true := by native_decide
+
+def uint256PowBuiltinCompilesToYulExp : Bool :=
+  match compileExpr [] .calldata
+      (Expr.externalCall builtinExpName [Expr.param "base", Expr.param "exponent"]) with
+  | .ok (Compiler.Yul.YulExpr.call "exp"
+      [Compiler.Yul.YulExpr.ident "base", Compiler.Yul.YulExpr.ident "exponent"]) => true
+  | _ => false
+
+example : uint256PowBuiltinCompilesToYulExp = true := by native_decide
+
+def uint256PowBuiltinIsNotAnExternalInteraction : Bool :=
+  let expr := Expr.externalCall builtinExpName [Expr.literal 10, Expr.param "exponent"]
+  !exprReadsStateOrEnv expr &&
+    !exprWritesState expr &&
+    !exprContainsCallLike expr &&
+    !exprContainsExternalCall expr &&
+    !exprMayContainExternalCall expr
+
+example : uint256PowBuiltinIsNotAnExternalInteraction = true := by native_decide
+
 def treasuryAddrModelInlinesAddressConstant : Bool :=
   match MacroConstant.treasuryAddr_modelBody with
   | [Stmt.return (Expr.literal 42)] =>
@@ -1034,6 +1072,70 @@ def failWithModelUsesDeclaredCustomError : Bool :=
 example : failWithModelUsesDeclaredCustomError = true := by native_decide
 
 end MacroStatelessSectionsSmoke
+
+namespace MacroSafeMulRequireSmoke
+
+def safeAddRequireLowersToOverflowGuard : Bool :=
+  match Contracts.SafeCounter.increment_modelBody with
+  | [ Stmt.letVar "current" (Expr.storage "count"),
+      Stmt.require
+        (Expr.ge
+          (Expr.add (Expr.localVar "current") (Expr.literal 1))
+          (Expr.localVar "current"))
+        "Overflow in increment",
+      Stmt.letVar "newCount" (Expr.add (Expr.localVar "current") (Expr.literal 1)),
+      Stmt.setStorage "count" (Expr.localVar "newCount"),
+      Stmt.stop ] => true
+  | _ => false
+
+example : safeAddRequireLowersToOverflowGuard = true := by native_decide
+
+def safeSubRequireLowersToUnderflowGuard : Bool :=
+  match Contracts.SafeCounter.decrement_modelBody with
+  | [ Stmt.letVar "current" (Expr.storage "count"),
+      Stmt.require
+        (Expr.ge (Expr.localVar "current") (Expr.literal 1))
+        "Underflow in decrement",
+      Stmt.letVar "newCount" (Expr.sub (Expr.localVar "current") (Expr.literal 1)),
+      Stmt.setStorage "count" (Expr.localVar "newCount"),
+      Stmt.stop ] => true
+  | _ => false
+
+example : safeSubRequireLowersToUnderflowGuard = true := by native_decide
+
+def safeMulRequireLowersToOverflowGuard : Bool :=
+  match Contracts.Smoke.SafeMulRequireSmoke.multiplyStored_modelBody with
+  | [ Stmt.letVar "current" (Expr.storage "product"),
+      Stmt.require
+        (Expr.logicalOr
+          (Expr.eq (Expr.param "factor") (Expr.literal 0))
+          (Expr.eq
+            (Expr.div
+              (Expr.mul (Expr.localVar "current") (Expr.param "factor"))
+              (Expr.param "factor"))
+            (Expr.localVar "current")))
+        "Product overflow",
+      Stmt.letVar "next" (Expr.mul (Expr.localVar "current") (Expr.param "factor")),
+      Stmt.setStorage "product" (Expr.localVar "next"),
+      Stmt.return (Expr.localVar "next") ] => true
+  | _ => false
+
+example : safeMulRequireLowersToOverflowGuard = true := by native_decide
+
+def safeDivRequireLowersToZeroGuard : Bool :=
+  match Contracts.Smoke.SafeMulRequireSmoke.divideStored_modelBody with
+  | [ Stmt.letVar "current" (Expr.storage "product"),
+      Stmt.require
+        (Expr.logicalNot (Expr.eq (Expr.param "divisor") (Expr.literal 0)))
+        "Division by zero",
+      Stmt.letVar "next" (Expr.div (Expr.localVar "current") (Expr.param "divisor")),
+      Stmt.setStorage "product" (Expr.localVar "next"),
+      Stmt.return (Expr.localVar "next") ] => true
+  | _ => false
+
+example : safeDivRequireLowersToZeroGuard = true := by native_decide
+
+end MacroSafeMulRequireSmoke
 
 namespace MacroInt256LoweringSmoke
 
@@ -2168,6 +2270,27 @@ private def effectOnlyExternalBindMismatchSpec : CompilationModel := {
   ]
 }
 
+private def reservedBuiltinExpExternalSpec : CompilationModel := {
+  name := "ReservedBuiltinExpExternal"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "scale"
+      params := [{ name := "exponent", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.externalCall builtinExpName [Expr.literal 10, Expr.param "exponent"])]
+    }
+  ]
+  externals := [
+    { name := builtinExpName
+      params := [ParamType.uint256, ParamType.uint256]
+      returnType := some ParamType.uint256
+      returns := [ParamType.uint256]
+      axiomNames := ["malicious_shadow_exp"]
+    }
+  ]
+}
+
 private def rawLogTraceSmokeSpec : CompilationModel := {
   name := "RawLogTraceSmoke"
   fields := []
@@ -2581,6 +2704,26 @@ private def uintArrayElementOnlySpec : CompilationModel := {
   ]
 }
 
+private def uintArrayForEachAccumulatorSpec : CompilationModel := {
+  name := "UintArrayForEachAccumulator"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "sum"
+      params := [{ name := "values", ty := ParamType.array ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [
+        Stmt.letVar "total" (Expr.literal 0),
+        Stmt.forEach "i" (Expr.arrayLength "values") [
+          Stmt.letVar "value" (Expr.arrayElement "values" (Expr.localVar "i")),
+          Stmt.assignVar "total" (Expr.add (Expr.localVar "total") (Expr.localVar "value"))
+        ],
+        Stmt.return (Expr.localVar "total")
+      ]
+    }
+  ]
+}
+
 private def tupleArrayElementWordOnlySpec : CompilationModel := {
   name := "TupleArrayElementWordOnly"
   fields := []
@@ -2695,6 +2838,272 @@ private def ecrecoverSmokeSpec : CompilationModel := {
   ]
 }
 
+private def sha256MemorySmokeSpec : CompilationModel := {
+  name := "Sha256MemorySmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "hash"
+      params := [
+        { name := "inputOffset", ty := ParamType.uint256 }
+        , { name := "inputSize", ty := ParamType.uint256 }
+        , { name := "outputOffset", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.bytes32]
+      body := [
+        Compiler.Modules.Precompiles.sha256
+          "digest"
+          (Expr.param "inputOffset")
+          (Expr.param "inputSize")
+          (Expr.param "outputOffset"),
+        Stmt.returnValues [Expr.localVar "digest"]
+      ]
+    }
+  ]
+}
+
+private def sha256MemoryTwiceSmokeSpec : CompilationModel := {
+  name := "Sha256MemoryTwiceSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "hashBoth"
+      params := [
+        { name := "inputOffset", ty := ParamType.uint256 }
+        , { name := "inputSize", ty := ParamType.uint256 }
+        , { name := "firstOutputOffset", ty := ParamType.uint256 }
+        , { name := "secondOutputOffset", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.bytes32, ParamType.bytes32]
+      body := [
+        Compiler.Modules.Precompiles.sha256
+          "firstDigest"
+          (Expr.param "inputOffset")
+          (Expr.param "inputSize")
+          (Expr.param "firstOutputOffset"),
+        Compiler.Modules.Precompiles.sha256
+          "secondDigest"
+          (Expr.param "inputOffset")
+          (Expr.param "inputSize")
+          (Expr.param "secondOutputOffset"),
+        Stmt.returnValues [Expr.localVar "firstDigest", Expr.localVar "secondDigest"]
+      ]
+    }
+  ]
+}
+
+private def abiEncodePackedWordsSmokeSpec : CompilationModel := {
+  name := "AbiEncodePackedWordsSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "hash"
+      params := [
+        { name := "a", ty := ParamType.bytes32 }
+        , { name := "b", ty := ParamType.bytes32 }
+        , { name := "c", ty := ParamType.bytes32 }
+      ]
+      returnType := none
+      returns := [ParamType.bytes32]
+      body := [
+        Compiler.Modules.Hashing.abiEncodePacked
+          "digest"
+          [Expr.param "a", Expr.param "b", Expr.param "c"],
+        Stmt.returnValues [Expr.localVar "digest"]
+      ]
+    }
+  ]
+}
+
+private def sha256PackedWordsSmokeSpec : CompilationModel := {
+  name := "Sha256PackedWordsSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "hash"
+      params := [
+        { name := "root", ty := ParamType.bytes32 }
+        , { name := "context", ty := ParamType.bytes32 }
+      ]
+      returnType := none
+      returns := [ParamType.bytes32]
+      body := [
+        Compiler.Modules.Hashing.sha256Packed
+          "digest"
+          [Expr.param "root", Expr.param "context"],
+        Stmt.returnValues [Expr.localVar "digest"]
+      ]
+    }
+  ]
+}
+
+private def abiEncodePackedStaticSegmentsSmokeSpec : CompilationModel := {
+  name := "AbiEncodePackedStaticSegmentsSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "hash"
+      params := [
+        { name := "who", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.bytes32 }
+      ]
+      returnType := none
+      returns := [ParamType.bytes32]
+      body := [
+        Compiler.Modules.Hashing.abiEncodePackedStaticSegments
+          "digest"
+          [(Expr.param "who", 20), (Expr.param "amount", 32)],
+        Stmt.returnValues [Expr.localVar "digest"]
+      ]
+    }
+  ]
+}
+
+private def sha256PackedStaticSegmentsSmokeSpec : CompilationModel := {
+  name := "Sha256PackedStaticSegmentsSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "hash"
+      params := [
+        { name := "who", ty := ParamType.address }
+        , { name := "context", ty := ParamType.bytes32 }
+      ]
+      returnType := none
+      returns := [ParamType.bytes32]
+      body := [
+        Compiler.Modules.Hashing.sha256PackedStaticSegments
+          "digest"
+          [(Expr.param "who", 20), (Expr.param "context", 32)],
+        Stmt.returnValues [Expr.localVar "digest"]
+      ]
+    }
+  ]
+}
+
+private def sha256MemoryBadAritySpec : CompilationModel := {
+  name := "Sha256MemoryBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "inputOffset", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.ecm (Compiler.Modules.Precompiles.sha256MemoryModule "digest")
+          [Expr.param "inputOffset"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def abiEncodePackedWordsBadAritySpec : CompilationModel := {
+  name := "AbiEncodePackedWordsBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "a", ty := ParamType.bytes32 }]
+      returnType := none
+      body := [
+        Stmt.ecm (Compiler.Modules.Hashing.abiEncodePackedWordsModule "digest" 2)
+          [Expr.param "a"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def sha256PackedWordsBadAritySpec : CompilationModel := {
+  name := "Sha256PackedWordsBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "root", ty := ParamType.bytes32 }]
+      returnType := none
+      body := [
+        Stmt.ecm (Compiler.Modules.Hashing.sha256PackedWordsModule "digest" 2)
+          [Expr.param "root"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def abiEncodePackedStaticSegmentsBadWidthSpec : CompilationModel := {
+  name := "AbiEncodePackedStaticSegmentsBadWidth"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "who", ty := ParamType.address }]
+      returnType := none
+      body := [
+        Compiler.Modules.Hashing.abiEncodePackedStaticSegments
+          "digest"
+          [(Expr.param "who", 33)],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def sha256PackedStaticSegmentsBadWidthSpec : CompilationModel := {
+  name := "Sha256PackedStaticSegmentsBadWidth"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "who", ty := ParamType.address }]
+      returnType := none
+      body := [
+        Compiler.Modules.Hashing.sha256PackedStaticSegments
+          "digest"
+          [(Expr.param "who", 0)],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def abiEncodePackedStaticSegmentsBadAritySpec : CompilationModel := {
+  name := "AbiEncodePackedStaticSegmentsBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "who", ty := ParamType.address }]
+      returnType := none
+      body := [
+        Stmt.ecm (Compiler.Modules.Hashing.abiEncodePackedStaticSegmentsModule "digest" [20, 32])
+          [Expr.param "who"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def sha256PackedStaticSegmentsBadAritySpec : CompilationModel := {
+  name := "Sha256PackedStaticSegmentsBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "who", ty := ParamType.address }]
+      returnType := none
+      body := [
+        Stmt.ecm (Compiler.Modules.Hashing.sha256PackedStaticSegmentsModule "digest" [20, 32])
+          [Expr.param "who"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def oracleReadSmokeSpec : CompilationModel := {
   name := "OracleReadSmoke"
   fields := []
@@ -2714,6 +3123,160 @@ private def oracleReadSmokeSpec : CompilationModel := {
           0xfeaf968c
           [Expr.param "asset"],
         Stmt.returnValues [Expr.localVar "answer"]
+      ]
+    }
+  ]
+}
+
+private def bubblingValueCallSmokeSpec : CompilationModel := {
+  name := "BubblingValueCallSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "forward"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "ethValue", ty := ParamType.uint256 }
+        , { name := "inputOffset", ty := ParamType.uint256 }
+        , { name := "inputSize", ty := ParamType.uint256 }
+        , { name := "outputOffset", ty := ParamType.uint256 }
+        , { name := "outputSize", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := [
+        Compiler.Modules.Calls.bubblingValueCall
+          (Expr.param "target")
+          (Expr.param "ethValue")
+          (Expr.param "inputOffset")
+          (Expr.param "inputSize")
+          (Expr.param "outputOffset")
+          (Expr.param "outputSize"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def bubblingValueCallBadAritySpec : CompilationModel := {
+  name := "BubblingValueCallBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "ethValue", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := [
+        Stmt.ecm Compiler.Modules.Calls.bubblingValueCallModule [
+          Expr.param "target",
+          Expr.param "ethValue"
+        ],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def bubblingValueCallViewRejectedSpec : CompilationModel := {
+  name := "BubblingValueCallViewRejected"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "forward"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "ethValue", ty := ParamType.uint256 }
+        , { name := "inputOffset", ty := ParamType.uint256 }
+        , { name := "inputSize", ty := ParamType.uint256 }
+        , { name := "outputOffset", ty := ParamType.uint256 }
+        , { name := "outputSize", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      isView := true
+      body := [
+        Compiler.Modules.Calls.bubblingValueCall
+          (Expr.param "target")
+          (Expr.param "ethValue")
+          (Expr.param "inputOffset")
+          (Expr.param "inputSize")
+          (Expr.param "outputOffset")
+          (Expr.param "outputSize"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def bubblingValueCallNoOutputSmokeSpec : CompilationModel := {
+  name := "BubblingValueCallNoOutputSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "forward"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "ethValue", ty := ParamType.uint256 }
+        , { name := "inputOffset", ty := ParamType.uint256 }
+        , { name := "inputSize", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := [
+        Compiler.Modules.Calls.bubblingValueCallNoOutput
+          (Expr.param "target")
+          (Expr.param "ethValue")
+          (Expr.param "inputOffset")
+          (Expr.param "inputSize"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def bubblingValueCallNoOutputViewRejectedSpec : CompilationModel := {
+  name := "BubblingValueCallNoOutputViewRejected"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "forward"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "ethValue", ty := ParamType.uint256 }
+        , { name := "inputOffset", ty := ParamType.uint256 }
+        , { name := "inputSize", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      isView := true
+      body := [
+        Compiler.Modules.Calls.bubblingValueCallNoOutput
+          (Expr.param "target")
+          (Expr.param "ethValue")
+          (Expr.param "inputOffset")
+          (Expr.param "inputSize"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def bubblingValueCallNoOutputBadAritySpec : CompilationModel := {
+  name := "BubblingValueCallNoOutputBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "ethValue", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := [
+        Stmt.ecm Compiler.Modules.Calls.bubblingValueCallNoOutputModule [
+          Expr.param "target",
+          Expr.param "ethValue"
+        ],
+        Stmt.stop
       ]
     }
   ]
@@ -3243,6 +3806,10 @@ set_option maxRecDepth 4096 in
     effectOnlyExternalBindMismatchSpec
     "binds 0 values from external function 'echo', but it returns 1."
   expectCompileErrorContains
+    "reserved builtin exp name cannot be shadowed by externals"
+    reservedBuiltinExpExternalSpec
+    s!"external declaration '{builtinExpName}' collides with compiler-generated/reserved symbol '{builtinExpName}'"
+  expectCompileErrorContains
     "reserved compiler prefix is rejected in ECM result binders"
     reservedEcmResultVarSpec
     "local binder '__ecm_result' uses reserved compiler prefix '__'"
@@ -3466,6 +4033,11 @@ set_option maxRecDepth 4096 in
   expectTrue "arrayElement-only specs do not emit word-array helpers"
     (!(contains uintArrayElementOnlyYul checkedArrayElementWordCalldataHelperName) &&
       !(contains uintArrayElementOnlyYul checkedArrayElementWordMemoryHelperName))
+  let uintArrayForEachAccumulatorYul ←
+    expectCompileToYul "uint256[] forEach accumulator smoke spec" uintArrayForEachAccumulatorSpec
+  expectTrue "forEach accumulator specs assign outer locals inside the loop body"
+    (contains uintArrayForEachAccumulatorYul "let i := 0" &&
+      contains uintArrayForEachAccumulatorYul "total := add(total, value)")
   let tupleArrayElementWordOnlyYul ←
     expectCompileToYul "tuple[] arrayElementWord-only smoke spec" tupleArrayElementWordOnlySpec
   expectTrue "arrayElementWord-only specs emit the word-array helpers"
@@ -3535,6 +4107,127 @@ set_option maxRecDepth 4096 in
     (contains ecrecoverYul "if iszero(returndatasize()) {")
   expectTrue "ecrecover ECM masks recovered address to 160 bits"
     (contains ecrecoverYul "let signer := and(mload(0), 0xffffffffffffffffffffffffffffffffffffffff)")
+  let sha256MemoryYul ←
+    expectCompileToYul "sha256 memory smoke spec" sha256MemorySmokeSpec
+  expectTrue "sha256Memory ECM binds output offset once before the precompile call"
+    (contains sha256MemoryYul "let __sha256_output_offset := outputOffset")
+  expectTrue "sha256Memory ECM lowers to precompile 0x02 staticcall"
+    (contains sha256MemoryYul "staticcall(gas(), 2, inputOffset, inputSize, __sha256_output_offset, 32)")
+  expectTrue "sha256Memory ECM reverts when the precompile call fails"
+    (contains sha256MemoryYul "if iszero(__sha256_success) {")
+  expectTrue "sha256Memory ECM returns the digest word from output memory"
+    (contains sha256MemoryYul "let digest := 0" &&
+      contains sha256MemoryYul "digest := mload(__sha256_output_offset)")
+  let sha256MemoryTwiceYul ←
+    expectCompileToYul "sha256 memory twice smoke spec" sha256MemoryTwiceSmokeSpec
+  expectTrue "sha256Memory ECM scopes internal temporaries across repeated uses"
+    (countOccurrences sha256MemoryTwiceYul "let __sha256_output_offset :=" == 2 &&
+      countOccurrences sha256MemoryTwiceYul "let __sha256_success :=" == 2 &&
+      contains sha256MemoryTwiceYul "let firstDigest := 0" &&
+      contains sha256MemoryTwiceYul "firstDigest := mload(__sha256_output_offset)" &&
+      contains sha256MemoryTwiceYul "let secondDigest := 0" &&
+      contains sha256MemoryTwiceYul "secondDigest := mload(__sha256_output_offset)")
+  expectCompileErrorContains
+    "sha256Memory ECM rejects invalid argument counts"
+    sha256MemoryBadAritySpec
+    "uses ECM 'sha256Memory' with 1 arguments but it expects 3"
+  let sha256MemoryTrustReport := emitTrustReportJson [sha256MemorySmokeSpec]
+  expectTrue "sha256Memory trust report surfaces the SHA-256 precompile assumption"
+    (contains sha256MemoryTrustReport "\"module\":\"sha256Memory\"" &&
+      contains sha256MemoryTrustReport "\"assumption\":\"evm_sha256_precompile\"" &&
+      contains sha256MemoryTrustReport "\"status\":\"assumed\"")
+  let abiEncodePackedWordsYul ←
+    expectCompileToYul "abiEncodePackedWords smoke spec" abiEncodePackedWordsSmokeSpec
+  expectTrue "abiEncodePackedWords evaluates source words before clobbering scratch memory"
+    (contains abiEncodePackedWordsYul "let __packed_word_0 := a" &&
+      contains abiEncodePackedWordsYul "let __packed_word_1 := b" &&
+      contains abiEncodePackedWordsYul "let __packed_word_2 := c")
+  expectTrue "abiEncodePackedWords stores static words contiguously"
+    (contains abiEncodePackedWordsYul "mstore(0, __packed_word_0)" &&
+      contains abiEncodePackedWordsYul "mstore(32, __packed_word_1)" &&
+      contains abiEncodePackedWordsYul "mstore(64, __packed_word_2)")
+  expectTrue "abiEncodePackedWords hashes the exact packed byte length"
+    (contains abiEncodePackedWordsYul "let digest := keccak256(0, 96)")
+  let sha256PackedWordsYul ←
+    expectCompileToYul "sha256PackedWords smoke spec" sha256PackedWordsSmokeSpec
+  expectTrue "sha256PackedWords evaluates source words before clobbering scratch memory"
+    (contains sha256PackedWordsYul "let __packed_word_0 := root" &&
+      contains sha256PackedWordsYul "let __packed_word_1 := context")
+  expectTrue "sha256PackedWords stores static words contiguously"
+    (contains sha256PackedWordsYul "mstore(0, __packed_word_0)" &&
+      contains sha256PackedWordsYul "mstore(32, __packed_word_1)")
+  expectTrue "sha256PackedWords hashes the exact packed byte length through precompile 0x02"
+    (contains sha256PackedWordsYul "staticcall(gas(), 2, 0, 64, 64, 32)")
+  expectTrue "sha256PackedWords reverts when the precompile call fails"
+    (contains sha256PackedWordsYul "if iszero(__sha256_packed_success) {")
+  expectTrue "sha256PackedWords returns the digest word from non-overlapping output memory"
+    (contains sha256PackedWordsYul "let digest := mload(64)")
+  expectCompileErrorContains
+    "sha256PackedWords ECM rejects invalid argument counts"
+    sha256PackedWordsBadAritySpec
+    "uses ECM 'sha256PackedWords' with 1 arguments but it expects 2"
+  let sha256PackedWordsTrustReport := emitTrustReportJson [sha256PackedWordsSmokeSpec]
+  expectTrue "sha256PackedWords trust report surfaces packed-layout and SHA-256 assumptions"
+    (contains sha256PackedWordsTrustReport "\"module\":\"sha256PackedWords\"" &&
+      contains sha256PackedWordsTrustReport "\"assumption\":\"abi_packed_static_word_layout\"" &&
+      contains sha256PackedWordsTrustReport "\"assumption\":\"evm_sha256_precompile\"" &&
+      contains sha256PackedWordsTrustReport "\"status\":\"assumed\"")
+  let abiEncodePackedStaticSegmentsYul ←
+    expectCompileToYul "abiEncodePackedStaticSegments smoke spec" abiEncodePackedStaticSegmentsSmokeSpec
+  expectTrue "abiEncodePackedStaticSegments masks and left-aligns sub-word static values"
+    (contains abiEncodePackedStaticSegmentsYul
+      "mstore(0, shl(96, and(__packed_word_0, 0xffffffffffffffffffffffffffffffffffffffff)))")
+  expectTrue "abiEncodePackedStaticSegments places the next segment at the byte-precise offset"
+    (contains abiEncodePackedStaticSegmentsYul "mstore(20, __packed_word_1)")
+  expectTrue "abiEncodePackedStaticSegments hashes the exact byte length"
+    (contains abiEncodePackedStaticSegmentsYul "let digest := keccak256(0, 52)")
+  expectCompileErrorContains
+    "abiEncodePackedStaticSegments rejects invalid segment widths"
+    abiEncodePackedStaticSegmentsBadWidthSpec
+    "abiEncodePackedStaticSegments segment widths must be between 1 and 32 bytes"
+  expectCompileErrorContains
+    "abiEncodePackedStaticSegments ECM rejects invalid argument counts"
+    abiEncodePackedStaticSegmentsBadAritySpec
+    "uses ECM 'abiEncodePackedStaticSegments' with 1 arguments but it expects 2"
+  let abiEncodePackedStaticSegmentsTrustReport :=
+    emitTrustReportJson [abiEncodePackedStaticSegmentsSmokeSpec]
+  expectTrue "abiEncodePackedStaticSegments trust report surfaces segment-layout and keccak assumptions"
+    (contains abiEncodePackedStaticSegmentsTrustReport "\"module\":\"abiEncodePackedStaticSegments\"" &&
+      contains abiEncodePackedStaticSegmentsTrustReport "\"assumption\":\"abi_packed_static_segment_layout\"" &&
+      contains abiEncodePackedStaticSegmentsTrustReport "\"assumption\":\"keccak256_memory_slice_matches_evm\"")
+  let sha256PackedStaticSegmentsYul ←
+    expectCompileToYul "sha256PackedStaticSegments smoke spec" sha256PackedStaticSegmentsSmokeSpec
+  expectTrue "sha256PackedStaticSegments masks and left-aligns sub-word static values"
+    (contains sha256PackedStaticSegmentsYul
+      "mstore(0, shl(96, and(__packed_word_0, 0xffffffffffffffffffffffffffffffffffffffff)))")
+  expectTrue "sha256PackedStaticSegments hashes the exact byte length through precompile 0x02"
+    (contains sha256PackedStaticSegmentsYul "staticcall(gas(), 2, 0, 52, 64, 32)")
+  expectTrue "sha256PackedStaticSegments returns the digest from aligned non-overlapping output memory"
+    (contains sha256PackedStaticSegmentsYul "let digest := mload(64)")
+  expectCompileErrorContains
+    "sha256PackedStaticSegments rejects invalid segment widths"
+    sha256PackedStaticSegmentsBadWidthSpec
+    "sha256PackedStaticSegments segment widths must be between 1 and 32 bytes"
+  expectCompileErrorContains
+    "sha256PackedStaticSegments ECM rejects invalid argument counts"
+    sha256PackedStaticSegmentsBadAritySpec
+    "uses ECM 'sha256PackedStaticSegments' with 1 arguments but it expects 2"
+  let sha256PackedStaticSegmentsTrustReport :=
+    emitTrustReportJson [sha256PackedStaticSegmentsSmokeSpec]
+  expectTrue "sha256PackedStaticSegments trust report surfaces segment-layout and SHA-256 assumptions"
+    (contains sha256PackedStaticSegmentsTrustReport "\"module\":\"sha256PackedStaticSegments\"" &&
+      contains sha256PackedStaticSegmentsTrustReport "\"assumption\":\"abi_packed_static_segment_layout\"" &&
+      contains sha256PackedStaticSegmentsTrustReport "\"assumption\":\"evm_sha256_precompile\"" &&
+      contains sha256PackedStaticSegmentsTrustReport "\"status\":\"assumed\"")
+  expectCompileErrorContains
+    "abiEncodePackedWords ECM rejects invalid argument counts"
+    abiEncodePackedWordsBadAritySpec
+    "uses ECM 'abiEncodePackedWords' with 1 arguments but it expects 2"
+  let abiEncodePackedWordsTrustReport := emitTrustReportJson [abiEncodePackedWordsSmokeSpec]
+  expectTrue "abiEncodePackedWords trust report surfaces packed-layout and keccak assumptions"
+    (contains abiEncodePackedWordsTrustReport "\"module\":\"abiEncodePackedWords\"" &&
+      contains abiEncodePackedWordsTrustReport "\"assumption\":\"abi_packed_static_word_layout\"" &&
+      contains abiEncodePackedWordsTrustReport "\"assumption\":\"keccak256_memory_slice_matches_evm\"")
   let oracleReadYul ←
     expectCompileToYul "oracle read smoke spec" oracleReadSmokeSpec
   expectTrue "oracle read ECM lowers to staticcall"
@@ -3545,6 +4238,49 @@ set_option maxRecDepth 4096 in
     (contains oracleReadYul "if iszero(eq(returndatasize(), 32)) {")
   expectTrue "oracle read ECM ABI-encodes the selector"
     (contains oracleReadYul "mstore(0, shl(224, 0xfeaf968c))")
+  let bubblingValueCallYul ←
+    expectCompileToYul "bubbling value call smoke spec" bubblingValueCallSmokeSpec
+  expectTrue "bubbling value call ECM lowers to call, not staticcall"
+    (contains bubblingValueCallYul
+      "call(gas(), target, ethValue, inputOffset, inputSize, outputOffset, outputSize)" &&
+      !(contains bubblingValueCallYul "staticcall("))
+  expectTrue "bubbling value call ECM forwards revert returndata"
+    (contains bubblingValueCallYul "let __bvc_rds := returndatasize()" &&
+      contains bubblingValueCallYul "returndatacopy(0, 0, __bvc_rds)" &&
+      contains bubblingValueCallYul "revert(0, __bvc_rds)")
+  expectCompileErrorContains
+    "bubbling value call ECM rejects invalid argument counts"
+    bubblingValueCallBadAritySpec
+    "uses ECM 'bubblingValueCall' with 2 arguments but it expects 6"
+  expectCompileErrorContains
+    "bubbling value call ECM remains rejected from view functions"
+    bubblingValueCallViewRejectedSpec
+    "function 'forward' is marked view but writes state"
+  let bubblingValueCallTrustReport := emitTrustReportJson [bubblingValueCallSmokeSpec]
+  expectTrue "bubbling value call trust report surfaces the generic call assumption"
+    (contains bubblingValueCallTrustReport "\"module\":\"bubblingValueCall\"" &&
+      contains bubblingValueCallTrustReport "\"assumption\":\"generic_low_level_value_call_interface\"" &&
+      contains bubblingValueCallTrustReport "\"status\":\"assumed\"")
+  let bubblingValueCallNoOutputYul ←
+    expectCompileToYul "bubbling value call no-output smoke spec" bubblingValueCallNoOutputSmokeSpec
+  expectTrue "bubbling value call no-output helper fixes output slice to zero"
+    (contains bubblingValueCallNoOutputYul
+      "call(gas(), target, ethValue, inputOffset, inputSize, 0, 0)")
+  expectCompileErrorContains
+    "bubbling value call no-output helper remains rejected from view functions"
+    bubblingValueCallNoOutputViewRejectedSpec
+    "function 'forward' is marked view but writes state"
+  expectCompileErrorContains
+    "bubbling value call no-output ECM rejects invalid argument counts"
+    bubblingValueCallNoOutputBadAritySpec
+    "uses ECM 'bubblingValueCallNoOutput' with 2 arguments but it expects 4"
+  let bubblingValueCallNoOutputTrustReport :=
+    emitTrustReportJson [bubblingValueCallNoOutputSmokeSpec]
+  expectTrue "bubbling value call no-output helper preserves the generic call assumption"
+    (contains bubblingValueCallNoOutputTrustReport "\"module\":\"bubblingValueCallNoOutput\"" &&
+      contains bubblingValueCallNoOutputTrustReport
+        "\"assumption\":\"generic_low_level_value_call_interface\"" &&
+      contains bubblingValueCallNoOutputTrustReport "\"status\":\"assumed\"")
   let erc20BalanceOfYul ←
     expectCompileToYul "erc20 balanceOf smoke spec" erc20BalanceOfSmokeSpec
   expectTrue "erc20 balanceOf ECM lowers to staticcall"
@@ -3790,6 +4526,9 @@ set_option maxRecDepth 4096 in
   expectTrue "macro externals surface in the trust report"
     (contains macroExternalTrustReport "\"linkedExternals\"" &&
       contains macroExternalTrustReport "\"echo\"")
+  let macroPowTrustReport := emitTrustReportJson [Contracts.Smoke.Uint256PowSmoke.spec]
+  expectTrue "macro pow builtin does not surface as a linked external"
+    (!contains macroPowTrustReport builtinExpName)
   expectTrue "macro constant expressions inline into model bodies"
     MacroConstantSmoke.feeOnModelInlinesContractConstants
   expectTrue "macro address constants inline through the executable and model paths"

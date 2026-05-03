@@ -12,6 +12,7 @@ import Contracts.ERC20.ERC20
 import Contracts.ERC721.ERC721
 import Compiler.Modules.Calls
 import Compiler.Modules.ERC20
+import Compiler.Modules.Calls
 import Compiler.Modules.Oracle
 
 namespace Contracts.Smoke
@@ -35,6 +36,17 @@ private def genericECMEffectDemoModule : Compiler.ECM.ExternalCallModule where
   readsState := false
   axioms := []
   compile := fun _ctx _args => pure []
+
+verity_contract Uint256PowSmoke where
+  storage
+
+  function scale (decimals : Uint256) : Uint256 := do
+    let exponent := sub 18 decimals
+    return (pow 10 exponent)
+
+  function scaleInfix (decimals : Uint256) : Uint256 := do
+    let exponent := sub 18 decimals
+    return (10 ^ exponent)
 
 verity_contract UintMapSmoke where
   storage
@@ -314,6 +326,22 @@ verity_contract CustomErrorSmoke where
 
   function echo (amount : Uint256) : Uint256 := do
     return amount
+
+verity_contract SafeMulRequireSmoke where
+  storage
+    product : Uint256 := slot 0
+
+  function multiplyStored (factor : Uint256) : Uint256 := do
+    let current ← getStorage product
+    let next ← requireSomeUint (safeMul current factor) "Product overflow"
+    setStorage product next
+    return next
+
+  function divideStored (divisor : Uint256) : Uint256 := do
+    let current ← getStorage product
+    let next ← requireSomeUint (safeDiv current divisor) "Division by zero"
+    setStorage product next
+    return next
 
 verity_contract SignedBuiltinSmoke where
   storage
@@ -700,6 +728,16 @@ verity_contract FunctionOverloadSmoke where
     return (add a b)
 
 /--
+error: unsupported function type in verity_contract boundary (#1747); internal function-pointer parameters are not first-class in the CompilationModel yet. Pass an explicit mode/enum and dispatch to direct internal helper calls, or inline the helper call at each call site.
+-/
+#guard_msgs in
+verity_contract FunctionPointerParamRejected where
+  storage
+
+  function apply (f : Uint256 → Uint256, x : Uint256) : Uint256 := do
+    return (f x)
+
+/--
 error: duplicate function ABI signature 'echo(scalar_uint256)' after ABI erasure
 -/
 #guard_msgs in
@@ -951,6 +989,21 @@ verity_contract NamedStructParamSmoke where
 
   function readNestedMaker (config : OrderConfig) : Address := do
     return config.maker
+
+/--
+error: top-level named struct storage fields are not supported yet (#1758); flatten the struct into explicit scalar storage fields with fixed slots, or use MappingStruct/MappingStruct2 for struct-valued mappings
+-/
+#guard_msgs in
+verity_contract NamedStructStorageRejected where
+  storage
+    feeConfig : FeeConfig := slot 0
+
+  struct FeeConfig where
+    borrowTakerFeeRatio : Uint256,
+    lendMakerFeeRatio : Uint256
+
+  function readBorrowFee () : Uint256 := do
+    return 0
 
 /--
 error: non-leaf struct parameter projection is not supported; project a scalar or static single-word leaf field instead
@@ -1227,6 +1280,34 @@ verity_contract DirectHelperCallSmoke where
     let right ← getStorage lastRight
     return (current, left, right)
 
+verity_contract MultiReturnHelperSmoke where
+  storage
+    lastTotal : Uint256 := slot 0
+    lastHead : Uint256 := slot 1
+
+  function summarize (seed : Uint256) : Tuple [Uint256, Uint256] := do
+    let head := add seed 1
+    let tail := add seed 2
+    return (head, tail)
+
+  function useSummary (seed : Uint256) : Uint256 := do
+    let (head, tail) ← summarize seed
+    return (add head tail)
+
+/--
+error: `total` cannot be mutated, only variables declared using `let mut` can be mutated. If you did not intend to mutate but define `total`, consider using `let total` instead
+-/
+#guard_msgs in
+verity_contract ForEachMutableLocalMacroRejected where
+  storage
+
+  function sumValues (values : Array Uint256) : Uint256 := do
+    let mut total := 0
+    forEach "i" (arrayLength values) (do
+      let value := arrayElement values i
+      total := add total value)
+    return total
+
 /--
 error: helper call 'consumePayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
 -/
@@ -1471,6 +1552,13 @@ verity_contract GenericECMWriteSmoke where
 
   function runEffect (lhs : Uint256, rhs : Uint256) : Unit := do
     ecmDo genericECMEffectDemoModule [lhs, rhs]
+
+verity_contract BubblingValueCallECMSmoke where
+  storage
+
+  function forwardNoOutput (target : Address, ethValue : Uint256, inputOffset : Uint256, inputSize : Uint256) : Unit := do
+    ecmDo Compiler.Modules.Calls.bubblingValueCallNoOutputModule
+      [addressToWord target, ethValue, inputOffset, inputSize]
 
 set_option linter.unusedVariables false in
 verity_contract CallWithValueSmoke where
@@ -1794,6 +1882,7 @@ example (owner : Address) (value : Uint256) (s s' : ContractState) :
 end SpecGenSmoke
 
 #check_contract Contracts.Counter
+#check_contract Uint256PowSmoke
 #check_contract UintMapSmoke
 #check_contract Bytes32Smoke
 #check_contract StorageAddressArraySmoke
@@ -1802,6 +1891,7 @@ end SpecGenSmoke
 #check_contract MappingWordSmoke
 #check_contract StorageWordsSmoke
 #check_contract CustomErrorSmoke
+#check_contract SafeMulRequireSmoke
 #check_contract SignedBuiltinSmoke
 #check_contract StatelessSmoke
 #check_contract SpecialEntrypointSmoke
@@ -1811,6 +1901,7 @@ end SpecGenSmoke
 #check_contract DynamicStructArraySmoke
 #check_contract PackedStorageWriteSmoke
 #check_contract DirectHelperCallSmoke
+#check_contract MultiReturnHelperSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke
@@ -2119,6 +2210,24 @@ example :
           (Compiler.Modules.Calls.callWithValueBytesModule "data")
           [ Compiler.CompilationModel.Expr.param "target"
           , Compiler.CompilationModel.Expr.param "value"
+          ]
+      , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+example :
+    (Compiler.CompilationModel.FunctionSpec.body
+      (BubblingValueCallECMSmoke.forwardNoOutput_model : Compiler.CompilationModel.FunctionSpec)) =
+    BubblingValueCallECMSmoke.forwardNoOutput_modelBody := by
+  simpa using BubblingValueCallECMSmoke.forwardNoOutput_semantic_preservation
+
+example :
+    BubblingValueCallECMSmoke.forwardNoOutput_modelBody =
+      [ Compiler.CompilationModel.Stmt.ecm
+          Compiler.Modules.Calls.bubblingValueCallNoOutputModule
+          [ Compiler.CompilationModel.Expr.param "target"
+          , Compiler.CompilationModel.Expr.param "ethValue"
+          , Compiler.CompilationModel.Expr.param "inputOffset"
+          , Compiler.CompilationModel.Expr.param "inputSize"
           ]
       , Compiler.CompilationModel.Stmt.stop
       ] := rfl

@@ -341,6 +341,10 @@ private partial def valueTypeFromSyntax
     (adtDecls : Array AdtDecl)
     (ty : Term) : CommandElabM ValueType := do
   let ty := stripParens ty
+  let (arrowArgs, _arrowResult) ← collectArrowChainTypes ty
+  if !arrowArgs.isEmpty then
+    throwErrorAt ty
+      "unsupported function type in verity_contract boundary (#1747); internal function-pointer parameters are not first-class in the CompilationModel yet. Pass an explicit mode/enum and dispatch to direct internal helper calls, or inline the helper call at each call site."
   match ty with
   | `(term| Uint256) => pure .uint256
   | `(term| Int256) => pure .int256
@@ -440,7 +444,9 @@ private def storageTypeFromSyntax (newtypes : Array NewtypeDecl) (structDecls : 
       match vt with
       | .array elemTy => pure (.dynamicArray (← storageArrayElemTypeFromValueType elemTy))
       | .tuple _ => throwErrorAt ty "storage fields cannot be Tuple; use mapping encodings"
-      | .struct _ _ => throwErrorAt ty "storage fields cannot be named structs; use mapping encodings"
+      | .struct _ _ =>
+          throwErrorAt ty
+            "top-level named struct storage fields are not supported yet (#1758); flatten the struct into explicit scalar storage fields with fixed slots, or use MappingStruct/MappingStruct2 for struct-valued mappings"
       | _ => pure (.scalar vt)
 
 private def modelMappingKeyTypeTerm : MappingKeyType → CommandElabM Term
@@ -484,7 +490,9 @@ private def modelFieldTypeTerm (ty : StorageType) : CommandElabM Term :=
   | .scalar .bytes => throwError "storage fields cannot be Bytes; use Uint256 encoding"
   | .scalar (.array _) => throwError "storage fields cannot be Array; use mapping encodings"
   | .scalar (.tuple _) => throwError "storage fields cannot be Tuple; use mapping encodings"
-  | .scalar (.struct _ _) => throwError "storage fields cannot be named structs; use mapping encodings"
+  | .scalar (.struct _ _) =>
+      throwError
+        "top-level named struct storage fields are not supported yet (#1758); flatten the struct into explicit scalar storage fields with fixed slots, or use MappingStruct/MappingStruct2 for struct-valued mappings"
   | .scalar .unit => throwError "storage fields cannot be Unit"
   | .scalar (.newtype _ baseType) => modelFieldTypeTerm (.scalar baseType)  -- Erased to base type
   | .scalar (.adt name maxFields) =>
@@ -2237,6 +2245,7 @@ private partial def inferPureExprType
       let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
       let rhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants
       classifyUnsignedWordArithmeticResultType stx "bitwise word arithmetic" lhsTy rhsTy
+  | `(term| pow $a $b) | `(term| $a ^ $b)
   | `(term| min $a $b) | `(term| max $a $b) | `(term| wMulDown $a $b) | `(term| wDivUp $a $b)
   | `(term| ceilDiv $a $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants
@@ -2556,11 +2565,14 @@ private partial def inferBindSourceType
           throwErrorAt rhs s!"unknown external function '{extName}'"
   | `(term| requireSomeUint $optExpr:term $_msg:term) =>
       match stripParens optExpr with
-      | `(term| safeAdd $a:term $b:term) | `(term| safeSub $a:term $b:term) => do
+      | `(term| safeAdd $a:term $b:term)
+      | `(term| safeSub $a:term $b:term)
+      | `(term| safeMul $a:term $b:term)
+      | `(term| safeDiv $a:term $b:term) => do
           requireWordLikeType a "safe uint helper" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a)
           requireWordLikeType b "safe uint helper" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals b)
           pure .uint256
-      | _ => throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd or safeSub"
+      | _ => throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd, safeSub, safeMul, or safeDiv"
   | _ =>
       match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals rhs with
       | some (fn, _argTerms) =>
@@ -3063,6 +3075,10 @@ partial def translatePureExprWithTypes
   | `(term| add $a $b) => `(Compiler.CompilationModel.Expr.add $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| sub $a $b) => `(Compiler.CompilationModel.Expr.sub $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants))
   | `(term| mul $a $b) => `(Compiler.CompilationModel.Expr.mul $(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants))
+  | `(term| pow $a $b) | `(term| $a ^ $b) =>
+      `(Compiler.CompilationModel.Expr.externalCall Compiler.CompilationModel.builtinExpName
+          [$(← translatePureExprWithTypes fields constDecls immutableDecls params locals a visitingConstants),
+           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals b visitingConstants)])
   | `(term| div $a $b) | `(term| $a / $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls #[] params locals a visitingConstants
       let rhsTy ← inferPureExprType fields constDecls immutableDecls #[] params locals b visitingConstants
@@ -3968,8 +3984,33 @@ private def translateSafeRequireBind
             (← `(Compiler.CompilationModel.Stmt.require $guardExpr $msgLit)),
             (← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $valueExpr))
           ])
+      | `(term| safeMul $a:term $b:term) =>
+          let aExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals a
+          let bExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals b
+          let valueExpr : Term ← `(Compiler.CompilationModel.Expr.mul $aExpr $bExpr)
+          let zeroExpr : Term ← `(Compiler.CompilationModel.Expr.literal 0)
+          let divisorZeroExpr : Term ← `(Compiler.CompilationModel.Expr.eq $bExpr $zeroExpr)
+          let quotientExpr : Term ← `(Compiler.CompilationModel.Expr.div $valueExpr $bExpr)
+          let noOverflowExpr : Term ← `(Compiler.CompilationModel.Expr.eq $quotientExpr $aExpr)
+          let guardExpr : Term ← `(Compiler.CompilationModel.Expr.logicalOr $divisorZeroExpr $noOverflowExpr)
+          pure (some #[
+            (← `(Compiler.CompilationModel.Stmt.require $guardExpr $msgLit)),
+            (← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $valueExpr))
+          ])
+      | `(term| safeDiv $a:term $b:term) =>
+          let aExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals a
+          let bExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals b
+          let valueExpr : Term ← `(Compiler.CompilationModel.Expr.div $aExpr $bExpr)
+          let zeroExpr : Term ← `(Compiler.CompilationModel.Expr.literal 0)
+          let guardExpr : Term ←
+            `(Compiler.CompilationModel.Expr.logicalNot
+                (Compiler.CompilationModel.Expr.eq $bExpr $zeroExpr))
+          pure (some #[
+            (← `(Compiler.CompilationModel.Stmt.require $guardExpr $msgLit)),
+            (← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $valueExpr))
+          ])
       | _ =>
-          throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd or safeSub"
+          throwErrorAt rhs "unsupported requireSomeUint source; expected safeAdd, safeSub, safeMul, or safeDiv"
   | _ => pure none
 
 private def lookupFunctionByNameAndArity

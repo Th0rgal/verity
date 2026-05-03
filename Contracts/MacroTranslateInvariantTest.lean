@@ -5,6 +5,7 @@ import Compiler.Selector
 import Compiler.Hex
 import Contracts
 import Contracts.Smoke
+import Contracts.Smoke.PackedHashECMSmoke
 import Contracts.Smoke.SelfBalanceSmoke
 import Contracts.ProxyUpgradeabilityMacroSmoke
 import Contracts.ProxyUpgradeabilityLayoutCompatibleSmoke
@@ -285,6 +286,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.SimpleToken.spec
   , Contracts.ERC20.spec
   , Contracts.ERC721.spec
+  , Contracts.Smoke.Uint256PowSmoke.spec
   , Contracts.Smoke.UintMapSmoke.spec
   , Contracts.Smoke.MappingChainSmoke.spec
   , Contracts.Smoke.MixedMappingChainSmoke.spec
@@ -298,12 +300,14 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.StorageWordsAddressSmoke.spec
   , Contracts.Smoke.StorageWordsBoolSmoke.spec
   , Contracts.Smoke.CustomErrorSmoke.spec
+  , Contracts.Smoke.SafeMulRequireSmoke.spec
   , Contracts.Smoke.SignedBuiltinSmoke.spec
   , Contracts.Smoke.StatelessSmoke.spec
   , Contracts.Smoke.MutabilitySmoke.spec
   , Contracts.Smoke.SpecialEntrypointSmoke.spec
   , Contracts.Smoke.LeanDefHelperSmoke.spec
   , Contracts.Smoke.DirectHelperCallSmoke.spec
+  , Contracts.Smoke.MultiReturnHelperSmoke.spec
   , Contracts.Smoke.InitializerSmoke.spec
   , Contracts.Smoke.ConstantSmoke.spec
   , Contracts.Smoke.ImmutableSmoke.spec
@@ -334,6 +338,8 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.GenericECMReadSmoke.spec
   , Contracts.Smoke.GenericECMWriteSmoke.spec
   , Contracts.Smoke.CallWithValueSmoke.spec
+  , Contracts.Smoke.BubblingValueCallECMSmoke.spec
+  , Contracts.Smoke.PackedHashECMSmoke.spec
   , Contracts.Smoke.LowLevelTryCatchSmoke.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeFunctionBoundary.spec
   , Contracts.Smoke.LocalObligationRequiredForUnsafeConstructorBoundary.spec
@@ -391,6 +397,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("ERC721", ["balanceOf(address)", "ownerOf(uint256)", "getApproved(uint256)",
       "isApprovedForAll(address,address)", "approve(address,uint256)", "setApprovalForAll(address,bool)",
       "mint(address)", "transferFrom(address,address,uint256)"])
+  , ("Uint256PowSmoke", ["scale(uint256)", "scaleInfix(uint256)"])
   , ("UintMapSmoke", ["setValue(uint256,uint256)", "getValue(uint256)"])
   , ("MappingChainSmoke", ["setApproval(address,address,address,uint256)", "getApproval(address,address,address)"])
   , ("MixedMappingChainSmoke", ["setApproval(address,uint256,address,uint256)", "getApproval(address,uint256,address)"])
@@ -404,6 +411,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("StorageWordsAddressSmoke", ["extSloadsLike(address[])"])
   , ("StorageWordsBoolSmoke", ["extSloadsLike(bool[])"])
   , ("CustomErrorSmoke", ["echo(uint256)"])
+  , ("SafeMulRequireSmoke", ["multiplyStored(uint256)", "divideStored(uint256)"])
   , ("SignedBuiltinSmoke", ["signedDiv(uint256,uint256)", "signedMod(uint256,uint256)", "signedLt(uint256,uint256)",
       "signedGt(uint256,uint256)", "arithmeticShift(uint256,uint256)", "signExtended()", "shiftedMask()",
       "signedDivSurface(int256,int256)", "signedModSurface(int256,int256)", "signedDivViaLocal(uint256,int256)",
@@ -415,6 +423,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("LeanDefHelperSmoke", ["addOffset(uint256,int256)", "sameWord(uint256,uint256)"])
   , ("DirectHelperCallSmoke", ["addToTotal(uint256)", "readTotalPlus(uint256)", "pairWithTotal(uint256)",
       "runHelpers(uint256,uint256,uint256)", "snapshot()"])
+  , ("MultiReturnHelperSmoke", ["summarize(uint256)", "useSummary(uint256)"])
   , ("InitializerSmoke", ["initOwner(address)", "upgradeToV2()"])
   , ("ConstantSmoke", ["feeOn(uint256)", "treasuryAddr()"])
   , ("ImmutableSmoke", ["supplyCap()", "treasuryAddr()", "shadowed(uint256)"])
@@ -459,6 +468,9 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("GenericECMReadSmoke", ["snapshotQuote(address,address)"])
   , ("GenericECMWriteSmoke", ["runEffect(uint256,uint256)"])
   , ("CallWithValueSmoke", ["execute(address,uint256,uint256,uint256)", "executeBytes(address,uint256,bytes)"])
+  , ("BubblingValueCallECMSmoke", ["forwardNoOutput(address,uint256,uint256,uint256)"])
+  , ("PackedHashECMSmoke", ["hashAddressAmount(address,uint256)", "hashLowByteAmount(uint256,uint256)",
+      "sha256AddressAmount(address,uint256)"])
   , ("LowLevelTryCatchSmoke", ["catchFailure()", "skipCatchOnSuccess()", "catchFailureWithShadowedParam(uint256)"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["preview()"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["noop()"])
@@ -511,6 +523,7 @@ private def expectedExternalSelectors : List (String × List String) :=
       "0x8da5cb5b"])
   , ("ERC721", ["0x70a08231", "0x6352211e", "0x081812fc", "0xe985e9c5", "0x095ea7b3", "0xa22cb465",
       "0x6a627842", "0x23b872dd"])
+  , ("Uint256PowSmoke", ["0x2bec1547", "0x09c39250"])
   , ("UintMapSmoke", ["0x7b8d56e3", "0x0ff4c916"])
   , ("MappingChainSmoke", ["0xd5264fdd", "0xf7531281"])
   , ("MixedMappingChainSmoke", ["0xd3bf29a3", "0xa75ac7f0"])
@@ -524,6 +537,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StorageWordsAddressSmoke", ["0x28054813"])
   , ("StorageWordsBoolSmoke", ["0x873bc011"])
   , ("CustomErrorSmoke", ["0x6279e43c"])
+  , ("SafeMulRequireSmoke", ["0x678f717b", "0x2b0262e3"])
   , ("SignedBuiltinSmoke", ["0x5aafa47b", "0x1c781eb5", "0x2ff7ce03", "0x5f28fa76", "0x49795601",
       "0xcc634d7f", "0x7c4ab1e5", "0x44b95b1e", "0x17ea5a3e", "0x6344ce8c", "0xf6814165", "0xae1a9a3e",
       "0x6622d274", "0x176a2ce1", "0x504d2488", "0xd5451d16", "0x22cfe3c6"])
@@ -532,6 +546,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("SpecialEntrypointSmoke", ["0x931999fb", "0x74b204a4"])
   , ("LeanDefHelperSmoke", ["0x42dbad08", "0x9ca603a4"])
   , ("DirectHelperCallSmoke", ["0x623f577a", "0xe9696d56", "0xe176587e", "0xa392867e", "0x9711715a"])
+  , ("MultiReturnHelperSmoke", ["0x9c9c9cd5", "0xbe1e29cd"])
   , ("InitializerSmoke", ["0x0d009297", "0xcc01053e"])
   , ("ConstantSmoke", ["0x9c421eb5", "0x30d9a62a"])
   , ("ImmutableSmoke", ["0x8f770ad0", "0x30d9a62a", "0x655b96ec"])
@@ -566,6 +581,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("GenericECMReadSmoke", ["0x78f2e50f"])
   , ("GenericECMWriteSmoke", ["0xc1192eb1"])
   , ("CallWithValueSmoke", ["0xde3a04ad", "0xb1d30765"])
+  , ("BubblingValueCallECMSmoke", ["0x7ba1ade4"])
+  , ("PackedHashECMSmoke", ["0xffba6b66", "0xb70f2d26", "0x9c3e158c"])
   , ("LowLevelTryCatchSmoke", ["0x42d9c6d1", "0xdaf546c4", "0xa4660933"])
   , ("LocalObligationRequiredForUnsafeFunctionBoundary", ["0xefae2305"])
   , ("LocalObligationRequiredForUnsafeConstructorBoundary", ["0x5dfc2e4a"])
@@ -802,7 +819,10 @@ private def checkSignedBuiltinSmoke : IO Unit := do
   let loadSigned := loadSigned?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   expectTrue "SignedBuiltinSmoke: Int256 storage is modeled as a word slot"
     (match Contracts.Smoke.SignedBuiltinSmoke.spec.fields with
-    | [{ name := "signedSlot", ty := FieldType.uint256, «slot» := some 0 }] => true
+    | [field] =>
+        field.name == "signedSlot" &&
+        field.ty == FieldType.uint256 &&
+        field.slot == some 0
     | _ => false)
   expectTrue "SignedBuiltinSmoke: signedDiv body uses Expr.sdiv"
     (bodyUsesSignedBuiltin signedDiv.body "Expr.sdiv")
@@ -895,6 +915,15 @@ private def checkDirectHelperCallSmoke : IO Unit := do
   expectTrue "DirectHelperCallSmoke: tuple helper calls lower to Stmt.internalCallAssign"
     (contains (reprStr runHelpers.body) "Stmt.internalCallAssign" &&
       contains (reprStr runHelpers.body) "\"internal_pairWithTotal\"")
+
+private def checkMultiReturnHelperSmoke : IO Unit := do
+  expectTrue
+    "MultiReturnHelperSmoke: tuple-return helper binds lower to internalCallAssign"
+    (match Contracts.Smoke.MultiReturnHelperSmoke.useSummary_modelBody with
+    | [Stmt.internalCallAssign ["head", "tail"] helperName [Expr.param "seed"],
+        Stmt.return (Expr.add (Expr.localVar "head") (Expr.localVar "tail"))] =>
+        helperName == "internal_summarize"
+    | _ => false)
 
 private def checkNamedStructParamSmoke : IO Unit := do
   expectTrue
@@ -1088,6 +1117,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
   checkLowLevelTryCatchSmoke
   checkSpecialEntrypointSmoke
   checkDirectHelperCallSmoke
+  checkMultiReturnHelperSmoke
   checkNamedStructParamSmoke
   checkCurveCutArraySmoke
   checkDynamicStructArraySmoke
