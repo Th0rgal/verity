@@ -342,7 +342,7 @@ jobs:
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
     env:
-      LEAN_NUM_THREADS: 8
+      LEAN_NUM_THREADS: 4
     steps:
       - uses: actions/checkout@v6
         with:
@@ -504,7 +504,7 @@ jobs:
       matrix:
         shard_index: [0, 1, 2, 3]
     env:
-      LEAN_NUM_THREADS: 8
+      LEAN_NUM_THREADS: 4
       MACRO_FUZZ_SHARD_INDEX: ${{ matrix.shard_index }}
       MACRO_FUZZ_SHARD_COUNT: 4
     steps:
@@ -554,7 +554,7 @@ jobs:
     needs: [changes, checks, build]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
-      LEAN_NUM_THREADS: 8
+      LEAN_NUM_THREADS: 4
       CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_NOHASHDIR: "true"
@@ -1138,7 +1138,7 @@ jobs:
     needs: [changes, checks, build, build-compiler-binaries]
     if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.build-compiler-binaries.result == 'success' && needs.changes.outputs.compiler == 'true'
     env:
-      LEAN_NUM_THREADS: 8
+      LEAN_NUM_THREADS: 4
     steps:
       - uses: actions/checkout@v6
         with:

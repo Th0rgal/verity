@@ -13,8 +13,27 @@ CACHE_ROOT="${CACHE_ROOT:-/srv/verity-ci-cache}"
 RUNNER_URL="${RUNNER_URL:-}"
 RUNNER_TOKEN="${RUNNER_TOKEN:-}"
 RUNNER_GROUP_NAME="${RUNNER_GROUP_NAME:-Default}"
+RUNNER_PROFILE_INPUT="${RUNNER_PROFILE:-}"
+RUNNER_NAME_PREFIX_INPUT="${RUNNER_NAME_PREFIX:-}"
 RUNNER_PROFILE="${RUNNER_PROFILE:-auto}"
-RUNNER_NAME_PREFIX="${RUNNER_NAME_PREFIX:-$(hostname)-verity-${RUNNER_PROFILE}}"
+HOST_IP="${HOST_IP:-}"
+if [ -z "$HOST_IP" ]; then
+  HOST_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+fi
+
+case "${RUNNER_HOST_PROFILE:-$HOST_IP}" in
+  88.99.4.254|healthy-build)
+    RUNNER_PROFILE="${RUNNER_PROFILE_INPUT:-build}"
+    RUNNER_COUNT="${RUNNER_COUNT:-1}"
+    RUNNER_LABELS_1="${RUNNER_LABELS_1:-verity,build,build-heavy,cpu-8,mem-64g,ci-host-88-99-4-254}"
+    ;;
+  95.216.244.60|mixed-8core)
+    RUNNER_PROFILE="${RUNNER_PROFILE_INPUT:-fastlane}"
+    RUNNER_COUNT="${RUNNER_COUNT:-1}"
+    RUNNER_LABELS_1="${RUNNER_LABELS_1:-verity,fastlane,cpu-8,ci-host-95-216-244-60}"
+    ;;
+esac
+RUNNER_NAME_PREFIX="${RUNNER_NAME_PREFIX_INPUT:-$(hostname)-verity-${RUNNER_PROFILE}}"
 RUNNER_VERSION="${RUNNER_VERSION:-}"
 if [ -z "${RUNNER_COUNT:-}" ]; then
   case "$RUNNER_PROFILE" in
@@ -258,6 +277,58 @@ configure_runner() {
   ensure_runner_service "$runner_dir" "$service_name"
 }
 
+decommission_runner() {
+  local runner_dir="$1"
+  local installed_service_unit
+
+  if [ ! -d "$runner_dir" ]; then
+    return
+  fi
+
+  installed_service_unit="$(installed_service_name "$runner_dir")"
+  if [ -n "$installed_service_unit" ]; then
+    stop_runner_service_if_present "$runner_dir" "$installed_service_unit"
+    if service_known_to_systemd "$installed_service_unit"; then
+      (
+        cd "$runner_dir"
+        ./svc.sh uninstall || systemctl disable --now "$installed_service_unit" || true
+      )
+    fi
+  fi
+
+  if [ -f "$runner_dir/.runner" ]; then
+    sudo -u "$RUNNER_USER" bash -lc "
+      set -euo pipefail
+      cd '$runner_dir'
+      ./config.sh remove --local
+    " || true
+  fi
+
+  rm -rf "$runner_dir"
+  echo "Decommissioned surplus runner directory: $runner_dir"
+}
+
+decommission_surplus_runners() {
+  local runner_dir index
+
+  if [ ! -d "$RUNNER_ROOT" ]; then
+    return
+  fi
+
+  for runner_dir in "$RUNNER_ROOT"/*; do
+    [ -d "$runner_dir" ] || continue
+    index="$(basename "$runner_dir")"
+    case "$index" in
+      ''|*[!0-9]*)
+        continue
+        ;;
+    esac
+    if [ "$index" -gt "$RUNNER_COUNT" ]; then
+      decommission_runner "$runner_dir"
+    fi
+  done
+}
+
 install_packages
 ensure_runner_user
 resolve_runner_version
@@ -265,6 +336,7 @@ resolve_runner_version
 for index in $(seq 1 "$RUNNER_COUNT"); do
   configure_runner "$index"
 done
+decommission_surplus_runners
 
 cat <<EOF
 Host preparation is complete.
