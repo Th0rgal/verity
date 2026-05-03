@@ -2741,6 +2741,37 @@ private def sha256MemorySmokeSpec : CompilationModel := {
   ]
 }
 
+private def sha256MemoryTwiceSmokeSpec : CompilationModel := {
+  name := "Sha256MemoryTwiceSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "hashBoth"
+      params := [
+        { name := "inputOffset", ty := ParamType.uint256 }
+        , { name := "inputSize", ty := ParamType.uint256 }
+        , { name := "firstOutputOffset", ty := ParamType.uint256 }
+        , { name := "secondOutputOffset", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.bytes32, ParamType.bytes32]
+      body := [
+        Compiler.Modules.Precompiles.sha256
+          "firstDigest"
+          (Expr.param "inputOffset")
+          (Expr.param "inputSize")
+          (Expr.param "firstOutputOffset"),
+        Compiler.Modules.Precompiles.sha256
+          "secondDigest"
+          (Expr.param "inputOffset")
+          (Expr.param "inputSize")
+          (Expr.param "secondOutputOffset"),
+        Stmt.returnValues [Expr.localVar "firstDigest", Expr.localVar "secondDigest"]
+      ]
+    }
+  ]
+}
+
 private def abiEncodePackedWordsSmokeSpec : CompilationModel := {
   name := "AbiEncodePackedWordsSmoke"
   fields := []
@@ -3861,7 +3892,17 @@ set_option maxRecDepth 4096 in
   expectTrue "sha256Memory ECM reverts when the precompile call fails"
     (contains sha256MemoryYul "if iszero(__sha256_success) {")
   expectTrue "sha256Memory ECM returns the digest word from output memory"
-    (contains sha256MemoryYul "let digest := mload(__sha256_output_offset)")
+    (contains sha256MemoryYul "let digest := 0" &&
+      contains sha256MemoryYul "digest := mload(__sha256_output_offset)")
+  let sha256MemoryTwiceYul ←
+    expectCompileToYul "sha256 memory twice smoke spec" sha256MemoryTwiceSmokeSpec
+  expectTrue "sha256Memory ECM scopes internal temporaries across repeated uses"
+    (countOccurrences sha256MemoryTwiceYul "let __sha256_output_offset :=" == 2 &&
+      countOccurrences sha256MemoryTwiceYul "let __sha256_success :=" == 2 &&
+      contains sha256MemoryTwiceYul "let firstDigest := 0" &&
+      contains sha256MemoryTwiceYul "firstDigest := mload(__sha256_output_offset)" &&
+      contains sha256MemoryTwiceYul "let secondDigest := 0" &&
+      contains sha256MemoryTwiceYul "secondDigest := mload(__sha256_output_offset)")
   expectCompileErrorContains
     "sha256Memory ECM rejects invalid argument counts"
     sha256MemoryBadAritySpec
