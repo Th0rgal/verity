@@ -716,6 +716,16 @@ verity_contract FunctionOverloadSmoke where
     return (add a b)
 
 /--
+error: unsupported function type in verity_contract boundary (#1747); internal function-pointer parameters are not first-class in the CompilationModel yet. Pass an explicit mode/enum and dispatch to direct internal helper calls, or inline the helper call at each call site.
+-/
+#guard_msgs in
+verity_contract FunctionPointerParamRejected where
+  storage
+
+  function apply (f : Uint256 → Uint256, x : Uint256) : Uint256 := do
+    return (f x)
+
+/--
 error: duplicate function ABI signature 'echo(scalar_uint256)' after ABI erasure
 -/
 #guard_msgs in

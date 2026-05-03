@@ -93,6 +93,7 @@ Recent progress for dynamic ABI-shaped parameters:
 Recent progress for arithmetic modeling:
 - `Stdlib.Math` now exposes `mulDiv512Down?` and `mulDiv512Up?` as proof-facing full-precision multiply-divide helpers. They compute `a * b` in unbounded natural-number precision and return `none` only when the divisor is zero or the final floor/ceil quotient does not fit in `uint256`, removing the artificial intermediate-product overflow hypothesis when modeling Solidity `Math.mulDiv` behavior. A compiled Yul primitive using the usual 512-bit division algorithm is still tracked by #1761.
 - ABI artifact emission now reflects explicit function mutability markers (`isView`, `isPure`) as `stateMutability: "view" | "pure"` in generated JSON.
+- Internal function-pointer parameters remain unsupported at the `verity_contract` boundary and now fail fast with an issue-linked diagnostic (#1747). Until the CompilationModel gets first-class higher-order internal calls, model these cases with an explicit mode/enum plus direct internal helper calls, or inline each helper call at the call site.
 
 Recent progress for custom errors (`#586`):
 - `Stmt.requireError` / `Stmt.revertError` now support ABI encoding for tuple/fixed-array/array/bytes payloads (including nested dynamic composites) when arguments are direct `Expr.param` references.

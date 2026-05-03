@@ -341,6 +341,10 @@ private partial def valueTypeFromSyntax
     (adtDecls : Array AdtDecl)
     (ty : Term) : CommandElabM ValueType := do
   let ty := stripParens ty
+  let (arrowArgs, _arrowResult) ← collectArrowChainTypes ty
+  if !arrowArgs.isEmpty then
+    throwErrorAt ty
+      "unsupported function type in verity_contract boundary (#1747); internal function-pointer parameters are not first-class in the CompilationModel yet. Pass an explicit mode/enum and dispatch to direct internal helper calls, or inline the helper call at each call site."
   match ty with
   | `(term| Uint256) => pure .uint256
   | `(term| Int256) => pure .int256
