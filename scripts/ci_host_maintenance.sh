@@ -17,7 +17,7 @@ Usage:
   scripts/ci_host_maintenance.sh install-systemd
 
 Subcommands:
-  run              Prune stale Verity CI cache entries, vacuum journald, and prune unused Docker images.
+  run              Prune stale Verity CI cache entries, vacuum journald, and prune unused Docker data.
   install-systemd  Install and enable a weekly systemd timer for this script.
 
 Environment:
@@ -74,6 +74,7 @@ run_maintenance() {
 
   if command -v docker >/dev/null 2>&1; then
     docker image prune -af --filter "$DOCKER_PRUNE_FILTER"
+    docker builder prune -af --filter "$DOCKER_PRUNE_FILTER"
   fi
 }
 
