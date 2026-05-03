@@ -444,7 +444,9 @@ private def storageTypeFromSyntax (newtypes : Array NewtypeDecl) (structDecls : 
       match vt with
       | .array elemTy => pure (.dynamicArray (← storageArrayElemTypeFromValueType elemTy))
       | .tuple _ => throwErrorAt ty "storage fields cannot be Tuple; use mapping encodings"
-      | .struct _ _ => throwErrorAt ty "storage fields cannot be named structs; use mapping encodings"
+      | .struct _ _ =>
+          throwErrorAt ty
+            "top-level named struct storage fields are not supported yet (#1758); flatten the struct into explicit scalar storage fields with fixed slots, or use MappingStruct/MappingStruct2 for struct-valued mappings"
       | _ => pure (.scalar vt)
 
 private def modelMappingKeyTypeTerm : MappingKeyType → CommandElabM Term
@@ -488,7 +490,9 @@ private def modelFieldTypeTerm (ty : StorageType) : CommandElabM Term :=
   | .scalar .bytes => throwError "storage fields cannot be Bytes; use Uint256 encoding"
   | .scalar (.array _) => throwError "storage fields cannot be Array; use mapping encodings"
   | .scalar (.tuple _) => throwError "storage fields cannot be Tuple; use mapping encodings"
-  | .scalar (.struct _ _) => throwError "storage fields cannot be named structs; use mapping encodings"
+  | .scalar (.struct _ _) =>
+      throwError
+        "top-level named struct storage fields are not supported yet (#1758); flatten the struct into explicit scalar storage fields with fixed slots, or use MappingStruct/MappingStruct2 for struct-valued mappings"
   | .scalar .unit => throwError "storage fields cannot be Unit"
   | .scalar (.newtype _ baseType) => modelFieldTypeTerm (.scalar baseType)  -- Erased to base type
   | .scalar (.adt name maxFields) =>
