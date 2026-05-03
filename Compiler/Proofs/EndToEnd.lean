@@ -993,8 +993,7 @@ theorem layer3_contract_preserves_semantics_evmYulLean_with_function_bridge
       Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
-      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
-        .evmYulLean (Compiler.emitYul contract).runtimeCode
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLean (Compiler.emitYul contract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
   Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLean
     contract tx initialState hselector hNoWrap hWF hNoFallback hNoReceive
@@ -1028,8 +1027,7 @@ theorem layer3_contract_preserves_semantics_evmYulLean
       Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
-      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
-        .evmYulLean (Compiler.emitYul contract).runtimeCode
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLean (Compiler.emitYul contract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) := by
   apply layer3_contract_preserves_semantics_evmYulLean_with_function_bridge contract tx initialState
     hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector
@@ -1200,8 +1198,7 @@ theorem layers2_3_ir_matches_yul_evmYulLean_with_function_bridge
       Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR irContract tx initialState)
-      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
-        .evmYulLean (Compiler.emitYul irContract).runtimeCode
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLean (Compiler.emitYul irContract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
   layer3_contract_preserves_semantics_evmYulLean irContract tx initialState
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
@@ -1247,8 +1244,7 @@ theorem layers2_3_ir_matches_yul_evmYulLean
     (hNoReceive : irContract.receiveEntrypoint = none) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR irContract tx initialState)
-      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
-        .evmYulLean (Compiler.emitYul irContract).runtimeCode
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLean (Compiler.emitYul irContract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
   layers2_3_ir_matches_yul_evmYulLean_with_function_bridge
     spec selectors irContract tx initialState
@@ -5007,8 +5003,7 @@ theorem simpleStorageNativeRetrieveHitBridge_proved
   have hLayer :
       Compiler.Proofs.YulGeneration.resultsMatch
         (interpretIR simpleStorageIRContract tx initialState)
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
-          .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
           (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
     layer3_contract_preserves_semantics_evmYulLean simpleStorageIRContract tx initialState
       hselector hNoWrap hvars hmemory htransient hreturn hparamErase
@@ -5194,8 +5189,7 @@ theorem simpleStorageNativeStoreHitBridge_proved
   have hLayer :
       Compiler.Proofs.YulGeneration.resultsMatch
         (interpretIR simpleStorageIRContract tx initialState)
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
-          .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
           (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
     layer3_contract_preserves_semantics_evmYulLean simpleStorageIRContract tx initialState
       hselector hNoWrap hvars hmemory htransient hreturn hparamErase
@@ -5400,8 +5394,7 @@ theorem simpleStorageNativeSelectorMissBridge_proved
   have hLayer3 :
       Compiler.Proofs.YulGeneration.resultsMatch
         (interpretIR simpleStorageIRContract tx initialState)
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
-          .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
           (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
     layer3_contract_preserves_semantics_evmYulLean simpleStorageIRContract tx initialState
       hselector hNoWrap hvars hmemory htransient hreturn hparamErase
@@ -5455,8 +5448,7 @@ theorem simpleStorageNativeSelectorMissBridge_proved
       rw [hSizeEq]
     rw [hFuelGoal]
     show yulResultsAgreeOn observableSlots _
-      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
-        .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events)
     refine ⟨?_, ?_, ?_, ?_⟩
     · exact hsuccess
@@ -5506,8 +5498,7 @@ theorem simpleStorage_endToEnd_evmYulLean
       paramLoadErasure fn tx (initialState.withTx tx)) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR simpleStorageIRContract tx initialState)
-      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend
-        .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
   layer3_contract_preserves_semantics_evmYulLean simpleStorageIRContract tx initialState
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
