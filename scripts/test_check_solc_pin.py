@@ -20,6 +20,7 @@ class CheckSolcPinTests(unittest.TestCase):
         self,
         *,
         extra_verify_env: str = "",
+        action_body: str | None = None,
     ) -> tuple[int, str, str]:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -48,17 +49,20 @@ class CheckSolcPinTests(unittest.TestCase):
                 encoding="utf-8",
             )
             action.write_text(
-                "\n".join(
-                    [
-                        "name: setup-solc",
-                        "runs:",
-                        "  using: composite",
-                        "  steps:",
-                        "    - shell: bash",
-                        "      run: |",
-                        '        curl -sSfL "$SOLC_URL" -o solc',
-                        '        echo "${SOLC_SHA256}  solc" | sha256sum -c -',
-                    ]
+                (
+                    action_body
+                    or "\n".join(
+                        [
+                            "name: setup-solc",
+                            "runs:",
+                            "  using: composite",
+                            "  steps:",
+                            "    - shell: bash",
+                            "      run: |",
+                            '        curl -sSfL "$SOLC_URL" -o solc',
+                            '        echo "${SOLC_SHA256}  solc" | sha256sum -c -',
+                        ]
+                    )
                 )
                 + "\n",
                 encoding="utf-8",
@@ -119,6 +123,26 @@ class CheckSolcPinTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("solc pin is consistent", stdout)
         self.assertEqual(stderr, "")
+
+    def test_rejects_privileged_solc_install_path(self) -> None:
+        rc, _stdout, stderr = self._run(
+            action_body="\n".join(
+                [
+                    "name: setup-solc",
+                    "runs:",
+                    "  using: composite",
+                    "  steps:",
+                    "    - shell: bash",
+                    "      run: |",
+                    '        curl -sSfL "$SOLC_URL" -o solc',
+                    '        echo "${SOLC_SHA256}  solc" | sha256sum -c -',
+                    "        sudo mv solc /usr/local/bin/solc",
+                ]
+            )
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn("workspace-local", stderr)
+        self.assertIn("must not require sudo", stderr)
 
 
 if __name__ == "__main__":

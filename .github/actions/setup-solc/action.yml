@@ -8,13 +8,18 @@ runs:
       id: cache-solc
       uses: actions/cache@v5
       with:
-        path: /usr/local/bin/solc
+        path: .cache/solc/${{ env.SOLC_VERSION }}
         key: solc-${{ env.SOLC_VERSION }}
 
     - name: Install or repair solc
       shell: bash
       run: |
-        if [ -x /usr/local/bin/solc ] && /usr/local/bin/solc --version | grep -q "$SOLC_VERSION"; then
+        solc_bin_dir="$PWD/.cache/solc/${SOLC_VERSION}"
+        solc_path="${solc_bin_dir}/solc"
+        mkdir -p "$solc_bin_dir"
+        echo "$solc_bin_dir" >> "$GITHUB_PATH"
+
+        if [ -x "$solc_path" ] && "$solc_path" --version | grep -q "$SOLC_VERSION"; then
           exit 0
         fi
 
@@ -28,9 +33,9 @@ runs:
           if \
             curl -sSfL --retry 3 --retry-delay 5 "$SOLC_URL" -o solc && \
             echo "${SOLC_SHA256}  solc" | sha256sum -c - && \
-            sudo mv solc /usr/local/bin/solc && \
-            sudo chmod +x /usr/local/bin/solc && \
-            /usr/local/bin/solc --version | grep -q "$SOLC_VERSION"
+            mv solc "$solc_path" && \
+            chmod +x "$solc_path" && \
+            "$solc_path" --version | grep -q "$SOLC_VERSION"
           then
             exit 0
           fi
@@ -41,4 +46,4 @@ runs:
 
     - name: Verify solc
       shell: bash
-      run: /usr/local/bin/solc --version
+      run: solc --version

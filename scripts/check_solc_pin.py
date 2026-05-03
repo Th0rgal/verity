@@ -111,6 +111,10 @@ def main() -> int:
         errors.append(".github/actions/setup-solc/action.yml: install step must download from $SOLC_URL")
     if 'echo "${SOLC_SHA256}  solc" | sha256sum -c -' not in action_text:
         errors.append(".github/actions/setup-solc/action.yml: install step must verify $SOLC_SHA256")
+    if "/usr/local/bin/solc" in action_text:
+        errors.append(".github/actions/setup-solc/action.yml: solc cache/install path must be workspace-local")
+    if re.search(r"\bsudo\b", action_text):
+        errors.append(".github/actions/setup-solc/action.yml: solc install step must not require sudo")
 
     if errors:
         print("solc pin check failed:", file=sys.stderr)
