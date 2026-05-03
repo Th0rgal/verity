@@ -1364,7 +1364,7 @@ theorem bridgedExpr_selectorExpr :
 selector as the generated Verity selector expression.
 
 This is the first generated-dispatcher semantic slice needed by the native
-migration: every native/interpreter dispatcher simulation branches on this
+migration: every native/EVMYulLean dispatcher simulation branches on this
 expression before it reaches storage, memory, or halt behavior. -/
 @[simp] theorem evalYulExprWithBackend_evmYulLean_selectorExpr_semantics
     (state : YulState) :

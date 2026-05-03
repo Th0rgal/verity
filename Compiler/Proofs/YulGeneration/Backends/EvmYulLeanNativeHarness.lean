@@ -11610,7 +11610,7 @@ theorem primCall_mstore0_then_return32_emptyMemory_projectHaltReturn
 /-- The dispatcher-block execution that `EvmYul.Yul.callDispatcher` performs
     after its initial fuel check and empty-argument call-frame setup.
 
-Keeping this expression named lets the native/interpreter bridge target
+Keeping this expression named lets the native/EVMYulLean bridge target
 statement execution of the lowered dispatcher body directly, instead of
 re-opening the full `callDispatcher` wrapper at each EndToEnd proof site. -/
 def callDispatcherBlockResult

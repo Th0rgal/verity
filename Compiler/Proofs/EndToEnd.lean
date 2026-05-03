@@ -156,7 +156,7 @@ def nativeIRRuntimeAgreesWithEvmYulLean
           (YulTransaction.ofIR tx) state.storage state.events)
   | .error _ => False
 
-/-- Intro form for the native/interpreter bridge obligation.
+/-- Intro form for the native/EVMYulLean bridge obligation.
 
 Native-lowering proofs can stay at the harness level: prove that
 `interpretIRRuntimeNative` succeeds and that its projected result agrees with
@@ -640,7 +640,7 @@ theorem nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree
       rw [Compiler.Proofs.YulGeneration.Backends.Native.callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult]
       simpa using hAgree
 
-/-- Discharge the public native/interpreter bridge from concrete native
+/-- Discharge the public native/EVMYulLean bridge from concrete native
 lowering, selected-path environment validation, and projected
 `callDispatcher` agreement.
 

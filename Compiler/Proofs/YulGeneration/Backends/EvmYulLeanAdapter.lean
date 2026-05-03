@@ -365,7 +365,7 @@ def lowerNativeSwitchBlock
          caseIfs ++ defaultIf)
 
 /-- Native switch lowering expands to a lazy guarded block instead of using
-    EVMYulLean's eager `.Switch` form. The native/interpreter dispatcher proof
+    EVMYulLean's eager `.Switch` form. The native/EVMYulLean dispatcher proof
     should consume this shape directly: the first statement evaluates the
     discriminator once, each case is guarded by `iszero(matched) && discr == tag`,
     and the optional default runs only if no case marked the switch matched. -/
@@ -487,7 +487,7 @@ def lowerStmtsNative :
 /-- Statement-list native lowering exposes a stable head/tail equation.
 
 This is the statement-level analogue of the top-level runtime partition
-equations below: future native/interpreter preservation proofs can reason by
+equations below: future native/EVMYulLean preservation proofs can reason by
 the source statement list instead of treating the native lowerer as an opaque
 executable. -/
 theorem lowerStmtsNativeWithSwitchIds_cons

@@ -31,7 +31,7 @@ N0 generated-fragment contract
   -> N3 native dispatcher skeleton
   -> N4 body temp/write preservation
   -> N5 generated statement/expression native equivalence
-  -> N6 whole runtime native/interpreter agreement
+  -> N6 whole runtime native/EVMYulLean agreement
   -> N7 fuel adequacy / theorem-facing fuel story
   -> N8 public Layer 3 theorem flip
   -> N10 CI/docs enforcement
