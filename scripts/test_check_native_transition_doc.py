@@ -138,6 +138,29 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_reference_oracle_names_guard_accepts_current_shape(self) -> None:
+        errors = check.check_reference_oracle_names(
+            check.END_TO_END.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+            check.PRESERVATION.read_text(encoding="utf-8"),
+        )
+        self.assertEqual(errors, [])
+
+    def test_reference_oracle_names_guard_rejects_bare_legacy_theorem_name(self) -> None:
+        preservation_text = check.PRESERVATION.read_text(encoding="utf-8").replace(
+            "theorem yulCodegen_preserves_semantics_via_reference_oracle",
+            "theorem yulCodegen_preserves_semantics",
+        )
+        errors = check.check_reference_oracle_names(
+            check.END_TO_END.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+            preservation_text,
+        )
+        self.assertTrue(
+            any("bare `yulCodegen_preserves_semantics`" in error for error in errors),
+            errors,
+        )
+
     def test_unbridged_environment_boundary_accepts_current_shape(self) -> None:
         errors = check.check_unbridged_environment_boundary(
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),

@@ -9,6 +9,7 @@ semantic target.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -31,6 +32,7 @@ RETARGET = (
     / "Backends"
     / "EvmYulLeanRetarget.lean"
 )
+PRESERVATION = ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Preservation.lean"
 NATIVE_ADAPTER = (
     ROOT
     / "Compiler"
@@ -464,6 +466,46 @@ def check_native_switch_lowering_boundary(native_adapter_text: str, native_smoke
     return errors
 
 
+def check_reference_oracle_names(
+    end_to_end_text: str, retarget_text: str, preservation_text: str
+) -> list[str]:
+    """Keep legacy Layer-3 reference-oracle entry points explicitly named."""
+
+    errors: list[str] = []
+    normalized_end_to_end = normalize_ws(end_to_end_text)
+    normalized_retarget = normalize_ws(retarget_text)
+    normalized_preservation = normalize_ws(preservation_text)
+
+    if re.search(r"\btheorem\s+yulCodegen_preserves_semantics(?!_)", preservation_text):
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Preservation.lean must not expose the "
+            "legacy reference-oracle theorem as bare `yulCodegen_preserves_semantics`; "
+            "use `yulCodegen_preserves_semantics_via_reference_oracle`"
+        )
+
+    if "theorem yulCodegen_preserves_semantics_via_reference_oracle" not in normalized_preservation:
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Preservation.lean must keep the legacy "
+            "Layer-3 oracle theorem explicitly named "
+            "`yulCodegen_preserves_semantics_via_reference_oracle`"
+        )
+
+    if "yulCodegen_preserves_semantics_via_reference_oracle" not in normalized_end_to_end:
+        errors.append(
+            "Compiler/Proofs/EndToEnd.lean must call the legacy Layer-3 oracle "
+            "through `yulCodegen_preserves_semantics_via_reference_oracle`"
+        )
+
+    if "yulCodegen_preserves_semantics_via_reference_oracle" not in normalized_retarget:
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
+            "make the temporary legacy Layer-3 dependency explicit by invoking "
+            "`yulCodegen_preserves_semantics_via_reference_oracle`"
+        )
+
+    return errors
+
+
 def check_unbridged_environment_boundary(native_harness_text: str, native_smoke_text: str) -> list[str]:
     """Keep the native environment-read limitation explicit and tested.
 
@@ -525,7 +567,14 @@ def main() -> int:
     if not DOC.exists():
         print(f"Missing: {DOC.relative_to(ROOT)}", file=sys.stderr)
         return 1
-    for path in (END_TO_END, NATIVE_HARNESS, RETARGET, NATIVE_ADAPTER, NATIVE_SMOKE_TEST):
+    for path in (
+        END_TO_END,
+        NATIVE_HARNESS,
+        RETARGET,
+        PRESERVATION,
+        NATIVE_ADAPTER,
+        NATIVE_SMOKE_TEST,
+    ):
         if not path.exists():
             print(f"Missing: {path.relative_to(ROOT)}", file=sys.stderr)
             return 1
@@ -538,6 +587,13 @@ def main() -> int:
             END_TO_END.read_text(encoding="utf-8"),
             native_harness_text,
             RETARGET.read_text(encoding="utf-8"),
+        )
+    )
+    errors.extend(
+        check_reference_oracle_names(
+            END_TO_END.read_text(encoding="utf-8"),
+            RETARGET.read_text(encoding="utf-8"),
+            PRESERVATION.read_text(encoding="utf-8"),
         )
     )
     errors.extend(

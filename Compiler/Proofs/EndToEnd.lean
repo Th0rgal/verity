@@ -908,7 +908,7 @@ theorem layer3_contract_preserves_semantics_via_reference_oracle
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) := by
-  apply yulCodegen_preserves_semantics contract tx initialState
+  apply yulCodegen_preserves_semantics_via_reference_oracle contract tx initialState
     hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector hHasSelectorDead
     hLoopFree
   · intro fn hmem
@@ -922,7 +922,7 @@ theorem layer3_contract_preserves_semantics_via_reference_oracle
 
 /-- Reference-oracle version with the function-body simulation supplied
 explicitly: delegates directly to the historical `legacyExecYulFuel`-backed
-`yulCodegen_preserves_semantics` theorem. -/
+`yulCodegen_preserves_semantics_via_reference_oracle` theorem. -/
 theorem layer3_contract_preserves_semantics_via_reference_oracle_with_function_bridge
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
@@ -945,7 +945,7 @@ theorem layer3_contract_preserves_semantics_via_reference_oracle_with_function_b
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
       (interpretYulFromIR contract tx initialState) :=
-  yulCodegen_preserves_semantics contract tx initialState
+  yulCodegen_preserves_semantics_via_reference_oracle contract tx initialState
     hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector hHasSelectorDead
     hLoopFree hbody
 

@@ -2818,7 +2818,7 @@ theorem yulCodegen_preserves_semantics_evmYulLean
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
         initialState.storage initialState.events) := by
   have hLayer3 :=
-    yulCodegen_preserves_semantics contract tx initialState
+    yulCodegen_preserves_semantics_via_reference_oracle contract tx initialState
       hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe
       hNoHasSelector hHasSelectorDead hLoopFree hbody
   rw [← interpretYulFromIR_evmYulLean_eq_on_bridged_bodies

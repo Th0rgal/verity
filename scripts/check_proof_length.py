@@ -297,7 +297,7 @@ ALLOWLIST: set[str] = {
     # Call-surface decomposition kept as one structural recursion proof.
     "stmtOrListTouchesUnsupportedCallSurface_eq_featureOr",
     # --- Yul generation / Layer 3 proofs ---
-    "yulCodegen_preserves_semantics",
+    "yulCodegen_preserves_semantics_via_reference_oracle",
     "stmt_and_stmts_equiv",
     "execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv",
     "legacyExecYulFuel_succ_eq",

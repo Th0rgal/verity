@@ -1193,7 +1193,7 @@ private theorem SwitchCaseBodyBridge
   exact hmatch
 
 set_option maxHeartbeats 1600000000 in
-/-- Main preservation theorem: Yul codegen preserves IR semantics.
+/-- Legacy reference-oracle preservation theorem: Yul codegen preserves IR semantics.
 
 The `hWF` hypothesis requires that `contract.internalFunctions` are all
 `funcDef` statements, which holds for every contract emitted by the compiler.
@@ -1202,7 +1202,7 @@ The `hWF` hypothesis requires that `contract.internalFunctions` are all
 `receiveEntrypoint = none` because `interpretIR` returns failure when no
 function selector matches, which is only consistent with a revert-only
 default case. Extending to fallback/receive requires extending `interpretIR`. -/
-theorem yulCodegen_preserves_semantics
+theorem yulCodegen_preserves_semantics_via_reference_oracle
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -1379,7 +1379,8 @@ different Yul execution entry points. This bridging lemma documents that gap exp
    (fuel adequacy is discharged internally via `rfl`)
 
 The theorem `ir_function_body_equiv` below demonstrates the complete chain for any
-single function, and `yulCodegen_preserves_semantics` lifts it to full contracts.
+single function, and `yulCodegen_preserves_semantics_via_reference_oracle` lifts it
+to full contracts.
 -/
 
 /-- Any single IR function body produces equivalent results under fuel-based Yul execution.
