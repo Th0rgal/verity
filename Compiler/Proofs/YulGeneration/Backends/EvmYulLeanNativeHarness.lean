@@ -6461,6 +6461,129 @@ theorem nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem
         exact hFresh.1
       · exact ih hFresh.2 hTail
 
+theorem collectNativeStmtWriteNames_append
+    (writeStmt : EvmYul.Yul.Ast.Stmt → List String)
+    (left right : List EvmYul.Yul.Ast.Stmt) :
+    Backends.collectNativeStmtWriteNames writeStmt (left ++ right) =
+      Backends.collectNativeStmtWriteNames writeStmt left ++
+        Backends.collectNativeStmtWriteNames writeStmt right := by
+  induction left with
+  | nil =>
+      simp [Backends.collectNativeStmtWriteNames]
+  | cons head tail ih =>
+      simp [Backends.collectNativeStmtWriteNames, ih, List.append_assoc]
+
+theorem nativeStmtsWriteNames_append
+    (left right : List EvmYul.Yul.Ast.Stmt) :
+    Backends.nativeStmtsWriteNames (left ++ right) =
+      Backends.nativeStmtsWriteNames left ++ Backends.nativeStmtsWriteNames right := by
+  simp [Backends.nativeStmtsWriteNames, collectNativeStmtWriteNames_append]
+
+theorem nativeStmtsWriteNames_cons
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (rest : List EvmYul.Yul.Ast.Stmt) :
+    Backends.nativeStmtsWriteNames (stmt :: rest) =
+      Backends.nativeStmtWriteNames stmt ++ Backends.nativeStmtsWriteNames rest := by
+  simp [Backends.nativeStmtsWriteNames, Backends.collectNativeStmtWriteNames]
+
+theorem nativeStmtsWriteNames_cons_not_mem_iff
+    (name : EvmYul.Identifier)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (rest : List EvmYul.Yul.Ast.Stmt) :
+    name ∉ Backends.nativeStmtsWriteNames (stmt :: rest) ↔
+      name ∉ Backends.nativeStmtWriteNames stmt ∧
+        name ∉ Backends.nativeStmtsWriteNames rest := by
+  rw [nativeStmtsWriteNames_cons, List.mem_append]
+  constructor
+  · intro hFresh
+    exact ⟨fun hMem => hFresh (Or.inl hMem),
+      fun hMem => hFresh (Or.inr hMem)⟩
+  · intro hFresh hMem
+    rcases hFresh with ⟨hHead, hTail⟩
+    rcases hMem with hMem | hMem
+    · exact hHead hMem
+    · exact hTail hMem
+
+theorem nativeStmtsWriteNames_head_not_mem_of_cons_not_mem
+    (name : EvmYul.Identifier)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (rest : List EvmYul.Yul.Ast.Stmt)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames (stmt :: rest)) :
+    name ∉ Backends.nativeStmtWriteNames stmt := by
+  intro hMem
+  apply hFresh
+  rw [nativeStmtsWriteNames_cons]
+  exact List.mem_append_left _ hMem
+
+theorem nativeStmtsWriteNames_tail_not_mem_of_cons_not_mem
+    (name : EvmYul.Identifier)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (rest : List EvmYul.Yul.Ast.Stmt)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames (stmt :: rest)) :
+    name ∉ Backends.nativeStmtsWriteNames rest := by
+  intro hMem
+  apply hFresh
+  rw [nativeStmtsWriteNames_cons]
+  exact List.mem_append_right _ hMem
+
+theorem nativeStmtsWriteNames_left_not_mem_of_append_not_mem
+    (name : EvmYul.Identifier)
+    (left right : List EvmYul.Yul.Ast.Stmt)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames (left ++ right)) :
+    name ∉ Backends.nativeStmtsWriteNames left := by
+  intro hMem
+  apply hFresh
+  rw [nativeStmtsWriteNames_append]
+  exact List.mem_append_left _ hMem
+
+theorem nativeStmtsWriteNames_right_not_mem_of_append_not_mem
+    (name : EvmYul.Identifier)
+    (left right : List EvmYul.Yul.Ast.Stmt)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames (left ++ right)) :
+    name ∉ Backends.nativeStmtsWriteNames right := by
+  intro hMem
+  apply hFresh
+  rw [nativeStmtsWriteNames_append]
+  exact List.mem_append_right _ hMem
+
+theorem nativeStmtsWriteNames_append_not_mem_iff
+    (name : EvmYul.Identifier)
+    (left right : List EvmYul.Yul.Ast.Stmt) :
+    name ∉ Backends.nativeStmtsWriteNames (left ++ right) ↔
+      name ∉ Backends.nativeStmtsWriteNames left ∧
+        name ∉ Backends.nativeStmtsWriteNames right := by
+  rw [nativeStmtsWriteNames_append, List.mem_append]
+  constructor
+  · intro hFresh
+    exact ⟨fun hMem => hFresh (Or.inl hMem),
+      fun hMem => hFresh (Or.inr hMem)⟩
+  · intro hFresh hMem
+    rcases hFresh with ⟨hLeft, hRight⟩
+    rcases hMem with hMem | hMem
+    · exact hLeft hMem
+    · exact hRight hMem
+
+theorem NativeBlockPreservesWord_append_of_forall_stmt
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (left right : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hLeft :
+      ∀ stmt, stmt ∈ left →
+        NativeStmtPreservesWord name value stmt codeOverride)
+    (hRight :
+      ∀ stmt, stmt ∈ right →
+        NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeBlockPreservesWord name value (left ++ right) codeOverride :=
+  NativeBlockPreservesWord_of_forall_stmt name value (left ++ right)
+    codeOverride
+    (by
+      intro stmt hMem
+      rw [List.mem_append] at hMem
+      rcases hMem with hMem | hMem
+      · exact hLeft stmt hMem
+      · exact hRight stmt hMem)
+
 theorem NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
@@ -6479,6 +6602,28 @@ theorem NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
       exact nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem
         name body stmt hFresh hMem)
     hPreserves
+
+theorem NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (stmt : EvmYul.Yul.Ast.Stmt)
+    (rest : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames (stmt :: rest))
+    (hHead :
+      name ∉ Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord name value stmt codeOverride)
+    (hRest :
+      name ∉ Backends.nativeStmtsWriteNames rest →
+        NativeBlockPreservesWord name value rest codeOverride) :
+    NativeBlockPreservesWord name value (stmt :: rest) codeOverride :=
+  NativeBlockPreservesWord_cons_stmt name value stmt rest codeOverride
+    (hHead
+      (nativeStmtsWriteNames_head_not_mem_of_cons_not_mem
+        name stmt rest hFresh))
+    (hRest
+      (nativeStmtsWriteNames_tail_not_mem_of_cons_not_mem
+        name stmt rest hFresh))
 
 theorem NativeStmtPreservesWord_block
     (name : EvmYul.Identifier)
@@ -6503,6 +6648,61 @@ theorem NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem
   NativeStmtPreservesWord_block name value body codeOverride
     (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
       name value body codeOverride hFresh hPreserves)
+
+theorem NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (left right : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hLeftFresh : name ∉ Backends.nativeStmtsWriteNames left)
+    (hRightFresh : name ∉ Backends.nativeStmtsWriteNames right)
+    (hLeft :
+      ∀ stmt, stmt ∈ left →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride)
+    (hRight :
+      ∀ stmt, stmt ∈ right →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeBlockPreservesWord name value (left ++ right) codeOverride :=
+  NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem name value
+    (left ++ right) codeOverride
+    (by
+      rw [nativeStmtsWriteNames_append]
+      intro hMem
+      rw [List.mem_append] at hMem
+      rcases hMem with hMem | hMem
+      · exact hLeftFresh hMem
+      · exact hRightFresh hMem)
+    (by
+      intro stmt hMem hFresh
+      rw [List.mem_append] at hMem
+      rcases hMem with hMem | hMem
+      · exact hLeft stmt hMem hFresh
+      · exact hRight stmt hMem hFresh)
+
+theorem NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_append_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (left right : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames (left ++ right))
+    (hLeft :
+      ∀ stmt, stmt ∈ left →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride)
+    (hRight :
+      ∀ stmt, stmt ∈ right →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeBlockPreservesWord name value (left ++ right) codeOverride :=
+  NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem
+    name value left right codeOverride
+    (nativeStmtsWriteNames_left_not_mem_of_append_not_mem
+      name left right hFresh)
+    (nativeStmtsWriteNames_right_not_mem_of_append_not_mem
+      name left right hFresh)
+    hLeft hRight
 
 theorem NativeStmtPreservesWord_if_of_eval_self
     (name : EvmYul.Identifier)
@@ -6586,6 +6786,56 @@ theorem NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_n
           NativeStmtPreservesWord name value stmt codeOverride) :
     NativeStmtPreservesWord name value (.If cond body) codeOverride :=
   NativeStmtPreservesWord_if_of_eval_preserves name value cond body codeOverride
+    hCond
+    (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+      name value body codeOverride hFresh hPreserves)
+
+theorem NativeStmtPreservesWord_if_of_cond_preserves
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond : NativeExprPreservesWord name value cond codeOverride)
+    (hBody : NativeBlockPreservesWord name value body codeOverride) :
+    NativeStmtPreservesWord name value (.If cond body) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [EvmYul.Yul.exec] at hExec
+      cases hEval : EvmYul.Yul.eval fuel' cond codeOverride state with
+      | error err =>
+          simp [hEval] at hExec
+      | ok condResult =>
+          rcases condResult with ⟨condState, condValue⟩
+          have hCondLookup : condState[name]! = value :=
+            hCond fuel' state condState condValue hLookup hEval
+          simp [hEval] at hExec
+          by_cases hCondNonzero : condValue ≠ ⟨0⟩
+          · simp [hCondNonzero] at hExec
+            exact hBody fuel' condState final hCondLookup hExec
+          · have hCondZero : condValue = ⟨0⟩ :=
+              Decidable.not_not.mp hCondNonzero
+            simp [hCondZero] at hExec
+            cases hExec
+            exact hCondLookup
+
+theorem NativeStmtPreservesWord_if_of_cond_preserves_and_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond : NativeExprPreservesWord name value cond codeOverride)
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames body)
+    (hPreserves :
+      ∀ stmt, stmt ∈ body →
+        name ∉ Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeStmtPreservesWord name value (.If cond body) codeOverride :=
+  NativeStmtPreservesWord_if_of_cond_preserves name value cond body codeOverride
     hCond
     (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
       name value body codeOverride hFresh hPreserves)
@@ -7335,6 +7585,67 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_
   exact NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
+theorem NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [value, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.MSTORE8) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, value, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          rw [primCall_mstore8_ok] at hExec
+          simp [EvmYul.Yul.State.multifill] at hExec
+          cases hExec
+          cases argState with
+          | Ok shared store =>
+              simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+          | OutOfFuel =>
+              simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+          | Checkpoint jump =>
+              cases jump <;>
+                simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "mstore8" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "mstore8" args
+    EvmYul.Operation.MSTORE8 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
 theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7398,6 +7709,518 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_
   rw [Backends.lowerExprNative_call_runtimePrimOp "sstore" args
     EvmYul.Operation.SSTORE (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [value, slot]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.TSTORE) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, slot, value, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_tstore_ok primFuel argState slot value hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, slot]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "tstore" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "tstore" args
+    EvmYul.Operation.TSTORE (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart datastart size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, datastart, mstart]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.CALLDATACOPY) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, mstart, datastart, size, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          rw [primCall_calldatacopy_ok] at hExec
+          simp [EvmYul.Yul.State.multifill] at hExec
+          cases hExec
+          cases argState with
+          | Ok shared store =>
+              simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+          | OutOfFuel =>
+              simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+          | Checkpoint jump =>
+              cases jump <;>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart datastart size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, datastart, mstart]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "calldatacopy" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "calldatacopy" args
+    EvmYul.Operation.CALLDATACOPY (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart rstart size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, rstart, mstart]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.RETURNDATACOPY) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, mstart, rstart, size, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          rw [primCall_returndatacopy_ok] at hExec
+          simp [EvmYul.Yul.State.multifill] at hExec
+          cases hExec
+          cases argState with
+          | Ok shared store =>
+              simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+          | OutOfFuel =>
+              simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+          | Checkpoint jump =>
+              cases jump <;>
+                simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart rstart size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, rstart, mstart]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "returndatacopy" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "returndatacopy" args
+    EvmYul.Operation.RETURNDATACOPY (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG0) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_log0_ok primFuel argState offset size hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log0" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log0" args
+    EvmYul.Operation.LOG0 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG1) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, topic0, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_log1_ok primFuel argState offset size topic0 hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log1" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log1" args
+    EvmYul.Operation.LOG1 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic1, topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG2) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, topic0, topic1, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_log2_ok primFuel argState offset size topic0 topic1 hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [topic1, topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log2" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log2" args
+    EvmYul.Operation.LOG2 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic2, topic1, topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG3) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, topic0, topic1, topic2, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_log3_ok primFuel argState offset size topic0 topic1 topic2 hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [topic2, topic1, topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log3" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log3" args
+    EvmYul.Operation.LOG3 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2 topic3,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic3, topic2, topic1, topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG4) args))
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hArgs fuel' state hLookup with
+        ⟨argState, offset, size, topic0, topic1, topic2, topic3, hEval, hArgLookup⟩
+      simp [EvmYul.Yul.exec, hEval, EvmYul.Yul.reverse',
+        EvmYul.Yul.execPrimCall, EvmYul.Yul.multifill'] at hExec
+      cases fuel' with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ primFuel =>
+          cases hPerm : argState.executionEnv.perm
+          · simp [EvmYul.Yul.primCall, hPerm,
+              EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+          · rw [primCall_log4_ok primFuel argState offset size topic0 topic1 topic2 topic3 hPerm] at hExec
+            simp [EvmYul.Yul.State.multifill] at hExec
+            cases hExec
+            cases argState with
+            | Ok shared store =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | OutOfFuel =>
+                simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+            | Checkpoint jump =>
+                cases jump <;>
+                  simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_evalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2 topic3,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [topic3, topic2, topic1, topic0, size, offset]) ∧
+            argState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log4" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log4" args
+    EvmYul.Operation.LOG4 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
 theorem NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
@@ -7561,6 +8384,17 @@ theorem nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
       Backends.nativeStmtsWriteNames body :=
   (hFresh.1 tag body hMem).2
 
+theorem nativeSwitchTempsFreshForNativeBodies_case_discr_not_mem
+    (switchId tag : Nat)
+    (body defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hMem : (tag, body) ∈ cases) :
+    Backends.nativeSwitchDiscrTempName switchId ∉
+      Backends.nativeStmtsWriteNames body :=
+  (hFresh.1 tag body hMem).1
+
 theorem nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
     (switchId selector tag : Nat)
     (body defaultBody : List EvmYul.Yul.Ast.Stmt)
@@ -7585,6 +8419,30 @@ theorem nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
   exact nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
     switchId tag body defaultBody cases hFresh hMem
 
+theorem nativeSwitchTempsFreshForNativeBodies_find_hit_discr_not_mem
+    (switchId selector tag : Nat)
+    (body defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body)) :
+    Backends.nativeSwitchDiscrTempName switchId ∉
+      Backends.nativeStmtsWriteNames body := by
+  have hMem : (tag, body) ∈ cases := by
+    clear hFresh
+    induction cases with
+    | nil =>
+        simp [List.find?] at hFind
+    | cons head rest ih =>
+        cases hHead : (head.1 == selector)
+        · simp [List.find?, hHead] at hFind
+          exact List.mem_cons_of_mem head (ih hFind)
+        · simp [List.find?, hHead] at hFind
+          simp [hFind]
+  exact nativeSwitchTempsFreshForNativeBodies_case_discr_not_mem
+    switchId tag body defaultBody cases hFresh hMem
+
 theorem nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem
     (switchId : Nat)
     (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -7594,6 +8452,110 @@ theorem nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem
     Backends.nativeSwitchMatchedTempName switchId ∉
       Backends.nativeStmtsWriteNames defaultBody :=
   hFresh.2.2
+
+theorem nativeSwitchTempsFreshForNativeBodies_default_discr_not_mem
+    (switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody) :
+    Backends.nativeSwitchDiscrTempName switchId ∉
+      Backends.nativeStmtsWriteNames defaultBody :=
+  hFresh.2.1
+
+theorem NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+    (switchId selector tag : Nat)
+    (body defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body))
+    (hStmtPreserves :
+      ∀ stmt, stmt ∈ body →
+        Backends.nativeSwitchMatchedTempName switchId ∉
+          Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+          expected stmt codeOverride) :
+    NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+      expected body codeOverride :=
+  NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+    (Backends.nativeSwitchMatchedTempName switchId) expected body codeOverride
+    (nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
+      switchId selector tag body defaultBody cases hFresh hFind)
+    hStmtPreserves
+
+theorem NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_discr
+    (switchId selector tag : Nat)
+    (body defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body))
+    (hStmtPreserves :
+      ∀ stmt, stmt ∈ body →
+        Backends.nativeSwitchDiscrTempName switchId ∉
+          Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord (Backends.nativeSwitchDiscrTempName switchId)
+          expected stmt codeOverride) :
+    NativeBlockPreservesWord (Backends.nativeSwitchDiscrTempName switchId)
+      expected body codeOverride :=
+  NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+    (Backends.nativeSwitchDiscrTempName switchId) expected body codeOverride
+    (nativeSwitchTempsFreshForNativeBodies_find_hit_discr_not_mem
+      switchId selector tag body defaultBody cases hFresh hFind)
+    hStmtPreserves
+
+theorem NativeBlockPreservesWord_of_nativeSwitchFresh_default_matched
+    (switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hStmtPreserves :
+      ∀ stmt, stmt ∈ defaultBody →
+        Backends.nativeSwitchMatchedTempName switchId ∉
+          Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+          expected stmt codeOverride) :
+    NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+      expected defaultBody codeOverride :=
+  NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+    (Backends.nativeSwitchMatchedTempName switchId) expected defaultBody
+    codeOverride
+    (nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem
+      switchId cases defaultBody hFresh)
+    hStmtPreserves
+
+theorem NativeBlockPreservesWord_of_nativeSwitchFresh_default_discr
+    (switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hFresh :
+      Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hStmtPreserves :
+      ∀ stmt, stmt ∈ defaultBody →
+        Backends.nativeSwitchDiscrTempName switchId ∉
+          Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord (Backends.nativeSwitchDiscrTempName switchId)
+          expected stmt codeOverride) :
+    NativeBlockPreservesWord (Backends.nativeSwitchDiscrTempName switchId)
+      expected defaultBody codeOverride :=
+  NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+    (Backends.nativeSwitchDiscrTempName switchId) expected defaultBody
+    codeOverride
+    (nativeSwitchTempsFreshForNativeBodies_default_discr_not_mem
+      switchId cases defaultBody hFresh)
+    hStmtPreserves
 
 @[simp] theorem nativeSwitchCaseIfs_nil
     (discrName matchedName : EvmYul.Identifier) :
@@ -8855,12 +9817,9 @@ theorem exec_nativeSwitchTail_find_hit_fresh_fuel
     cases defaultBody body contract tx storage observableSlots final hSelector
     hFind hSelectorRange hTagsRange hBody
   intro pre suffix _hCases
-  exact NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
-    (Backends.nativeSwitchMatchedTempName switchId) (EvmYul.UInt256.ofNat 1)
-    body (some contract)
-    (nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
-      switchId selector tag body defaultBody cases hFresh hFind)
-    hStmtPreserves
+  exact NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+    switchId selector tag body defaultBody cases (EvmYul.UInt256.ofNat 1)
+    (some contract) hFresh hFind hStmtPreserves
 
 theorem exec_nativeSwitchTail_find_hit_error_fuel
     (fuel selector switchId tag : Nat)
@@ -9491,12 +10450,9 @@ theorem exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel
     fuel selector switchId tag cases defaultBody body contract tx storage
     observableSlots store final hSelector hFind hSelectorRange hTagsRange hBody
   intro pre suffix _hCases
-  exact NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
-    (Backends.nativeSwitchMatchedTempName switchId) (EvmYul.UInt256.ofNat 1)
-    body (some contract)
-    (nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
-      switchId selector tag body defaultBody cases hFresh hFind)
-    hStmtPreserves
+  exact NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+    switchId selector tag body defaultBody cases (EvmYul.UInt256.ofNat 1)
+    (some contract) hFresh hFind hStmtPreserves
 
 /-- Store-parametric guarded selector-miss execution for the lowered switch
     block whose default is `revert(0, 0)`. Lifts the empty-store version to
