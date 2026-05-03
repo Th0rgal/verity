@@ -463,6 +463,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Verity.Proofs.Stdlib.Automation.safeAdd_some_val
 #print axioms Verity.Proofs.Stdlib.Automation.safeMul_some_iff_le
 #print axioms Verity.Proofs.Stdlib.Automation.safeMul_none_iff_gt
+#print axioms Verity.Proofs.Stdlib.Automation.mulDiv512Down?_some_iff
+#print axioms Verity.Proofs.Stdlib.Automation.mulDiv512Down?_none_iff
+#print axioms Verity.Proofs.Stdlib.Automation.mulDiv512Up?_some_iff
+#print axioms Verity.Proofs.Stdlib.Automation.mulDiv512Up?_none_iff
 #print axioms Verity.Proofs.Stdlib.Automation.add_one_preserves_order_iff_no_overflow
 #print axioms Verity.Proofs.Stdlib.Automation.wf_of_state_eq
 #print axioms Verity.Proofs.Stdlib.Automation.wf_preservation_of_frame
@@ -572,6 +576,52 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Verity/Proofs/Stdlib/Math.lean
 -- #print axioms Verity.Proofs.Stdlib.Math.modulus_eq_max_succ  -- private
 -- #print axioms Verity.Proofs.Stdlib.Math.lt_modulus_of_le_max  -- private
+-- #print axioms Verity.Proofs.Stdlib.Math.max_uint256_lt_modulus  -- private
+-- #print axioms Verity.Proofs.Stdlib.Math.ceil_mul_div_ge  -- private
+-- #print axioms Verity.Proofs.Stdlib.Math.ceil_mul_div_le_add_pred  -- private
+-- #print axioms Verity.Proofs.Stdlib.Math.nat_ceil_div_antitone_divisor  -- private
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_some
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_none_of_zero_divisor
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_none_of_overflow
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_eq_some_iff
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_isSome_iff
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_mul_le
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_lt_succ_mul
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_mul_lt_add
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_isNone_iff
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_comm
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_zero_left
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_zero_right
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_pos
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_cancel_right
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_cancel_left
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_monotone_left
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_monotone_right
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_antitone_divisor
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_wide_product_regression
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_final_overflow_regression
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_some
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_none_of_zero_divisor
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_none_of_overflow
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_eq_some_iff
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_isSome_iff
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_mul_ge
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_mul_le_add_pred
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_mul_lt_add
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_isNone_iff
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_isSome_of_up_isSome
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_isNone_of_down_isNone
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_comm
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_zero_left
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_zero_right
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_pos
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_cancel_right
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_cancel_left
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_monotone_left
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_monotone_right
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_antitone_divisor
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_wide_product_regression
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_final_overflow_regression
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_nat_eq
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_mul_le
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_pos
@@ -585,10 +635,17 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_mul_lt_add
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_antitone_divisor
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_nat_eq
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_eq_mulDivDown_of_no_overflow
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_eq_mulDivUp_of_no_overflow
 #print axioms Verity.Proofs.Stdlib.Math.mulDivDown_le_mulDivUp
 -- #print axioms Verity.Proofs.Stdlib.Math.nat_ceil_div_le_div_add_one  -- private
 -- #print axioms Verity.Proofs.Stdlib.Math.nat_ceil_div_eq_div_of_dvd  -- private
 -- #print axioms Verity.Proofs.Stdlib.Math.nat_ceil_div_eq_div_add_one_of_not_dvd  -- private
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_eq_down_of_dvd
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_some_succ_of_not_dvd
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Down?_le_up
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_le_down_add_one
+#print axioms Verity.Proofs.Stdlib.Math.mulDiv512Up?_eq_down_or_succ
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_le_mulDivDown_add_one
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_eq_mulDivDown_or_succ
 #print axioms Verity.Proofs.Stdlib.Math.mulDivUp_eq_mulDivDown_of_dvd
@@ -3272,12 +3329,27 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_forall_stmt
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_forall_stmt_write_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.collectNativeStmtWriteNames_append
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_append
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_cons_not_mem_iff
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_head_not_mem_of_cons_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_tail_not_mem_of_cons_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_left_not_mem_of_append_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_right_not_mem_of_append_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_append_not_mem_iff
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_forall_stmt
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_append_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_self
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_cond_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_cond_preserves_and_nativeStmtsWriteNames_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_hex_of_ne
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_ident_of_ne
@@ -3307,8 +3379,26 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_evalArgs_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_evalArgs_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_evalArgs_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
@@ -3316,8 +3406,15 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_stop
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_stop
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_case_discr_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_find_hit_discr_not_mem
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_default_discr_not_mem
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_discr
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_default_matched
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_default_discr
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_cons
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.list_find?_eq_some_split_false  -- private
@@ -3799,4 +3896,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3623 theorems/lemmas (2677 public, 946 private, 0 sorry'd)
+-- Total: 3720 theorems/lemmas (2770 public, 950 private, 0 sorry'd)

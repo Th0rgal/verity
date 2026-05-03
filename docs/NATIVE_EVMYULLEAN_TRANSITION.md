@@ -331,6 +331,7 @@ scope so the native path does not look more complete than it is:
   `NativeStmtPreservesWord_block`,
   `NativeStmtPreservesWord_if_of_eval_self`,
   `NativeStmtPreservesWord_if_of_eval_preserves`,
+  `NativeStmtPreservesWord_if_of_cond_preserves`,
   `NativeStmtPreservesWord_lowerAssignNative_lit_of_ne`,
   `NativeStmtPreservesWord_lowerAssignNative_hex_of_ne`,
   `NativeStmtPreservesWord_lowerAssignNative_ident_of_ne`,
@@ -441,8 +442,26 @@ scope so the native path does not look more complete than it is:
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_evalArgs_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_evalArgs_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_evalArgs_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves`,
@@ -450,16 +469,35 @@ scope so the native path does not look more complete than it is:
   `NativeStmtPreservesWord_exprStmtCall_stop`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_stop`,
   `nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem`,
+  `collectNativeStmtWriteNames_append`,
+  `nativeStmtsWriteNames_append`,
+  `nativeStmtsWriteNames_cons`,
+  `nativeStmtsWriteNames_cons_not_mem_iff`,
+  `nativeStmtsWriteNames_head_not_mem_of_cons_not_mem`,
+  `nativeStmtsWriteNames_tail_not_mem_of_cons_not_mem`,
+  `nativeStmtsWriteNames_left_not_mem_of_append_not_mem`,
+  `nativeStmtsWriteNames_right_not_mem_of_append_not_mem`,
+  `nativeStmtsWriteNames_append_not_mem_iff`,
   `NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem`,
+  `NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem`,
+  `NativeBlockPreservesWord_append_of_forall_stmt`,
+  `NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem`,
+  `NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_append_not_mem`,
   `NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem`,
   `NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_not_mem`,
+  `NativeStmtPreservesWord_if_of_cond_preserves_and_nativeStmtsWriteNames_not_mem`,
+  `NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched`,
+  `NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_discr`,
+  `NativeBlockPreservesWord_of_nativeSwitchFresh_default_matched`,
+  `NativeBlockPreservesWord_of_nativeSwitchFresh_default_discr`,
+  `nativeSwitchTempsFreshForNativeBodies_case_discr_not_mem`,
+  `nativeSwitchTempsFreshForNativeBodies_find_hit_discr_not_mem`,
+  `nativeSwitchTempsFreshForNativeBodies_default_discr_not_mem`,
   `nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem`, and
-  `nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem`; the next
-  proof step is the statement induction that derives the per-statement
-  preservation obligations from `nativeStmtWriteNames` freshness and the
-  existing condition-evaluation success premises. The selected
-  switch-tail and lowered-switch hit paths can now consume generated
-  `nativeSwitchTempsFreshForNativeBodies` freshness directly through
+  `nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem`. The selected
+  switch-tail and lowered-switch hit paths consume generated
+  `nativeSwitchTempsFreshForNativeBodies` freshness through reusable native
+  block preservation wrappers and the execution lemmas
   `exec_nativeSwitchTail_find_hit_fresh_fuel` and
   `exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel`; the
   store-parametric lowered-switch success path uses
