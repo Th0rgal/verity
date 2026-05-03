@@ -57,7 +57,7 @@ REQUIRED_SNIPPETS = (
     "EvmYul.Yul.callDispatcher",
     "observable storage slot set explicitly",
     "only materializes pre-state storage for those slots",
-    "layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge",
+    "layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
     "nativeIRRuntimeAgreesWithEvmYulLean",
     "nativeResultsMatchOn",
     "nativeCallDispatcherAgreesWithEvmYulLean",
@@ -155,9 +155,9 @@ def check_public_theorem_target(
         "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree",
         "interpretYulRuntimeEvmYulLeanFuel fuel",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
-        "theorem layer3_contract_preserves_semantics_native_of_interpreter_bridge",
+        "theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge",
         "theorem layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge",
-        "theorem layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge",
+        "theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge",
     ):
         if required_native_seam not in normalized_end_to_end:
@@ -175,7 +175,7 @@ def check_public_theorem_target(
             errors.append(
                 "Compiler/Proofs/YulGeneration/Backends/"
                 "EvmYulLeanRetarget.lean must keep the fuel-aligned "
-                f"interpreter oracle surface `{required_fuel_surface}` explicit"
+                f"EVMYulLean fuel wrapper surface `{required_fuel_surface}` explicit"
             )
 
     forbidden_native_in_end_to_end = (

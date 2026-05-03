@@ -42,7 +42,7 @@ materializes pre-state storage for those slots.
   native EVMYulLean logs, matching the observable shape expected by the current
   proof-side `YulResult`.
 - The EndToEnd layer now exposes the native-facing theorem seam
-  `layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge`. Its
+  `layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge`. Its
   conclusion targets `Native.interpretIRRuntimeNative` through
   `nativeResultsMatchOn`, comparing success, return value, events, and the
   explicitly observable final-storage slots, but it still requires the explicit
@@ -64,7 +64,7 @@ materializes pre-state storage for those slots.
   `layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge`.
   These move the remaining proof obligation down to concrete native lowering,
   selected-path environment validation, and projected native dispatcher-block
-  execution agreement with the fuel-aligned interpreter oracle.
+  execution agreement with the fuel-aligned EVMYulLean fuel wrapper.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with
@@ -201,7 +201,7 @@ scope so the native path does not look more complete than it is:
    `nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree`, and
    `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`. The
    remaining bridge is therefore direct native `EvmYul.Yul.exec` execution of
-   the lowered contract dispatcher block against the interpreter oracle.
+   the lowered contract dispatcher block against the EVMYulLean fuel wrapper.
 
    Statement-level native lowering through
    `lowerStmtsNativeWithSwitchIds`/`lowerStmtGroupNativeWithSwitchIds` is now
@@ -225,7 +225,7 @@ scope so the native path does not look more complete than it is:
    projection agreement.
 
    The generated dispatcher selector expression is also pinned for the
-   EVMYulLean-backed interpreter oracle:
+   EVMYulLean-backed EVMYulLean fuel wrapper:
    `bridgedExpr_selectorExpr` shows that `selectorExpr` is in the bridged
    expression fragment, and
    `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` proves that it
@@ -733,7 +733,7 @@ scope so the native path does not look more complete than it is:
    The EndToEnd module now has a named native theorem seam:
 
    ```lean
-   layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge
+   layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
    ```
 
    It targets `Native.interpretIRRuntimeNative` directly, but only under:
@@ -755,7 +755,7 @@ scope so the native path does not look more complete than it is:
    `nativeCallDispatcherAgreesWithEvmYulLean` for the lowered native contract.
    That obligation can now be discharged from
    `nativeDispatcherBlockAgreesWithEvmYulLean`, which compares projected
-   `contractDispatcherBlockResult` execution with the interpreter oracle.
+   `contractDispatcherBlockResult` execution with the EVMYulLean fuel wrapper.
    The block obligation can in turn be discharged from
    `nativeDispatcherExecAgreesWithEvmYulLean`, which targets raw
    `contractDispatcherExecResult`.
@@ -764,7 +764,7 @@ scope so the native path does not look more complete than it is:
    generated fragment, native `lowerRuntimeContractNative` plus
    `EvmYul.Yul.exec` of the lowered contract dispatcher block must produce the
    same projected `YulResult` as the current
-   `interpretYulRuntimeEvmYulLean` interpreter oracle. The
+   `interpretYulRuntimeEvmYulLean` EVMYulLean fuel wrapper. The
    successor theorem should discharge that bridge, or target a total native
    wrapper once the remaining closed-failure cases are ruled out by syntactic
    invariants.

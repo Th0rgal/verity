@@ -894,7 +894,7 @@ function map rather than appending it to dispatcher code.
 
 Keeping this equation named is important for the native migration proof: it is
 the first generated-fragment shape fact needed before proving that
-`callDispatcher` runs the same selected body as the interpreter oracle. -/
+`callDispatcher` runs the same selected body as the EVMYulLean fuel wrapper. -/
 theorem lowerRuntimeContractNativeAux_funcDef_cons
     (reservedNames : List String)
     (dispatcherAcc : List EvmYul.Yul.Ast.Stmt)

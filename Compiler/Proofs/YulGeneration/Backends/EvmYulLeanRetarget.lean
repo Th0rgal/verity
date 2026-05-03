@@ -1354,13 +1354,13 @@ private theorem bridgedExpr_selector :
     exact BridgedExpr.lit 0
 
 /-- The generated dispatcher selector expression is in the bridged expression
-fragment, so the EVMYulLean-backed interpreter oracle evaluates it exactly like
+fragment, so the EVMYulLean fuel wrapper evaluates it exactly like
 the historical Verity interpreter. -/
 theorem bridgedExpr_selectorExpr :
     BridgedExpr Compiler.Proofs.YulGeneration.selectorExpr := by
   simpa [Compiler.Proofs.YulGeneration.selectorExpr] using bridgedExpr_selector
 
-/-- The EVMYulLean-backed interpreter oracle selects the same 4-byte dispatcher
+/-- The EVMYulLean fuel wrapper selects the same 4-byte dispatcher
 selector as the generated Verity selector expression.
 
 This is the first generated-dispatcher semantic slice needed by the native

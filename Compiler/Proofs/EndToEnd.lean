@@ -1029,7 +1029,7 @@ theorem layer3_contract_preserves_semantics_evmYulLean
   · exact hFunctions
 
 /-- Native Layer 3 bridge theorem under the named generated-fragment bridge obligation. -/
-theorem layer3_contract_preserves_semantics_native_of_interpreter_bridge
+theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
     (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
     (initialState : IRState) (observableSlots : List Nat)
     (hselector : tx.functionSelector < selectorModulus) (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -1108,7 +1108,7 @@ theorem layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bri
     nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel contract tx initialState observableSlots) :=
-  layer3_contract_preserves_semantics_native_of_interpreter_bridge
+  layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
     fuel contract tx initialState observableSlots
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
@@ -1248,10 +1248,10 @@ theorem layers2_3_ir_matches_yul_evmYulLean
 The conclusion targets `Native.interpretIRRuntimeNative` directly. The remaining
 generated-fragment proof obligation is exactly
 `nativeIRRuntimeAgreesWithEvmYulLean`: native EVMYulLean execution of the
-emitted runtime code must agree with the current EVMYulLean-backed interpreter
-oracle for the same fuel, transaction, initial storage/events, and observable
-storage-slot materialization. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge
+emitted runtime code must agree with the current EVMYulLean fuel wrapper for
+the same fuel, transaction, initial storage/events, and observable storage-slot
+materialization. -/
+theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
     (fuel : Nat)
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction)
@@ -1285,7 +1285,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge
       (interpretIR irContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel irContract tx initialState observableSlots) :=
-  layer3_contract_preserves_semantics_native_of_interpreter_bridge
+  layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
     fuel irContract tx initialState observableSlots
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback

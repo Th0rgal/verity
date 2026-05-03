@@ -905,7 +905,7 @@ theorem initialState_calldataReadWord_selectorPrefix
 /-- Recompose the four ABI selector bytes into the normalized 32-bit
     dispatcher selector. This isolates the remaining native byte-decoding proof:
     once `calldataload(0) >>> 224` is reduced to the four high calldata bytes,
-    this theorem closes the arithmetic side against the interpreter oracle. -/
+    this theorem closes the arithmetic side against the EVMYulLean fuel wrapper. -/
 theorem selectorBytesAsNat (selector : Nat) :
     (selector / 2^24 % 256) * 2^24 +
       (selector / 2^16 % 256) * 2^16 +
@@ -3552,7 +3552,7 @@ def nativeSwitchPrefixFinalState
 
 This packages the first two statements emitted by `lowerNativeSwitchBlock` for
 the generated dispatcher case and leaves the remaining case-chain proof with a
-state whose native switch temporaries are aligned to the interpreter oracle. -/
+state whose native switch temporaries are aligned to the EVMYulLean fuel wrapper. -/
 theorem exec_nativeSwitchPrefix_selector_initialState_ok
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)

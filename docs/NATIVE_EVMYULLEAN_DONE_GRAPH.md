@@ -118,7 +118,7 @@ N8 public Layer 3 theorem flip
   hit/miss lemmas, and raw lowered switch block bridge lemmas are in progress.
 - **Definition of done**:
   - The lowered dispatcher switch executes the same selected/default branch as
-    the interpreter oracle for every generated dispatcher shape.
+    the EVMYulLean fuel wrapper for every generated dispatcher shape.
   - The result is stated at the raw `lowerNativeSwitchBlock` boundary and at the
     higher generated dispatcher boundary.
 - **Verification**:
@@ -187,7 +187,7 @@ N8 public Layer 3 theorem flip
   complete.
 - **Definition of done**:
   - For compiler-generated runtime Yul, native `callDispatcher` execution
-    agrees with the current interpreter-backed public semantic path on the
+    agrees with the current EVMYulLean-backed public semantic path on the
     observable result.
   - The theorem covers selected public function dispatch, default dispatch,
     storage, logs, return/revert/error behavior, and generated helper calls.
