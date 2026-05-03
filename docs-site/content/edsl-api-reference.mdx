@@ -330,6 +330,31 @@ def wDivUp (a b : Uint256) : Uint256
 - Exact cancellation and wad identity lemmas: `mulDivDown_cancel_right/left`, `mulDivUp_cancel_right/left`, `wMulDown_one_left/right`, `wDivUp_by_wad` (`Verity/Proofs/Stdlib/Math.lean`)
 - Wad-specialized helper lemmas: `wMulDown_nat_eq`, `wDivUp_nat_eq`, `wDivUp_antitone_right` (`Verity/Proofs/Stdlib/Math.lean`)
 
+### Full-precision `mulDiv512`
+
+Proof/modeling helpers for Solidity `Math.mulDiv` / `FullMath.mulDiv`
+semantics live in `Stdlib.Math`:
+
+```lean
+def mulDiv512Down? (a b c : Uint256) : Option Uint256
+
+def mulDiv512Up? (a b c : Uint256) : Option Uint256
+```
+
+These compute `a * b` in unbounded natural-number precision and return `none`
+only when the divisor is zero or the final floor/ceil quotient does not fit in
+`uint256`. They are EDSL proof helpers; first-class compiler lowering for a
+512-bit division primitive remains tracked separately.
+
+**Proof lemmas**
+
+- Fit/rejection lemmas: `mulDiv512Down?_some`, `mulDiv512Down?_none_of_zero_divisor`, `mulDiv512Down?_none_of_overflow`, `mulDiv512Down?_isSome_iff`, `mulDiv512Down?_isNone_iff`, `mulDiv512Up?_some`, `mulDiv512Up?_none_of_zero_divisor`, `mulDiv512Up?_none_of_overflow`, `mulDiv512Up?_isSome_iff`, `mulDiv512Up?_isNone_iff` (`Verity/Proofs/Stdlib/Math.lean`)
+- Result-characterization lemmas: `mulDiv512Down?_eq_some_iff`, `mulDiv512Up?_eq_some_iff` (`Verity/Proofs/Stdlib/Math.lean`)
+- Sandwich lemmas: `mulDiv512Down?_mul_le`, `mulDiv512Down?_lt_succ_mul`, `mulDiv512Down?_mul_lt_add`, `mulDiv512Up?_mul_ge`, `mulDiv512Up?_mul_le_add_pred`, `mulDiv512Up?_mul_lt_add` (`Verity/Proofs/Stdlib/Math.lean`)
+- Compatibility lemmas: `mulDiv512Down?_eq_mulDivDown_of_no_overflow`, `mulDiv512Up?_eq_mulDivUp_of_no_overflow` (`Verity/Proofs/Stdlib/Math.lean`)
+- Rounding and shape lemmas: `mulDiv512Down?_comm`, `mulDiv512Up?_comm`, `mulDiv512Down?_monotone_left/right`, `mulDiv512Up?_monotone_left/right`, `mulDiv512Down?_antitone_divisor`, `mulDiv512Up?_antitone_divisor`, `mulDiv512Down?_isSome_of_up_isSome`, `mulDiv512Up?_isNone_of_down_isNone`, `mulDiv512Down?_le_up`, `mulDiv512Up?_le_down_add_one`, `mulDiv512Up?_eq_down_or_succ`, `mulDiv512Up?_eq_down_of_dvd`, `mulDiv512Up?_some_succ_of_not_dvd`, `mulDiv512Down?_pos`, `mulDiv512Up?_pos`, `mulDiv512Down?_zero_left/right`, `mulDiv512Up?_zero_left/right`, `mulDiv512Down?_cancel_right/left`, `mulDiv512Up?_cancel_right/left` (`Verity/Proofs/Stdlib/Math.lean`)
+- Automation mirrors: `mulDiv512Down?_some_iff`, `mulDiv512Down?_none_iff`, `mulDiv512Up?_some_iff`, `mulDiv512Up?_none_iff` (`Verity/Proofs/Stdlib/Automation.lean`)
+
 ## Same-Contract Helper Calls
 
 Inside `verity_contract`, call reusable same-contract helpers with ordinary function-call syntax. Do not write `internalCall` or `internalCallAssign` in source contracts; those names are compilation-model IR constructors used after macro lowering.
