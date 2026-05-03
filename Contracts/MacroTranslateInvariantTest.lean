@@ -299,6 +299,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.StorageWordsAddressSmoke.spec
   , Contracts.Smoke.StorageWordsBoolSmoke.spec
   , Contracts.Smoke.CustomErrorSmoke.spec
+  , Contracts.Smoke.SafeMulRequireSmoke.spec
   , Contracts.Smoke.SignedBuiltinSmoke.spec
   , Contracts.Smoke.StatelessSmoke.spec
   , Contracts.Smoke.MutabilitySmoke.spec
@@ -407,6 +408,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("StorageWordsAddressSmoke", ["extSloadsLike(address[])"])
   , ("StorageWordsBoolSmoke", ["extSloadsLike(bool[])"])
   , ("CustomErrorSmoke", ["echo(uint256)"])
+  , ("SafeMulRequireSmoke", ["multiplyStored(uint256)", "divideStored(uint256)"])
   , ("SignedBuiltinSmoke", ["signedDiv(uint256,uint256)", "signedMod(uint256,uint256)", "signedLt(uint256,uint256)",
       "signedGt(uint256,uint256)", "arithmeticShift(uint256,uint256)", "signExtended()", "shiftedMask()",
       "signedDivSurface(int256,int256)", "signedModSurface(int256,int256)", "signedDivViaLocal(uint256,int256)",
@@ -530,6 +532,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("StorageWordsAddressSmoke", ["0x28054813"])
   , ("StorageWordsBoolSmoke", ["0x873bc011"])
   , ("CustomErrorSmoke", ["0x6279e43c"])
+  , ("SafeMulRequireSmoke", ["0x678f717b", "0x2b0262e3"])
   , ("SignedBuiltinSmoke", ["0x5aafa47b", "0x1c781eb5", "0x2ff7ce03", "0x5f28fa76", "0x49795601",
       "0xcc634d7f", "0x7c4ab1e5", "0x44b95b1e", "0x17ea5a3e", "0x6344ce8c", "0xf6814165", "0xae1a9a3e",
       "0x6622d274", "0x176a2ce1", "0x504d2488", "0xd5451d16", "0x22cfe3c6"])
@@ -810,7 +813,7 @@ private def checkSignedBuiltinSmoke : IO Unit := do
   let loadSigned := loadSigned?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   expectTrue "SignedBuiltinSmoke: Int256 storage is modeled as a word slot"
     (match Contracts.Smoke.SignedBuiltinSmoke.spec.fields with
-    | [{ name := "signedSlot", ty := FieldType.uint256, slot := some 0 }] => true
+    | [field] => field.name == "signedSlot" && field.ty == FieldType.uint256 && field.slot == some 0
     | _ => false)
   expectTrue "SignedBuiltinSmoke: signedDiv body uses Expr.sdiv"
     (bodyUsesSignedBuiltin signedDiv.body "Expr.sdiv")

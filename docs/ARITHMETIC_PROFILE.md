@@ -79,7 +79,7 @@ For contracts that require overflow protection, the EDSL provides checked operat
 | `mulDiv512Down? a b c` | `Option Uint256` | `none` if `c = 0` or `floor(a * b / c) > 2^256 - 1`; product is unbounded |
 | `mulDiv512Up? a b c` | `Option Uint256` | `none` if `c = 0` or `ceil(a * b / c) > 2^256 - 1`; product is unbounded |
 
-Checked operations are **EDSL-level constructs**. They are not compiler-enforced; the compiler always uses wrapping arithmetic. Contracts that need checked behavior must explicitly use `safeAdd`/`safeSub`/`safeMul` and handle the `Option` result (e.g., via `requireSomeUint` to revert on `none`). The `mulDiv512...?` helpers are proof/modeling helpers for full-precision Solidity `Math.mulDiv` semantics; compiled Yul lowering for a first-class 512-bit division primitive is still tracked by #1761.
+Checked operations are **explicit EDSL-level constructs**. The compiler does not insert overflow checks for bare `add`/`sub`/`mul`, and bare `div` keeps EVM division-by-zero semantics. Contracts that need checked behavior must explicitly use `safeAdd`/`safeSub`/`safeMul`/`safeDiv` and handle the `Option` result. In `verity_contract`, `requireSomeUint (safeAdd ...)`, `requireSomeUint (safeSub ...)`, `requireSomeUint (safeMul ...)`, and `requireSomeUint (safeDiv ...)` lower to concrete `require` guards followed by the corresponding arithmetic result binding. The `mulDiv512...?` helpers are proof/modeling helpers for full-precision Solidity `Math.mulDiv` semantics; compiled Yul lowering for a first-class 512-bit division primitive is still tracked by #1761.
 
 **Correctness proofs**: `Verity/Proofs/Stdlib/Math.lean` proves that checked operations return the correct result within bounds and `none` otherwise (e.g., `safeAdd_some`, `safeAdd_none`).
 
@@ -153,15 +153,15 @@ The arithmetic model is invariant across profiles. See [`docs/SOLIDITY_PARITY_PR
 ## What Is NOT Proved
 
 - **Gas semantics**: proofs establish result correctness, not gas cost or bounded liveness.
-- **Compiler-layer overflow detection**: the compiler does not insert overflow checks. Use EDSL `safeAdd`/`safeSub`/`safeMul` for checked behavior.
+- **Compiler-layer overflow detection**: the compiler does not insert overflow or division-by-zero checks. Use EDSL `safeAdd`/`safeSub`/`safeMul`/`safeDiv` for checked behavior.
 - **Cryptographic primitives**: keccak256 is axiomatized (see [`AXIOMS.md`](../AXIOMS.md)).
 - **Universal bridge equivalence**: 25/25 pure EVMYulLean-backed builtins have universal bridge lemmas. All 25 also have context-lifted backend bridge theorems for Phase 4 retargeting. All 8 higher-level expression operators also have proven compilation correctness.
 
 ## Auditor Checklist
 
 1. Confirm that the contract's arithmetic assumptions match wrapping semantics.
-2. If overflow protection is required, verify the contract uses `safeAdd`/`safeSub`/`safeMul`.
-3. Check that `requireSomeUint` is used to revert on overflow/underflow.
+2. If overflow or division-by-zero protection is required, verify the contract uses `safeAdd`/`safeSub`/`safeMul`/`safeDiv`.
+3. Check that `requireSomeUint` is used to revert on overflow/underflow or zero divisors.
 4. Review `Compiler/Proofs/ArithmeticProfile.lean` for the formal wrapping proofs.
 5. Confirm the backend profile does not affect arithmetic behavior (it doesn't).
 

@@ -303,7 +303,11 @@ def requireSomeUint (opt : Option Uint256) (message : String) : Contract Uint256
 
 ```lean
 let sum <- requireSomeUint (safeAdd a b) "overflow"
+let product <- requireSomeUint (safeMul a b) "overflow"
+let quotient <- requireSomeUint (safeDiv a b) "division by zero"
 ```
+
+`verity_contract` lowers `requireSomeUint` over `safeAdd`, `safeSub`, `safeMul`, and `safeDiv` to explicit compiled `require` guards before binding the arithmetic result. Bare `add`, `sub`, `mul`, and `div` remain wrapping EVM arithmetic.
 
 **Proof lemmas**
 
