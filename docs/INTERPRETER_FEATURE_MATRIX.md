@@ -111,6 +111,25 @@ Legend: **ok** = supported, **0** = returns 0 (not modeled), **del** = delegated
 
 Legend: **ok** = supported, **rev** = reverts (not modeled), **nop** = no-op (codegen concern), **--** = not applicable, **n/m** = not modeled.
 
+ECMs include standard Verity-core modules for generic external-call mechanics,
+including `Compiler.Modules.Calls.bubblingValueCall`, which lowers
+Solidity-style `call{value: v}(data)` wrappers to Yul `call` and forwards exact
+revert returndata on failure. `bubblingValueCallNoOutputModule` exposes the
+same no-output adapter/router shape directly to `verity_contract` `ecmDo` call
+sites. These mechanics remain explicit trust-report surfaces: Verity models the
+generic call choreography, while package-specific callee behavior and protocol
+assumptions belong in dependent packages.
+
+The standard ECM library also includes static-word packed hashing helpers:
+`Compiler.Modules.Hashing.abiEncodePackedWords` and
+`Compiler.Modules.Hashing.sha256PackedWords`. These model contiguous 32-byte
+word preimages. For static mixed-width preimages, such as an address-sized
+segment followed by a 32-byte value, use
+`Compiler.Modules.Hashing.abiEncodePackedStaticSegments` or
+`Compiler.Modules.Hashing.sha256PackedStaticSegments` with explicit 1- to
+32-byte widths. Dynamic `bytes` / `string` packed encoding remains outside the
+current core surface.
+
 ---
 
 ## Builtin Bridge (Verity vs EVMYulLean)

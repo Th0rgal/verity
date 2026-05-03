@@ -6,6 +6,7 @@ import Contracts.ProxyUpgradeabilityMacroSmoke
 import Contracts.ProxyUpgradeabilityLayoutCompatibleSmoke
 import Contracts.ProxyUpgradeabilityLayoutIncompatibleSmoke
 import Contracts.Smoke
+import Contracts.Smoke.PackedHashECMSmoke
 import Contracts.Smoke.SelfBalanceSmoke
 
 namespace Compiler.MacroTranslateRoundTripFuzz
@@ -64,6 +65,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.SpecialEntrypointSmoke.spec
   , Contracts.Smoke.LeanDefHelperSmoke.spec
   , Contracts.Smoke.DirectHelperCallSmoke.spec
+  , Contracts.Smoke.MultiReturnHelperSmoke.spec
   , Contracts.Smoke.InitializerSmoke.spec
   , Contracts.Smoke.ConstantSmoke.spec
   , Contracts.Smoke.ImmutableSmoke.spec
@@ -90,6 +92,8 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
   , Contracts.Smoke.GenericECMWriteSmoke.spec
+  , Contracts.Smoke.BubblingValueCallECMSmoke.spec
+  , Contracts.Smoke.PackedHashECMSmoke.spec
   , Contracts.Smoke.LowLevelTryCatchSmoke.spec
   , Contracts.Smoke.ModifiesSmoke.spec
   , Contracts.Smoke.NoExternalCallsSmoke.spec

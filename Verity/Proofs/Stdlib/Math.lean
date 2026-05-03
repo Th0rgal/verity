@@ -13,6 +13,103 @@ namespace Verity.Proofs.Stdlib.Math
 open Verity
 open Verity.Stdlib.Math
 
+/-! ## BN254 Field Helpers -/
+
+theorem SNARK_SCALAR_FIELD_ne_zero : SNARK_SCALAR_FIELD ≠ 0 := by
+  intro h
+  have hVal : (SNARK_SCALAR_FIELD : Nat) = 0 := by
+    simpa using congrArg (fun x : Uint256 => (x : Nat)) h
+  rw [SNARK_SCALAR_FIELD_val] at hVal
+  exact (by decide : (21888242871839275222246405745257275088548364400416034343698204186575808495617 : Nat) ≠ 0) hVal
+
+theorem SNARK_SCALAR_FIELD_lt_modulus :
+    (SNARK_SCALAR_FIELD : Nat) < Verity.Core.Uint256.modulus := by
+  rw [SNARK_SCALAR_FIELD_val]
+  decide
+
+theorem modField_nat_eq (x : Uint256) :
+    (modField x : Nat) = (x : Nat) % (SNARK_SCALAR_FIELD : Nat) := by
+  have hFieldNonzero : (SNARK_SCALAR_FIELD : Nat) ≠ 0 := by
+    intro h
+    exact SNARK_SCALAR_FIELD_ne_zero (Verity.Core.Uint256.ext (by simpa using h.symm))
+  have hModLt :
+      (x : Nat) % (SNARK_SCALAR_FIELD : Nat) < Verity.Core.Uint256.modulus := by
+    exact Nat.lt_trans
+      (Nat.mod_lt _ (Nat.pos_of_ne_zero hFieldNonzero))
+      SNARK_SCALAR_FIELD_lt_modulus
+  simp only [modField, Verity.Core.Uint256.mod, hFieldNonzero, ↓reduceIte,
+    Verity.Core.Uint256.val_ofNat]
+  exact Nat.mod_eq_of_lt hModLt
+
+theorem modField_lt (x : Uint256) :
+    (modField x : Nat) < (SNARK_SCALAR_FIELD : Nat) := by
+  rw [modField_nat_eq]
+  have hFieldNonzero : (SNARK_SCALAR_FIELD : Nat) ≠ 0 := by
+    intro h
+    exact SNARK_SCALAR_FIELD_ne_zero (Verity.Core.Uint256.ext (by simpa using h.symm))
+  exact Nat.mod_lt _ (Nat.pos_of_ne_zero hFieldNonzero)
+
+theorem modField_eq_self_of_lt (x : Uint256)
+    (h : (x : Nat) < (SNARK_SCALAR_FIELD : Nat)) :
+    modField x = x := by
+  apply Verity.Core.Uint256.ext
+  rw [modField_nat_eq]
+  exact Nat.mod_eq_of_lt h
+
+theorem modField_zero :
+    modField 0 = 0 := by
+  apply Verity.Core.Uint256.ext
+  rw [modField_nat_eq]
+  simp
+
+theorem modField_SNARK_SCALAR_FIELD :
+    modField SNARK_SCALAR_FIELD = 0 := by
+  apply Verity.Core.Uint256.ext
+  rw [modField_nat_eq]
+  exact Nat.mod_self _
+
+theorem modField_eq_zero_iff (x : Uint256) :
+    modField x = 0 ↔ (x : Nat) % (SNARK_SCALAR_FIELD : Nat) = 0 := by
+  constructor
+  · intro h
+    have hNat := congrArg (fun y : Uint256 => (y : Nat)) h
+    have hNat' : (modField x : Nat) = 0 := by
+      simpa using hNat
+    rw [modField_nat_eq] at hNat'
+    exact hNat'
+  · intro h
+    apply Verity.Core.Uint256.ext
+    rw [modField_nat_eq]
+    exact h
+
+theorem modField_eq_of_nat_mod_eq {x y : Uint256}
+    (h : (x : Nat) % (SNARK_SCALAR_FIELD : Nat) =
+      (y : Nat) % (SNARK_SCALAR_FIELD : Nat)) :
+    modField x = modField y := by
+  apply Verity.Core.Uint256.ext
+  rw [modField_nat_eq, modField_nat_eq]
+  exact h
+
+theorem modField_eq_iff_nat_mod_eq (x y : Uint256) :
+    modField x = modField y ↔
+      (x : Nat) % (SNARK_SCALAR_FIELD : Nat) =
+        (y : Nat) % (SNARK_SCALAR_FIELD : Nat) := by
+  constructor
+  · intro h
+    have hNat : (modField x : Nat) = (modField y : Nat) := by
+      simpa using congrArg (fun z : Uint256 => (z : Nat)) h
+    rw [modField_nat_eq, modField_nat_eq] at hNat
+    exact hNat
+  · exact modField_eq_of_nat_mod_eq
+
+theorem modField_nat_mod_eq (x : Uint256) :
+    (modField x : Nat) % (SNARK_SCALAR_FIELD : Nat) = (modField x : Nat) := by
+  exact Nat.mod_eq_of_lt (modField_lt x)
+
+theorem modField_idempotent (x : Uint256) :
+    modField (modField x) = modField x := by
+  exact modField_eq_self_of_lt (modField x) (modField_lt x)
+
 /-! ## mulDiv / wad Helpers -/
 
 private theorem modulus_eq_max_succ :

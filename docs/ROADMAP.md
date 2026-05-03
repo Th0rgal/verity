@@ -117,6 +117,44 @@ Delivery policy for unsupported features:
 2. Error text must suggest the nearest currently-supported pattern.
 3. Error text must include the tracking issue reference.
 
+### Unlink Audit Readiness: Verity-Core Scope
+
+The Unlink audit should keep Verity focused on generic Solidity-modeling
+capabilities and move Unlink-specific cryptographic or protocol assumptions to
+a separate `unlink-verity` package. Verity should not grow built-in Poseidon,
+Permit2, Lazy-IMT, or Groth16 verifier semantics. Instead, Verity should provide
+the generic call, ABI, loop, helper-return, and trust-report surfaces needed for
+a clean line-by-line model, while `unlink-verity` declares the protocol-specific
+assumed boundaries with explicit axiom names and proof-status tags.
+
+Priority work for Verity core:
+
+| Priority | Work item | Scope | Exit criteria |
+|---|---|---|---|
+| P0 | ETH-aware generic external call ECM | Add a reusable ECM for Solidity-style arbitrary `call{value: v}(data)` with explicit target, ETH value, input offset/size or bytes-like calldata source, returndata bubbling on failure, and configurable output/returndata handling. | `Compiler/Modules/Calls.lean` exposes `bubblingValueCall` for explicit memory-slice calls and `bubblingValueCallNoOutput` / `bubblingValueCallNoOutputModule` for adapter/router calls that ignore successful returndata, including `verity_contract` `ecmDo` usage; generated Yul forwards revert returndata exactly; CEI/mutability/trust-report metadata are covered by compile-time tests for call lowering, value forwarding, revert bubbling, argument validation, and assumption reporting. |
+| P0 | ECM and trust-boundary documentation | Make the Verity-core vs `unlink-verity` package split explicit. | `docs/EXTERNAL_CALL_MODULES.md`, `docs/INTERPRETER_FEATURE_MATRIX.md`, and this roadmap document which generic surfaces are modeled by Verity and which Unlink-specific dependencies should be package-local assumptions. |
+| P1 | `forEach` mutable-local verification/docs | Confirm accumulator-style loop bodies can update local variables via `Stmt.assignVar`, and document the current macro-source limitation. | A feature test demonstrates `Stmt.letVar ...; Stmt.forEach ... [Stmt.assignVar ...]` lowering to Yul assignment inside the loop; macro docs state that `let mut` reassignment from inside a `verity_contract` `forEach` body is still rejected by the executable fallback, so source authors should use scratch memory until that limitation is removed. |
+| P1 | Multi-value internal return verification/docs | Confirm helper functions can return multiple values and callers can bind them cleanly from macro syntax. | A smoke or feature test demonstrates `_buildPublicSignals`-style helper returns, including `Stmt.internalCallAssign` or equivalent macro syntax; docs point users to the pattern. |
+| P1 | `abiEncodePacked` helper | Reduce hash-preimage offset mistakes in ZK/audit models. | `Compiler.Modules.Hashing.abiEncodePackedWords` covers the static 32-byte word subset, with `abiEncodePacked` as a short alias for the same semantics; `Compiler.Modules.Hashing.abiEncodePackedStaticSegments` covers static 1- to 32-byte segments such as address-sized values. Both lower to contiguous memory writes plus exact-length `keccak256` and have generated-Yul/trust-report tests. Dynamic Solidity packed encoding remains future work. |
+| P1 | `sha256` / `sha256Packed` helper | Avoid hand-rolled SHA-256 precompile calls in public-signal construction. | `Compiler.Modules.Precompiles.sha256Memory` covers existing memory slices, with `sha256` as a short alias; `Compiler.Modules.Hashing.sha256PackedWords` covers static-word packed preimages, with `sha256Packed` as a short alias; `Compiler.Modules.Hashing.sha256PackedStaticSegments` covers static 1- to 32-byte segments. SHA-256 helpers route through precompile 0x02 with failure reverts and generated-Yul/trust-report tests. |
+| P2 | BN254 scalar field helper | Improve readability of circuit-facing reductions. | `Verity.Stdlib.Math` exposes documented `SNARK_SCALAR_FIELD` and `modField` helpers with basic simp lemmas. |
+
+Already-supported items that should not become new roadmap work:
+
+- Named struct field access for calldata array elements is already available
+  through `struct` declarations and `arrayElement` field projection, lowering to
+  `Expr.arrayElementDynamicWord` where needed.
+- ERC-20 `balanceOf`, `allowance`, and `totalSupply` ECMs already exist under
+  `Compiler/Modules/ERC20.lean` alongside the safe token write modules.
+
+Package-boundary rule for the Unlink audit:
+
+- Keep Permit2, Poseidon, Lazy-IMT, and Groth16 verifier assumptions in
+  `unlink-verity` as external declarations or package-local ECMs with precise
+  axiom names, proof-status tags, and a trust manifest.
+- Keep Verity-core additions protocol-agnostic. A feature belongs in Verity core
+  only if it models ordinary Solidity/EVM behavior or reusable audit ergonomics.
+
 ---
 
 ## Lessons from UnlinkPool (#185)

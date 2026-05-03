@@ -11,6 +11,7 @@ import Contracts.SimpleToken.SimpleToken
 import Contracts.ERC20.ERC20
 import Contracts.ERC721.ERC721
 import Compiler.Modules.ERC20
+import Compiler.Modules.Calls
 import Compiler.Modules.Oracle
 
 namespace Contracts.Smoke
@@ -1226,6 +1227,34 @@ verity_contract DirectHelperCallSmoke where
     let right ← getStorage lastRight
     return (current, left, right)
 
+verity_contract MultiReturnHelperSmoke where
+  storage
+    lastTotal : Uint256 := slot 0
+    lastHead : Uint256 := slot 1
+
+  function summarize (seed : Uint256) : Tuple [Uint256, Uint256] := do
+    let head := add seed 1
+    let tail := add seed 2
+    return (head, tail)
+
+  function useSummary (seed : Uint256) : Uint256 := do
+    let (head, tail) ← summarize seed
+    return (add head tail)
+
+/--
+error: `total` cannot be mutated, only variables declared using `let mut` can be mutated. If you did not intend to mutate but define `total`, consider using `let total` instead
+-/
+#guard_msgs in
+verity_contract ForEachMutableLocalMacroRejected where
+  storage
+
+  function sumValues (values : Array Uint256) : Uint256 := do
+    let mut total := 0
+    forEach "i" (arrayLength values) (do
+      let value := arrayElement values i
+      total := add total value)
+    return total
+
 /--
 error: helper call 'consumePayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
 -/
@@ -1470,6 +1499,13 @@ verity_contract GenericECMWriteSmoke where
 
   function runEffect (lhs : Uint256, rhs : Uint256) : Unit := do
     ecmDo genericECMEffectDemoModule [lhs, rhs]
+
+verity_contract BubblingValueCallECMSmoke where
+  storage
+
+  function forwardNoOutput (target : Address, ethValue : Uint256, inputOffset : Uint256, inputSize : Uint256) : Unit := do
+    ecmDo Compiler.Modules.Calls.bubblingValueCallNoOutputModule
+      [addressToWord target, ethValue, inputOffset, inputSize]
 
 set_option linter.unusedVariables false in
 verity_contract LowLevelTryCatchSmoke where
@@ -1800,6 +1836,7 @@ end SpecGenSmoke
 #check_contract DynamicStructArraySmoke
 #check_contract PackedStorageWriteSmoke
 #check_contract DirectHelperCallSmoke
+#check_contract MultiReturnHelperSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke
@@ -2080,6 +2117,24 @@ example :
           genericECMEffectDemoModule
           [ Compiler.CompilationModel.Expr.param "lhs"
           , Compiler.CompilationModel.Expr.param "rhs"
+          ]
+      , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+example :
+    (Compiler.CompilationModel.FunctionSpec.body
+      (BubblingValueCallECMSmoke.forwardNoOutput_model : Compiler.CompilationModel.FunctionSpec)) =
+    BubblingValueCallECMSmoke.forwardNoOutput_modelBody := by
+  simpa using BubblingValueCallECMSmoke.forwardNoOutput_semantic_preservation
+
+example :
+    BubblingValueCallECMSmoke.forwardNoOutput_modelBody =
+      [ Compiler.CompilationModel.Stmt.ecm
+          Compiler.Modules.Calls.bubblingValueCallNoOutputModule
+          [ Compiler.CompilationModel.Expr.param "target"
+          , Compiler.CompilationModel.Expr.param "ethValue"
+          , Compiler.CompilationModel.Expr.param "inputOffset"
+          , Compiler.CompilationModel.Expr.param "inputSize"
           ]
       , Compiler.CompilationModel.Stmt.stop
       ] := rfl
