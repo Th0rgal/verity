@@ -1021,6 +1021,20 @@ ALLOWLIST: set[str] = {
     "compileStmtList_always_bridged",
     # --- Misc ---
     "findUniqueInternalFunction",
+    # Native dispatcher bridge wrapper: mostly argument plumbing through the
+    # generic Layer 2+3 native theorem after the concrete SimpleStorage lowering
+    # witness is packaged; splitting would just duplicate the same fixture
+    # witnesses.
+    "simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge",
+    # Native generated-switch block append/error lemmas mirror the existing
+    # ok-append proof and keep the fuel arithmetic visible in one place for
+    # the halt-before-default dispatcher cases.
+    "exec_block_append_error",
+    "exec_block_append_prefix_error",
+    # Native generated-switch selected-hit error chain is the error analogue of
+    # the preserved selected-hit chain; the long span is the prefix induction
+    # needed to prove later cases/default are unreachable after a halt.
+    "exec_nativeSwitchCaseIfs_prefix_hit_error_fuel",
 }
 
 # Directories containing proof files to scan.

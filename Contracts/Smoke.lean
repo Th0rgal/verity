@@ -317,6 +317,7 @@ verity_contract CustomErrorSmoke where
 
 verity_contract SignedBuiltinSmoke where
   storage
+    signedSlot : Int256 := slot 0
 
   constants
     extendedByte : Uint256 := (signextend 0 255)
@@ -368,6 +369,15 @@ verity_contract SignedBuiltinSmoke where
 
   function minSignBit (lhs : Int256) : Bool := do
     return (min lhs 0 < 0)
+
+  function storeSigned (value : Int256) : Int256 := do
+    setStorage signedSlot value
+    let saved ← getStorage signedSlot
+    return saved
+
+  function loadSigned () : Int256 := do
+    let saved ← getStorage signedSlot
+    return saved
 
 verity_contract StatelessSmoke where
   storage

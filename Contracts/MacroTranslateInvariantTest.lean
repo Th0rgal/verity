@@ -411,7 +411,7 @@ private def expectedExternalSignatures : List (String × List String) :=
       "signedGt(uint256,uint256)", "arithmeticShift(uint256,uint256)", "signExtended()", "shiftedMask()",
       "signedDivSurface(int256,int256)", "signedModSurface(int256,int256)", "signedDivViaLocal(uint256,int256)",
       "castToInt(uint256)", "castToUint(int256)", "minusOne()", "bitAndSignBit(int256,int256)",
-      "minSignBit(int256)"])
+      "minSignBit(int256)", "storeSigned(int256)", "loadSigned()"])
   , ("StatelessSmoke", ["echoWord(uint256)", "whoAmI()"])
   , ("MutabilitySmoke", ["deposit()", "currentOwner()"])
   , ("SpecialEntrypointSmoke", ["getReceiveCount()", "getFallbackCount()"])
@@ -532,7 +532,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("CustomErrorSmoke", ["0x6279e43c"])
   , ("SignedBuiltinSmoke", ["0x5aafa47b", "0x1c781eb5", "0x2ff7ce03", "0x5f28fa76", "0x49795601",
       "0xcc634d7f", "0x7c4ab1e5", "0x44b95b1e", "0x17ea5a3e", "0x6344ce8c", "0xf6814165", "0xae1a9a3e",
-      "0x6622d274", "0x176a2ce1", "0x504d2488"])
+      "0x6622d274", "0x176a2ce1", "0x504d2488", "0xd5451d16", "0x22cfe3c6"])
   , ("StatelessSmoke", ["0x26534f53", "0xda91254c"])
   , ("MutabilitySmoke", ["0xd0e30db0", "0xb387ef92"])
   , ("SpecialEntrypointSmoke", ["0x931999fb", "0x74b204a4"])
@@ -789,6 +789,8 @@ private def checkSignedBuiltinSmoke : IO Unit := do
   let minusOne? := functions.find? (·.name == "minusOne")
   let bitAndSignBit? := functions.find? (·.name == "bitAndSignBit")
   let minSignBit? := functions.find? (·.name == "minSignBit")
+  let storeSigned? := functions.find? (·.name == "storeSigned")
+  let loadSigned? := functions.find? (·.name == "loadSigned")
   let signedDiv := signedDiv?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let signedMod := signedMod?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let signedLt := signedLt?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
@@ -804,6 +806,12 @@ private def checkSignedBuiltinSmoke : IO Unit := do
   let minusOne := minusOne?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let bitAndSignBit := bitAndSignBit?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   let minSignBit := minSignBit?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let storeSigned := storeSigned?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  let loadSigned := loadSigned?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
+  expectTrue "SignedBuiltinSmoke: Int256 storage is modeled as a word slot"
+    (match Contracts.Smoke.SignedBuiltinSmoke.spec.fields with
+    | [{ name := "signedSlot", ty := FieldType.uint256, slot := some 0 }] => true
+    | _ => false)
   expectTrue "SignedBuiltinSmoke: signedDiv body uses Expr.sdiv"
     (bodyUsesSignedBuiltin signedDiv.body "Expr.sdiv")
   expectTrue "SignedBuiltinSmoke: signedMod body uses Expr.smod"
@@ -836,6 +844,10 @@ private def checkSignedBuiltinSmoke : IO Unit := do
   expectTrue "SignedBuiltinSmoke: minSignBit keeps signed comparison over min"
     (bodyUsesSignedBuiltin minSignBit.body "Expr.min" &&
       bodyUsesSignedBuiltin minSignBit.body "Expr.lt")
+  expectTrue "SignedBuiltinSmoke: storeSigned writes the signed storage slot"
+    (bodyUsesSignedBuiltin storeSigned.body "Stmt.setStorage")
+  expectTrue "SignedBuiltinSmoke: loadSigned reads the signed storage slot"
+    (bodyUsesSignedBuiltin loadSigned.body "Expr.storage")
 
 private def checkLowLevelTryCatchSmoke : IO Unit := do
   let functions := Contracts.Smoke.LowLevelTryCatchSmoke.spec.functions
