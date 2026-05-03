@@ -717,6 +717,101 @@ theorem safeMul_none_iff_gt (a b : Verity.Core.Uint256) :
     · intro h_gt
       exact absurd h_gt h
 
+-- Full-precision floor mulDiv succeeds iff the divisor is nonzero and the quotient fits.
+theorem mulDiv512Down?_some_iff (a b c : Verity.Core.Uint256) :
+    (Verity.Stdlib.Math.mulDiv512Down? a b c).isSome ↔
+    (c : Nat) ≠ 0 ∧
+      ((a : Nat) * (b : Nat)) / (c : Nat) ≤ Verity.Stdlib.Math.MAX_UINT256 := by
+  unfold Verity.Stdlib.Math.mulDiv512Down?
+  by_cases hC : (c : Nat) = 0
+  · simp [hC]
+  · by_cases hOverflow : ((a : Nat) * (b : Nat)) / (c : Nat) > Verity.Stdlib.Math.MAX_UINT256
+    · constructor
+      · intro h_some
+        simp [hC, hOverflow] at h_some
+      · intro h_fit
+        omega
+    · constructor
+      · intro _
+        exact ⟨hC, Nat.le_of_not_gt hOverflow⟩
+      · intro _
+        simp [hC, hOverflow]
+
+-- Full-precision floor mulDiv rejects iff the divisor is zero or the quotient overflows.
+theorem mulDiv512Down?_none_iff (a b c : Verity.Core.Uint256) :
+    (Verity.Stdlib.Math.mulDiv512Down? a b c).isNone ↔
+    (c : Nat) = 0 ∨
+      Verity.Stdlib.Math.MAX_UINT256 <
+        ((a : Nat) * (b : Nat)) / (c : Nat) := by
+  unfold Verity.Stdlib.Math.mulDiv512Down?
+  by_cases hC : (c : Nat) = 0
+  · simp [hC]
+  · by_cases hOverflow : ((a : Nat) * (b : Nat)) / (c : Nat) > Verity.Stdlib.Math.MAX_UINT256
+    · simp [hC, hOverflow]
+    · constructor
+      · intro h_none
+        simp [hC, hOverflow] at h_none
+      · intro h_reject
+        rcases h_reject with h_zero | h_gt
+        · exact False.elim (hC h_zero)
+        · exact False.elim (hOverflow h_gt)
+
+-- Full-precision ceil mulDiv succeeds iff the divisor is nonzero and the rounded quotient fits.
+theorem mulDiv512Up?_some_iff (a b c : Verity.Core.Uint256) :
+    (Verity.Stdlib.Math.mulDiv512Up? a b c).isSome ↔
+    (c : Nat) ≠ 0 ∧
+      (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) ≤
+        Verity.Stdlib.Math.MAX_UINT256 := by
+  unfold Verity.Stdlib.Math.mulDiv512Up?
+  by_cases hC : (c : Nat) = 0
+  · simp [hC]
+  · by_cases hOverflow :
+      (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) >
+        Verity.Stdlib.Math.MAX_UINT256
+    · constructor
+      · intro h_some
+        simp [hC, hOverflow] at h_some
+      · intro h_fit
+        omega
+    · constructor
+      · intro _
+        exact ⟨hC, Nat.le_of_not_gt hOverflow⟩
+      · intro _
+        simp [hC, hOverflow]
+
+-- Full-precision ceil mulDiv rejects iff the divisor is zero or the rounded quotient overflows.
+theorem mulDiv512Up?_none_iff (a b c : Verity.Core.Uint256) :
+    (Verity.Stdlib.Math.mulDiv512Up? a b c).isNone ↔
+    (c : Nat) = 0 ∨
+      Verity.Stdlib.Math.MAX_UINT256 <
+        (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) := by
+  unfold Verity.Stdlib.Math.mulDiv512Up?
+  by_cases hC : (c : Nat) = 0
+  · simp [hC]
+  · by_cases hOverflow :
+      (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat) >
+        Verity.Stdlib.Math.MAX_UINT256
+    · simp [hC, hOverflow]
+    · constructor
+      · intro h_none
+        simp [hC, hOverflow] at h_none
+      · intro h_reject
+        rcases h_reject with h_zero | h_gt
+        · exact False.elim (hC h_zero)
+        · exact False.elim (hOverflow h_gt)
+
+example (a b c : Verity.Core.Uint256)
+    (hC : (c : Nat) ≠ 0)
+    (hFit : ((a : Nat) * (b : Nat)) / (c : Nat) ≤ Verity.Stdlib.Math.MAX_UINT256) :
+    (Verity.Stdlib.Math.mulDiv512Down? a b c).isSome := by
+  exact (mulDiv512Down?_some_iff a b c).mpr ⟨hC, hFit⟩
+
+example (a b c : Verity.Core.Uint256)
+    (hOverflow : Verity.Stdlib.Math.MAX_UINT256 <
+      (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat)) :
+    (Verity.Stdlib.Math.mulDiv512Up? a b c).isNone := by
+  exact (mulDiv512Up?_none_iff a b c).mpr (Or.inr hOverflow)
+
 /-!
 ## Modular Arithmetic Wraparound Lemmas
 
