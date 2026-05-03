@@ -11,15 +11,34 @@ runs:
         path: /usr/local/bin/solc
         key: solc-${{ env.SOLC_VERSION }}
 
-    - name: Install solc
-      if: steps.cache-solc.outputs.cache-hit != 'true'
+    - name: Install or repair solc
       shell: bash
       run: |
-        curl -sSfL "$SOLC_URL" -o solc
-        echo "${SOLC_SHA256}  solc" | sha256sum -c -
-        sudo mv solc /usr/local/bin/solc
-        sudo chmod +x /usr/local/bin/solc
+        if [ -x /usr/local/bin/solc ] && /usr/local/bin/solc --version | grep -q "$SOLC_VERSION"; then
+          exit 0
+        fi
+
+        for delay in 0 5 15; do
+          if [ "$delay" -gt 0 ]; then
+            echo "::warning::solc install failed; retrying in ${delay}s"
+            sleep "$delay"
+          fi
+
+          rm -f solc
+          if \
+            curl -sSfL --retry 3 --retry-delay 5 "$SOLC_URL" -o solc && \
+            echo "${SOLC_SHA256}  solc" | sha256sum -c - && \
+            sudo mv solc /usr/local/bin/solc && \
+            sudo chmod +x /usr/local/bin/solc && \
+            /usr/local/bin/solc --version | grep -q "$SOLC_VERSION"
+          then
+            exit 0
+          fi
+        done
+
+        echo "::error::Unable to install solc ${SOLC_VERSION}"
+        exit 1
 
     - name: Verify solc
       shell: bash
-      run: solc --version
+      run: /usr/local/bin/solc --version
