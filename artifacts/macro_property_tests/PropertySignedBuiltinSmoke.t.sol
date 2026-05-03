@@ -152,4 +152,24 @@ contract PropertySignedBuiltinSmokeTest is YulTestBase {
         bool actual = abi.decode(ret, (bool));
         assertEq(actual, (((int256(1) < 0) ? int256(1) : 0) < 0), "minSignBit should return the declared constant");
     }
+    // Property 16: storeSigned decodes and matches the inferred straight-line result
+    function testAuto_StoreSigned_ReturnsInferredStraightLineResult() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("storeSigned(int256)", int256(1)));
+        require(ok, "storeSigned reverted unexpectedly");
+        assertEq(ret.length, 32, "storeSigned ABI return length mismatch (expected 32 bytes)");
+        int256 actual = abi.decode(ret, (int256));
+        assertEq(actual, int256(1), "storeSigned should preserve the inferred result");
+    }
+    // Property 17: loadSigned reads storage slot 0 and decodes the result
+    function testAuto_LoadSigned_ReadsConfiguredStorage() public {
+        int256 expected = int256(1);
+        vm.store(target, bytes32(uint256(0)), bytes32(uint256(expected)));
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("loadSigned()"));
+        require(ok, "loadSigned reverted unexpectedly");
+        assertEq(ret.length, 32, "loadSigned ABI return length mismatch (expected 32 bytes)");
+        int256 actual = abi.decode(ret, (int256));
+        assertEq(actual, expected, "loadSigned should return storage slot 0");
+    }
 }
