@@ -215,7 +215,7 @@ N8 public Layer 3 theorem flip
 - **Depends on**: N6, N7, N9
 - **Blocks**: N10, N11
 - **Status**: not done. The public path still uses
-  `interpretYulRuntimeWithBackend .evmYulLean`.
+  `interpretYulRuntimeEvmYulLean`.
 - **Definition of done**:
   - Layer 3 theorem statements and generated proof plumbing target
     `interpretIRRuntimeNative` or an equivalent native `callDispatcher` wrapper.

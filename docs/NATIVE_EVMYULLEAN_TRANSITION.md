@@ -12,7 +12,7 @@ The detailed completion contract and reusable agent prompt live in
 The current public proof path still targets:
 
 ```lean
-interpretYulRuntimeWithBackend .evmYulLean
+interpretYulRuntimeEvmYulLean
 ```
 
 That path executes Verity's custom fuel-based Yul statement interpreter and
@@ -46,7 +46,7 @@ materializes pre-state storage for those slots.
   conclusion targets `Native.interpretIRRuntimeNative` through
   `nativeResultsMatchOn`, comparing success, return value, events, and the
   explicitly observable final-storage slots, but it still requires the explicit
-  `nativeIRRuntimeAgreesWithInterpreter` obligation for the generated runtime.
+  `nativeIRRuntimeAgreesWithEvmYulLean` obligation for the generated runtime.
   That obligation is observable-slot and fuel-aligned with the native run through
   `interpretYulRuntimeWithBackendFuel`, and the theorem seam currently requires
   that fuel to equal the interpreter proof stack's default runtime fuel
@@ -55,10 +55,10 @@ materializes pre-state storage for those slots.
   full-storage-projection and fuel-parametric-preservation gap, not a completed
   public flip.
 - The same module also exposes
-  `nativeCallDispatcherAgreesWithInterpreter`,
-  `nativeDispatcherBlockAgreesWithInterpreter`,
-  `nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree`,
-  `nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree`,
+  `nativeCallDispatcherAgreesWithEvmYulLean`,
+  `nativeDispatcherBlockAgreesWithEvmYulLean`,
+  `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`,
+  `nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree`,
   `layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge`,
   and
   `layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge`.
@@ -196,10 +196,10 @@ scope so the native path does not look more complete than it is:
    `callDispatcherBlockResult`, then rewrites initial-state execution to
    `contractDispatcherBlockResult`, then peels the block wrapper to
    `contractDispatcherExecResult`. EndToEnd exposes
-   `nativeDispatcherBlockAgreesWithInterpreter` plus
-   `nativeDispatcherExecAgreesWithInterpreter`,
-   `nativeDispatcherBlockAgreesWithInterpreter_of_exec_agree`, and
-   `nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree`. The
+   `nativeDispatcherBlockAgreesWithEvmYulLean` plus
+   `nativeDispatcherExecAgreesWithEvmYulLean`,
+   `nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree`, and
+   `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`. The
    remaining bridge is therefore direct native `EvmYul.Yul.exec` execution of
    the lowered contract dispatcher block against the interpreter oracle.
 
@@ -217,9 +217,9 @@ scope so the native path does not look more complete than it is:
    preservation lemmas against `execYulFuelWithBackend .evmYulLean`.
    EndToEnd now provides raw-exec intro forms for the three concrete native
    outcomes:
-   `nativeDispatcherExecAgreesWithInterpreter_of_exec_ok_agree`,
-   `nativeDispatcherExecAgreesWithInterpreter_of_exec_yulHalt_agree`, and
-   `nativeDispatcherExecAgreesWithInterpreter_of_exec_error_agree`. These let
+   `nativeDispatcherExecAgreesWithEvmYulLean_of_exec_ok_agree`,
+   `nativeDispatcherExecAgreesWithEvmYulLean_of_exec_yulHalt_agree`, and
+   `nativeDispatcherExecAgreesWithEvmYulLean_of_exec_error_agree`. These let
    each generated-statement simulation case finish from a proved
    `contractDispatcherExecResult` equation plus the corresponding observable
    projection agreement.
@@ -739,7 +739,7 @@ scope so the native path does not look more complete than it is:
    It targets `Native.interpretIRRuntimeNative` directly, but only under:
 
    ```lean
-   nativeIRRuntimeAgreesWithInterpreter fuel irContract tx initialState
+   nativeIRRuntimeAgreesWithEvmYulLean fuel irContract tx initialState
      observableSlots
    ```
 
@@ -752,19 +752,19 @@ scope so the native path does not look more complete than it is:
    It replaces the opaque bridge hypothesis with successful
    `lowerRuntimeContractNative`, successful
    `validateNativeRuntimeEnvironment`, and
-   `nativeCallDispatcherAgreesWithInterpreter` for the lowered native contract.
+   `nativeCallDispatcherAgreesWithEvmYulLean` for the lowered native contract.
    That obligation can now be discharged from
-   `nativeDispatcherBlockAgreesWithInterpreter`, which compares projected
+   `nativeDispatcherBlockAgreesWithEvmYulLean`, which compares projected
    `contractDispatcherBlockResult` execution with the interpreter oracle.
    The block obligation can in turn be discharged from
-   `nativeDispatcherExecAgreesWithInterpreter`, which targets raw
+   `nativeDispatcherExecAgreesWithEvmYulLean`, which targets raw
    `contractDispatcherExecResult`.
 
    This makes the remaining proof obligation concrete: for the supported
    generated fragment, native `lowerRuntimeContractNative` plus
    `EvmYul.Yul.exec` of the lowered contract dispatcher block must produce the
    same projected `YulResult` as the current
-   `interpretYulRuntimeWithBackend .evmYulLean` interpreter oracle. The
+   `interpretYulRuntimeEvmYulLean` interpreter oracle. The
    successor theorem should discharge that bridge, or target a total native
    wrapper once the remaining closed-failure cases are ruled out by syntactic
    invariants.
@@ -772,7 +772,7 @@ scope so the native path does not look more complete than it is:
    A clean intermediate theorem is:
 
    ```lean
-   interpretYulRuntimeWithBackend .evmYulLean emittedRuntime
+   interpretYulRuntimeEvmYulLean emittedRuntime
      =
    interpretRuntimeNative fuel emittedRuntime ...
    ```

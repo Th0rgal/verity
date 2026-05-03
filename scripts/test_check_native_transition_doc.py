@@ -70,7 +70,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
 
     def test_public_theorem_target_guard_rejects_missing_current_target(self) -> None:
         end_to_end_text = re.sub(
-            r"interpretYulRuntimeWithBackend\s+\.evmYulLean",
+            r"interpretYulRuntimeEvmYulLean",
             "interpretYulRuntimeWithBackend .verity",
             check.END_TO_END.read_text(encoding="utf-8"),
         )
@@ -80,7 +80,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("interpretYulRuntimeWithBackend .evmYulLean" in error for error in errors),
+            any("interpretYulRuntimeEvmYulLean" in error for error in errors),
             errors,
         )
 
@@ -98,7 +98,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
 
     def test_public_theorem_target_guard_rejects_missing_native_bridge_obligation(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "nativeIRRuntimeAgreesWithInterpreter",
+            "nativeIRRuntimeAgreesWithEvmYulLean",
             "nativeRuntimeBridgeObligation",
         )
         errors = check.check_public_theorem_target(
@@ -107,7 +107,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("nativeIRRuntimeAgreesWithInterpreter" in error for error in errors),
+            any("nativeIRRuntimeAgreesWithEvmYulLean" in error for error in errors),
             errors,
         )
 

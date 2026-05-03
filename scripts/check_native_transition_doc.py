@@ -49,7 +49,7 @@ NATIVE_SMOKE_TEST = (
 )
 
 REQUIRED_SNIPPETS = (
-    "interpretYulRuntimeWithBackend .evmYulLean",
+    "interpretYulRuntimeEvmYulLean",
     "Verity's custom fuel-based Yul statement interpreter",
     "not the final architecture",
     "Native.interpretRuntimeNative",
@@ -58,9 +58,9 @@ REQUIRED_SNIPPETS = (
     "observable storage slot set explicitly",
     "only materializes pre-state storage for those slots",
     "layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge",
-    "nativeIRRuntimeAgreesWithInterpreter",
+    "nativeIRRuntimeAgreesWithEvmYulLean",
     "nativeResultsMatchOn",
-    "nativeCallDispatcherAgreesWithInterpreter",
+    "nativeCallDispatcherAgreesWithEvmYulLean",
     "layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge",
     "explicitly observable final-storage slots",
     "full-storage-projection",
@@ -139,10 +139,10 @@ def check_public_theorem_target(
     normalized_native_harness = normalize_ws(native_harness_text)
     normalized_retarget = normalize_ws(retarget_text)
 
-    if "interpretYulRuntimeWithBackend .evmYulLean" not in normalized_end_to_end:
+    if "interpretYulRuntimeEvmYulLean" not in normalized_end_to_end:
         errors.append(
             "Compiler/Proofs/EndToEnd.lean must still expose the current "
-            "`interpretYulRuntimeWithBackend .evmYulLean` public theorem target "
+            "`interpretYulRuntimeEvmYulLean` public theorem target "
             "until the native preservation theorem is proved and this guard is updated"
         )
 
@@ -150,10 +150,10 @@ def check_public_theorem_target(
         "def nativeResultsMatch",
         "def yulResultsAgreeOn",
         "def nativeResultsMatchOn",
-        "def nativeIRRuntimeAgreesWithInterpreter",
-        "def nativeCallDispatcherAgreesWithInterpreter",
-        "theorem nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree",
-        "interpretYulRuntimeWithBackendFuel .evmYulLean fuel",
+        "def nativeIRRuntimeAgreesWithEvmYulLean",
+        "def nativeCallDispatcherAgreesWithEvmYulLean",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree",
+        "interpretYulRuntimeEvmYulLeanFuel fuel",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
         "theorem layer3_contract_preserves_semantics_native_of_interpreter_bridge",
         "theorem layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge",

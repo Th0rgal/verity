@@ -16,7 +16,7 @@ theorem `simpleStorage_endToEnd_native_evmYulLean`.
 Those two cases cannot be discharged inside the current public theorem
 signature because of a type-level mismatch:
 
-- The Verity proof oracle `interpretYulRuntimeWithBackend .evmYulLean` reads
+- The Verity proof oracle `interpretYulRuntimeEvmYulLean` reads
   from `IRState.storage : Nat → Nat` (see
   [`Compiler/Proofs/IRGeneration/IRInterpreter.lean`](../Compiler/Proofs/IRGeneration/IRInterpreter.lean)).
   The carrier is unbounded.

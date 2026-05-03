@@ -10,7 +10,7 @@ but the generic compiler theorem stack still uses Verity's custom fuel-based
 Yul interpreter through:
 
 ```lean
-interpretYulRuntimeWithBackend .evmYulLean
+interpretYulRuntimeEvmYulLean
 ```
 
 That path proves the custom interpreter agrees with EVMYulLean-backed builtin
@@ -61,13 +61,13 @@ The transition is done only when all criteria in this section are true on
 
 - The generic Layer 3 and end-to-end compiler-correctness theorem statements
   target native EVMYulLean execution, not
-  `interpretYulRuntimeWithBackend .evmYulLean`.
+  `interpretYulRuntimeEvmYulLean`.
 - The theorem-facing native target is either `Native.interpretIRRuntimeNative`
   or a narrower wrapper that internally lowers to EVMYulLean and executes via
   `EvmYul.Yul.callDispatcher`.
 - No public theorem keeps a generic native-vs-custom-interpreter agreement
-  premise such as `nativeIRRuntimeAgreesWithInterpreter`,
-  `nativeCallDispatcherAgreesWithInterpreter`, or an equivalent bridge
+  premise such as `nativeIRRuntimeAgreesWithEvmYulLean`,
+  `nativeCallDispatcherAgreesWithEvmYulLean`, or an equivalent bridge
   assumption.
 - Any remaining comparison with the custom interpreter is explicitly marked as
   regression or differential testing, not as the authoritative proof target.
@@ -257,7 +257,7 @@ Goal:
 Current architecture:
   The generic public path still uses:
 
-    interpretYulRuntimeWithBackend .evmYulLean
+    interpretYulRuntimeEvmYulLean
 
   This is Verity's custom fuel-based Yul interpreter with EVMYulLean-backed
   builtin semantics. The native path exists through:
@@ -356,7 +356,7 @@ Before declaring the transition complete, verify these exact facts:
 
 ```bash
 ! rg "interpretYulRuntimeWithBackend \\.evmYulLean" Compiler/Proofs/EndToEnd.lean
-! rg "nativeIRRuntimeAgreesWithInterpreter|nativeCallDispatcherAgreesWithInterpreter" Compiler/Proofs/EndToEnd.lean
+! rg "nativeIRRuntimeAgreesWithEvmYulLean|nativeCallDispatcherAgreesWithEvmYulLean" Compiler/Proofs/EndToEnd.lean
 ! rg "\\bsorry\\b|\\badmit\\b|^axiom " Compiler Verity Contracts
 python3 scripts/check_axioms.py
 python3 scripts/generate_print_axioms.py --check
