@@ -2750,7 +2750,7 @@ theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
     (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
     (hInternals : BridgedStmts contract.internalFunctions) :
     interpretYulFromIR contract tx state =
-    interpretYulRuntimeWithBackend .evmYulLean
+    interpretYulRuntimeEvmYulLean
       (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
       state.storage state.events := by
   unfold interpretYulFromIR
@@ -2763,10 +2763,11 @@ theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
           exact (interpretYulRuntimeWithBackend_verity_eq
             (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
             state.storage (events := state.events)).symm
-    _ = interpretYulRuntimeWithBackend .evmYulLean
+    _ = interpretYulRuntimeEvmYulLean
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
         state.storage state.events := by
-          unfold interpretYulRuntimeWithBackend interpretYulRuntimeWithBackendFuel
+          unfold interpretYulRuntimeEvmYulLean interpretYulRuntimeEvmYulLeanFuel
+            interpretYulRuntimeWithBackendFuel
           change
             yulResultOfExecWithRollback
               (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
@@ -2813,7 +2814,7 @@ theorem yulCodegen_preserves_semantics_evmYulLean
     (hInternals : BridgedStmts contract.internalFunctions) :
     resultsMatch
       (interpretIR contract tx initialState)
-      (interpretYulRuntimeWithBackend .evmYulLean
+      (interpretYulRuntimeEvmYulLean
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
         initialState.storage initialState.events) := by
   have hLayer3 :=
