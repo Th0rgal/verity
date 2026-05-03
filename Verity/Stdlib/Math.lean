@@ -68,6 +68,32 @@ def mulDivDown (a b c : Uint256) : Uint256 :=
 def mulDivUp (a b c : Uint256) : Uint256 :=
   ((a * b) + (c - 1)) / c
 
+/-- Full-precision floor multiply-divide.
+
+Unlike `mulDivDown`, this computes the product in unbounded natural-number
+precision and returns `none` only when the divisor is zero or the final quotient
+does not fit in `uint256`. This matches the proof shape needed for Solidity
+`Math.mulDiv(..., Rounding.Floor)` / `FullMath.mulDiv` modeling without adding
+an artificial no-overflow hypothesis on `a * b`. -/
+def mulDiv512Down? (a b c : Uint256) : Option Uint256 :=
+  if (c : Nat) = 0 then
+    none
+  else
+    let q := ((a : Nat) * (b : Nat)) / (c : Nat)
+    if q > MAX_UINT256 then none else some (Core.Uint256.ofNat q)
+
+/-- Full-precision ceil multiply-divide.
+
+The product is computed in unbounded natural-number precision. The helper
+returns `none` when the divisor is zero or the rounded-up quotient does not fit
+in `uint256`. -/
+def mulDiv512Up? (a b c : Uint256) : Option Uint256 :=
+  if (c : Nat) = 0 then
+    none
+  else
+    let q := (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat)
+    if q > MAX_UINT256 then none else some (Core.Uint256.ofNat q)
+
 /-- `ceilDiv(a, b)` = `ceil(a / b)`, matching Solidity's Math256.ceilDiv / OpenZeppelin.
     Uses the overflow-safe formula: `a == 0 ? 0 : (a - 1) / b + 1`.
     Note: When `b = 0` and `a > 0`, EVM `DIV` returns 0, so this yields 1.
@@ -130,6 +156,26 @@ theorem WAD_ne_zero : WAD ≠ 0 := by
 
 @[simp] theorem mulDivUp_def (a b c : Uint256) :
   mulDivUp a b c = ((a * b) + (c - 1)) / c := rfl
+
+@[simp] theorem mulDiv512Down?_def (a b c : Uint256) :
+  mulDiv512Down? a b c =
+    if (c : Nat) = 0 then
+      none
+    else
+      let q := ((a : Nat) * (b : Nat)) / (c : Nat)
+      if q > MAX_UINT256 then none else some (Core.Uint256.ofNat q) := by
+  unfold mulDiv512Down?
+  split <;> rfl
+
+@[simp] theorem mulDiv512Up?_def (a b c : Uint256) :
+  mulDiv512Up? a b c =
+    if (c : Nat) = 0 then
+      none
+    else
+      let q := (((a : Nat) * (b : Nat)) + ((c : Nat) - 1)) / (c : Nat)
+      if q > MAX_UINT256 then none else some (Core.Uint256.ofNat q) := by
+  unfold mulDiv512Up?
+  split <;> rfl
 
 @[simp] theorem wMulDown_def (a b : Uint256) :
   wMulDown a b = mulDivDown a b WAD := rfl

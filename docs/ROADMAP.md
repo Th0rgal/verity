@@ -89,6 +89,9 @@ Recent progress for low-level calls + returndata handling (`#622`):
 Recent progress for dynamic ABI-shaped parameters:
 - `verity_contract` now accepts dynamic array parameters whose element type is a static tuple of ABI words, e.g. `Array (Tuple [Uint256, Uint256, Int256])`, on tuple destructuring and tuple-return `arrayElement` paths. Those paths lower to checked word reads with the tuple element stride, which covers Solidity memory arrays of small fixed-size structs such as `CurveCut[]`; plain scalar `arrayElement` remains limited to single-word static element arrays.
 - `verity_contract` now accepts named `struct` declarations for function parameters as ABI tuple aliases. Executable contracts get Lean structures and field projection syntax, while the compilation model keeps the existing tuple ABI lowering. Nested static struct fields are supported for parameter field reads, covering the #1750 TermMax-style `config.feeConfig.borrowTakerFeeRatio` shape.
+
+Recent progress for arithmetic modeling:
+- `Stdlib.Math` now exposes `mulDiv512Down?` and `mulDiv512Up?` as proof-facing full-precision multiply-divide helpers. They compute `a * b` in unbounded natural-number precision and return `none` only when the divisor is zero or the final floor/ceil quotient does not fit in `uint256`, removing the artificial intermediate-product overflow hypothesis when modeling Solidity `Math.mulDiv` behavior. A compiled Yul primitive using the usual 512-bit division algorithm is still tracked by #1761.
 - ABI artifact emission now reflects explicit function mutability markers (`isView`, `isPure`) as `stateMutability: "view" | "pure"` in generated JSON.
 
 Recent progress for custom errors (`#586`):

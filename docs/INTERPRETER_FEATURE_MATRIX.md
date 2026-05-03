@@ -59,6 +59,7 @@ with the existing sync scripts and boundary checks.
 | Comparison | `eq/lt/gt/le/ge` | ok | ok | ok | ok | proved |
 | Logical | `logicalAnd/Or/Not` | ok | ok | -- | -- | proved |
 | Fixed-point math | `mulDivDown/Up, wMulDown/wDivUp, min/max` | ok | ok | -- | -- | proved |
+| Full-precision mulDiv modeling | `mulDiv512Down?/Up?` | -- | -- | -- | -- | EDSL/proof helper |
 | Internal call (expr) | `Expr.internalCall` | **0** | ok | -- | -- | proved |
 | Local variable | `Expr.localVar` | ok | ok | ok | -- | proved |
 | External call (linked) | `Expr.externalCall` | ok | ok | -- | -- | assumed |
