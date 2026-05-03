@@ -386,7 +386,7 @@ end -- mutual
           state.selector state.calldata offset)) := by
   simp [evalIRCall, evalIRExprs,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+    Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext]
   cases evalIRExpr state argExpr with
   | none => simp
   | some val => simp

@@ -29,7 +29,7 @@ class EVMYulLeanCapabilityExtractionTests(unittest.TestCase):
             builtins_file = Path(tmpdir) / "Builtins.lean"
             builtins_file.write_text(
                 "namespace X\n\n"
-                "def evalBuiltinCall (func : String) (argVals : List Nat) : Option Nat :=\n"
+                "def legacyEvalBuiltinCallWithContext (func : String) (argVals : List Nat) : Option Nat :=\n"
                 "  let op := \"create\"\n"
                 "  if func = op then\n"
                 "    some 1\n"
@@ -42,6 +42,24 @@ class EVMYulLeanCapabilityExtractionTests(unittest.TestCase):
                 builtins_file
             )
             self.assertEqual(found, {"create"})
+            self.assertEqual(diagnostics, [])
+
+    def test_extract_found_builtins_ignores_backend_context_prefix(self) -> None:
+        with tempfile.TemporaryDirectory(dir=property_utils.ROOT) as tmpdir:
+            builtins_file = Path(tmpdir) / "Builtins.lean"
+            builtins_file.write_text(
+                "namespace X\n\n"
+                "def evalBuiltinCallWithBackendContext (func : String) : Option Nat :=\n"
+                "  if func = \"address\" then some 1 else none\n\n"
+                "def legacyEvalBuiltinCallWithContext (func : String) : Option Nat :=\n"
+                "  if func = \"add\" then some 1 else none\n",
+                encoding="utf-8",
+            )
+
+            found, diagnostics = evmyullean_capability.extract_found_builtins_with_diagnostics(
+                builtins_file
+            )
+            self.assertEqual(found, {"add"})
             self.assertEqual(diagnostics, [])
 
     def test_extract_found_builtins_reports_unresolved_non_literal_dispatch(self) -> None:

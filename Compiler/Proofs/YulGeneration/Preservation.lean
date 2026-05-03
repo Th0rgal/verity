@@ -381,7 +381,7 @@ private theorem exec_calldatasizeGuard_revert_of_short_noWrap
         (YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit (4 + numParams * 32)]) =
         some 1 := by
     simp [evalYulExpr, evalYulCall, evalYulExprs, evalBuiltinCallWithBackendContext,
-      evalBuiltinCallWithContext, hLtTrue, Nat.mod_eq_of_lt hDataNoWrap,
+      legacyEvalBuiltinCallWithContext, hLtTrue, Nat.mod_eq_of_lt hDataNoWrap,
       Nat.mod_eq_of_lt hParamNoWrap]
   have hguard :
       execYulStmtFuel (fuel + 1) state (Compiler.calldatasizeGuard numParams) =
@@ -421,7 +421,7 @@ private theorem exec_calldatasizeGuard_noop_of_noWrap
         (YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit (4 + numParams * 32)]) =
         some 0 := by
     simp [evalYulExpr, evalYulCall, evalYulExprs, evalBuiltinCallWithBackendContext,
-      evalBuiltinCallWithContext, hLtFalse, Nat.mod_eq_of_lt hNoWrap, Nat.mod_eq_of_lt hParamNoWrap]
+      legacyEvalBuiltinCallWithContext, hLtFalse, Nat.mod_eq_of_lt hNoWrap, Nat.mod_eq_of_lt hParamNoWrap]
   have hstmt :
       execYulStmtFuel (fuel + 1) state (Compiler.calldatasizeGuard numParams) = .continue state := by
     simpa [Compiler.calldatasizeGuard] using
@@ -512,7 +512,7 @@ private theorem execBuildSwitch_none_none_aux_of_noWrap (fuel : Nat) (state : Yu
         (YulExpr.call "iszero"
           [YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit 4]]) = some 1 := by
     simp [evalYulExpr, evalYulCall, evalYulExprs, evalBuiltinCallWithBackendContext,
-      evalBuiltinCallWithContext, Nat.mod_eq_of_lt hNoWrap, Nat.mod_eq_of_lt h4]
+      legacyEvalBuiltinCallWithContext, Nat.mod_eq_of_lt hNoWrap, Nat.mod_eq_of_lt h4]
   have hIdentEval :
       evalYulExpr state' (YulExpr.ident "__has_selector") = some 1 := by
     simpa [state', evalYulExpr] using eval_hasSelector_after_set state
@@ -520,7 +520,7 @@ private theorem execBuildSwitch_none_none_aux_of_noWrap (fuel : Nat) (state : Yu
       evalYulExpr state'
         (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]) = some 0 := by
     simp [evalYulExpr, evalYulCall, evalYulExprs,
-      evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext, hIdentEval]
+      evalBuiltinCallWithBackendContext, legacyEvalBuiltinCallWithContext, hIdentEval]
   rw [show fuel + 6 = (fuel + 4) + 2 by omega, execYulStmtsFuel_singleton_succ_local]
   simp only [Compiler.CodegenCommon.buildSwitch, execYulStmtFuel, legacyExecYulFuel]
   simp [state', execYulStmtsFuel, hHasSelectorEval, hIfZeroEval, hIdentEval,

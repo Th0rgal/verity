@@ -43,7 +43,7 @@ private def verityEval (func : String) (args : List Nat) : Option Nat :=
 
 /-- Helper: evaluate a builtin via the context-aware Verity path. -/
 private def verityEvalWithContext (func : String) (args : List Nat) : Option Nat :=
-  evalBuiltinCallWithContext
+  legacyEvalBuiltinCallWithContext
     testStorage
     testSender
     testMsgValue
@@ -60,7 +60,7 @@ private def verityEvalWithContext (func : String) (args : List Nat) : Option Nat
 /-- Helper: evaluate a builtin via the context-aware Verity path with
     nontrivial selector/calldata for calldata bridge checks. -/
 private def verityEvalWithBridgeCalldata (func : String) (args : List Nat) : Option Nat :=
-  evalBuiltinCallWithContext
+  legacyEvalBuiltinCallWithContext
     testStorage
     testSender
     testMsgValue
@@ -729,7 +729,7 @@ example : verityEval "byte" [0, 0] = bridgeEval "byte" [0, 0] := by native_decid
 -- ## Context-lifted backend bridge (Phase 4 rewriting surface)
 --
 -- These tests validate that `evalBuiltinCallWithBackendContext .evmYulLean`
--- agrees with `evalBuiltinCallWithContext` on concrete inputs, exercising
+-- agrees with `legacyEvalBuiltinCallWithContext` on concrete inputs, exercising
 -- the 25 context-lifted bridge theorems that are the primary rewrite target
 -- for Phase 4 retargeting.
 
@@ -855,7 +855,7 @@ example : backendEvalWithContext "sload" [42] =
 example : backendEvalWithContext "mappingSlot" [0, 1] =
           verityEvalWithContext "mappingSlot" [0, 1] := by
   simp [backendEvalWithContext, verityEvalWithContext, evalBuiltinCallWithBackendContext,
-    evalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
+    legacyEvalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
 
 /-- Context-lifted bridge: caller now reads the bridged execution context. -/
 example : backendEvalWithContext "caller" [] = verityEvalWithContext "caller" [] := by native_decide
@@ -874,7 +874,7 @@ example : backendEvalWithContext "calldatasize" [] = verityEvalWithContext "call
 /-- `calldatasize` is a UInt256 word observation, so Verity also reduces the
     bridged byte length modulo `2^256` rather than returning an unbounded Nat. -/
 example (selector : Nat) (calldata : List Nat) :
-    evalBuiltinCallWithContext
+    legacyEvalBuiltinCallWithContext
       testStorage
       testSender
       testMsgValue
@@ -888,7 +888,7 @@ example (selector : Nat) (calldata : List Nat) :
       "calldatasize"
       [] =
     some ((4 + calldata.length * 32) % Compiler.Constants.evmModulus) := by
-  simp [evalBuiltinCallWithContext, Compiler.Constants.evmModulus]
+  simp [legacyEvalBuiltinCallWithContext, Compiler.Constants.evmModulus]
 
 /-- Context-lifted bridge: callvalue now reads the bridged execution context. -/
 example : backendEvalWithContext "callvalue" [] = verityEvalWithContext "callvalue" [] := by native_decide

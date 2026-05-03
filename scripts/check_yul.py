@@ -30,7 +30,7 @@ IMPORT_BUILTINS_RE = re.compile(
 BUILTIN_CALL_RE = re.compile(
     r"\bCompiler\.Proofs\.YulGeneration\.(?:"
     r"evalBuiltinCall"
-    r"|evalBuiltinCallWithContext"
+    r"|legacyEvalBuiltinCallWithContext"
     r"|evalBuiltinCallWithBackend"
     r"|evalBuiltinCallWithBackendContext"
     r")\b"
@@ -206,7 +206,7 @@ def collect_builtin_boundary_failures() -> list[str]:
         if not BUILTIN_CALL_RE.search(text):
             failures.append(
                 f"{rel}: missing call to Compiler.Proofs.YulGeneration."
-                "evalBuiltinCall, evalBuiltinCallWithContext, "
+                "evalBuiltinCall, legacyEvalBuiltinCallWithContext, "
                 "evalBuiltinCallWithBackend, or evalBuiltinCallWithBackendContext"
             )
 

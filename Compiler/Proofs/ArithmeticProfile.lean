@@ -53,28 +53,28 @@ private def cd : List Nat := []
 /-- Addition wraps: (a + b) mod 2^256. -/
 theorem add_wraps (a b : Nat) :
     legacyEvalBuiltinCall s sender sel cd "add" [a, b] = some ((a + b) % evmModulus) := by
-  simp [legacyEvalBuiltinCall, Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+  simp [legacyEvalBuiltinCall, Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext]
 
 /-- Subtraction wraps: (2^256 + a - b) mod 2^256. -/
 theorem sub_wraps (a b : Nat) :
     legacyEvalBuiltinCall s sender sel cd "sub" [a, b] =
       some ((evmModulus + a % evmModulus - b % evmModulus) % evmModulus) := by
-  simp [legacyEvalBuiltinCall, Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+  simp [legacyEvalBuiltinCall, Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext]
 
 /-- Multiplication wraps: (a * b) mod 2^256. -/
 theorem mul_wraps (a b : Nat) :
     legacyEvalBuiltinCall s sender sel cd "mul" [a, b] = some ((a * b) % evmModulus) := by
-  simp [legacyEvalBuiltinCall, Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+  simp [legacyEvalBuiltinCall, Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext]
 
 /-- Division by zero returns 0. -/
 theorem div_by_zero (a : Nat) :
     legacyEvalBuiltinCall s sender sel cd "div" [a, 0] = some 0 := by
-  simp [legacyEvalBuiltinCall, Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+  simp [legacyEvalBuiltinCall, Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext]
 
 /-- Modulo by zero returns 0. -/
 theorem mod_by_zero (a : Nat) :
     legacyEvalBuiltinCall s sender sel cd "mod" [a, 0] = some 0 := by
-  simp [legacyEvalBuiltinCall, Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+  simp [legacyEvalBuiltinCall, Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext]
 
 -- ============================================================================
 -- § 3. EVMYulLean bridge agreement for pure arithmetic

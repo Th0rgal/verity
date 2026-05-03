@@ -4091,7 +4091,7 @@ theorem interpretIR_simpleStorage_retrieveHit
     -- both the outer `execIRStmts` and the inner `execIRStmt` to step.
     simp +decide only [execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+      Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext,
       Compiler.Proofs.abstractLoadStorageOrMapping,
       Option.bind_some, bind, pure, ↓reduceIte]
   -- The retrieve body has at least 2 statements, so `sizeOf body ≥ 2` by

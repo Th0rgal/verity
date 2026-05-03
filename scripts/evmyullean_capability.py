@@ -18,6 +18,9 @@ IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_']*$")
 LET_BINDING_RE = re.compile(
     r"^\s*let\s+([A-Za-z_][A-Za-z0-9_']*)(?:\s*:\s*[^:=]+)?\s*:=\s*(.+?)\s*$"
 )
+DISPATCH_DEF_RE = re.compile(
+    r"^\s*def\s+(legacyEvalBuiltinCallWithContext|evalBuiltinCall)\b"
+)
 
 
 def _strip_outer_parens(text: str) -> str:
@@ -123,7 +126,7 @@ def extract_found_builtins_with_diagnostics(
         line = _strip_lean_line_comment(raw_line)
 
         if not in_eval_builtin:
-            if line.lstrip().startswith("def evalBuiltinCall"):
+            if DISPATCH_DEF_RE.match(line):
                 in_eval_builtin = True
                 eval_indent = len(line) - len(line.lstrip())
             continue

@@ -1063,7 +1063,7 @@ def evalPureBuiltinViaEvmYulLean
     the abstract `storage : IRStorageSlot → IRStorageWord` into EVMYulLean's `Storage` recovers the
     same value). `mappingSlot` is bridged by routing through
     `abstractMappingSlot` — the same keccak-faithful Solidity mapping-slot
-    derivation used by Verity's `evalBuiltinCallWithContext`; both backends
+    derivation used by Verity's `legacyEvalBuiltinCallWithContext`; both backends
     ultimately compute `keccak256(abi.encode(key, baseSlot))`. Remaining
     context-dependent builtins (`caller`, `address`, `timestamp`, ...) are
     routed at the `evalBuiltinCallWithBackendContext` level. -/

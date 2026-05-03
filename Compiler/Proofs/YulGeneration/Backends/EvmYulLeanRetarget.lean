@@ -46,7 +46,7 @@ The proof strategy:
 3. Right arity: apply the context-lifted bridge lemma from `EvmYulLeanBridgeLemmas`
 4. Wrong arity: both sides are definitionally equal (`rfl`)
 
-This avoids unfolding the expensive `evalBuiltinCallWithContext` if-chain. -/
+This avoids unfolding the expensive `legacyEvalBuiltinCallWithContext` if-chain. -/
 
 -- Binary builtins: argVals matches [a, b]
 private theorem backends_agree_add s se mv ta bt bn ci bb sl cd av :
@@ -328,7 +328,7 @@ private theorem backends_agree_calldatasize s se mv ta bt bn ci bb sl cd av :
   | _ :: _ => rfl
 
 -- Unary builtin: sload (state-dependent, routed through the same
--- `storage : IRStorageSlot → IRStorageWord` lookup used by Verity's `evalBuiltinCallWithContext`)
+-- `storage : IRStorageSlot → IRStorageWord` lookup used by Verity's `legacyEvalBuiltinCallWithContext`)
 private theorem backends_agree_sload s se mv ta bt bn ci bb sl cd av :
     evalBuiltinCallWithBackendContext .verity s se mv ta bt bn ci bb sl cd "sload" av =
     evalBuiltinCallWithBackendContext .evmYulLean s se mv ta bt bn ci bb sl cd "sload" av := by
@@ -362,7 +362,7 @@ All bridged builtin dependencies are fully proven in `EvmYulLeanBridgeLemmas.lea
 
     This is the master backend equivalence theorem for Phase 4 retargeting.
     It composes the 36 per-builtin bridge theorems into a single dispatch proof.
-    Every builtin handled by `evalBuiltinCallWithContext` is now bridged, so
+    Every builtin handled by `legacyEvalBuiltinCallWithContext` is now bridged, so
     `unbridgedBuiltins` is empty.
 
     This theorem is sorry-free, composing the fully proven per-builtin bridge
@@ -430,7 +430,7 @@ def allowedExprCallName (func : String) : Prop :=
   func ∈ bridgedBuiltins ∨ func = "tload" ∨ func = "mload" ∨ func = "keccak256"
 
 set_option maxHeartbeats 1000000 in
-/-- `keccak256` is not handled by Verity's `evalBuiltinCallWithContext` (it
+/-- `keccak256` is not handled by Verity's `legacyEvalBuiltinCallWithContext` (it
     falls through the 35-case if-else chain to the final `else none`) and is
     not handled by the EVMYulLean adapter (`evalBuiltinCallViaEvmYulLean` and
     `evalPureBuiltinViaEvmYulLean` both default to `none` for unknown funcs).
