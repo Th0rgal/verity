@@ -14,7 +14,7 @@ structure that the compiler can plug in without modification.
 | `Oracle.lean` | `oracleReadUint256` | canonical oracle read wrappers |
 | `Precompiles.lean` | `ecrecover`, `sha256Memory` / `sha256` | `Stmt.ecrecover`, handwritten SHA-256 precompile calls |
 | `Callbacks.lean` | `callback` | `Stmt.callback` |
-| `Calls.lean` | `withReturn`, `bubblingValueCall`, `bubblingValueCallNoOutput` | `Stmt.externalCallWithReturn`, handwritten low-level `call{value: ...}` wrappers |
+| `Calls.lean` | `withReturn`, `callWithValue`, `callWithValueBytes`, `bubblingValueCall`, `bubblingValueCallNoOutput` | `Stmt.externalCallWithReturn`; generic `call{value:v}` adapter calls; handwritten low-level `call{value: ...}` wrappers |
 
 ## Usage
 

@@ -3305,6 +3305,104 @@ private def erc20BalanceOfSmokeSpec : CompilationModel := {
   ]
 }
 
+private def callWithValueSmokeSpec : CompilationModel := {
+  name := "CallWithValueSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "execute"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.uint256 }
+        , { name := "dataOffset", ty := ParamType.uint256 }
+        , { name := "dataSize", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      body := [
+        Compiler.Modules.Calls.callWithValue
+          (Expr.param "target")
+          (Expr.param "amount")
+          (Expr.param "dataOffset")
+          (Expr.param "dataSize"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def callWithValueViewRejectedSpec : CompilationModel := {
+  name := "CallWithValueViewRejected"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "execute"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.uint256 }
+        , { name := "dataOffset", ty := ParamType.uint256 }
+        , { name := "dataSize", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      isView := true
+      body := [
+        Compiler.Modules.Calls.callWithValue
+          (Expr.param "target")
+          (Expr.param "amount")
+          (Expr.param "dataOffset")
+          (Expr.param "dataSize"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def callWithValueBytesSmokeSpec : CompilationModel := {
+  name := "CallWithValueBytesSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "execute"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.uint256 }
+        , { name := "data", ty := ParamType.bytes }
+      ]
+      returnType := none
+      body := [
+        Compiler.Modules.Calls.callWithValueBytes
+          (Expr.param "target")
+          (Expr.param "amount")
+          "data",
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def callWithValueBytesViewRejectedSpec : CompilationModel := {
+  name := "CallWithValueBytesViewRejected"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "execute"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.uint256 }
+        , { name := "data", ty := ParamType.bytes }
+      ]
+      returnType := none
+      isView := true
+      body := [
+        Compiler.Modules.Calls.callWithValueBytes
+          (Expr.param "target")
+          (Expr.param "amount")
+          "data",
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def erc20AllowanceSmokeSpec : CompilationModel := {
   name := "ERC20AllowanceSmoke"
   fields := []
@@ -4193,6 +4291,41 @@ set_option maxRecDepth 4096 in
     (contains erc20BalanceOfYul "if iszero(eq(returndatasize(), 32)) {")
   expectTrue "erc20 balanceOf ECM ABI-encodes the selector"
     (contains erc20BalanceOfYul "mstore(0, shl(224, 0x70a08231))")
+  let callWithValueYul ←
+    expectCompileToYul "generic callWithValue smoke spec" callWithValueSmokeSpec
+  expectTrue "callWithValue ECM lowers to an ETH-aware generic call"
+    (contains callWithValueYul "call(gas(), target, amount, dataOffset, dataSize, 0, 0)")
+  expectTrue "callWithValue ECM forwards revert returndata"
+    (contains callWithValueYul "returndatacopy(0, 0, __cwv_rds)")
+  expectTrue "callWithValue ECM bubbles forwarded revert data"
+    (contains callWithValueYul "revert(0, __cwv_rds)")
+  expectCompileErrorContains
+    "state-changing callWithValue ECM is rejected in view functions"
+    callWithValueViewRejectedSpec
+    "function 'execute' is marked view but writes state"
+  let callWithValueBytesYul ←
+    expectCompileToYul "generic callWithValue bytes smoke spec" callWithValueBytesSmokeSpec
+  expectTrue "callWithValue bytes ECM copies calldata bytes payload to memory"
+    (contains callWithValueBytesYul "calldatacopy(0, data_data_offset, data_length)")
+  expectTrue "callWithValue bytes ECM lowers to an ETH-aware generic bytes call"
+    (contains callWithValueBytesYul "call(gas(), target, amount, 0, data_length, 0, 0)")
+  expectCompileErrorContains
+    "state-changing callWithValue bytes ECM is rejected in view functions"
+    callWithValueBytesViewRejectedSpec
+    "function 'execute' is marked view but writes state"
+  let macroCallWithValueYul ←
+    expectCompileToYul "macro callWithValue smoke spec" Contracts.Smoke.CallWithValueSmoke.spec
+  expectTrue "macro callWithValue surface elaborates to the generic call ECM"
+    (contains macroCallWithValueYul "call(gas(), target, value, dataOffset, dataSize, 0, 0)")
+  expectTrue "macro callWithValue bytes surface copies calldata bytes payload to memory"
+    (contains macroCallWithValueYul "calldatacopy(0, data_data_offset, data_length)")
+  expectTrue "macro callWithValue bytes surface elaborates to the generic bytes call ECM"
+    (contains macroCallWithValueYul "call(gas(), target, value, 0, data_length, 0, 0)")
+  let macroCallWithValueTrustReport := emitTrustReportJson [Contracts.Smoke.CallWithValueSmoke.spec]
+  expectTrue "macro callWithValue trust report surfaces the generic call assumption"
+    (contains macroCallWithValueTrustReport "\"module\":\"callWithValue\"" &&
+      contains macroCallWithValueTrustReport "\"module\":\"callWithValueBytes\"" &&
+      contains macroCallWithValueTrustReport "\"assumption\":\"generic_call_with_value_interface\"")
   let erc20AllowanceYul ←
     expectCompileToYul "erc20 allowance smoke spec" erc20AllowanceSmokeSpec
   expectTrue "erc20 allowance ECM lowers to staticcall"

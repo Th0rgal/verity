@@ -10,6 +10,7 @@ import Contracts.Vault.Vault
 import Contracts.SimpleToken.SimpleToken
 import Contracts.ERC20.ERC20
 import Contracts.ERC721.ERC721
+import Compiler.Modules.Calls
 import Compiler.Modules.ERC20
 import Compiler.Modules.Calls
 import Compiler.Modules.Oracle
@@ -1560,6 +1561,16 @@ verity_contract BubblingValueCallECMSmoke where
       [addressToWord target, ethValue, inputOffset, inputSize]
 
 set_option linter.unusedVariables false in
+verity_contract CallWithValueSmoke where
+  storage
+
+  function execute (target : Address, value : Uint256, dataOffset : Uint256, dataSize : Uint256) : Unit := do
+    ecmDo Compiler.Modules.Calls.callWithValueModule [addressToWord target, value, dataOffset, dataSize]
+
+  function executeBytes (target : Address, value : Uint256, data : Bytes) : Unit := do
+    ecmDo (Compiler.Modules.Calls.callWithValueBytesModule "data") [addressToWord target, value]
+
+set_option linter.unusedVariables false in
 verity_contract LowLevelTryCatchSmoke where
   storage
     lastOutcome : Uint256 := slot 0
@@ -2171,6 +2182,34 @@ example :
           genericECMEffectDemoModule
           [ Compiler.CompilationModel.Expr.param "lhs"
           , Compiler.CompilationModel.Expr.param "rhs"
+          ]
+      , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+example :
+    (Compiler.CompilationModel.FunctionSpec.body
+      (CallWithValueSmoke.execute_model : Compiler.CompilationModel.FunctionSpec)) =
+    CallWithValueSmoke.execute_modelBody := by
+  simpa using CallWithValueSmoke.execute_semantic_preservation
+
+example :
+    CallWithValueSmoke.execute_modelBody =
+      [ Compiler.CompilationModel.Stmt.ecm
+          Compiler.Modules.Calls.callWithValueModule
+          [ Compiler.CompilationModel.Expr.param "target"
+          , Compiler.CompilationModel.Expr.param "value"
+          , Compiler.CompilationModel.Expr.param "dataOffset"
+          , Compiler.CompilationModel.Expr.param "dataSize"
+          ]
+      , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+example :
+    CallWithValueSmoke.executeBytes_modelBody =
+      [ Compiler.CompilationModel.Stmt.ecm
+          (Compiler.Modules.Calls.callWithValueBytesModule "data")
+          [ Compiler.CompilationModel.Expr.param "target"
+          , Compiler.CompilationModel.Expr.param "value"
           ]
       , Compiler.CompilationModel.Stmt.stop
       ] := rfl
