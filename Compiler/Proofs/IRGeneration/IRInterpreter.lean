@@ -335,7 +335,7 @@ def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
       | _ => none
     else
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-        Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+        Compiler.Proofs.YulGeneration.legacyBuiltinBackend
         state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
         state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
@@ -536,7 +536,7 @@ def evalIRCallWithInternals
             | _ => .revert state'
           else
             match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                Compiler.Proofs.YulGeneration.legacyBuiltinBackend
                 state'.storage state'.sender state'.msgValue state'.thisAddress
                 state'.blockTimestamp state'.blockNumber state'.chainId state'.blobBaseFee
                 state'.selector state'.calldata func argVals with
@@ -1420,7 +1420,7 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_no_internal
               · simp only [htload, hmload, hkeccak, ↓reduceIte]
                 cases hbuiltin :
                     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                      Compiler.Proofs.YulGeneration.legacyBuiltinBackend
                       state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                       state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
                 | none => simp [hbuiltin]
@@ -1584,7 +1584,7 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint
               · simp only [htload, hmload, hkeccak, ↓reduceIte]
                 cases hbuiltin :
                     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                      Compiler.Proofs.YulGeneration.legacyBuiltinBackend
                       state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                       state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
                 | none => simp [hbuiltin]
@@ -1753,7 +1753,7 @@ theorem evalIRCallWithInternals_stmt_eq_of_callsDisjoint
           · simp only [htload, hmload, hkeccak, ↓reduceIte]
             cases hbuiltin :
                 Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                  Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                  Compiler.Proofs.YulGeneration.legacyBuiltinBackend
                   state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                   state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
             | none => simp [hbuiltin]
@@ -1806,7 +1806,7 @@ theorem evalIRCallWithInternals_stmt_eq_of_no_internal
           · simp only [htload, hmload, hkeccak, ↓reduceIte]
             cases hbuiltin :
                 Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                  Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                  Compiler.Proofs.YulGeneration.legacyBuiltinBackend
                   state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                   state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
             | none => simp [hbuiltin]
@@ -3603,7 +3603,7 @@ theorem evalIRCallWithInternals_of_builtin
     (hnotKeccak : func ≠ "keccak256") :
     evalIRCallWithInternals contract fuel state func args =
       match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-          Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+          Compiler.Proofs.YulGeneration.legacyBuiltinBackend
           state'.storage state'.sender state'.msgValue state'.thisAddress
           state'.blockTimestamp state'.blockNumber state'.chainId state'.blobBaseFee
           state'.selector state'.calldata func argVals with

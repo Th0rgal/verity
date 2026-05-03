@@ -253,7 +253,11 @@ inductive BuiltinBackend where
   | evmYulLean
   deriving DecidableEq, Repr
 
-abbrev defaultBuiltinBackend : BuiltinBackend := .verity
+/-- Explicit backend for Verity's historical reference-oracle interpreter. -/
+abbrev legacyBuiltinBackend : BuiltinBackend := .verity
+
+/-- Default builtin backend for public native-retargeted proof entry points. -/
+abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean
 
 def evalBuiltinCallWithBackendContext
     (backend : BuiltinBackend)
@@ -410,8 +414,8 @@ def evalBuiltinCall
         "calldataload"
         [4] =
       some (value % evmModulus) := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext,
-    calldataloadWord]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext,
+    Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord]
 
 @[simp] theorem evalBuiltinCall_sload_single
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (slot : Nat) :
@@ -430,6 +434,7 @@ def evalBuiltinCall
         "sload"
         [slot] =
       some (Compiler.Proofs.abstractLoadStorageOrMapping storage slot).toNat := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext]
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext,
+    Backends.evalBuiltinCallViaEvmYulLean, Compiler.Proofs.abstractLoadStorageOrMapping]
 
 end Compiler.Proofs.YulGeneration

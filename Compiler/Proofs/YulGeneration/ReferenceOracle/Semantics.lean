@@ -144,7 +144,7 @@ def evalYulCall (state : YulState) (func : String) : List YulExpr → Option Nat
       | _ => none
     else
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-        Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+        Compiler.Proofs.YulGeneration.legacyBuiltinBackend
         state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
         state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1

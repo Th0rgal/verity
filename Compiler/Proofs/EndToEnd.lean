@@ -5612,8 +5612,8 @@ replacement coverage: universal bridge lemmas for all pure bridged builtins.
 /-! ## Phase 4: EVMYulLean as Semantic Target
 
 The historical Yul execution semantics used throughout this file dispatch builtins via
-`evalBuiltinCallWithBackendContext defaultBuiltinBackend`, where
-`defaultBuiltinBackend = .verity`. The EVMYulLean bridge
+`evalBuiltinCallWithBackendContext legacyBuiltinBackend`, where
+`legacyBuiltinBackend = .verity`. The EVMYulLean bridge
 (`EvmYulLeanBridgeLemmas.lean`) proves that for all 36 bridged builtins,
 the `.verity` and `.evmYulLean` backends produce identical results.
 
