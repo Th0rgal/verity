@@ -90,11 +90,12 @@ def sha256MemoryModule (resultVar : String) : ExternalCallModule where
       YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
     ]
     let bindResult := YulStmt.let_ resultVar (YulExpr.call "mload" [outputOffsetTemp])
-    pure [YulStmt.block [
+    pure [
       YulStmt.let_ "__sha256_output_offset" outputOffset,
       YulStmt.let_ "__sha256_success" callExpr,
-      revertBlock
-    ], bindResult]
+      revertBlock,
+      bindResult
+    ]
 
 /-- Convenience: create a `Stmt.ecm` for SHA-256 over memory. -/
 def sha256Memory (resultVar : String) (inputOffset inputSize outputOffset : Expr) : Stmt :=
