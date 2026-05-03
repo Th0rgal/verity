@@ -34,7 +34,7 @@ Wrapping semantics are **proven** (not assumed) across all three verification la
 |-------|---------------|----------------|
 | Layer 1 (EDSL) | `Verity/Core/Uint256.lean` | `Uint256.add`, `sub`, `mul`, `pow`, `div`, `mod` are wrapping modular |
 | Layer 1 (EDSL) | `Verity/Proofs/Stdlib/Math.lean` | `safeAdd`, `safeSub`, `safeMul` correctness |
-| Compiler reference oracle | `Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean` | `evalBuiltinCall` implements wrapping for all 15 pure builtins |
+| Compiler reference oracle | `Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean` | `legacyEvalBuiltinCall` implements wrapping for all 15 pure builtins |
 | Compiler | `Compiler/Proofs/ArithmeticProfile.lean` | `add_wraps`, `sub_wraps`, `mul_wraps`, `div_by_zero`, `mod_by_zero` |
 | EVMYulLean bridge | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` | Universal bridge lemmas for all 25 pure builtins (see list below) |
 | EVMYulLean bridge tests | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | Regression vectors for the universal pure-builtin bridge lemmas |

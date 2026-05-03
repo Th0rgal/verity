@@ -158,11 +158,10 @@ theorem shr_bridge (shift value : Nat) :
 -- § 4. Backend profile invariant
 -- ============================================================================
 
--- All backend profiles (semantic, solidity-parity-ordering, solidity-parity)
--- use the same legacyEvalBuiltinCall function. The profiles differ only in Yul
--- output shape (selector sorting, patch pass enablement), not arithmetic
--- semantics. This is enforced structurally: there is a single legacyEvalBuiltinCall
--- definition that all codepaths use.
+-- All legacy bridge profiles (semantic, solidity-parity-ordering,
+-- solidity-parity) use the same `legacyEvalBuiltinCall` comparison oracle. The
+-- public unqualified `evalBuiltinCall` now follows `defaultBuiltinBackend`,
+-- which is EVMYulLean for native-retargeted proof entry points.
 
 /-- The BuiltinBackend enum has exactly two variants. -/
 example : ∀ b : Compiler.Proofs.YulGeneration.BuiltinBackend,
