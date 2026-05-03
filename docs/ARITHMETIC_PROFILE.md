@@ -63,6 +63,11 @@ Beyond the 15 low-level builtins, the `ExprCompileCore` proven fragment includes
 
 These proofs are in `Compiler/Proofs/IRGeneration/FunctionBody.lean` and cover both IR compilation correctness and end-to-end evaluation semantics.
 
+The compiled `mulDivDown` / `mulDivUp` operators still use 256-bit EVM
+multiplication before division. They are suitable for fixed-point code whose
+product is known to fit in `uint256`, but they are not full-precision
+OpenZeppelin/Solmate `Math.mulDiv` replacements.
+
 ## Checked (Safe) Arithmetic
 
 For contracts that require overflow protection, the EDSL provides checked operations:
@@ -73,12 +78,45 @@ For contracts that require overflow protection, the EDSL provides checked operat
 | `safeSub a b` | `Option Uint256` | `none` if `b > a` |
 | `safeMul a b` | `Option Uint256` | `none` if `a * b > 2^256 - 1` |
 | `safeDiv a b` | `Option Uint256` | `none` if `b = 0` |
+| `mulDiv512Down? a b c` | `Option Uint256` | `none` if `c = 0` or `floor(a * b / c) > 2^256 - 1`; product is unbounded |
+| `mulDiv512Up? a b c` | `Option Uint256` | `none` if `c = 0` or `ceil(a * b / c) > 2^256 - 1`; product is unbounded |
 
-Checked operations are **EDSL-level constructs**. They are not compiler-enforced; the compiler always uses wrapping arithmetic. Contracts that need checked behavior must explicitly use `safeAdd`/`safeSub`/`safeMul` and handle the `Option` result (e.g., via `requireSomeUint` to revert on `none`).
+Checked operations are **EDSL-level constructs**. They are not compiler-enforced; the compiler always uses wrapping arithmetic. Contracts that need checked behavior must explicitly use `safeAdd`/`safeSub`/`safeMul` and handle the `Option` result (e.g., via `requireSomeUint` to revert on `none`). The `mulDiv512...?` helpers are proof/modeling helpers for full-precision Solidity `Math.mulDiv` semantics; compiled Yul lowering for a first-class 512-bit division primitive is still tracked by #1761.
 
 **Correctness proofs**: `Verity/Proofs/Stdlib/Math.lean` proves that checked operations return the correct result within bounds and `none` otherwise (e.g., `safeAdd_some`, `safeAdd_none`).
 
 `Stdlib.Math` also exposes fixed-point helpers `mulDivDown`, `mulDivUp`, `wMulDown`, and `wDivUp` (the `w` variants fix the divisor/multiplier to `WAD = 10^18`). All lemmas are in `Verity/Proofs/Stdlib/Math.lean` and are intentionally **preconditioned**: they assume the widened numerator stays within `MAX_UINT256`.
+
+For full-precision modeling, `mulDiv512Down?_some` and `mulDiv512Up?_some`
+state the exact natural-number quotient returned when the divisor is nonzero
+and the final quotient fits; the matching `_none_of_zero_divisor`,
+`_none_of_overflow`, `_eq_some_iff`, `_isSome_iff`, and `_isNone_iff` lemmas
+expose the failure boundary. Successful full-precision results also have
+direct sandwich lemmas: `mulDiv512Down?_mul_le`,
+`mulDiv512Down?_lt_succ_mul`, `mulDiv512Up?_mul_ge`, and
+`mulDiv512Up?_mul_le_add_pred`, plus one-divisor error-bound lemmas
+`mulDiv512Down?_mul_lt_add` and `mulDiv512Up?_mul_lt_add`. They also mirror the
+existing `mulDiv` convenience surface with numerator commutativity,
+successful-result numerator monotonicity, divisor antitonicity, positivity,
+zero-numerator, and exact same-denominator cancellation lemmas. Compatibility bridge lemmas
+`mulDiv512Down?_eq_mulDivDown_of_no_overflow` and
+`mulDiv512Up?_eq_mulDivUp_of_no_overflow` connect the full-precision helpers to
+the existing 256-bit helpers under the older no-overflow preconditions.
+Full-precision ceil/floor exactness is
+covered by `mulDiv512Up?_eq_down_of_dvd` and
+`mulDiv512Up?_some_succ_of_not_dvd`, matching the older 256-bit `mulDiv`
+divisibility proof shape. The success/rejection bridge lemmas
+`mulDiv512Down?_isSome_of_up_isSome` and
+`mulDiv512Up?_isNone_of_down_isNone` connect the two rounding modes. Successful
+ceil/floor result pairs also expose the same one-step rounding boundary through
+`mulDiv512Down?_le_up`, `mulDiv512Up?_le_down_add_one`, and
+`mulDiv512Up?_eq_down_or_succ`.
+
+`Verity.Proofs.Stdlib.Automation` mirrors the full-precision fit/rejection iff
+lemmas under automation-friendly names (`mulDiv512Down?_some_iff`,
+`mulDiv512Down?_none_iff`, `mulDiv512Up?_some_iff`,
+`mulDiv512Up?_none_iff`), so downstream proofs can rewrite common quotient-fit
+side conditions without importing the full arithmetic proof module directly.
 
 | Lemma family | Generic helpers | Wad-specialized helpers |
 |--------------|----------------|------------------------|

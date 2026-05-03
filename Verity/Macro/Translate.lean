@@ -475,7 +475,7 @@ private def modelStructMemberTerm (member : StructMemberDecl) : CommandElabM Ter
 private def modelFieldTypeTerm (ty : StorageType) : CommandElabM Term :=
   match ty with
   | .scalar .uint256 => `(Compiler.CompilationModel.FieldType.uint256)
-  | .scalar .int256 => throwError "storage fields cannot be Int256; use Uint256 encoding"
+  | .scalar .int256 => `(Compiler.CompilationModel.FieldType.uint256)
   | .scalar .uint8 => throwError "storage fields cannot be Uint8; use Uint256 encoding"
   | .scalar .address => `(Compiler.CompilationModel.FieldType.address)
   | .scalar .bytes32 => throwError "storage fields cannot be Bytes32; use Uint256 encoding"
@@ -2393,6 +2393,7 @@ private partial def inferBindSourceType
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
       | .scalar .uint256 => pure .uint256
+      | .scalar .int256 => pure .int256
       | .scalar (.newtype ntName (.uint256)) => pure (.newtype ntName .uint256)
       | .scalar (.adt name maxFields) => pure (.adt name maxFields)
       | .scalar (.newtype _ (.address)) => throwErrorAt rhs s!"field '{f.name}' is Address-based newtype; use getStorageAddr"
@@ -3736,7 +3737,7 @@ private def translateBindSource
   | `(term| getStorage $field:ident) =>
       let f ← lookupStorageField fields (toString field.getId)
       match f.ty with
-      | .scalar .uint256 | .scalar (.newtype _ .uint256) | .scalar (.adt _ _) =>
+      | .scalar .uint256 | .scalar .int256 | .scalar (.newtype _ .uint256) | .scalar (.adt _ _) =>
           `(Compiler.CompilationModel.Expr.storage $(strTerm f.name))
       | .scalar .bool => throwErrorAt rhs s!"field '{f.name}' is Bool; encode as Uint256 and use getStorage"
       | .scalar .address | .scalar (.newtype _ .address) =>
@@ -4473,7 +4474,7 @@ private def translateEffectStmt
               $(← translateAdtConstructForStorage fields constDecls immutableDecls params locals adtName value))
       | none =>
           match f.ty with
-          | .scalar .uint256 | .scalar (.newtype _ .uint256) =>
+          | .scalar .uint256 | .scalar .int256 | .scalar (.newtype _ .uint256) =>
               `(Compiler.CompilationModel.Stmt.setStorage $(strTerm f.name) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value))
           | .scalar (.adt adtName _) =>
               `(Compiler.CompilationModel.Stmt.setStorage
@@ -5223,7 +5224,7 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
   let storageTy ←
     match field.ty with
     | .scalar .uint256 => `(Uint256)
-    | .scalar .int256 => throwError "storage field cannot be Int256; use Uint256 encoding"
+    | .scalar .int256 => `(Uint256)
     | .scalar .uint8 => throwError "storage field cannot be Uint8; use Uint256 encoding"
     | .scalar .address => `(Address)
     | .scalar .bytes32 => throwError "storage field cannot be Bytes32; use Uint256 encoding"

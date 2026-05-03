@@ -77,6 +77,7 @@ Recent progress for storage layout controls (`#623`):
 - `CompilationModel.Field` now supports packed subfield placement (`packedBits := some { offset := o, width := w }`) so multiple fields can share a slot with disjoint bit ranges; codegen performs masked read-modify-write updates and masked reads directly from layout metadata.
 - `FieldType.mappingStruct` / `FieldType.mappingStruct2` plus `Expr.structMember` / `Stmt.setStructMember` now make struct-valued mappings and packed submembers first-class in the CompilationModel surface, and `verity_contract` now exposes matching `MappingStruct(...)` / `MappingStruct2(...)` storage declarations so Morpho-style layouts no longer require handwritten CompilationModel shims.
 - Migration-faithful packed-slot writes can now be expressed without unsafe raw Yul: build the packed word with first-class word operations and call `setPackedStorage root offset word`, which lowers through `Stmt.setStorageWord` to an explicit full-word write at `root.slot + offset`.
+- `verity_contract` now accepts scalar `Int256` storage fields as signed views over normal 256-bit storage words. The compiler-facing model stays word-level (`FieldType.uint256`), while macro typechecking preserves signed reads/writes at the DSL boundary.
 
 Recent progress for low-level calls + returndata handling (`#622`):
 - `CompilationModel.Expr` now supports first-class low-level call primitives (`call`, `staticcall`, `delegatecall`) with explicit gas/value/target/input/output operands and deterministic Yul lowering.
@@ -88,6 +89,9 @@ Recent progress for low-level calls + returndata handling (`#622`):
 Recent progress for dynamic ABI-shaped parameters:
 - `verity_contract` now accepts dynamic array parameters whose element type is a static tuple of ABI words, e.g. `Array (Tuple [Uint256, Uint256, Int256])`, on tuple destructuring and tuple-return `arrayElement` paths. Those paths lower to checked word reads with the tuple element stride, which covers Solidity memory arrays of small fixed-size structs such as `CurveCut[]`; plain scalar `arrayElement` remains limited to single-word static element arrays.
 - `verity_contract` now accepts named `struct` declarations for function parameters as ABI tuple aliases. Executable contracts get Lean structures and field projection syntax, while the compilation model keeps the existing tuple ABI lowering. Nested static struct fields are supported for parameter field reads, covering the #1750 TermMax-style `config.feeConfig.borrowTakerFeeRatio` shape.
+
+Recent progress for arithmetic modeling:
+- `Stdlib.Math` now exposes `mulDiv512Down?` and `mulDiv512Up?` as proof-facing full-precision multiply-divide helpers. They compute `a * b` in unbounded natural-number precision and return `none` only when the divisor is zero or the final floor/ceil quotient does not fit in `uint256`, removing the artificial intermediate-product overflow hypothesis when modeling Solidity `Math.mulDiv` behavior. A compiled Yul primitive using the usual 512-bit division algorithm is still tracked by #1761.
 - ABI artifact emission now reflects explicit function mutability markers (`isView`, `isPure`) as `stateMutability: "view" | "pure"` in generated JSON.
 
 Recent progress for custom errors (`#586`):
