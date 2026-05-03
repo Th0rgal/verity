@@ -155,7 +155,7 @@ private def referenceRuntimeWithFuel
     (storage : IRStorageSlot → IRStorageWord) (events : List (List Nat)) :
     Compiler.Proofs.YulGeneration.YulResult :=
   let initialState := Compiler.Proofs.YulGeneration.YulState.initial tx storage events
-  match Compiler.Proofs.YulGeneration.execYulFuel fuel initialState (.stmts stmts) with
+  match Compiler.Proofs.YulGeneration.legacyExecYulFuel fuel initialState (.stmts stmts) with
   | .continue s =>
       { success := true
         returnValue := s.returnValue

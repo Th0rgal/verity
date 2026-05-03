@@ -179,22 +179,22 @@ theorem find_switch_case_of_find_function_none
     (name : String) (params ret : List String) (body : List YulStmt) :
     execYulStmtFuel fuel state (YulStmt.funcDef name params ret body) =
       YulExecResult.continue state := by
-  cases fuel <;> simp [execYulStmtFuel, execYulFuel]
+  cases fuel <;> simp [execYulStmtFuel, legacyExecYulFuel]
 
-/-- `execYulFuel` on a funcDef target gives `.continue state` for any fuel. -/
-@[simp] theorem execYulFuel_funcDef (fuel : Nat) (state : YulState)
+/-- `legacyExecYulFuel` on a funcDef target gives `.continue state` for any fuel. -/
+@[simp] theorem legacyExecYulFuel_funcDef (fuel : Nat) (state : YulState)
     (name : String) (params ret : List String) (body : List YulStmt) :
-    execYulFuel fuel state (.stmt (YulStmt.funcDef name params ret body)) =
+    legacyExecYulFuel fuel state (.stmt (YulStmt.funcDef name params ret body)) =
       YulExecResult.continue state := by
-  cases fuel <;> simp [execYulFuel]
+  cases fuel <;> simp [legacyExecYulFuel]
 
 /-- Stepping through a funcDef in a statement list consumes one fuel unit. -/
 @[simp] theorem execYulStmtsFuel_cons_funcDef (fuel : Nat) (state : YulState)
     (name : String) (params ret : List String) (body rest : List YulStmt) :
     execYulStmtsFuel (Nat.succ fuel) state (YulStmt.funcDef name params ret body :: rest) =
       execYulStmtsFuel fuel state rest := by
-  simp only [execYulStmtsFuel, execYulFuel]
-  rw [execYulFuel_funcDef]
+  simp only [execYulStmtsFuel, legacyExecYulFuel]
+  rw [legacyExecYulFuel_funcDef]
 
 /-- Executing funcDef statements followed by a suffix: the funcDefs are no-ops
 and each one burns one fuel unit. -/

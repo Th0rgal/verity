@@ -54,9 +54,9 @@ theorem execYulStmtFuel_switch_match_semantics
       execYulStmtsFuel fuel state body := by
   cases fuel with
   | zero =>
-      simp [execYulStmtFuel, execYulStmtsFuel, execYulFuel, hEval, hFind]
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
   | succ fuel =>
-      simp [execYulStmtFuel, execYulStmtsFuel, execYulFuel, hEval, hFind]
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
 
 @[simp]
 theorem execYulStmtFuel_switch_miss_semantics
@@ -70,10 +70,10 @@ theorem execYulStmtFuel_switch_miss_semantics
         | none => YulExecResult.continue state) := by
   cases fuel with
   | zero =>
-      simp [execYulStmtFuel, execYulStmtsFuel, execYulFuel, hEval, hFind]
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
       rfl
   | succ fuel =>
-      simp [execYulStmtFuel, execYulStmtsFuel, execYulFuel, hEval, hFind]
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
       rfl
 
 end Compiler.Proofs.YulGeneration

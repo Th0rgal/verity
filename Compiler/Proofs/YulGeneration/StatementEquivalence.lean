@@ -146,7 +146,7 @@ theorem assign_equiv (selector : Nat) (fuel : Nat) (varName : String) (valueExpr
   cases fuel with
   | zero => contradiction
   | succ fuel' =>
-      simp only [execIRStmtFuel, execIRStmt, execYulStmtFuel, execYulFuel]
+      simp only [execIRStmtFuel, execIRStmt, execYulStmtFuel, legacyExecYulFuel]
       -- Use lemma: evalIRExpr irState expr = evalYulExpr (yulStateOfIR selector irState) expr
       rw [evalIRExpr_eq_evalYulExpr]
       -- Now both sides are identical
@@ -199,11 +199,11 @@ private theorem stmt_and_stmts_equiv :
       · intro selector stmt irState yulState halign
         cases stmt <;>
           simp only [execIRStmtFuel, execIRStmt,
-            execYulStmtFuel, execYulFuel, execResultsAligned, halign]
+            execYulStmtFuel, legacyExecYulFuel, execResultsAligned, halign]
       · intro selector stmts irState yulState halign
         cases stmts <;>
           simp only [execIRStmtsFuel, execIRStmts,
-            execYulStmtsFuel, execYulFuel, execResultsAligned, halign]
+            execYulStmtsFuel, legacyExecYulFuel, execResultsAligned, halign]
   | succ fuel ih =>
       rcases ih with ⟨ihStmt, ihStmts⟩
       constructor
@@ -213,24 +213,24 @@ private theorem stmt_and_stmts_equiv :
         cases stmt with
         | comment _ =>
             simp only [execIRStmtFuel, execIRStmt,
-              execYulStmtFuel, execYulFuel, execResultsAligned, statesAligned, yulStateOfIR]
+              execYulStmtFuel, legacyExecYulFuel, execResultsAligned, statesAligned, yulStateOfIR]
         | let_ name value =>
             exact assign_equiv selector (fuel + 1) name value irState
               (yulStateOfIR selector irState) rfl (by omega)
         | letMany _ _ =>
             simp only [execIRStmtFuel, execIRStmt,
-              execYulStmtFuel, execYulFuel, execResultsAligned, statesAligned, yulStateOfIR]
+              execYulStmtFuel, legacyExecYulFuel, execResultsAligned, statesAligned, yulStateOfIR]
         | assign name value =>
             exact assign_equiv selector (fuel + 1) name value irState
               (yulStateOfIR selector irState) rfl (by omega)
         | «leave» =>
             simp only [execIRStmtFuel, execIRStmt,
-              execYulStmtFuel, execYulFuel, execResultsAligned, statesAligned, yulStateOfIR]
+              execYulStmtFuel, legacyExecYulFuel, execResultsAligned, statesAligned, yulStateOfIR]
         | expr e =>
             cases e with
             | call func args =>
                 simp only [execIRStmtFuel, execIRStmt,
-                  execYulStmtFuel, execYulFuel]
+                  execYulStmtFuel, legacyExecYulFuel]
                 -- Both sides match on (.call func args) against string literals.
                 -- With `func` free, neither match tree reduces. Generalize so both
                 -- sides share the same discriminant, then split.
@@ -277,26 +277,26 @@ private theorem stmt_and_stmts_equiv :
                   split <;> simp_all only [execResultsAligned, statesAligned, yulStateOfIR, and_self, and_true, true_and, Option.some.injEq]
             | lit val =>
                 simp only [execIRStmtFuel, execIRStmt,
-                  execYulStmtFuel, execYulFuel, evalIRExpr, evalYulExpr,
+                  execYulStmtFuel, legacyExecYulFuel, evalIRExpr, evalYulExpr,
                   execResultsAligned, statesAligned, yulStateOfIR]
             | hex val =>
                 simp only [execIRStmtFuel, execIRStmt,
-                  execYulStmtFuel, execYulFuel, evalIRExpr, evalYulExpr,
+                  execYulStmtFuel, legacyExecYulFuel, evalIRExpr, evalYulExpr,
                   execResultsAligned, statesAligned, yulStateOfIR]
             | str val =>
                 simp only [execIRStmtFuel, execIRStmt,
-                  execYulStmtFuel, execYulFuel, evalIRExpr, evalYulExpr,
+                  execYulStmtFuel, legacyExecYulFuel, evalIRExpr, evalYulExpr,
                   execResultsAligned, statesAligned, yulStateOfIR]
             | ident val =>
                 simp only [execIRStmtFuel, execIRStmt,
-                  execYulStmtFuel, execYulFuel, evalIRExpr, evalYulExpr,
+                  execYulStmtFuel, legacyExecYulFuel, evalIRExpr, evalYulExpr,
                   IRState.getVar, YulState.getVar,
                   execResultsAligned, statesAligned, yulStateOfIR]
                 cases hfind : List.find? (fun x => x.1 == val) irState.vars <;>
                   simp only [Option.map]
         | if_ cond body =>
             simp only [execIRStmtFuel, execIRStmt,
-              execYulStmtFuel, execYulFuel]
+              execYulStmtFuel, legacyExecYulFuel]
             rw [evalIRExpr_eq_evalYulExpr]
             cases hcond : evalYulExpr (yulStateOfIR selector irState) cond with
             | none =>
@@ -310,7 +310,7 @@ private theorem stmt_and_stmts_equiv :
                   exact ihStmts selector body irState (yulStateOfIR selector irState) rfl
         | «switch» expr cases defaultCase =>
             simp only [execIRStmtFuel, execIRStmt,
-              execYulStmtFuel, execYulFuel, beq_eq_decide, yulStateOfIR]
+              execYulStmtFuel, legacyExecYulFuel, beq_eq_decide, yulStateOfIR]
             rw [evalIRExpr_eq_evalYulExpr]
             cases hEval : evalYulExpr (yulStateOfIR selector irState) expr with
             | none =>
@@ -350,12 +350,12 @@ private theorem stmt_and_stmts_equiv :
                     | none =>
                         simp only [execResultsAligned, statesAligned, yulStateOfIR]
                     | some body =>
-                        simpa only [hEval', hFind', execYulStmtsFuel, execYulFuel] using
+                        simpa only [hEval', hFind', execYulStmtsFuel, legacyExecYulFuel] using
                           ihStmts selector body irState (yulStateOfIR selector irState) rfl
                 | some pair =>
                     cases pair with
                     | mk _ body =>
-                        simpa only [hEval', hFind, execYulStmtsFuel, execIRStmtsFuel, execYulFuel] using
+                        simpa only [hEval', hFind, execYulStmtsFuel, execIRStmtsFuel, legacyExecYulFuel] using
                           ihStmts selector body irState (yulStateOfIR selector irState) rfl
         | for_ init cond post body =>
             simp only [execIRStmtFuel,
@@ -561,18 +561,18 @@ private theorem stmt_and_stmts_equiv :
                       and_self, and_true, true_and]
         | block stmts =>
             simpa only [execIRStmtFuel, execIRStmt,
-              execYulStmtFuel, execYulFuel] using
+              execYulStmtFuel, legacyExecYulFuel] using
               ihStmts selector stmts irState (yulStateOfIR selector irState) rfl
         | funcDef _ _ _ _ =>
             simp only [execIRStmtFuel, execIRStmt,
-              execYulStmtFuel, execYulFuel, execResultsAligned, statesAligned, yulStateOfIR]
+              execYulStmtFuel, legacyExecYulFuel, execResultsAligned, statesAligned, yulStateOfIR]
       · intro selector stmts irState yulState halign
         unfold statesAligned at halign
         subst halign
         cases stmts with
         | nil =>
             simp only [execIRStmtsFuel, execIRStmts,
-              execYulStmtsFuel, execYulFuel, execResultsAligned, statesAligned, yulStateOfIR]
+              execYulStmtsFuel, legacyExecYulFuel, execResultsAligned, statesAligned, yulStateOfIR]
         | cons stmt rest =>
             have hStmt := ihStmt selector stmt irState (yulStateOfIR selector irState) rfl
             cases hIR : execIRStmtFuel fuel irState stmt with

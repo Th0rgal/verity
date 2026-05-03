@@ -599,7 +599,7 @@ theorem evalYulExpr_evmYulLean_eq_on_bridged
 
 /-! ## Statement-level backend-parameterized executor
 
-`execYulFuelWithBackend` mirrors `execYulFuel` from `Semantics.lean` but routes
+`execYulFuelWithBackend` mirrors `legacyExecYulFuel` from `Semantics.lean` but routes
 each expression evaluation through `evalYulExprWithBackend backend`. The
 statement and runtime-code theorems below bridge `.verity` and `.evmYulLean`
 on targets satisfying the `Bridged*` predicates. Source-body closure and the
@@ -738,15 +738,15 @@ def execYulFuelWithBackend (backend : BuiltinBackend) :
           | .stop s => .stop s
           | .revert s => .revert s
 
-/-- The backend-parameterized executor recovers `execYulFuel` at the `.verity`
+/-- The backend-parameterized executor recovers `legacyExecYulFuel` at the `.verity`
     backend. Statement-level analogue of `evalYulExprWithBackend_verity_eq` —
     this is the correctness obligation that justifies replacing every
-    `execYulFuel` call in upstream theorems with
+    `legacyExecYulFuel` call in upstream theorems with
     `execYulFuelWithBackend .verity`. -/
 theorem execYulFuelWithBackend_verity_eq
     (fuel : Nat) (state : YulState) (target : YulExecTarget) :
     execYulFuelWithBackend .verity fuel state target =
-    execYulFuel fuel state target := by
+    legacyExecYulFuel fuel state target := by
   induction fuel generalizing state target with
   | zero =>
       cases target with
@@ -758,7 +758,7 @@ theorem execYulFuelWithBackend_verity_eq
           cases s <;> (
             try rfl
             all_goals (
-              simp only [execYulFuelWithBackend, execYulFuel,
+              simp only [execYulFuelWithBackend, legacyExecYulFuel,
                 evalYulExprWithBackend_verity_eq,
                 evalYulExprsWithBackend_verity_eq, ih]
               try rfl))
@@ -766,7 +766,7 @@ theorem execYulFuelWithBackend_verity_eq
           cases ss <;> (
             try rfl
             all_goals (
-              simp only [execYulFuelWithBackend, execYulFuel, ih]
+              simp only [execYulFuelWithBackend, legacyExecYulFuel, ih]
               try rfl))
 
 /-! ## Statement-level backend equivalence: value-binding helpers
@@ -2638,7 +2638,7 @@ theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
     (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
     (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
     (hInternals : BridgedStmts contract.internalFunctions) :
-    execYulFuel fuel state (.stmts (Compiler.emitYul contract).runtimeCode) =
+    legacyExecYulFuel fuel state (.stmts (Compiler.emitYul contract).runtimeCode) =
     execYulFuelWithBackend .evmYulLean fuel state
       (.stmts (Compiler.emitYul contract).runtimeCode) := by
   rw [← execYulFuelWithBackend_verity_eq fuel state
@@ -2724,7 +2724,7 @@ theorem interpretYulRuntimeWithBackend_verity_eq
     yulResultOfExecWithRollback (YulState.initial tx storage events)
       (execYulFuelWithBackend .verity (sizeOf runtimeCode + 1)
         (YulState.initial tx storage events) (.stmts runtimeCode)) =
-    match execYulFuel (sizeOf runtimeCode + 1)
+    match legacyExecYulFuel (sizeOf runtimeCode + 1)
         (YulState.initial tx storage events) (.stmts runtimeCode) with
     | .continue s =>
         { success := true, returnValue := s.returnValue, finalStorage := s.storage,
@@ -2739,7 +2739,7 @@ theorem interpretYulRuntimeWithBackend_verity_eq
         { success := false, returnValue := none, finalStorage := storage,
           finalMappings := Compiler.Proofs.storageAsMappings storage, events := events }
   rw [execYulFuelWithBackend_verity_eq]
-  cases execYulFuel (sizeOf runtimeCode + 1) (YulState.initial tx storage events)
+  cases legacyExecYulFuel (sizeOf runtimeCode + 1) (YulState.initial tx storage events)
       (.stmts runtimeCode) <;> rfl
 
 theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
@@ -2836,7 +2836,7 @@ theorem yulCodegen_preserves_semantics_evmYulLean
    equivalence for `BridgedExpr`, covering literals, identifiers, nested calls
    to bridged builtins, and backend-independent `tload`/`mload`.
 3. **Backend-parameterized statement executor**: `execYulFuelWithBackend` is a
-   backend-parameterized mirror of `execYulFuel`, providing the executor surface
+   backend-parameterized mirror of `legacyExecYulFuel`, providing the executor surface
    used by the statement-level equivalence proofs below.
 4. **`execYulFuelWithBackend_{let,assign}_eq_on_bridged`**: First
    statement-level backend-equivalence theorems — `.let_ n v` and `.assign n v`
@@ -2865,7 +2865,7 @@ theorem yulCodegen_preserves_semantics_evmYulLean
     `BridgedTarget`, whose nested statements satisfy `BridgedStmt`.
 11. **`emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`**: Composes
     emitted runtime-wrapper closure with recursive target equivalence to state
-    that Verity `execYulFuel` equals the EVMYulLean backend executor for
+    that Verity `legacyExecYulFuel` equals the EVMYulLean backend executor for
     `emitYul` runtime code when its embedded bodies are bridged.
 12. **`yulCodegen_preserves_semantics_evmYulLean`**: Composes the existing
     Layer-3 IR-to-Yul preservation theorem with the bridged-runtime equality

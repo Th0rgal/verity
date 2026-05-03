@@ -790,7 +790,7 @@ scope so the native path does not look more complete than it is:
 
 ## Cleanup After the Flip
 
-- Move `execYulFuel` and `execYulFuelWithBackend` to reference-oracle status.
+- Move `legacyExecYulFuel` and `execYulFuelWithBackend` to reference-oracle status.
 - Remove bridge-only docs that describe the custom interpreter as the active
   semantic target.
 - Keep cross-check tests between the old oracle and native EVMYulLean for one

@@ -300,7 +300,7 @@ ALLOWLIST: set[str] = {
     "yulCodegen_preserves_semantics",
     "stmt_and_stmts_equiv",
     "execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv",
-    "execYulFuel_succ_eq",
+    "legacyExecYulFuel_succ_eq",
     "exec_switchCaseBody_revert_of_short",
     "exec_switchCaseBody_continue_of_long",
     "SwitchCaseBodyBridge_short",
@@ -401,11 +401,11 @@ ALLOWLIST: set[str] = {
     # Pure-context dispatch is the same 25-builtin case split specialized to
     # context-free builtins; each branch delegates to an individual bridge.
     "evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge",
-    # Backend-parameterized mirror of execYulFuel; long by construction because
+    # Backend-parameterized mirror of legacyExecYulFuel; long by construction because
     # it preserves all statement cases while swapping only expression backend.
     "execYulFuelWithBackend",
     # Recovery proof mirrors the executor's statement case split; each branch is
-    # direct simplification back to execYulFuel.
+    # direct simplification back to legacyExecYulFuel.
     "execYulFuelWithBackend_verity_eq",
     # Native harness block-append lemmas are structural inductions over a Yul
     # block prefix with fuel normalization at each cons. The success, suffix

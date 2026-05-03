@@ -14,7 +14,7 @@ open Compiler.Proofs
 /-!
 Reference oracle only.
 
-This module preserves Verity's historical `execYulFuel` runtime semantics for
+This module preserves Verity's historical `legacyExecYulFuel` runtime semantics for
 regression tests and bridge comparisons. EVMYulLean is the trusted semantic
 target for the current retargeting path; this file is not part of that trust
 boundary.
@@ -196,7 +196,7 @@ inductive YulExecTarget
   | stmt (s : YulStmt)
   | stmts (ss : List YulStmt)
 
-def execYulFuel : Nat → YulState → YulExecTarget → YulExecResult
+def legacyExecYulFuel : Nat → YulState → YulExecTarget → YulExecResult
   | _, state, .stmts [] => .continue state
   | _, state, .stmt (YulStmt.funcDef _ _ _ _) => .continue state
   | 0, state, _ => .revert state
@@ -285,52 +285,52 @@ def execYulFuel : Nat → YulState → YulExecTarget → YulExecResult
                   if v = 0 then
                     .continue state
                   else
-                    execYulFuel fuel state (.stmts body)
+                    legacyExecYulFuel fuel state (.stmts body)
               | none => .revert state
           | .switch expr cases defaultCase =>
               match evalYulExpr state expr with
               | some v =>
                   match cases.find? (fun x => decide (x.fst = v)) with
-                  | some (_, body) => execYulFuel fuel state (.stmts body)
+                  | some (_, body) => legacyExecYulFuel fuel state (.stmts body)
                   | none =>
                       match defaultCase with
-                      | some body => execYulFuel fuel state (.stmts body)
+                      | some body => legacyExecYulFuel fuel state (.stmts body)
                       | none => .continue state
               | none => .revert state
           | .for_ init cond post body =>
               -- Execute init, then loop: check cond, run body, run post, repeat
-              match execYulFuel fuel state (.stmts init) with
+              match legacyExecYulFuel fuel state (.stmts init) with
               | .continue s' =>
                   match evalYulExpr s' cond with
                   | some v =>
                       if v = 0 then .continue s'
                       else
-                        match execYulFuel fuel s' (.stmts body) with
+                        match legacyExecYulFuel fuel s' (.stmts body) with
                         | .continue s'' =>
-                            match execYulFuel fuel s'' (.stmts post) with
+                            match legacyExecYulFuel fuel s'' (.stmts post) with
                             | .continue s''' =>
-                                execYulFuel fuel s''' (.stmt (.for_ [] cond post body))
+                                legacyExecYulFuel fuel s''' (.stmt (.for_ [] cond post body))
                             | other => other
                         | other => other
                   | none => .revert s'
               | other => other
-          | .block stmts => execYulFuel fuel state (.stmts stmts)
+          | .block stmts => legacyExecYulFuel fuel state (.stmts stmts)
           | .funcDef _ _ _ _ => .continue state
       | .stmts [] => .continue state
       | .stmts (stmt :: rest) =>
-          match execYulFuel fuel state (.stmt stmt) with
-          | .continue s' => execYulFuel fuel s' (.stmts rest)
+          match legacyExecYulFuel fuel state (.stmt stmt) with
+          | .continue s' => legacyExecYulFuel fuel s' (.stmts rest)
           | .return v s => .return v s
           | .stop s => .stop s
           | .revert s => .revert s
 def execYulStmtFuel (fuel : Nat) (state : YulState) (stmt : YulStmt) : YulExecResult :=
-  execYulFuel fuel state (.stmt stmt)
+  legacyExecYulFuel fuel state (.stmt stmt)
 
 def execYulStmtsFuel (fuel : Nat) (state : YulState) (stmts : List YulStmt) : YulExecResult :=
-  execYulFuel fuel state (.stmts stmts)
+  legacyExecYulFuel fuel state (.stmts stmts)
 
 set_option allowUnsafeReducibility true in
-attribute [reducible] execYulFuel
+attribute [reducible] legacyExecYulFuel
 
 
 noncomputable def execYulStmt (state : YulState) (stmt : YulStmt) : YulExecResult :=

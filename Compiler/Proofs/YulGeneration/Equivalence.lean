@@ -353,7 +353,7 @@ theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
       cases fuel with
       | zero =>
           simp [execIRStmtsFuel, execIRStmts,
-            execYulStmtsFuel, execYulFuel, execResultsAligned, hAligned]
+            execYulStmtsFuel, legacyExecYulFuel, execResultsAligned, hAligned]
       | succ fuel =>
           have hStmt := stmt_equiv selector fuel stmt irState yulState hAligned
           cases hIR : execIRStmtFuel fuel irState stmt with

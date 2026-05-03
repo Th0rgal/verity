@@ -2439,7 +2439,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let'
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.execYulFuel_stmts_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.legacyExecYulFuel_stmts_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_revert
 #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_return

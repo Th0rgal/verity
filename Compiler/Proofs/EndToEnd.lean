@@ -920,7 +920,7 @@ theorem layer3_contract_preserves_semantics
       (hparamErase fn hmem))
 
 /-- Reference-oracle version: delegates directly to the historical
-`execYulFuel`-backed `yulCodegen_preserves_semantics` theorem. -/
+`legacyExecYulFuel`-backed `yulCodegen_preserves_semantics` theorem. -/
 theorem layer3_contract_preserves_semantics_via_reference_oracle
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
@@ -5628,7 +5628,7 @@ block, if, switch, and for cases, and now proves recursive
 `emitYul_runtimeCode_bridged`, the emitted-runtime closure witness conditional
 on bridged IR function, entrypoint, and internal helper bodies, and
   `emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`, the corresponding
-  emitted-runtime equality between Verity `execYulFuel` and the EVMYulLean
+  emitted-runtime equality between Verity `legacyExecYulFuel` and the EVMYulLean
   backend executor under those body witnesses. These theorems compose the
   fully proven builtin bridge equivalences. It also proves
   `yulCodegen_preserves_semantics_evmYulLean`, the lower-level Layer-3 theorem
