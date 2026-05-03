@@ -21,7 +21,7 @@
 
   **EVMYulLean note (Phase 4)**: This file now exposes both the historical
   Verity-backed Yul target (`interpretYulFromIR`) and safe-body public wrappers
-  targeting `interpretYulRuntimeWithBackend .evmYulLean`.
+  targeting `interpretYulRuntimeEvmYulLean`.
   The default Yul execution semantics (`interpretYulFromIR`, `interpretYulRuntime`)
   are still defined in terms of `evalBuiltinCallWithBackend` which defaults to
   the Verity backend. The EVMYulLean bridge is established in
@@ -33,7 +33,7 @@
   wrapper satisfies that predicate, and executes equivalently under the
   EVMYulLean backend, when the IR bodies it contains do. It also exposes a
   lower-level Layer-3 theorem whose Yul side is
-  `interpretYulRuntimeWithBackend .evmYulLean` and whose body witnesses are
+  `interpretYulRuntimeEvmYulLean` and whose body witnesses are
   supplied by this file's public wrappers. Those wrappers derive raw external
   function-body bridge witnesses from source-level `SupportedSpec`,
   static-parameter, and `BridgedSafeStmts` witnesses where the public theorem
@@ -5657,10 +5657,10 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   and execute equivalently under the EVMYulLean backend when the IR bodies it
   embeds satisfy `BridgedStmt`.
 - Layer 3 now has a contract-level theorem targeting
-  `interpretYulRuntimeWithBackend .evmYulLean`; the public safe-body wrapper
+  `interpretYulRuntimeEvmYulLean`; the public safe-body wrapper
   derives its raw body witnesses from supported source bodies.
 - This public EndToEnd module now has a safe-body wrapper targeting
-  `interpretYulRuntimeWithBackend .evmYulLean` without raw `BridgedStmts`
+  `interpretYulRuntimeEvmYulLean` without raw `BridgedStmts`
   body hypotheses; the historical
   `layers2_3_ir_matches_yul_via_reference_oracle` wrapper remains available
   for the Verity-backed `interpretYulFromIR` target.
