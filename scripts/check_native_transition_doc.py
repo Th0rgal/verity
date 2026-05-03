@@ -159,12 +159,50 @@ def check_public_theorem_target(
         "theorem layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge",
+        "theorem layer3_contract_preserves_semantics ",
+        "theorem simpleStorage_endToEnd ",
     ):
         if required_native_seam not in normalized_end_to_end:
             errors.append(
                 "Compiler/Proofs/EndToEnd.lean must keep the native theorem seam "
                 f"`{required_native_seam}` explicit until the generated-fragment "
                 "native bridge is discharged"
+            )
+
+    for required_reference_oracle_seam in (
+        "theorem layer3_contract_preserves_semantics_via_reference_oracle ",
+        "theorem simpleStorage_endToEnd_via_reference_oracle ",
+    ):
+        if required_reference_oracle_seam not in normalized_end_to_end:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must keep legacy Verity-backed "
+                f"entry points explicitly named `{required_reference_oracle_seam.strip()}`"
+            )
+
+    public_targets = (
+        (
+            "theorem layer3_contract_preserves_semantics ",
+            "interpretYulRuntimeEvmYulLean",
+        ),
+        (
+            "theorem simpleStorage_endToEnd ",
+            "interpretYulRuntimeEvmYulLean",
+        ),
+    )
+    for theorem_marker, target_marker in public_targets:
+        start = normalized_end_to_end.find(theorem_marker)
+        if start < 0:
+            continue
+        next_theorem = normalized_end_to_end.find(" theorem ", start + len(theorem_marker))
+        theorem_span = (
+            normalized_end_to_end[start:]
+            if next_theorem < 0
+            else normalized_end_to_end[start:next_theorem]
+        )
+        if target_marker not in theorem_span:
+            errors.append(
+                f"Compiler/Proofs/EndToEnd.lean public theorem `{theorem_marker.strip()}` "
+                f"must target `{target_marker}`, not the legacy reference oracle"
             )
 
     for required_fuel_surface in (
