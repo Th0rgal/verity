@@ -2662,6 +2662,21 @@ noncomputable def interpretYulRuntimeWithBackendFuel
   yulResultOfExecWithRollback initialState
     (execYulFuelWithBackend backend fuel initialState (.stmts runtimeCode))
 
+/-- Native EVMYulLean-backed runtime entry point with an explicit fuel bound.
+
+This is the public source-of-truth spelling for Yul runtime execution during
+the native retarget. The backend-parameterized interpreter remains available
+for legacy `.verity` bridge comparisons, but public EVMYulLean correctness
+statements should prefer this wrapper over spelling `.evmYulLean` through the
+generic backend API. -/
+noncomputable def interpretYulRuntimeEvmYulLeanFuel
+    (fuel : Nat)
+    (runtimeCode : List Compiler.Yul.YulStmt)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
+    (events : List (List Nat) := []) :
+    YulResult :=
+  interpretYulRuntimeWithBackendFuel .evmYulLean fuel runtimeCode tx storage events
+
 noncomputable def interpretYulRuntimeWithBackend
     (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
@@ -2669,6 +2684,24 @@ noncomputable def interpretYulRuntimeWithBackend
     YulResult :=
   interpretYulRuntimeWithBackendFuel backend (sizeOf runtimeCode + 1)
     runtimeCode tx storage events
+
+/-- Native EVMYulLean-backed runtime entry point using the standard structural
+fuel bound. -/
+noncomputable def interpretYulRuntimeEvmYulLean
+    (runtimeCode : List Compiler.Yul.YulStmt)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
+    (events : List (List Nat) := []) :
+    YulResult :=
+  interpretYulRuntimeEvmYulLeanFuel (sizeOf runtimeCode + 1)
+    runtimeCode tx storage events
+
+@[simp] theorem interpretYulRuntimeEvmYulLean_eq_backend
+    (runtimeCode : List Compiler.Yul.YulStmt)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
+    (events : List (List Nat) := []) :
+    interpretYulRuntimeEvmYulLean runtimeCode tx storage events =
+      interpretYulRuntimeWithBackend .evmYulLean runtimeCode tx storage events := by
+  rfl
 
 @[simp] theorem interpretYulRuntimeWithBackend_eq_fuel
     (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
