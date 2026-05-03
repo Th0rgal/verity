@@ -53,7 +53,7 @@ with the existing sync scripts and boundary checks.
 | `call` | `Expr.call` | **0** | **0** | -- | -- | n/m |
 | `staticcall` | `Expr.staticcall` | **0** | **0** | -- | -- | n/m |
 | `delegatecall` | `Expr.delegatecall` | **0** | **0** | -- | -- | n/m |
-| Arithmetic | `add/sub/mul/div/mod` | ok | ok | ok | ok | proved |
+| Arithmetic | `add/sub/mul/pow/div/mod` | ok | ok | ok | ok | proved |
 | Bitwise | `and/or/xor/shl/shr` | ok | ok | ok | ok | proved |
 | Bitwise | `not` | ok | ok | ok | ok | partial |
 | Comparison | `eq/lt/gt/le/ge` | ok | ok | ok | ok | proved |

@@ -32,7 +32,7 @@ Wrapping semantics are **proven** (not assumed) across all three verification la
 
 | Layer | Proof location | What is proved |
 |-------|---------------|----------------|
-| Layer 1 (EDSL) | `Verity/Core/Uint256.lean` | `Uint256.add`, `sub`, `mul`, `div`, `mod` are wrapping modular |
+| Layer 1 (EDSL) | `Verity/Core/Uint256.lean` | `Uint256.add`, `sub`, `mul`, `pow`, `div`, `mod` are wrapping modular |
 | Layer 1 (EDSL) | `Verity/Proofs/Stdlib/Math.lean` | `safeAdd`, `safeSub`, `safeMul` correctness |
 | Compiler reference oracle | `Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean` | `evalBuiltinCall` implements wrapping for all 15 pure builtins |
 | Compiler | `Compiler/Proofs/ArithmeticProfile.lean` | `add_wraps`, `sub_wraps`, `mul_wraps`, `div_by_zero`, `mod_by_zero` |
@@ -43,6 +43,8 @@ The EVMYulLean bridge validates that Verity's `Nat`-modular arithmetic agrees wi
 - universal bridge lemmas for 25 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, `addmod`, `mulmod`, `exp`, `sdiv`, `smod`, `lt`, `gt`, `slt`, `sgt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, `shr`, `sar`, `signextend`, and `byte`
 - context-lifted bridge theorems for all 25 pure builtins at the `evalBuiltinCallWithBackendContext` level (the Phase 4 backend-retargeting surface)
 - concrete bridge smoke tests are no longer needed for any pure builtin
+
+The EDSL exposes `pow(a, b)` and `a ^ b` for EVM modular exponentiation. Macro lowering emits a reserved compiler builtin that compiles directly to Yul/EVM `exp(a, b)`.
 
 ### Higher-Level Expression Operators
 

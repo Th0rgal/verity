@@ -243,7 +243,12 @@ def compileExpr (fields : List Field)
   | Expr.localVar name => pure (YulExpr.ident name)
   | Expr.externalCall name args => do
       let argExprs ← compileExprList fields dynamicSource args
-      pure (YulExpr.call name argExprs)
+      if name == builtinExpName then
+        match argExprs with
+        | [base, exponent] => pure (YulExpr.call "exp" [base, exponent])
+        | _ => throw s!"Compilation error: builtin exp expects 2 args, got {argExprs.length}"
+      else
+        pure (YulExpr.call name argExprs)
   | Expr.internalCall functionName args => do
       let argExprs ← compileExprList fields dynamicSource args
       pure (YulExpr.call (internalFunctionYulName functionName) argExprs)

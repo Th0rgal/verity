@@ -286,6 +286,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.SimpleToken.spec
   , Contracts.ERC20.spec
   , Contracts.ERC721.spec
+  , Contracts.Smoke.Uint256PowSmoke.spec
   , Contracts.Smoke.UintMapSmoke.spec
   , Contracts.Smoke.MappingChainSmoke.spec
   , Contracts.Smoke.MixedMappingChainSmoke.spec
@@ -395,6 +396,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("ERC721", ["balanceOf(address)", "ownerOf(uint256)", "getApproved(uint256)",
       "isApprovedForAll(address,address)", "approve(address,uint256)", "setApprovalForAll(address,bool)",
       "mint(address)", "transferFrom(address,address,uint256)"])
+  , ("Uint256PowSmoke", ["scale(uint256)", "scaleInfix(uint256)"])
   , ("UintMapSmoke", ["setValue(uint256,uint256)", "getValue(uint256)"])
   , ("MappingChainSmoke", ["setApproval(address,address,address,uint256)", "getApproval(address,address,address)"])
   , ("MixedMappingChainSmoke", ["setApproval(address,uint256,address,uint256)", "getApproval(address,uint256,address)"])
@@ -519,6 +521,7 @@ private def expectedExternalSelectors : List (String × List String) :=
       "0x8da5cb5b"])
   , ("ERC721", ["0x70a08231", "0x6352211e", "0x081812fc", "0xe985e9c5", "0x095ea7b3", "0xa22cb465",
       "0x6a627842", "0x23b872dd"])
+  , ("Uint256PowSmoke", ["0x2bec1547", "0x09c39250"])
   , ("UintMapSmoke", ["0x7b8d56e3", "0x0ff4c916"])
   , ("MappingChainSmoke", ["0xd5264fdd", "0xf7531281"])
   , ("MixedMappingChainSmoke", ["0xd3bf29a3", "0xa75ac7f0"])
@@ -813,7 +816,10 @@ private def checkSignedBuiltinSmoke : IO Unit := do
   let loadSigned := loadSigned?.getD { name := "", params := [], returnType := none, returns := [], body := [] }
   expectTrue "SignedBuiltinSmoke: Int256 storage is modeled as a word slot"
     (match Contracts.Smoke.SignedBuiltinSmoke.spec.fields with
-    | [field] => field.name == "signedSlot" && field.ty == FieldType.uint256 && field.slot == some 0
+    | [field] =>
+        field.name == "signedSlot" &&
+        field.ty == FieldType.uint256 &&
+        field.slot == some 0
     | _ => false)
   expectTrue "SignedBuiltinSmoke: signedDiv body uses Expr.sdiv"
     (bodyUsesSignedBuiltin signedDiv.body "Expr.sdiv")

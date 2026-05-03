@@ -736,7 +736,10 @@ private def collectAxiomatizedPrimitivesByStatus
 
 private partial def collectExternalExprNames : Expr → List String
   | .externalCall name args =>
-      name :: args.flatMap collectExternalExprNames
+      if name == builtinExpName then
+        args.flatMap collectExternalExprNames
+      else
+        name :: args.flatMap collectExternalExprNames
   | .call gas target value inOffset inSize outOffset outSize =>
       collectExternalExprNames gas ++ collectExternalExprNames target ++ collectExternalExprNames value ++
         collectExternalExprNames inOffset ++ collectExternalExprNames inSize ++
