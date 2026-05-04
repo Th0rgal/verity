@@ -2807,14 +2807,23 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_tstore_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_tstore_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPush_singleSlot_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPush_singleSlot_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPush_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPush_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageArrayPush_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageArrayPush_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPop_singleSlot_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPop_singleSlot_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPop_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPop_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageArrayPop_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageArrayPop_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorageArrayElement_singleSlot_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorageArrayElement_singleSlot_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorageArrayElement_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorageArrayElement_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_setStorageArrayElement_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_setStorageArrayElement_noFuncDefs
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_singleSlot_nonzero_bridged  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingWord_singleSlot_nonzero_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWordNonzero_bridged
@@ -4076,4 +4085,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3900 theorems/lemmas (2927 public, 973 private, 0 sorry'd)
+-- Total: 3909 theorems/lemmas (2933 public, 976 private, 0 sorry'd)

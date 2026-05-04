@@ -9456,6 +9456,30 @@ theorem compileStmt_storageArrayPush_singleSlot_bridged
           (BridgedExpr.ident "__array_len") hValBridged
       · exact BridgedStraightStmt.expr_sstore_lit slot _ hAddLen1
 
+private theorem compileStmt_storageArrayPush_singleSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) (value : Expr) (f : Field) (slot : Nat)
+    (elemType : StorageArrayElemType)
+    (hFind : findFieldWithResolvedSlot fields field = some (f, slot))
+    (hDynArr : f.ty = .dynamicArray elemType) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames [] (.storageArrayPush field value) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt] at hOk
+  unfold compileStorageArrayPush at hOk
+  unfold validateDynamicArrayField at hOk
+  simp [hFind, hDynArr, bind, Except.bind] at hOk
+  cases hExpr : compileExpr fields dynamicSource value with
+  | error err => simp [hExpr, Pure.pure, Except.pure] at hOk
+  | ok valueExpr =>
+      simp [hExpr, Pure.pure, Except.pure] at hOk
+      subst out
+      simp [Native.yulStmtContainsFuncDef, Native.yulStmtsContainFuncDef]
+
 /-- Each statement in the storageArrayPush fragment compiles to Yul
 satisfying `BridgedStmts`. -/
 theorem compileStmt_storageArrayPush_bridged
@@ -9473,6 +9497,22 @@ theorem compileStmt_storageArrayPush_bridged
       exact compileStmt_storageArrayPush_singleSlot_bridged fields events errors
         dynamicSource internalRetNames isInternal inScopeNames field value f slot
         elemType hValue hFind hDynArr hOk
+
+theorem compileStmt_storageArrayPush_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceStorageArrayPushStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | storageArrayPush field value f slot elemType hValue hFind hDynArr =>
+      exact compileStmt_storageArrayPush_singleSlot_noFuncDefs fields events
+        errors dynamicSource internalRetNames isInternal inScopeNames field
+        value f slot elemType hFind hDynArr hOk
 
 /-- Lists of `storageArrayPush` source statements compile to Yul lists
 satisfying `BridgedStmts`. -/
@@ -9518,6 +9558,22 @@ theorem compileStmtList_storageArrayPush_bridged
                   dynamicSource internalRetNames isInternal inScopeNames
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_storageArrayPush_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceStorageArrayPushStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal (BridgedSourceStorageArrayPushStmt fields)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_storageArrayPush_noFuncDefs fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: `storageArrayPop`
 
@@ -9631,6 +9687,26 @@ theorem compileStmt_storageArrayPop_singleSlot_bridged
       (BridgedStraightStmt.expr_sstore_lit slot _
         (BridgedExpr.ident "__array_new_len"))
 
+private theorem compileStmt_storageArrayPop_singleSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) (f : Field) (slot : Nat)
+    (elemType : StorageArrayElemType)
+    (hFind : findFieldWithResolvedSlot fields field = some (f, slot))
+    (hDynArr : f.ty = .dynamicArray elemType) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames [] (.storageArrayPop field) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt] at hOk
+  unfold compileStorageArrayPop at hOk
+  unfold validateDynamicArrayField at hOk
+  simp [hFind, hDynArr, bind, Except.bind, Pure.pure, Except.pure] at hOk
+  subst out
+  simp [Native.yulStmtContainsFuncDef, Native.yulStmtsContainFuncDef]
+
 /-- Each statement in the storageArrayPop fragment compiles to Yul
 satisfying `BridgedStmts`. -/
 theorem compileStmt_storageArrayPop_bridged
@@ -9648,6 +9724,22 @@ theorem compileStmt_storageArrayPop_bridged
       exact compileStmt_storageArrayPop_singleSlot_bridged fields events errors
         dynamicSource internalRetNames isInternal inScopeNames field f slot
         elemType hFind hDynArr hOk
+
+theorem compileStmt_storageArrayPop_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceStorageArrayPopStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | storageArrayPop field f slot elemType hFind hDynArr =>
+      exact compileStmt_storageArrayPop_singleSlot_noFuncDefs fields events
+        errors dynamicSource internalRetNames isInternal inScopeNames field f
+        slot elemType hFind hDynArr hOk
 
 /-- Lists of `storageArrayPop` source statements compile to Yul lists
 satisfying `BridgedStmts`. -/
@@ -9693,6 +9785,22 @@ theorem compileStmtList_storageArrayPop_bridged
                   dynamicSource internalRetNames isInternal inScopeNames
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_storageArrayPop_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceStorageArrayPopStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal (BridgedSourceStorageArrayPopStmt fields)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_storageArrayPop_noFuncDefs fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: `setStorageArrayElement`
 
@@ -9818,6 +9926,34 @@ theorem compileStmt_setStorageArrayElement_singleSlot_bridged
                 (BridgedExpr.ident "__array_base")
                 (BridgedExpr.ident "__array_index") hValBridged)
 
+private theorem compileStmt_setStorageArrayElement_singleSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) (index value : Expr) (f : Field) (slot : Nat)
+    (elemType : StorageArrayElemType)
+    (hFind : findFieldWithResolvedSlot fields field = some (f, slot))
+    (hDynArr : f.ty = .dynamicArray elemType) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames [] (.setStorageArrayElement field index value) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt] at hOk
+  unfold compileSetStorageArrayElement at hOk
+  unfold validateDynamicArrayField at hOk
+  simp [hFind, hDynArr, bind, Except.bind] at hOk
+  cases hIdxExpr : compileExpr fields dynamicSource index with
+  | error err => simp [hIdxExpr, Pure.pure, Except.pure] at hOk
+  | ok indexExpr =>
+      simp [hIdxExpr, Pure.pure, Except.pure] at hOk
+      cases hValExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hValExpr] at hOk
+      | ok valueExpr =>
+          simp [hValExpr] at hOk
+          subst out
+          simp [Native.yulStmtContainsFuncDef, Native.yulStmtsContainFuncDef]
+
 /-- Each statement in the setStorageArrayElement fragment compiles to Yul
 satisfying `BridgedStmts`. -/
 theorem compileStmt_setStorageArrayElement_bridged
@@ -9836,6 +9972,23 @@ theorem compileStmt_setStorageArrayElement_bridged
       exact compileStmt_setStorageArrayElement_singleSlot_bridged fields events
         errors dynamicSource internalRetNames isInternal inScopeNames field
         index value f slot elemType hIndex hValue hFind hDynArr hOk
+
+theorem compileStmt_setStorageArrayElement_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceSetStorageArrayElementStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setStorageArrayElement field index value f slot elemType
+      hIndex hValue hFind hDynArr =>
+      exact compileStmt_setStorageArrayElement_singleSlot_noFuncDefs fields
+        events errors dynamicSource internalRetNames isInternal inScopeNames
+        field index value f slot elemType hFind hDynArr hOk
 
 /-- Lists of `setStorageArrayElement` source statements compile to Yul lists
 satisfying `BridgedStmts`. -/
@@ -9882,6 +10035,23 @@ theorem compileStmtList_setStorageArrayElement_bridged
                   dynamicSource internalRetNames isInternal inScopeNames
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_setStorageArrayElement_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceSetStorageArrayElementStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal
+    (BridgedSourceSetStorageArrayElementStmt fields)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_setStorageArrayElement_noFuncDefs fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: single-slot `setMappingWord`
 (wordOffset ≠ 0)
