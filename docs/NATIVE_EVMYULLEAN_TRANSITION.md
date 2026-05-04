@@ -772,7 +772,11 @@ scope so the native path does not look more complete than it is:
    `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`,
    which exposes the native `Revert` execution and exact projected rollback
    result for arbitrary generated selector tables whose tags fit in one EVM
-   word.
+   word. Selector-hit native halt/error projection now has the analogous
+   generic boundary
+   `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq`,
+   consumed by the SimpleStorage store-hit and retrieve-hit wrappers before
+   their contract-specific IR comparisons.
 
    This closes the SimpleStorage public theorem against the native
    lowered-dispatcher source of truth. The remaining generic work is to remove
@@ -832,7 +836,9 @@ scope so the native path does not look more complete than it is:
    `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`
    before the SimpleStorage-specific selector table specialization reaches
    `simpleStorageNativeSelectorMissMatchBridge_proved`, and the retrieve-hit
-   arm has the direct native-vs-IR proof
+   and store-hit selector wrappers consume
+   `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq`
+   before their direct native-vs-IR proofs. The retrieve-hit arm has the proof
    `simpleStorageNativeRetrieveHitMatchBridge_proved`. The store-hit arm is
    closed by `simpleStorageNativeStoreHitMatchBridge_proved`, which covers both
    the short-calldata revert and argument-present storage update paths.

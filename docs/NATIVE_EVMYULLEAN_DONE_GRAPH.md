@@ -101,7 +101,11 @@ N8 public Layer 3 theorem flip
   generic
   `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`
   lemma packages generated selector-miss native `Revert` execution with the
-  exact projected rollback result for arbitrary one-word selector tags.
+  exact projected rollback result for arbitrary one-word selector tags. The
+  generic
+  `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq` lemma
+  packages selector-hit native halt/error execution with the selected body's
+  projected result at the full lowered-switch boundary.
 - **Definition of done**:
   - Projection lemmas cover every native halt/error/result used by generated
     runtime execution.
