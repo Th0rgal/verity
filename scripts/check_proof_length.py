@@ -344,32 +344,14 @@ ALLOWLIST: set[str] = {
     # the chained `setMachineState` overrides to extract the 32-byte
     # `H_return` window before computing `projectHaltReturn`.
     "projectResult_retrieveHit_eq",
-    # Phase 2 retrieve-hit bridge closure: composes the closed-form IR result,
-    # native dispatcher halt endpoint, projected-storage preservation, and
-    # EVMYulLean Layer-3 result agreement under the public theorem hypotheses.
-    # Splitting would create several single-use helpers whose proofs are mostly
-    # repeated hypothesis plumbing around the same concrete retrieve path.
-    "simpleStorageNativeRetrieveHitBridge_proved",
     # Direct native-vs-IR retrieve-hit closure: intentionally mirrors the
     # concrete native dispatcher halt and projected-storage plumbing above, but
-    # targets `nativeDispatcherExecMatchesIRPositive` instead of the legacy
-    # EVMYulLean fuel-wrapper agreement. Keeping it explicit makes the
-    # compatibility dependency visible until the old bridge is deleted.
+    # targets `nativeDispatcherExecMatchesIRPositive` directly.
     "simpleStorageNativeRetrieveHitMatchBridge_proved",
     # Direct native-vs-IR store-hit closure: it intentionally keeps the
     # short-calldata revert and argument-present storage-update branches in one
-    # proof so the direct case split mirrors `simpleStorageNativeStoreHitBridge_proved`
-    # until the compatibility bridge is removed.
+    # proof so the direct native case split stays explicit.
     "simpleStorageNativeStoreHitMatchBridge_proved",
-    # Phase 3 selector-miss bridge closure: composes the closed-form
-    # selector-miss IR result, native revert endpoint, and Layer-3 agreement
-    # under the public theorem hypotheses. Splitting would create single-use
-    # helpers that only forward the same selector-miss facts and fuel reshape.
-    "simpleStorageNativeSelectorMissBridge_proved",
-    # Phase 3 store-hit bridge closure: composes short-calldata revert and
-    # successful sstore/stop paths against Layer-3 EVMYulLean agreement, using
-    # the bounded-slot storage projection helper above.
-    "simpleStorageNativeStoreHitBridge_proved",
     # Safe-body public EVMYulLean wrapper derives the raw BridgedStmts function
     # hypotheses from compile output, static parameter closure, and
     # BridgedSafeStmts witnesses before delegating to the function-bridge

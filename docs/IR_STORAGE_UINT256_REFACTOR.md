@@ -1,9 +1,8 @@
 # IR Storage Type Refactor: `Nat → Nat` ⇒ `Nat → UInt256`
 
 Tracking the structural refactor that originally targeted the retrieve-hit and
-store-hit compatibility sub-bridges of
-`simpleStorageNativeCallDispatcherBridge`. The public native SimpleStorage path
-has since moved to the direct native-vs-IR
+store-hit compatibility sub-bridges of the SimpleStorage native dispatcher.
+The public native SimpleStorage path has since moved to the direct native-vs-IR
 `simpleStorageNativeCallDispatcherMatchBridge_of_per_case` splitter, with
 `simpleStorageNativeRetrieveHitMatchBridge_proved` and
 `simpleStorageNativeStoreHitMatchBridge_proved` discharging those cases.
@@ -11,12 +10,11 @@ has since moved to the direct native-vs-IR
 ## Why this exists
 
 The first executable instantiation of the native dispatcher bridge discharged
-`simpleStorageNativeSelectorMissBridge` but left
-`simpleStorageNativeRetrieveHitBridge` and
-`simpleStorageNativeStoreHitBridge` as explicit hypotheses on the public
-theorem `simpleStorage_endToEnd_native_evmYulLean`. That historical
-fuel-wrapper route is now compatibility-only: the public native theorem
-consumes direct match proofs for selector miss, retrieve hit, and store hit.
+the selector-miss compatibility bridge but left retrieve-hit and store-hit
+fuel-wrapper bridges as explicit hypotheses on the public theorem
+`simpleStorage_endToEnd_native_evmYulLean`. That historical fuel-wrapper route
+has been removed for SimpleStorage: the public native theorem consumes direct
+match proofs for selector miss, retrieve hit, and store hit.
 
 Those two cases cannot be discharged inside the current public theorem
 signature because of a type-level mismatch:
@@ -128,7 +126,7 @@ relevant slot. The retrieve-hit return-value chain reduces because the
 
 Deliverables:
 - Historical compatibility proof:
-  `simpleStorageNativeRetrieveHitBridge_proved`.
+  `simpleStorageNativeRetrieveHitMatchBridge_proved`.
 - Public native direct proof:
   `simpleStorageNativeRetrieveHitMatchBridge_proved`.
 - `simpleStorage_endToEnd_native_evmYulLean` consumes the direct per-case
@@ -146,7 +144,7 @@ bounded, so the writeback case becomes mechanical.
 
 Deliverables:
 - Historical compatibility proof:
-  `simpleStorageNativeStoreHitBridge_proved`.
+  `simpleStorageNativeStoreHitMatchBridge_proved`.
 - Public native direct proof:
   `simpleStorageNativeStoreHitMatchBridge_proved`.
 - `simpleStorage_endToEnd_native_evmYulLean` consumes the direct per-case
