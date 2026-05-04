@@ -825,6 +825,9 @@ scope so the native path does not look more complete than it is:
    Selector-hit native halt/error projection now has the analogous
    generic boundary
    `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq`,
+   with
+   `contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq`
+   lifting that package to the public raw dispatcher boundary,
    consumed by the SimpleStorage store-hit and retrieve-hit wrappers before
    their contract-specific IR comparisons. The store-parametric
    `exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq`

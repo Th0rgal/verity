@@ -15261,8 +15261,7 @@ theorem exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
         (some contract)
         (nativeSwitchMarkedPrefixStateForId contract tx storage
           observableSlots switchId) = .error err)
-    (hProject :
-      projectResult tx storage initialEvents (.error err) = nativeYul) :
+    (hProject : projectResult tx storage initialEvents (.error err) = nativeYul) :
     EvmYul.Yul.exec (fuel + cases.length + 12)
         (Backends.lowerNativeSwitchBlock
           Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
@@ -15564,6 +15563,53 @@ theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_
   rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
   exact ⟨exec_block_cons_ok (fuel + cases.length + 12) _ [] _ _ final final
     hEndpoint (by simp [EvmYul.Yul.exec]), hProject'⟩
+
+/-- Contract-dispatcher boundary for a generated lowered selector-switch hit
+    whose selected body exits through an EVMYulLean error or halt channel. -/
+theorem contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (dispatcher : EvmYul.Yul.Ast.Stmt) (functions : NativeFunctionMap)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (initialEvents : List (List Nat))
+    (observableSlots : List Nat) (err : EvmYul.Yul.Exception) (nativeYul : YulResult)
+    (hDispatcher : dispatcher = Backends.lowerNativeSwitchBlock
+      Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+    (hContract : contract = { dispatcher := .Block [dispatcher], functions := functions })
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract)
+        (nativeSwitchMarkedPrefixStateForId contract tx storage
+          observableSlots switchId) = .error err)
+    (hProject : projectResult tx storage initialEvents (.error err) = nativeYul) :
+    contractDispatcherExecResult (Nat.succ (Nat.succ (fuel + cases.length + 12)))
+        contract (initialState contract tx storage observableSlots) =
+      .error err ∧
+    projectResult tx storage initialEvents (.error err) = nativeYul := by
+  subst hDispatcher
+  subst hContract
+  let dispatcher' :=
+    Backends.lowerNativeSwitchBlock
+      Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody
+  let contract' : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block [dispatcher'], functions := functions }
+  rcases exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
+      fuel selector switchId cases defaultBody tag body contract' tx storage
+      initialEvents observableSlots err nativeYul hSelector hFind hSelectorRange
+      hTagsRange hBody hProject with
+    ⟨hExec, hProject'⟩
+  rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+    (fuel + cases.length + 12) [dispatcher'] functions tx storage observableSlots]
+  exact
+    ⟨exec_block_cons_error (fuel + cases.length + 12) dispatcher' []
+        (some contract') (nativeSwitchInitialOkState contract' tx storage observableSlots)
+        err hExec,
+      hProject'⟩
 
 /-- Guarded selector-miss execution for a fully lowered native switch block,
     lifted through Verity's projected native result boundary. The generated
