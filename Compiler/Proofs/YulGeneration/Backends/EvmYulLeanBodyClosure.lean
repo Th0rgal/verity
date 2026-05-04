@@ -13605,6 +13605,35 @@ theorem compileStmt_setMappingPackedWord_singleSlot_bridged
                 (Compiler.Yul.YulExpr.lit slot) keyExpr _
                 (BridgedExpr.lit slot) hKeyBridged hVal)
 
+theorem compileStmt_setMappingPackedWord_singleSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot : Nat} {key value : Expr}
+    (wordOffset : Nat) (packed : PackedBits)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field = some [slot])
+    (hWordOffset : wordOffset = 0)
+    (hPacked : packedBitsValid packed = true) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames
+        [] (.setMappingPackedWord field key wordOffset packed value) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  subst hWordOffset
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hKeyExpr : compileExpr fields dynamicSource key with
+  | error err => simp [hKeyExpr] at hOk
+  | ok keyExpr =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExpr, hValueExpr] at hOk
+      | ok valueExpr =>
+          simp [hKeyExpr, hValueExpr, compileMappingPackedSlotWrite,
+            hMapping, hPacked, hSlots, Pure.pure, Except.pure] at hOk
+          subst out
+          simp [Native.yulStmtContainsFuncDef, Native.yulStmtsContainFuncDef]
+
 /-- Each statement in the mappingPackedWord-write fragment compiles to Yul
 satisfying `BridgedStmts`. -/
 theorem compileStmt_mappingPackedWord_bridged
@@ -13623,6 +13652,23 @@ theorem compileStmt_mappingPackedWord_bridged
       exact compileStmt_setMappingPackedWord_singleSlot_bridged fields events
         errors dynamicSource internalRetNames isInternal inScopeNames field
         wordOffset packed hKey hValue hMapping hSlots hWordOffset hPacked hOk
+
+theorem compileStmt_mappingPackedWord_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMappingPackedWordStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setMappingPackedWord field wordOffset packed hKey hValue hMapping hSlots
+      hWordOffset hPacked =>
+      exact compileStmt_setMappingPackedWord_singleSlot_noFuncDefs fields events
+        errors dynamicSource internalRetNames isInternal inScopeNames field
+        wordOffset packed hMapping hSlots hWordOffset hPacked hOk
 
 /-- Lists of single-slot mappingPackedWord-write source statements compile
 to Yul lists satisfying `BridgedStmts`. -/
@@ -13669,6 +13715,22 @@ theorem compileStmtList_mappingPackedWord_bridged
                   dynamicSource internalRetNames isInternal inScopeNames
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_mappingPackedWord_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMappingPackedWordStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal (BridgedSourceMappingPackedWordStmt fields)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_mappingPackedWord_noFuncDefs fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: single-slot `setMappingPackedWord`
 (wordOffset ≠ 0)
