@@ -10646,6 +10646,21 @@ private theorem bridgedStraightStmts_multiSlot_sstore_mapping
           (BridgedExpr.ident "__compat_value")
       · exact ih stmt hMem
 
+private theorem yulStmtsContainFuncDef_multiSlot_sstore_mapping
+    (slots : List Nat) :
+    Native.yulStmtsContainFuncDef
+      (slots.map fun slot =>
+        Compiler.Yul.YulStmt.expr
+          (Compiler.Yul.YulExpr.call "sstore" [
+            Compiler.Yul.YulExpr.call "mappingSlot"
+              [Compiler.Yul.YulExpr.lit slot,
+               Compiler.Yul.YulExpr.ident "__compat_key"],
+            Compiler.Yul.YulExpr.ident "__compat_value"])) = false := by
+  induction slots with
+  | nil => simp [Native.yulStmtsContainFuncDef]
+  | cons slot rest ih =>
+      simp [Native.yulStmtContainsFuncDef, Native.yulStmtsContainFuncDef, ih]
+
 /-- Shared helper: `compileMappingSlotWrite` on a multi-slot mapping (≥ 2
 slots) with `wordOffset = 0` and pre-compiled bridged key/value expressions
 produces a `BridgedStmts` list (one outer block wrapping two let-bindings
@@ -10702,6 +10717,22 @@ private theorem compileMappingSlotWrite_multiSlot_bridged
       bridgedStraightStmts_multiSlot_sstore_mapping slotsRest stmt
         (by simpa using hMem)
     exact BridgedStmt.straight _ hSstore
+
+private theorem compileMappingSlotWrite_multiSlot_noFuncDefs
+    (fields : List Field) (field : String)
+    {slot0 slot1 : Nat} {slotsRest : List Nat}
+    (keyExpr valueExpr : YulExpr) (label : String)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field =
+      some (slot0 :: slot1 :: slotsRest)) :
+    ∀ {out : List YulStmt},
+      compileMappingSlotWrite fields field keyExpr valueExpr label 0 = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp [compileMappingSlotWrite, hMapping, hSlots, Pure.pure, Except.pure] at hOk
+  subst hOk
+  simp [Native.yulStmtContainsFuncDef, Native.yulStmtsContainFuncDef,
+    yulStmtsContainFuncDef_multiSlot_sstore_mapping]
 
 /-- Multi-slot mapping-write source statements: `setMapping` /
 `setMappingUint` to a declared mapping field whose write slots list has ≥ 2
@@ -10760,6 +10791,31 @@ theorem compileStmt_setMapping_multiSlot_bridged
             (compileExpr_bridgedSource fields dynamicSource hValue hValueExpr)
             hMapping hSlots hOk
 
+theorem compileStmt_setMapping_multiSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot0 slot1 : Nat} {slotsRest : List Nat}
+    {key value : Expr}
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field =
+      some (slot0 :: slot1 :: slotsRest)) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames [] (.setMapping field key value) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hKeyExpr : compileExpr fields dynamicSource key with
+  | error err => simp [hKeyExpr] at hOk
+  | ok keyExpr =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExpr, hValueExpr] at hOk
+      | ok valueExpr =>
+          simp [hKeyExpr, hValueExpr] at hOk
+          exact compileMappingSlotWrite_multiSlot_noFuncDefs fields field
+            keyExpr valueExpr "setMapping" hMapping hSlots hOk
+
 /-- A multi-slot `Stmt.setMappingUint` source write with pure bridged key
 and value compiles to `BridgedStmts`. Emission path is identical to
 `Stmt.setMapping`, so this reuses the same mapping-write helper. -/
@@ -10792,6 +10848,31 @@ theorem compileStmt_setMappingUint_multiSlot_bridged
             (compileExpr_bridgedSource fields dynamicSource hValue hValueExpr)
             hMapping hSlots hOk
 
+theorem compileStmt_setMappingUint_multiSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot0 slot1 : Nat} {slotsRest : List Nat}
+    {key value : Expr}
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field =
+      some (slot0 :: slot1 :: slotsRest)) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames [] (.setMappingUint field key value) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hKeyExpr : compileExpr fields dynamicSource key with
+  | error err => simp [hKeyExpr] at hOk
+  | ok keyExpr =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExpr, hValueExpr] at hOk
+      | ok valueExpr =>
+          simp [hKeyExpr, hValueExpr] at hOk
+          exact compileMappingSlotWrite_multiSlot_noFuncDefs fields field
+            keyExpr valueExpr "setMappingUint" hMapping hSlots hOk
+
 /-- Each statement in the multi-slot mapping-write fragment compiles to Yul
 satisfying `BridgedStmts`. -/
 theorem compileStmt_mappingWriteMultiSlot_bridged
@@ -10813,6 +10894,26 @@ theorem compileStmt_mappingWriteMultiSlot_bridged
       exact compileStmt_setMappingUint_multiSlot_bridged fields events errors
         dynamicSource internalRetNames isInternal inScopeNames field
         hKey hValue hMapping hSlots hOk
+
+theorem compileStmt_mappingWriteMultiSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMappingWriteMultiSlotStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setMapping field hKey hValue hMapping hSlots =>
+      exact compileStmt_setMapping_multiSlot_noFuncDefs fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames field
+        hMapping hSlots hOk
+  | setMappingUint field hKey hValue hMapping hSlots =>
+      exact compileStmt_setMappingUint_multiSlot_noFuncDefs fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames field
+        hMapping hSlots hOk
 
 /-- Lists of multi-slot mapping-write source statements compile to Yul lists
 satisfying `BridgedStmts`. -/
@@ -10857,6 +10958,22 @@ theorem compileStmtList_mappingWriteMultiSlot_bridged
                 (compileStmt_mappingWriteMultiSlot_bridged fields events errors
                   dynamicSource internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_mappingWriteMultiSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMappingWriteMultiSlotStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal (BridgedSourceMappingWriteMultiSlotStmt fields)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_mappingWriteMultiSlot_noFuncDefs fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: multi-slot `setMapping2` (wordOffset = 0)
 
