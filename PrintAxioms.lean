@@ -3531,6 +3531,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_overwrite?_left
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_restoreCallFrame_of_ok
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchDiscrTempName_ne_matchedTempName
@@ -4134,4 +4136,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3958 theorems/lemmas (2970 public, 988 private, 0 sorry'd)
+-- Total: 3960 theorems/lemmas (2972 public, 988 private, 0 sorry'd)

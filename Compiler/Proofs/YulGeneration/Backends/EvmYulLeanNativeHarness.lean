@@ -6709,6 +6709,46 @@ theorem NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_ca
     name expected func (args.map Backends.lowerExprNative) codeOverride hArgs
     hCall
 
+theorem NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (op : EvmYul.Operation .Yul)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hOp : Backends.lookupRuntimePrimOp func = some op)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hPrim :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state op values = .ok (final, rets) →
+          final[name]! = expected) :
+    NativeExprPreservesWord name expected
+      (Backends.lowerExprNative (.call func args)) codeOverride :=
+  NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+    name func expected args op codeOverride hOp hArgs hPrim
+
+theorem NativeExprPreservesWord_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hOp : Backends.lookupRuntimePrimOp func = none)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hCall :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some func) codeOverride state =
+            .ok (final, rets) →
+          final[name]! = expected) :
+    NativeExprPreservesWord name expected
+      (Backends.lowerExprNative (.call func args)) codeOverride :=
+  NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
+    name func expected args codeOverride hOp hArgs hCall
+
 theorem state_getElem_overwrite?_left
     (state next : EvmYul.Yul.State)
     (name : EvmYul.Identifier)
