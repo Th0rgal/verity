@@ -7345,6 +7345,56 @@ theorem nativeSwitchBranchFold_ok_preserves_word
             exact hBranches tag' branchState (by simp [hMem]))
           hFold
 
+theorem execSwitchCases_ok_branch_preserves_word
+    (name : EvmYul.Identifier) (value : EvmYul.Literal)
+    (cases : List (EvmYul.Literal × List EvmYul.Yul.Ast.Stmt))
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCases : ∀ tag body, (tag, body) ∈ cases → NativeBlockPreservesWord name value body codeOverride) :
+    ∀ fuel state branches, state[name]! = value → EvmYul.Yul.execSwitchCases fuel codeOverride state cases = .ok branches →
+      ∀ tag branchState, (tag, .ok branchState) ∈ branches → branchState[name]! = value := by
+  induction cases with
+  | nil =>
+      intro fuel state branches _ hExec tag branchState hMem
+      simp [EvmYul.Yul.execSwitchCases] at hExec; subst branches; simp at hMem
+  | cons head tail ih =>
+      intro fuel state branches hLookup hExec tag branchState hMem
+      rcases head with ⟨headTag, headBody⟩
+      have hTailCases : ∀ tag' body', (tag', body') ∈ tail →
+          NativeBlockPreservesWord name value body' codeOverride := by
+        intro tag' body' hTailMem; exact hCases tag' body' (by simp [hTailMem])
+      cases fuel with
+      | zero => simp [EvmYul.Yul.execSwitchCases] at hExec
+      | succ fuel' =>
+          cases hHead :
+              EvmYul.Yul.exec fuel' (.Block headBody) codeOverride state with
+          | error err =>
+              cases err <;>
+                cases hTail :
+                    EvmYul.Yul.execSwitchCases fuel' codeOverride state tail with
+                | error tailErr =>
+                    simp [EvmYul.Yul.execSwitchCases, hHead, hTail] at hExec
+                | ok tailBranches =>
+                    simp [EvmYul.Yul.execSwitchCases, hHead, hTail] at hExec
+                    subst branches
+                    simp at hMem
+                    exact ih hTailCases fuel' state tailBranches hLookup hTail
+                      tag branchState hMem
+          | ok headState =>
+              cases hTail :
+                  EvmYul.Yul.execSwitchCases fuel' codeOverride state tail with
+              | error tailErr =>
+                  simp [EvmYul.Yul.execSwitchCases, hHead, hTail] at hExec
+              | ok tailBranches =>
+                  simp [EvmYul.Yul.execSwitchCases, hHead, hTail] at hExec
+                  subst branches
+                  simp at hMem
+                  rcases hMem with hMem | hMem
+                  · rcases hMem with ⟨rfl, rfl⟩
+                    exact hCases tag headBody (by simp)
+                      fuel' state branchState hLookup hHead
+                  · exact ih hTailCases fuel' state tailBranches hLookup hTail
+                      tag branchState hMem
+
 theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
     (name target : EvmYul.Identifier)
     (expected : EvmYul.Literal)
