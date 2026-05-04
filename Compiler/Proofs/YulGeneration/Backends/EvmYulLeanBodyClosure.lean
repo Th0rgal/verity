@@ -582,6 +582,38 @@ theorem compileStmt_binding_leaf_bridged
           exact BridgedStmt.straight _
             (BridgedStraightStmt.assign name valueExpr hBridged)
 
+/-- Scalar-leaf binding statements compile to Yul lists with no nested
+function declarations. -/
+theorem compileStmt_binding_leaf_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceBindingStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | letVar name value _hValue =>
+      simp only [compileStmt, bind, Except.bind] at hOk
+      cases hExpr : compileExpr fields dynamicSource value with
+      | error err =>
+          simp [hExpr] at hOk
+      | ok valueExpr =>
+          simp [hExpr, Pure.pure, Except.pure] at hOk
+          subst out
+          simp [Native.yulStmtContainsFuncDef]
+  | assignVar name value _hValue =>
+      simp only [compileStmt, bind, Except.bind] at hOk
+      cases hExpr : compileExpr fields dynamicSource value with
+      | error err =>
+          simp [hExpr] at hOk
+      | ok valueExpr =>
+          simp [hExpr, Pure.pure, Except.pure] at hOk
+          subst out
+          simp [Native.yulStmtContainsFuncDef]
+
 /-- Lists made only of scalar-leaf `letVar`/`assignVar` statements compile to
 Yul lists satisfying `BridgedStmts`. This is the first direct body-closure
 theorem over `compileStmtList`. -/
@@ -628,6 +660,52 @@ theorem compileStmtList_binding_leaf_bridged
                 (compileStmt_binding_leaf_bridged fields events errors dynamicSource
                   internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+/-- Lists made only of scalar-leaf `letVar`/`assignVar` statements compile to
+Yul lists with no nested function declarations. -/
+theorem compileStmtList_binding_leaf_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceBindingStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      rfl
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] head with
+      | error err =>
+          simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
+              isInternal (collectStmtNames head ++ inScopeNames) [] tail with
+          | error err =>
+              simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceBindingStmt head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceBindingStmts tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              simp [
+                compileStmt_binding_leaf_noFuncDefs fields events errors
+                  dynamicSource internalRetNames isInternal inScopeNames
+                  hHeadSource hHead,
+                ih (collectStmtNames head ++ inScopeNames) hTailSource hTail]
 
 /-- A pure-expression `letVar`/`assignVar` source statement compiles to Yul
 that satisfies `BridgedStmts`. -/

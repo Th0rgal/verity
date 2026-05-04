@@ -2494,7 +2494,9 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_scalar_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_binding_leaf_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_binding_leaf_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_binding_leaf_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_binding_leaf_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_pure_binding_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_pure_binding_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorage_singleSlot_pure_bridged
@@ -3980,4 +3982,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3804 theorems/lemmas (2851 public, 953 private, 0 sorry'd)
+-- Total: 3806 theorems/lemmas (2853 public, 953 private, 0 sorry'd)
