@@ -771,6 +771,9 @@ scope so the native path does not look more complete than it is:
    it can in turn be discharged from
    `nativeDispatcherExecAgreesWithEvmYulLean`, which targets raw
    `contractDispatcherExecResult`.
+   The concrete `simpleStorage_endToEnd_native_evmYulLean` theorem now uses the
+   dispatcher-exec wrapper directly, after its retrieve-hit, store-hit, and
+   selector-miss cases prove the raw lowered-dispatcher agreement.
 
    This makes the remaining proof obligation concrete: for the supported
    generated fragment, native `lowerRuntimeContractNative` plus

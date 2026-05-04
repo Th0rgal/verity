@@ -1636,6 +1636,13 @@ private theorem simpleStorage_functions_bridged :
         (Compiler.Proofs.YulGeneration.Backends.BridgedExpr.lit 0)
         (Compiler.Proofs.YulGeneration.Backends.BridgedExpr.lit 32)
 
+private theorem simpleStorage_functions_loop_free :
+    ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      yulStmtsLoopFree fn.body = true := by
+  intro fn hmem
+  simp [simpleStorageIRContract] at hmem ⊢
+  rcases hmem with rfl | rfl <;> rfl
+
 /-- The emitted SimpleStorage runtime consists of the single generated external
 dispatcher shell for the two concrete SimpleStorage functions.
 
@@ -5780,10 +5787,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
     Compiler.SimpleStorageNativeWitness.nativeContract
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead
-    (by
-      intro fn hmem
-      simp [simpleStorageIRContract] at hmem ⊢
-      rcases hmem with rfl | rfl <;> rfl)
+    simpleStorage_functions_loop_free
     (by intro s hs; simp [simpleStorageIRContract] at hs)
     rfl
     rfl
@@ -5793,6 +5797,59 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
     Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq
     hEnv
     hNativeCallDispatcher
+
+/-- Native SimpleStorage wrapper with the remaining native obligation exposed
+at raw lowered-dispatcher execution.
+
+This is the preferred SimpleStorage seam for generated-fragment work: callers
+prove agreement for `contractDispatcherExecResult` directly, and the generic
+Layer 3 wrapper handles the block and `callDispatcher` restoration steps. -/
+theorem simpleStorage_endToEnd_native_evmYulLean_of_dispatcherExec_bridge
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx))
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (YulTransaction.ofIR tx) = .ok ())
+    (hNativeDispatcherExec :
+      nativeDispatcherExecAgreesWithEvmYulLean
+        (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
+        simpleStorageIRContract tx initialState observableSlots
+        Compiler.SimpleStorageNativeWitness.nativeContract) :
+    nativeResultsMatchOn observableSlots
+      (interpretIR simpleStorageIRContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
+        simpleStorageIRContract tx initialState observableSlots) :=
+  layer3_contract_preserves_semantics_native_of_dispatcherExec_bridge
+    (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
+    simpleStorageIRContract tx initialState observableSlots
+    Compiler.SimpleStorageNativeWitness.nativeContract
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+    simpleStorage_functions_loop_free
+    (by intro s hs; simp [simpleStorageIRContract] at hs)
+    rfl
+    rfl
+    simpleStorage_functions_bridged
+    rfl
+    Compiler.SimpleStorageNativeWitness.generatedRuntimeNativeFragment_eq
+    Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq
+    hEnv
+    hNativeDispatcherExec
 
 /-- Native SimpleStorage end-to-end theorem with the concrete native dispatcher
 bridge fully discharged for retrieve hit, store hit, and selector miss. -/
@@ -5821,28 +5878,26 @@ theorem simpleStorage_endToEnd_native_evmYulLean
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
         simpleStorageIRContract tx initialState observableSlots) :=
-  simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
+  simpleStorage_endToEnd_native_evmYulLean_of_dispatcherExec_bridge
     tx initialState observableSlots hselector hNoWrap hvars hmemory htransient
     hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead hparamErase hEnv
-    (nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree
-      (nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree
-        (nativeDispatcherExecAgreesWithEvmYulLean_of_positive
-          (by
-            rw [simpleStorage_runtimeCode_eq_single_dispatcher]
-            exact simpleStorageNativeCallDispatcherBridge_of_per_case
-              tx initialState observableSlots
-              (simpleStorageNativeRetrieveHitBridge_proved tx initialState
-                observableSlots hselector hNoWrap hvars hmemory htransient
-                  hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
-                  hparamErase)
-                (simpleStorageNativeStoreHitBridge_proved tx initialState
-                  observableSlots hselector hNoWrap hvars hmemory htransient
-                  hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
-                  hparamErase)
-                (simpleStorageNativeSelectorMissBridge_proved tx initialState
-                  observableSlots hselector hNoWrap hvars hmemory htransient
-                  hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
-                  hparamErase)))))
+    (by
+      rw [simpleStorage_runtimeCode_eq_single_dispatcher]
+      exact nativeDispatcherExecAgreesWithEvmYulLean_of_positive
+        (simpleStorageNativeCallDispatcherBridge_of_per_case
+          tx initialState observableSlots
+          (simpleStorageNativeRetrieveHitBridge_proved tx initialState
+            observableSlots hselector hNoWrap hvars hmemory htransient
+              hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+              hparamErase)
+          (simpleStorageNativeStoreHitBridge_proved tx initialState
+            observableSlots hselector hNoWrap hvars hmemory htransient
+              hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+              hparamErase)
+          (simpleStorageNativeSelectorMissBridge_proved tx initialState
+            observableSlots hselector hNoWrap hvars hmemory htransient
+              hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
+              hparamErase)))
 
 /-! ## Universal Pure Arithmetic Bridge
 

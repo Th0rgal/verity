@@ -784,6 +784,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_dispatcherExec_bridge
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_via_reference_oracle
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_functions_bridged  -- private
+-- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_functions_loop_free  -- private
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_runtimeCode_eq_single_dispatcher
 #print axioms Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcher_eq_lowered_stmts
@@ -874,6 +875,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLean
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
+#print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_dispatcherExec_bridge
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean
 
 -- Compiler/Proofs/EventSemantics.lean
@@ -3915,4 +3917,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3739 theorems/lemmas (2789 public, 950 private, 0 sorry'd)
+-- Total: 3741 theorems/lemmas (2790 public, 951 private, 0 sorry'd)
