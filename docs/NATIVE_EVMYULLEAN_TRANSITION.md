@@ -898,6 +898,8 @@ scope so the native path does not look more complete than it is:
    `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match`
    and
    `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match`.
+   Normal selector-hit execution has the matching raw dispatcher lift
+   `contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq`.
    SimpleStorage also exposes the direct positive-dispatcher seam
    `simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match`
    and a direct per-case splitter

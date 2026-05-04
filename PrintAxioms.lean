@@ -3848,6 +3848,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
@@ -4170,4 +4171,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3994 theorems/lemmas (3006 public, 988 private, 0 sorry'd)
+-- Total: 3995 theorems/lemmas (3007 public, 988 private, 0 sorry'd)
