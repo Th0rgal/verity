@@ -1558,6 +1558,26 @@ private theorem revertWithMessage_bridged (message : String) :
       (BridgedStraightStmt.expr_revert (YulExpr.lit 0)
         (YulExpr.lit (68 + ((bytesFromString message).length + 31) / 32 * 32)))
 
+private theorem revertWithMessage_chunks_noFuncDefs
+    (chunks : List (List UInt8 × Nat)) :
+    Native.yulStmtsContainFuncDef
+      (chunks.map
+        (fun chunkAndIdx =>
+          YulStmt.expr (YulExpr.call "mstore"
+            [YulExpr.lit (68 + chunkAndIdx.2 * 32),
+              YulExpr.hex (wordFromBytes chunkAndIdx.1)]))) = false := by
+  induction chunks with
+  | nil => rfl
+  | cons head tail ih =>
+      cases head with
+      | mk chunk idx =>
+          simp [Native.yulStmtContainsFuncDef, ih]
+
+private theorem revertWithMessage_noFuncDefs (message : String) :
+    Native.yulStmtsContainFuncDef (revertWithMessage message) = false := by
+  unfold revertWithMessage
+  simp [Native.yulStmtContainsFuncDef, revertWithMessage_chunks_noFuncDefs]
+
 /-- Source `require` statements whose compiled failure condition is bridged. -/
 inductive BridgedSourceRequireStmt
     (fields : List Field) (dynamicSource : DynamicDataSource) : Stmt → Prop
@@ -1600,6 +1620,29 @@ theorem compileStmt_require_bridged
       subst yulStmt
       exact BridgedStmt.if_ failCond (revertWithMessage message)
         (hFailCond hFail) (revertWithMessage_bridged message)
+
+theorem compileStmt_require_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    {cond : Expr} {message : String}
+    (_hFailCond :
+      ∀ {failCond : YulExpr},
+        compileRequireFailCond fields dynamicSource cond = .ok failCond →
+        BridgedExpr failCond) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames [] (.require cond message) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hFail : compileRequireFailCond fields dynamicSource cond with
+  | error err =>
+      simp [hFail] at hOk
+  | ok failCond =>
+      simp [hFail, Pure.pure, Except.pure] at hOk
+      subst out
+      simp [Native.yulStmtContainsFuncDef, revertWithMessage_noFuncDefs]
 
 /-- Lists made only of plain `require` statements whose compiled failure
 conditions are bridged compile to Yul lists satisfying `BridgedStmts`. -/
@@ -1649,6 +1692,26 @@ theorem compileStmtList_require_bridged
                       internalRetNames isInternal inScopeNames hFailCond hHead)
                     (ih (collectStmtNames (.require cond message) ++ inScopeNames)
                       hTailSource hTail)
+
+/-- Lists made only of plain `require` statements whose compiled failure
+conditions are bridged compile with no nested function declarations. -/
+theorem compileStmtList_require_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceRequireStmts fields dynamicSource stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal (BridgedSourceRequireStmt fields dynamicSource)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      match hStmt with
+      | BridgedSourceRequireStmt.require cond message hFailCond =>
+          compileStmt_require_noFuncDefs fields events errors dynamicSource
+            internalRetNames isInternal inScopeNames hFailCond hOk)
 
 /-! ## Source statement body closure: single-slot mapping writes
 
@@ -1893,6 +1956,29 @@ theorem compileStmt_external_body_fragment_bridged
       exact compileStmt_terminator_external_bridged fields events errors dynamicSource
         internalRetNames inScopeNames hTerminator hOk
 
+theorem compileStmt_external_body_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceExternalBodyStmt fields dynamicSource stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | storage hStorage =>
+      exact compileStmt_storage_fragment_noFuncDefs fields events errors dynamicSource
+        internalRetNames false inScopeNames hStorage hOk
+  | require hRequire =>
+      cases hRequire with
+      | require cond message hFailCond =>
+          exact compileStmt_require_noFuncDefs fields events errors dynamicSource
+            internalRetNames false inScopeNames hFailCond hOk
+  | terminator hTerminator =>
+      exact compileStmt_terminator_external_noFuncDefs fields events errors
+        dynamicSource internalRetNames inScopeNames hTerminator hOk
+
 /-- Mixed external source bodies made from the currently supported fragments
 compile to Yul lists satisfying `BridgedStmts`. -/
 theorem compileStmtList_external_body_fragment_bridged
@@ -1940,6 +2026,21 @@ theorem compileStmtList_external_body_fragment_bridged
                   dynamicSource internalRetNames inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+theorem compileStmtList_external_body_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceExternalBodyStmts fields dynamicSource stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames false (BridgedSourceExternalBodyStmt fields dynamicSource)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_external_body_fragment_noFuncDefs fields events errors
+        dynamicSource internalRetNames inScopeNames hStmt hOk)
+
 /-- Each mixed internal-body statement in the currently supported fragment
 compiles to Yul satisfying `BridgedStmts`. -/
 theorem compileStmt_internal_body_fragment_bridged
@@ -1966,6 +2067,32 @@ theorem compileStmt_internal_body_fragment_bridged
         internalRetNames inScopeNames hReturn hOk
   | stop =>
       exact compileStmt_stop_bridged fields events errors dynamicSource
+        internalRetNames true inScopeNames hOk
+
+theorem compileStmt_internal_body_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceInternalBodyStmt fields dynamicSource stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          (isInternal := true) inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | storage hStorage =>
+      exact compileStmt_storage_fragment_noFuncDefs fields events errors dynamicSource
+        internalRetNames true inScopeNames hStorage hOk
+  | require hRequire =>
+      cases hRequire with
+      | require cond message hFailCond =>
+          exact compileStmt_require_noFuncDefs fields events errors dynamicSource
+            internalRetNames true inScopeNames hFailCond hOk
+  | returnInternal hReturn =>
+      exact compileStmt_internal_return_noFuncDefs fields events errors dynamicSource
+        internalRetNames inScopeNames hReturn hOk
+  | stop =>
+      exact compileStmt_stop_noFuncDefs fields events errors dynamicSource
         internalRetNames true inScopeNames hOk
 
 /-- Mixed internal source bodies made from the currently supported fragments
@@ -2014,6 +2141,21 @@ theorem compileStmtList_internal_body_fragment_bridged
                 (compileStmt_internal_body_fragment_bridged fields events errors
                   dynamicSource internalRetNames inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_internal_body_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceInternalBodyStmts fields dynamicSource stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          (isInternal := true) inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames true (BridgedSourceInternalBodyStmt fields dynamicSource)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_internal_body_fragment_noFuncDefs fields events errors
+        dynamicSource internalRetNames inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: one-layer `ite` composition
 
