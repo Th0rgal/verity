@@ -934,6 +934,39 @@ theorem compileStmt_setStorage_singleSlot_pure_bridged
           exact BridgedStmt.straight _
             (BridgedStraightStmt.expr_sstore_lit slot valueExpr hBridged)
 
+/-- An unpacked single-slot `setStorage` source statement with a pure bridged
+right-hand side compiles to a Yul list with no nested function declarations. -/
+theorem compileStmt_setStorage_singleSlot_pure_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) (value : Expr) (f : Field) (slot : Nat)
+    (_hValue : BridgedSourceExpr value)
+    (hNotMapping : isMapping fields field = false)
+    (hFind :
+      findFieldWithResolvedSlot fields field =
+        some ({ f with packedBits := none, aliasSlots := [] }, slot))
+    (hNotAdt : ∀ name maxFields, f.ty ≠ FieldType.adt name maxFields) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames [] (.setStorage field value) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt] at hOk
+  unfold compileSetStorage at hOk
+  simp [hNotMapping, hFind] at hOk
+  cases hty : f.ty with
+  | adt name maxFields =>
+      exact False.elim (hNotAdt name maxFields hty)
+  | uint256 | address | dynamicArray | mappingTyped | mappingStruct | mappingStruct2 =>
+      cases hExpr : compileExpr fields dynamicSource value with
+      | error err =>
+          simp [hExpr, hty] at hOk
+      | ok valueExpr =>
+          simp [hExpr, hty] at hOk
+          subst out
+          simp [Native.yulStmtContainsFuncDef]
+
 /-- Each statement in the storage fragment compiles to Yul satisfying
 `BridgedStmts`. -/
 theorem compileStmt_storage_fragment_bridged
@@ -952,6 +985,27 @@ theorem compileStmt_storage_fragment_bridged
         internalRetNames isInternal inScopeNames hPure hOk
   | setStorage field value f slot hValue hNotMapping hFind hNotAdt =>
       exact compileStmt_setStorage_singleSlot_pure_bridged fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames field value f slot
+        hValue hNotMapping hFind hNotAdt hOk
+
+/-- Each statement in the storage fragment compiles to a Yul list with no nested
+function declarations. -/
+theorem compileStmt_storage_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceStorageStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | pureBinding hPure =>
+      exact compileStmt_pure_binding_noFuncDefs fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames hPure hOk
+  | setStorage field value f slot hValue hNotMapping hFind hNotAdt =>
+      exact compileStmt_setStorage_singleSlot_pure_noFuncDefs fields events errors
         dynamicSource internalRetNames isInternal inScopeNames field value f slot
         hValue hNotMapping hFind hNotAdt hOk
 
@@ -1001,6 +1055,51 @@ theorem compileStmtList_storage_fragment_bridged
                   dynamicSource internalRetNames isInternal inScopeNames
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+/-- Storage-fragment statement lists compile with no nested function declarations. -/
+theorem compileStmtList_storage_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource)
+    (internalRetNames : List String) (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceStorageStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      rfl
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] head with
+      | error err =>
+          simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
+              isInternal (collectStmtNames head ++ inScopeNames) [] tail with
+          | error err =>
+              simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourceStorageStmt fields head :=
+                hSource head (by simp)
+              have hTailSource : BridgedSourceStorageStmts fields tail := by
+                intro stmt hMem
+                exact hSource stmt (by simp [hMem])
+              simp [
+                compileStmt_storage_fragment_noFuncDefs fields events errors
+                  dynamicSource internalRetNames isInternal inScopeNames
+                  hHeadSource hHead,
+                ih (collectStmtNames head ++ inScopeNames) hTailSource hTail]
 
 /-! ## Source statement body closure: `stop` and external/internal `return`
 
