@@ -2737,7 +2737,9 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_base
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_base
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_rawLog_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_rawLog_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_rawLog_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_rawLog_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_with_raw_log_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_with_raw_log_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_with_raw_log_bridged
@@ -2779,11 +2781,17 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesExternal_fragment_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesExternal_bridged
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mstore_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mstore_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mstore_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mstore_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mstore_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mstore_noFuncDefs
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_tstore_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_tstore_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_tstore_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_tstore_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_tstore_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_tstore_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPush_singleSlot_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPush_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageArrayPush_bridged
@@ -4054,4 +4062,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3878 theorems/lemmas (2913 public, 965 private, 0 sorry'd)
+-- Total: 3886 theorems/lemmas (2919 public, 967 private, 0 sorry'd)

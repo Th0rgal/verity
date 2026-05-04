@@ -6889,6 +6889,41 @@ theorem compileStmt_rawLog_bridged
                       (BridgedStmt.straight _
                         (BridgedStraightStmt.expr_log _ _ hLogName hArgs))
 
+/-- Direct `rawLog` source statements compile without nested function
+declarations. -/
+theorem compileStmt_rawLog_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceRawLogStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | rawLog topics dataOffset dataSize hTopics hOffset hSize =>
+      simp only [compileStmt] at hOk
+      by_cases hLen : topics.length > 4
+      · simp only [if_pos hLen, bind, Except.bind] at hOk
+        exact Except.noConfusion hOk
+      · simp only [if_neg hLen, bind, Except.bind,
+          Pure.pure, Except.pure] at hOk
+        cases hTopicsExpr : compileExprList fields dynamicSource topics with
+        | error err => simp [hTopicsExpr] at hOk
+        | ok topicExprs =>
+            simp only [hTopicsExpr] at hOk
+            cases hOffsetExpr : compileExpr fields dynamicSource dataOffset with
+            | error err => simp [hOffsetExpr] at hOk
+            | ok offsetExpr =>
+                simp only [hOffsetExpr] at hOk
+                cases hSizeExpr : compileExpr fields dynamicSource dataSize with
+                | error err => simp [hSizeExpr] at hOk
+                | ok sizeExpr =>
+                    simp [hSizeExpr, Native.yulStmtContainsFuncDef] at hOk
+                    subst out
+                    simp [Native.yulStmtContainsFuncDef]
+
 /-- Lists made only of direct `rawLog` source statements with bridged
 arguments compile to Yul lists satisfying `BridgedStmts`. -/
 theorem compileStmtList_rawLog_bridged
@@ -6932,6 +6967,24 @@ theorem compileStmtList_rawLog_bridged
                 (compileStmt_rawLog_bridged fields events errors dynamicSource
                   internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+/-- Lists made only of direct `rawLog` source statements with bridged
+arguments compile without nested function declarations. -/
+theorem compileStmtList_rawLog_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceRawLogStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal BridgedSourceRawLogStmt
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_rawLog_noFuncDefs fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-!
 ## Mixed body with raw log
@@ -8819,6 +8872,28 @@ private theorem compileStmt_mstore_bridged
           exact BridgedStmt.straight _
             (BridgedStraightStmt.expr_mstore compiledOffset compiledValue hBO hBV)
 
+private theorem compileStmt_mstore_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (offset value : Expr) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames
+        isInternal inScopeNames [] (.mstore offset value) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind, Pure.pure, Except.pure] at hOk
+  cases hO : compileExpr fields dynamicSource offset with
+  | error err => simp [hO] at hOk
+  | ok compiledOffset =>
+      simp [hO] at hOk
+      cases hV : compileExpr fields dynamicSource value with
+      | error err => simp [hV] at hOk
+      | ok compiledValue =>
+          simp [hV, Native.yulStmtContainsFuncDef] at hOk
+          subst out
+          simp [Native.yulStmtContainsFuncDef]
+
 theorem compileStmt_mstore_fragment_bridged
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
     (dynamicSource : DynamicDataSource) (internalRetNames : List String)
@@ -8833,6 +8908,21 @@ theorem compileStmt_mstore_fragment_bridged
   | mstore offset value hOffset hValue =>
       exact compileStmt_mstore_bridged fields events errors dynamicSource
         internalRetNames isInternal inScopeNames offset value hOffset hValue hOk
+
+theorem compileStmt_mstore_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMstoreStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | mstore offset value hOffset hValue =>
+      exact compileStmt_mstore_noFuncDefs fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames offset value hOk
 
 theorem compileStmtList_mstore_bridged
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
@@ -8877,6 +8967,22 @@ theorem compileStmtList_mstore_bridged
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+theorem compileStmtList_mstore_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMstoreStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal BridgedSourceMstoreStmt
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_mstore_fragment_noFuncDefs fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames hStmt hOk)
+
 inductive BridgedSourceTstoreStmt : Stmt → Prop
   | tstore (offset value : Expr)
       (hOffset : BridgedSourceExpr offset)
@@ -8917,6 +9023,28 @@ private theorem compileStmt_tstore_bridged
           exact BridgedStmt.straight _
             (BridgedStraightStmt.expr_tstore compiledOffset compiledValue hBO hBV)
 
+private theorem compileStmt_tstore_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (offset value : Expr) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames
+        isInternal inScopeNames [] (.tstore offset value) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind, Pure.pure, Except.pure] at hOk
+  cases hO : compileExpr fields dynamicSource offset with
+  | error err => simp [hO] at hOk
+  | ok compiledOffset =>
+      simp [hO] at hOk
+      cases hV : compileExpr fields dynamicSource value with
+      | error err => simp [hV] at hOk
+      | ok compiledValue =>
+          simp [hV, Native.yulStmtContainsFuncDef] at hOk
+          subst out
+          simp [Native.yulStmtContainsFuncDef]
+
 theorem compileStmt_tstore_fragment_bridged
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
     (dynamicSource : DynamicDataSource) (internalRetNames : List String)
@@ -8931,6 +9059,21 @@ theorem compileStmt_tstore_fragment_bridged
   | tstore offset value hOffset hValue =>
       exact compileStmt_tstore_bridged fields events errors dynamicSource
         internalRetNames isInternal inScopeNames offset value hOffset hValue hOk
+
+theorem compileStmt_tstore_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceTstoreStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | tstore offset value hOffset hValue =>
+      exact compileStmt_tstore_noFuncDefs fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames offset value hOk
 
 theorem compileStmtList_tstore_bridged
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
@@ -8974,6 +9117,22 @@ theorem compileStmtList_tstore_bridged
                   dynamicSource internalRetNames isInternal inScopeNames
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_tstore_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceTstoreStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal BridgedSourceTstoreStmt
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_tstore_fragment_noFuncDefs fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: `storageArrayPush`
 
