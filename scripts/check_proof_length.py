@@ -320,19 +320,10 @@ ALLOWLIST: set[str] = {
     # Thin public wrapper; the scanner counts the trailing Phase 4 summary
     # comment in its theorem span.
     "simpleStorage_endToEnd_evmYulLean",
-    # Native public wrapper keeps the lowering equality, native environment
-    # validation, and callDispatcher bridge as explicit hypotheses so proof
-    # modules do not rely on VM computation; the body delegates to the lowered
-    # native Layer-3 theorem.
-    "simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge",
     # Native SimpleStorage wrapper keeps the dispatcher-agreement seam explicit
     # while delegating to the lowered native theorem; the long span is the public
     # hypothesis surface, not a large proof script.
     "simpleStorage_endToEnd_native_evmYulLean",
-    # Concrete generated-fragment SimpleStorage wrapper keeps explicit native
-    # dispatcher-exec agreement and generated shape witnesses at the theorem
-    # boundary while delegating to generic Layer-3 generated-shape wiring.
-    "simpleStorage_endToEnd_native_evmYulLean_of_dispatcherExec_bridge",
     # Phase 2 retrieve-hit prerequisites: closed-form interpretIR reduction
     # over the retrieve body's two-statement form (`mstore(0, sload(0));
     # return(0, 32)`); the proof must walk the EDSL execIRStmts/execIRStmt
@@ -1052,11 +1043,6 @@ ALLOWLIST: set[str] = {
     "compileStmtList_always_noFuncDefs",
     # --- Misc ---
     "findUniqueInternalFunction",
-    # Native dispatcher bridge wrapper: mostly argument plumbing through the
-    # generic Layer 2+3 native theorem after the concrete SimpleStorage lowering
-    # witness is packaged; splitting would just duplicate the same fixture
-    # witnesses.
-    "simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge",
     # Native generated-switch block append/error lemmas mirror the existing
     # ok-append proof and keep the fuel arithmetic visible in one place for
     # the halt-before-default dispatcher cases.
