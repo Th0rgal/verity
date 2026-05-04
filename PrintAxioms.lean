@@ -3005,6 +3005,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef_cons
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef_append
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef_flatMap_false
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.yulRuntimeTopLevelFunctionNames_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.yulRuntimeTopLevelFunctionNames_funcDef_cons
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.yulRuntimeTopLevelFunctionNames_nonFunc_cons
@@ -3974,4 +3975,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3798 theorems/lemmas (2847 public, 951 private, 0 sorry'd)
+-- Total: 3799 theorems/lemmas (2848 public, 951 private, 0 sorry'd)

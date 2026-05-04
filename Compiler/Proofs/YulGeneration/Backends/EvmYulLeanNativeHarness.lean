@@ -245,6 +245,22 @@ end
   | cons stmt rest ih =>
       simp [ih, Bool.or_assoc]
 
+theorem yulStmtsContainFuncDef_flatMap_false {α : Type}
+    (xs : List α) (f : α → List YulStmt)
+    (h : ∀ x, x ∈ xs → yulStmtsContainFuncDef (f x) = false) :
+    yulStmtsContainFuncDef (xs.flatMap f) = false := by
+  induction xs with
+  | nil =>
+      simp
+  | cons x rest ih =>
+      have hx := h x (by simp)
+      have hrest : ∀ y, y ∈ rest → yulStmtsContainFuncDef (f y) = false := by
+        intro y hy
+        exact h y (by simp [hy])
+      simp only [List.flatMap, List.map_cons, List.flatten_cons,
+        yulStmtsContainFuncDef_append, hx, Bool.false_or]
+      exact ih hrest
+
 def yulRuntimeTopLevelFunctionNames (runtimeCode : List YulStmt) : List String :=
   runtimeCode.filterMap fun
     | .funcDef name _ _ _ => some name
