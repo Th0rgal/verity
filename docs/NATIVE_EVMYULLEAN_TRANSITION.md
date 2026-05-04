@@ -837,8 +837,8 @@ scope so the native path does not look more complete than it is:
    no-`funcDef` closure, leaving the native dispatcher agreement itself as the
    remaining proof obligation.
    The concrete `simpleStorage_endToEnd_native_evmYulLean` theorem now uses the
-   dispatcher-exec wrapper directly, after its retrieve-hit, store-hit, and
-   selector-miss cases prove the raw lowered-dispatcher agreement.
+   public positive dispatcher-exec wrapper directly, after its retrieve-hit,
+   store-hit, and selector-miss cases prove the lowered-dispatcher agreement.
 
    This makes the remaining proof obligation concrete: for the supported
    generated fragment, native `lowerRuntimeContractNative` plus
