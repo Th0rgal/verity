@@ -206,13 +206,14 @@ def check_public_theorem_target(
         "theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match",
-        "theorem layer3_contract_preserves_semantics ",
+        "theorem layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel ",
+        "theorem layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel ",
         "theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match",
         "theorem simpleStorageNativeCallDispatcherMatchBridge_of_per_case",
         "theorem simpleStorageNativeRetrieveHitMatchBridge_proved",
         "theorem simpleStorageNativeStoreHitMatchBridge_proved",
         "theorem simpleStorageNativeSelectorMissMatchBridge_proved",
-        "theorem simpleStorage_endToEnd ",
+        "theorem simpleStorage_endToEnd_evmYulLeanFuelWrapperDefaultFuel ",
     ):
         if required_native_seam not in normalized_end_to_end:
             errors.append(
@@ -329,30 +330,15 @@ def check_public_theorem_target(
                 f"entry points explicitly named `{required_reference_oracle_seam.strip()}`"
             )
 
-    public_targets = (
-        (
-            "theorem layer3_contract_preserves_semantics ",
-            "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
-        ),
-        (
-            "theorem simpleStorage_endToEnd ",
-            "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
-        ),
-    )
-    for theorem_marker, target_marker in public_targets:
-        start = normalized_end_to_end.find(theorem_marker)
-        if start < 0:
-            continue
-        next_theorem = normalized_end_to_end.find(" theorem ", start + len(theorem_marker))
-        theorem_span = (
-            normalized_end_to_end[start:]
-            if next_theorem < 0
-            else normalized_end_to_end[start:next_theorem]
-        )
-        if target_marker not in theorem_span:
+    for forbidden_public_alias in (
+        "theorem layer3_contract_preserves_semantics ",
+        "theorem simpleStorage_endToEnd ",
+    ):
+        if forbidden_public_alias in normalized_end_to_end:
             errors.append(
-                f"Compiler/Proofs/EndToEnd.lean public theorem `{theorem_marker.strip()}` "
-                f"must target `{target_marker}`, not the legacy reference oracle"
+                "Compiler/Proofs/EndToEnd.lean must not reintroduce hidden "
+                "default-fuel public theorem alias "
+                f"`{forbidden_public_alias.strip()}`"
             )
 
     simple_storage_native_marker = "theorem simpleStorage_endToEnd_native_evmYulLean "

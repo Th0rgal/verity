@@ -782,9 +782,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.yulBody_from_state_eq_yulBody
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_via_reference_oracle
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_via_reference_oracle_with_function_bridge
-#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean_with_function_bridge
-#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean
-#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics
+#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_with_function_bridge
+#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_generated_lowered_callDispatcher_bridge
@@ -793,8 +792,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_bridge
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_via_reference_oracle
-#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLean_with_function_bridge
-#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLean
+#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel_with_function_bridge
+#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
 #print axioms Compiler.Proofs.EndToEnd.generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
@@ -905,8 +904,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeStoreHitMatchBridge_proved
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeSelectorMissMatchBridge_proved
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeCallDispatcherMatchBridge_of_per_case
-#print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLean
-#print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd
+#print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLeanFuelWrapperDefaultFuel
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean
 
@@ -4156,4 +4154,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3980 theorems/lemmas (2992 public, 988 private, 0 sorry'd)
+-- Total: 3978 theorems/lemmas (2990 public, 988 private, 0 sorry'd)

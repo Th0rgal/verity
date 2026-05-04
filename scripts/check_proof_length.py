@@ -305,10 +305,9 @@ ALLOWLIST: set[str] = {
     "exec_switchCaseBody_continue_of_long",
     "SwitchCaseBodyBridge_short",
     "SwitchCaseBodyBridge",
-    "layer3_contract_preserves_semantics",
     # Thin EVMYulLean EndToEnd wrapper; signature carries explicit body-closure
     # witnesses and the proof mostly forwards existing Layer-3 hypotheses.
-    "layer3_contract_preserves_semantics_evmYulLean",
+    "layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel",
     # Native generated-fragment wrappers mirror the public native boundary
     # surface; the long spans are explicit shape/lowering/agreement hypotheses,
     # while the bodies delegate to smaller generated-fragment lemmas.
@@ -316,10 +315,9 @@ ALLOWLIST: set[str] = {
     "layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_bridge",
     "layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_bridge",
     # --- End-to-end proofs ---
-    "simpleStorage_endToEnd",
     # Thin public wrapper; the scanner counts the trailing Phase 4 summary
     # comment in its theorem span.
-    "simpleStorage_endToEnd_evmYulLean",
+    "simpleStorage_endToEnd_evmYulLeanFuelWrapperDefaultFuel",
     # Native SimpleStorage wrapper keeps the dispatcher-agreement seam explicit
     # while delegating to the lowered native theorem; the long span is the public
     # hypothesis surface, not a large proof script.
@@ -363,6 +361,7 @@ ALLOWLIST: set[str] = {
     # applying the Yul backend equivalence. The proof is linear hypothesis
     # plumbing around one public transition theorem.
     "interpretYulFromIR_evmYulLean_eq_on_bridged_bodies",
+    "layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel",
     # --- Contract proofs (Contracts/) ---
     "constructor_increment_getCount",
     "add_one_preserves_order_iff_no_overflow",

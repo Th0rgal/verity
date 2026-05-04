@@ -248,7 +248,7 @@
     "genParamLoads_scalar_bridged": "proven (scalar calldata parameters)",
     "genParamLoads_static_scalar_bridged": "proven (static scalar calldata parameters)",
     "genStaticTypeLoads_calldataload_bridged": "proven (static scalar calldata leaves)",
-    "layers2_3_ir_matches_yul_evmYulLean": "proven (body hypotheses discharged)",
+    "layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel": "proven (body hypotheses discharged)",
     "remaining_for_whole_program_retargeting": [],
     "retarget_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
     "status": "full_semantic_integration",

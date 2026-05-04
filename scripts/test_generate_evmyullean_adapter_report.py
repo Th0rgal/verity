@@ -1106,7 +1106,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertIn("proven", phase4["compileStmtList_always_bridged"])
         self.assertEqual(phase4["status"], "full_semantic_integration")
         self.assertEqual(
-            phase4["layers2_3_ir_matches_yul_evmYulLean"],
+            phase4["layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel"],
             "proven (body hypotheses discharged)",
         )
 
@@ -1159,7 +1159,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             end_to_end = tmp_path / "EndToEnd.lean"
             end_to_end.write_text(
                 textwrap.dedent("""\
-                    theorem layers2_3_ir_matches_yul_evmYulLean : True := by
+                    theorem layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -1203,7 +1203,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             end_to_end = tmp_path / "EndToEnd.lean"
             end_to_end.write_text(
                 textwrap.dedent("""\
-                    theorem layers2_3_ir_matches_yul_evmYulLean : True := by
+                    theorem layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -1242,7 +1242,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             end_to_end = tmp_path / "EndToEnd.lean"
             end_to_end.write_text(
                 textwrap.dedent("""\
-                    theorem layers2_3_ir_matches_yul_evmYulLean
+                    theorem layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel
                         (hFunctions : BridgedStmts body)
                         (hInternals : BridgedStmts internals) : True := by
                       trivial
@@ -1271,7 +1271,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         phase4 = report["phase4_retarget"]
         self.assertEqual(phase4["status"], "universal-safe-body-closure")
         self.assertEqual(
-            phase4["layers2_3_ir_matches_yul_evmYulLean"],
+            phase4["layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel"],
             "proven (conditional on bridged IR bodies)",
         )
 
@@ -1286,7 +1286,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             end_to_end = tmp_path / "EndToEnd.lean"
             end_to_end.write_text(
                 textwrap.dedent("""\
-                    theorem layers2_3_ir_matches_yul_evmYulLean : True := by
+                    theorem layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel : True := by
                       trivial
                 """),
                 encoding="utf-8",
