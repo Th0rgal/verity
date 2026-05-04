@@ -23,6 +23,7 @@
 
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.CompilationModel.Compile
 import Compiler.CompilationModel.ParamLoading
 
@@ -439,6 +440,51 @@ theorem genParamLoads_scalar_bridged
     subst hs
     exact BridgedStmt.straight _ bridgedStraightStmt_revert_zero
   · exact genParamLoadBodyFrom_calldataload_bridged _ 4 params 4 hScalar stmt hMem
+
+private theorem genScalarLoad_noFuncDefs
+    (loadWord : YulExpr → YulExpr) (name : String)
+    (ty : ParamType) (offset : Nat) :
+    Native.yulStmtsContainFuncDef
+      (genScalarLoad loadWord name ty offset) = false := by
+  cases ty <;> simp [genScalarLoad, Native.yulStmtContainsFuncDef]
+
+private theorem genParamLoadBodyFrom_scalar_noFuncDefs
+    (loadWord : YulExpr → YulExpr) (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat) :
+    ∀ (params : List Param) (headOffset : Nat),
+      AllScalarParams params →
+      Native.yulStmtsContainFuncDef
+        (genParamLoadBodyFrom loadWord sizeExpr headSize baseOffset
+          params headOffset) = false := by
+  intro params
+  induction params with
+  | nil =>
+      intro headOffset _hScalar
+      simp [genParamLoadBodyFrom]
+  | cons param rest ih =>
+      intro headOffset hScalar
+      rcases param with ⟨paramName, paramTy⟩
+      have hHead : IsScalarParamType paramTy :=
+        hScalar ⟨paramName, paramTy⟩ (by simp)
+      have hRest : AllScalarParams rest := by
+        intro p hp
+        exact hScalar p (by simp [hp])
+      cases paramTy <;> simp [IsScalarParamType] at hHead
+      all_goals
+        simp [genParamLoadBodyFrom, genSingleParamLoad, genScalarLoad_noFuncDefs]
+        exact ih _ hRest
+
+/-- `genParamLoads` emits no Yul function declarations for scalar ABI
+parameter lists. This is the native-fragment shape companion to
+`genParamLoads_scalar_bridged`. -/
+theorem genParamLoads_scalar_noFuncDefs
+    (params : List Param) (hScalar : AllScalarParams params) :
+    Native.yulStmtsContainFuncDef (genParamLoads params) = false := by
+  unfold genParamLoads genParamLoadsFrom
+  simp [Native.yulStmtContainsFuncDef,
+    genParamLoadBodyFrom_scalar_noFuncDefs
+      (fun pos => YulExpr.call "calldataload" [pos])
+      (YulExpr.call "calldatasize" []) _ 4 params 4 hScalar]
 
 /-- `genParamLoads` produces only bridged statements when every parameter is a
 static ABI value whose leaves are scalar words. This is the real prologue-level
