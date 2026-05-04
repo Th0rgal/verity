@@ -761,6 +761,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_error_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_error_project_eq_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_error_project_eq_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_exec_ok_match
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_match
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_exec_error_match
+#print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_positive
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithEvmYulLean_of_positive
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_ok_agree
@@ -4178,4 +4183,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4002 theorems/lemmas (3014 public, 988 private, 0 sorry'd)
+-- Total: 4007 theorems/lemmas (3019 public, 988 private, 0 sorry'd)

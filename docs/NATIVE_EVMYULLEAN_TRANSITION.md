@@ -884,7 +884,12 @@ scope so the native path does not look more complete than it is:
    `nativeDispatcherExecMatchesIRPositive` and
    `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match` expose the
    same direct native-vs-IR target for positive-fuel generated dispatcher
-   proofs. Generated-code shape facts lift this target through
+   proofs. Concrete case proofs can now package normal, projected halt, and
+   projected error runs with
+   `nativeDispatcherExecMatchesIRPositive_of_exec_ok_match`,
+   `nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match`, and
+   `nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match`.
+   Generated-code shape facts lift this target through
    `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
    and compiled supported contracts can use
    `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`

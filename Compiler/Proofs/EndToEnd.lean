@@ -879,6 +879,158 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_error_project_e
   nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_error_project_eq_agree
     hExec hProject hAgree
 
+/-- Intro form for the direct positive-fuel native-vs-IR dispatcher-exec target
+when native execution finishes normally. -/
+theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_match
+    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    {finalState : EvmYul.Yul.State}
+    (hExec :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial =
+        .ok finalState)
+    (hMatch :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
+      nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+        (.ok
+          (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+            (YulTransaction.ofIR tx) state.storage state.events
+            (.ok
+              (finalState.reviveJump.overwrite? initial |>.setStore initial,
+                []))))) :
+    nativeDispatcherExecMatchesIRPositive fuel' contract tx state
+      observableSlots nativeContract := by
+  unfold nativeDispatcherExecMatchesIRPositive
+  simp [hExec]
+  exact hMatch
+
+/-- Intro form for the direct positive-fuel native-vs-IR dispatcher-exec target
+when native execution halts through EVMYulLean's Yul halt channel. -/
+theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_match
+    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    {haltState : EvmYul.Yul.State} {haltValue : EvmYul.Yul.Ast.Literal}
+    (hExec :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial =
+        .error (.YulHalt haltState haltValue))
+    (hMatch :
+      nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+        (.ok
+          (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+            (YulTransaction.ofIR tx) state.storage state.events
+            (.error (.YulHalt haltState haltValue))))) :
+    nativeDispatcherExecMatchesIRPositive fuel' contract tx state
+      observableSlots nativeContract := by
+  unfold nativeDispatcherExecMatchesIRPositive
+  simp [hExec]
+  exact hMatch
+
+/-- Intro form for a direct positive-fuel Yul halt when a concrete native
+execution lemma already packages the projected `YulResult`. -/
+theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match
+    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    {haltState : EvmYul.Yul.State} {haltValue : EvmYul.Yul.Ast.Literal}
+    {nativeYul : YulResult}
+    (hExec :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial =
+        .error (.YulHalt haltState haltValue))
+    (hProject :
+      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+        (YulTransaction.ofIR tx) state.storage state.events
+        (.error (.YulHalt haltState haltValue)) =
+        nativeYul)
+    (hMatch :
+      nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+        (.ok nativeYul)) :
+    nativeDispatcherExecMatchesIRPositive fuel' contract tx state
+      observableSlots nativeContract := by
+  apply nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_match
+  · exact hExec
+  · rw [hProject]
+    exact hMatch
+
+/-- Intro form for the direct positive-fuel native-vs-IR dispatcher-exec target
+when native execution fails through a non-halt EVMYulLean exception. -/
+theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_match
+    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    {err : EvmYul.Yul.Exception}
+    (hExec :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial =
+        .error err)
+    (hMatch :
+      nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+        (.ok
+          (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+            (YulTransaction.ofIR tx) state.storage state.events (.error err)))) :
+    nativeDispatcherExecMatchesIRPositive fuel' contract tx state
+      observableSlots nativeContract := by
+  unfold nativeDispatcherExecMatchesIRPositive
+  simp [hExec]
+  exact hMatch
+
+/-- Intro form for a direct positive-fuel error when a concrete native
+execution lemma already packages the projected `YulResult`. -/
+theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match
+    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    {err : EvmYul.Yul.Exception} {nativeYul : YulResult}
+    (hExec :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial =
+        .error err)
+    (hProject :
+      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+        (YulTransaction.ofIR tx) state.storage state.events (.error err) =
+        nativeYul)
+    (hMatch :
+      nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+        (.ok nativeYul)) :
+    nativeDispatcherExecMatchesIRPositive fuel' contract tx state
+      observableSlots nativeContract := by
+  apply nativeDispatcherExecMatchesIRPositive_of_exec_error_match
+  · exact hExec
+  · rw [hProject]
+    exact hMatch
+
 /-- Lift the positive-fuel dispatcher-exec obligation back to the generic raw
 dispatcher bridge shape consumed by the existing native theorem stack. -/
 theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_positive
