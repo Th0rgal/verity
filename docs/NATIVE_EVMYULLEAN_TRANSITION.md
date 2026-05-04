@@ -61,7 +61,10 @@ materializes pre-state storage for those slots.
 - The same module also exposes
   `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper`,
   `nativeCallDispatcherAgreesWithEvmYulLean`,
+  `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper`,
   `nativeDispatcherBlockAgreesWithEvmYulLean`,
+  `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper_of_exec_agree`,
+  `nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree`,
   `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`,
   `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`,
   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree`,
@@ -220,9 +223,11 @@ scope so the native path does not look more complete than it is:
    `callDispatcherBlockResult`, then rewrites initial-state execution to
    `contractDispatcherBlockResult`, then peels the block wrapper to
    `contractDispatcherExecResult`. EndToEnd exposes
-   `nativeDispatcherBlockAgreesWithEvmYulLean` plus
+   `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper`,
+   compatibility `nativeDispatcherBlockAgreesWithEvmYulLean`, plus
    `nativeDispatcherExecAgreesWithEvmYulLean`,
-   `nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree`, and
+   `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper_of_exec_agree`,
+   compatibility `nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree`, and
    `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`.
    The compatibility theorem
    `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree` delegates
@@ -785,9 +790,10 @@ scope so the native path does not look more complete than it is:
    `layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge`
    wrappers remain available when callers have already proved the block-level
    or `callDispatcher`-level obligation instead.
-   `nativeDispatcherBlockAgreesWithEvmYulLean` compares projected
+   `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper` compares projected
    `contractDispatcherBlockResult` execution with the EVMYulLean fuel wrapper;
-   it can in turn be discharged from
+   compatibility `nativeDispatcherBlockAgreesWithEvmYulLean` delegates to that
+   explicit predicate. It can in turn be discharged from
    `nativeDispatcherExecAgreesWithEvmYulLean`, which targets raw
    `contractDispatcherExecResult`.
    The concrete `simpleStorage_endToEnd_native_evmYulLean` theorem now uses the
