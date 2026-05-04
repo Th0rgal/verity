@@ -833,7 +833,7 @@ scope so the native path does not look more complete than it is:
    and
    `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_body_closure`.
    These variants derive the external no-`funcDef` generated-fragment witness
-   from source-level scalar parameter witnesses plus compiled statement-list
+   from source-level static-scalar parameter witnesses plus compiled statement-list
    no-`funcDef` closure, leaving the native dispatcher agreement itself as the
    remaining proof obligation.
    The concrete `simpleStorage_endToEnd_native_evmYulLean` theorem now uses the

@@ -782,10 +782,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.yulStateOfIR_eq_initial
 #print axioms Compiler.Proofs.EndToEnd.execYulStmts_paramState_eq_emptyVars
 -- #print axioms Compiler.Proofs.EndToEnd.internalFunctions_bridged_of_contractWF  -- private
-#print axioms Compiler.Proofs.EndToEnd.compileFunctionSpec_noFuncDefs_of_scalar_params_and_body
+#print axioms Compiler.Proofs.EndToEnd.compileFunctionSpec_noFuncDefs_of_static_params_and_body
 #print axioms Compiler.Proofs.EndToEnd.compileFunctionSpec_bridged_of_safe_static_params
 #print axioms Compiler.Proofs.EndToEnd.compiledExternalFunctions_bridged_of_safe_static
-#print axioms Compiler.Proofs.EndToEnd.compiledExternalFunctions_noFuncDefs_of_scalar_params_and_body
+#print axioms Compiler.Proofs.EndToEnd.compiledExternalFunctions_noFuncDefs_of_static_params_and_body
 #print axioms Compiler.Proofs.EndToEnd.yulBody_from_state_eq_yulBody
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_via_reference_oracle
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_via_reference_oracle_with_function_bridge
@@ -2518,6 +2518,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_scalar_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_scalar_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_binding_leaf_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_binding_leaf_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_binding_leaf_bridged

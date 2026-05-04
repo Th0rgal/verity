@@ -448,6 +448,71 @@ private theorem genScalarLoad_noFuncDefs
       (genScalarLoad loadWord name ty offset) = false := by
   cases ty <;> simp [genScalarLoad, Native.yulStmtContainsFuncDef]
 
+private theorem genStaticTypeLoads_go_noFuncDefs
+    (loadWord : YulExpr → YulExpr) (name : String)
+    (tys : List ParamType) (idx curOffset : Nat)
+    (hNoFunc :
+      ∀ ty ∈ tys, ∀ (name : String) (offset : Nat),
+        Native.yulStmtsContainFuncDef
+          (genStaticTypeLoads loadWord name ty offset) = false) :
+    Native.yulStmtsContainFuncDef
+      (genStaticTypeLoads.go loadWord name tys idx curOffset) = false := by
+  induction tys generalizing idx curOffset with
+  | nil =>
+      rw [genStaticTypeLoads.go.eq_def]
+      simp
+  | cons elemTy rest ih =>
+      rw [genStaticTypeLoads.go.eq_def]
+      have hHere := hNoFunc elemTy (by simp) s!"{name}_{idx}" curOffset
+      have hTail :
+          ∀ ty ∈ rest, ∀ (name : String) (offset : Nat),
+            Native.yulStmtsContainFuncDef
+              (genStaticTypeLoads loadWord name ty offset) = false := by
+        intro ty hMem
+        exact hNoFunc ty (by simp [hMem])
+      simp [hHere, ih (idx + 1) (curOffset + paramHeadSize elemTy) hTail]
+
+private theorem genStaticTypeLoads_noFuncDefs
+    (loadWord : YulExpr → YulExpr) (name : String)
+    (ty : ParamType) (offset : Nat)
+    (hStatic : IsStaticScalarParamType ty) :
+    Native.yulStmtsContainFuncDef
+      (genStaticTypeLoads loadWord name ty offset) = false := by
+  induction hStatic generalizing name offset with
+  | @scalar ty hScalar =>
+      cases ty <;> simp [IsScalarParamType, genStaticTypeLoads.eq_def] at hScalar ⊢
+      all_goals
+        exact genScalarLoad_noFuncDefs loadWord name _ offset
+  | @fixedArray elemTy n hElem ih =>
+      rw [genStaticTypeLoads.eq_7]
+      exact Native.yulStmtsContainFuncDef_flatMap_false
+        (List.range n)
+        (fun i =>
+          genStaticTypeLoads loadWord s!"{name}_{i}" elemTy
+            (offset + i * paramHeadSize elemTy))
+        (by
+          intro i _hi
+          exact ih s!"{name}_{i}" (offset + i * paramHeadSize elemTy))
+  | @tuple elemTys hElems hElems_ih =>
+      rw [genStaticTypeLoads.eq_8]
+      exact genStaticTypeLoads_go_noFuncDefs loadWord name elemTys 0 offset
+        hElems_ih
+
+private theorem fixedArrayFirstAlias_noFuncDefs
+    (name : String) (elemTy : ParamType) (n : Nat) :
+    Native.yulStmtsContainFuncDef
+      (if n == 0 then []
+       else
+        if isScalarParamType elemTy then
+          [YulStmt.let_ name (YulExpr.ident s!"{name}_0")]
+        else
+          []) = false := by
+  by_cases hN : n == 0
+  · simp [hN]
+  · by_cases hScalar : isScalarParamType elemTy
+    · simp [hN, hScalar, Native.yulStmtContainsFuncDef]
+    · simp [hN, hScalar]
+
 private theorem genParamLoadBodyFrom_scalar_noFuncDefs
     (loadWord : YulExpr → YulExpr) (sizeExpr : YulExpr)
     (headSize baseOffset : Nat) :
@@ -485,6 +550,91 @@ theorem genParamLoads_scalar_noFuncDefs
     genParamLoadBodyFrom_scalar_noFuncDefs
       (fun pos => YulExpr.call "calldataload" [pos])
       (YulExpr.call "calldatasize" []) _ 4 params 4 hScalar]
+
+private theorem genSingleParamLoad_static_scalar_noFuncDefs
+    (loadWord : YulExpr → YulExpr) (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat) (name : String) (ty : ParamType)
+    (headOffset : Nat) (hStatic : IsStaticScalarParamType ty) :
+    Native.yulStmtsContainFuncDef
+      (genSingleParamLoad loadWord sizeExpr headSize baseOffset name ty
+        headOffset) = false := by
+  cases hStatic with
+  | scalar hScalar =>
+      cases ty <;> simp [IsScalarParamType] at hScalar
+      all_goals
+        simp [genSingleParamLoad, genScalarLoad_noFuncDefs]
+  | @fixedArray elemTy n hElem =>
+      have hStaticLoads :
+          Native.yulStmtsContainFuncDef
+            (genStaticTypeLoads loadWord name (.fixedArray elemTy n)
+              headOffset) = false :=
+        genStaticTypeLoads_noFuncDefs loadWord name (.fixedArray elemTy n)
+          headOffset (IsStaticScalarParamType.fixedArray hElem)
+      have hAlias := fixedArrayFirstAlias_noFuncDefs name elemTy n
+      by_cases hN : n == 0
+      · simp [genSingleParamLoad,
+          isDynamicParamType_false_of_static_scalar _
+            (IsStaticScalarParamType.fixedArray hElem),
+          hN, hStaticLoads]
+      · simp [genSingleParamLoad,
+          isDynamicParamType_false_of_static_scalar _
+            (IsStaticScalarParamType.fixedArray hElem),
+          hN, hStaticLoads]
+        simpa [hN] using hAlias
+  | @tuple elemTys hElems =>
+      have hStaticLoads :
+          Native.yulStmtsContainFuncDef
+            (genStaticTypeLoads loadWord name (.tuple elemTys) headOffset) =
+              false :=
+        genStaticTypeLoads_noFuncDefs loadWord name (.tuple elemTys)
+          headOffset (IsStaticScalarParamType.tuple hElems)
+      simp [genSingleParamLoad,
+        isDynamicParamType_false_of_static_scalar _
+          (IsStaticScalarParamType.tuple hElems),
+        hStaticLoads]
+
+private theorem genParamLoadBodyFrom_static_scalar_noFuncDefs
+    (loadWord : YulExpr → YulExpr) (sizeExpr : YulExpr)
+    (headSize baseOffset : Nat) :
+    ∀ (params : List Param) (headOffset : Nat),
+      AllStaticScalarParams params →
+      Native.yulStmtsContainFuncDef
+        (genParamLoadBodyFrom loadWord sizeExpr headSize baseOffset
+          params headOffset) = false := by
+  intro params
+  induction params with
+  | nil =>
+      intro headOffset _hStatic
+      simp [genParamLoadBodyFrom]
+  | cons param rest ih =>
+      intro headOffset hStatic
+      rcases param with ⟨paramName, paramTy⟩
+      have hHead : IsStaticScalarParamType paramTy :=
+        hStatic ⟨paramName, paramTy⟩ (by simp)
+      have hRest : AllStaticScalarParams rest := by
+        intro p hp
+        exact hStatic p (by simp [hp])
+      have hTail :
+          Native.yulStmtsContainFuncDef
+            (genParamLoadBodyFrom loadWord sizeExpr headSize baseOffset
+              rest (headOffset + paramHeadSize paramTy)) = false :=
+        ih _ hRest
+      simp [genParamLoadBodyFrom,
+        genSingleParamLoad_static_scalar_noFuncDefs loadWord sizeExpr headSize
+          baseOffset paramName paramTy headOffset hHead,
+        hTail]
+
+/-- `genParamLoads` emits no Yul function declarations for static ABI
+parameter lists whose leaves are scalar words. This is the native-fragment
+shape companion to `genParamLoads_static_scalar_bridged`. -/
+theorem genParamLoads_static_scalar_noFuncDefs
+    (params : List Param) (hStatic : AllStaticScalarParams params) :
+    Native.yulStmtsContainFuncDef (genParamLoads params) = false := by
+  unfold genParamLoads genParamLoadsFrom
+  simp [Native.yulStmtContainsFuncDef,
+    genParamLoadBodyFrom_static_scalar_noFuncDefs
+      (fun pos => YulExpr.call "calldataload" [pos])
+      (YulExpr.call "calldatasize" []) _ 4 params 4 hStatic]
 
 /-- `genParamLoads` produces only bridged statements when every parameter is a
 static ABI value whose leaves are scalar words. This is the real prologue-level
