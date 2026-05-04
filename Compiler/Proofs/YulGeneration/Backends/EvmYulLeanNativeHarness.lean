@@ -458,6 +458,114 @@ theorem generatedRuntimeDispatcherHasNoFuncDefs_emitYul_runtimeCode_noFallback_n
     generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive
       contract hInternals hBodies hNoFallback hNoReceive
 
+theorem mappingSlotFuncAt_body_noFuncDefs (scratchBase : Nat) :
+    yulStmtsContainFuncDef
+      (match Compiler.mappingSlotFuncAt scratchBase with
+      | YulStmt.funcDef _ _ _ body => body
+      | _ => []) = false := by
+  simp [Compiler.mappingSlotFuncAt, Compiler.CodegenCommon.mappingSlotFuncAt,
+    yulStmtContainsFuncDef, yulStmtsContainFuncDef]
+
+theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
+    (left right : List YulStmt)
+    (hLeft : generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs left = true)
+    (hRight : generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs right = true) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs (left ++ right) = true := by
+  induction left with
+  | nil => simpa using hRight
+  | cons stmt rest ih =>
+      cases stmt <;> simp at hLeft ⊢ <;> try exact ih hLeft
+      case funcDef name params rets body =>
+        exact ⟨hLeft.1, ih hLeft.2⟩
+
+theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_internalFunctions
+    (internals : List YulStmt)
+    (hBodies : ∀ name params rets body,
+      YulStmt.funcDef name params rets body ∈ internals →
+        yulStmtsContainFuncDef body = false) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs internals = true := by
+  induction internals with
+  | nil => rfl
+  | cons stmt rest ih =>
+      have hRest : ∀ name params rets body,
+          YulStmt.funcDef name params rets body ∈ rest →
+            yulStmtsContainFuncDef body = false := by
+        intro name params rets body hmem
+        exact hBodies name params rets body (by simp [hmem])
+      cases stmt <;> simp [ih hRest]
+      case funcDef name params rets body =>
+        exact hBodies name params rets body (by simp)
+
+theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_buildSwitch
+    (funcs : List IRFunction)
+    (fallback : Option IREntrypoint)
+    (receive : Option IREntrypoint) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+      [Compiler.CodegenCommon.buildSwitch funcs fallback receive] = true := by
+  have hNoFunc : ∀ name params rets body,
+      Compiler.CodegenCommon.buildSwitch funcs fallback receive ≠
+        YulStmt.funcDef name params rets body := by
+    intro name params rets body h
+    cases fallback <;> cases receive <;>
+      simp [Compiler.CodegenCommon.buildSwitch] at h
+  rw [generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_nonFunc_cons
+    (Compiler.CodegenCommon.buildSwitch funcs fallback receive) [] hNoFunc]
+  rfl
+
+theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_runtimeCode
+    (contract : IRContract)
+    (hInternalBodies : ∀ name params rets body,
+      YulStmt.funcDef name params rets body ∈ contract.internalFunctions →
+        yulStmtsContainFuncDef body = false) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+      (Compiler.runtimeCode contract) = true := by
+  let mapping := if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []
+  have hMapping :
+      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs mapping = true := by
+    by_cases hUsesMapping : contract.usesMapping
+    · simp [mapping, hUsesMapping, generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs,
+        Compiler.mappingSlotFuncAt, Compiler.CodegenCommon.mappingSlotFuncAt,
+        yulFunctionBodies, yulStmtContainsFuncDef, yulStmtsContainFuncDef]
+    · simp [mapping, hUsesMapping, generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs]
+  have hInternals :
+      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+        contract.internalFunctions = true :=
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_internalFunctions
+      contract.internalFunctions hInternalBodies
+  have hSwitch :
+      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+        [Compiler.CodegenCommon.buildSwitch contract.functions
+          contract.fallbackEntrypoint contract.receiveEntrypoint] = true :=
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_buildSwitch
+      contract.functions contract.fallbackEntrypoint contract.receiveEntrypoint
+  rw [Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode]
+  change generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+      (mapping ++ contract.internalFunctions ++
+        [Compiler.CodegenCommon.buildSwitch contract.functions
+          contract.fallbackEntrypoint contract.receiveEntrypoint]) = true
+  rw [List.append_assoc]
+  exact generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
+    mapping (contract.internalFunctions ++
+      [Compiler.CodegenCommon.buildSwitch contract.functions
+        contract.fallbackEntrypoint contract.receiveEntrypoint])
+    hMapping
+    (generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
+      contract.internalFunctions
+      [Compiler.CodegenCommon.buildSwitch contract.functions
+        contract.fallbackEntrypoint contract.receiveEntrypoint]
+      hInternals hSwitch)
+
+theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_emitYul_runtimeCode
+    (contract : IRContract)
+    (hInternalBodies : ∀ name params rets body,
+      YulStmt.funcDef name params rets body ∈ contract.internalFunctions →
+        yulStmtsContainFuncDef body = false) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+      (Compiler.emitYul contract).runtimeCode = true := by
+  simpa [Compiler.emitYul, Compiler.CodegenCommon.emitYul] using
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_runtimeCode
+      contract hInternalBodies
+
 /-- Executable characterization for the generated runtime shape that the
     native EVMYulLean lowering path currently accepts: top-level `funcDef`
     statements are helpers, dispatcher statements contain no nested function
