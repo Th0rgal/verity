@@ -7395,6 +7395,54 @@ theorem execSwitchCases_ok_branch_preserves_word
                   · exact ih hTailCases fuel' state tailBranches hLookup hTail
                       tag branchState hMem
 
+theorem NativeStmtPreservesWord_switch_of_eval_preserves
+    (name : EvmYul.Identifier) (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (cases : List (EvmYul.Literal × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond :
+      ∀ fuel state,
+        state[name]! = value →
+          ∃ condState condValue,
+            EvmYul.Yul.eval fuel cond codeOverride state =
+              .ok (condState, condValue) ∧
+            condState[name]! = value)
+    (hCases : ∀ tag body, (tag, body) ∈ cases →
+      NativeBlockPreservesWord name value body codeOverride)
+    (hDefault :
+      NativeBlockPreservesWord name value defaultBody codeOverride) :
+    NativeStmtPreservesWord name value (.Switch cond cases defaultBody)
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hCond fuel' state hLookup with
+        ⟨condState, condValue, hEval, hCondLookup⟩
+      simp [EvmYul.Yul.exec, hEval] at hExec
+      cases hSwitch :
+          EvmYul.Yul.execSwitchCases fuel' codeOverride condState cases with
+      | error err =>
+          simp [hSwitch] at hExec
+      | ok branches =>
+          cases hDefaultExec :
+              EvmYul.Yul.exec fuel' (.Block defaultBody) codeOverride
+                condState with
+          | error err =>
+              simp [hSwitch, hDefaultExec] at hExec
+          | ok defaultState =>
+              simp [hSwitch, hDefaultExec] at hExec
+              exact nativeSwitchBranchFold_ok_preserves_word name value
+                condValue branches defaultState final
+                (execSwitchCases_ok_branch_preserves_word name value cases
+                  codeOverride hCases fuel' condState branches hCondLookup
+                  hSwitch)
+                (hDefault fuel' condState defaultState hCondLookup
+                  hDefaultExec)
+                hExec
+
 theorem NativeStmtPreservesWord_switch_of_cond_preserves
     (name : EvmYul.Identifier) (value : EvmYul.Literal)
     (cond : EvmYul.Yul.Ast.Expr)
@@ -7458,6 +7506,38 @@ theorem NativeStmtPreservesWord_switch_of_cond_preserves_and_nativeStmtsWriteNam
     NativeStmtPreservesWord name value (.Switch cond cases defaultBody)
       codeOverride :=
   NativeStmtPreservesWord_switch_of_cond_preserves name value cond cases
+    defaultBody codeOverride hCond
+    (by
+      intro tag body hMem
+      exact NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+        name value body codeOverride (hCasesFresh tag body hMem)
+        (by intro stmt _ hFresh; exact hPreserves stmt hFresh))
+    (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+      name value defaultBody codeOverride hDefaultFresh
+      (by intro stmt _ hFresh; exact hPreserves stmt hFresh))
+
+theorem NativeStmtPreservesWord_switch_of_eval_preserves_and_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier) (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (cases : List (EvmYul.Literal × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond :
+      ∀ fuel state,
+        state[name]! = value →
+          ∃ condState condValue,
+            EvmYul.Yul.eval fuel cond codeOverride state =
+              .ok (condState, condValue) ∧
+            condState[name]! = value)
+    (hCasesFresh : ∀ tag body, (tag, body) ∈ cases →
+      name ∉ Backends.nativeStmtsWriteNames body)
+    (hDefaultFresh : name ∉ Backends.nativeStmtsWriteNames defaultBody)
+    (hPreserves :
+      ∀ stmt, name ∉ Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeStmtPreservesWord name value (.Switch cond cases defaultBody)
+      codeOverride :=
+  NativeStmtPreservesWord_switch_of_eval_preserves name value cond cases
     defaultBody codeOverride hCond
     (by
       intro tag body hMem
