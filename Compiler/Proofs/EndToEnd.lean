@@ -2173,6 +2173,23 @@ theorem generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
       Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique,
       Compiler.Proofs.YulGeneration.Backends.Native.stringListHasDuplicate]
 
+/-- Supported compiler output has no emitted internal helper statements. This
+discharges the generated-runtime fragment's internal-function-shape witness. -/
+theorem generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors) :
+    ∀ stmt, stmt ∈ irContract.internalFunctions →
+      ∃ name params rets body, stmt = Yul.YulStmt.funcDef name params rets body := by
+  intro stmt hmem
+  have hInternalNil : irContract.internalFunctions = [] :=
+    Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+      (model := spec) (selectors := selectors) (hSupported := hSupported)
+      (ir := irContract) (hcompile := hCompile)
+  rw [hInternalNil] at hmem
+  simp at hmem
+
 /-- Supported compiler output has no internal helper bodies that can contain
 nested function definitions. -/
 theorem generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
@@ -2190,6 +2207,61 @@ theorem generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
       (ir := irContract) (hcompile := hCompile)
   rw [hInternalNil] at hmem
   simp at hmem
+
+/-- Supported compiler-produced positive-fuel bridge at raw lowered-dispatcher
+exec. Generated-runtime shape facts discharge the native fragment predicate. -/
+theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_agree
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hExternalBodies : ∀ fn, fn ∈ irContract.functions →
+      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
+    (hNoFallback : irContract.fallbackEntrypoint = none)
+    (hNoReceive : irContract.receiveEntrypoint = none)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hAgree :
+      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' irContract tx
+        state observableSlots nativeContract) :
+    nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper (Nat.succ fuel') irContract tx state
+      observableSlots :=
+  nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree
+    (generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
+      hCompile hSupported)
+    (generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported
+      hCompile hSupported)
+    hExternalBodies
+    (generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+      hCompile hSupported)
+    hNoFallback hNoReceive hLower hEnv hAgree
+
+theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispatcherExec_positive_agree
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hExternalBodies : ∀ fn, fn ∈ irContract.functions →
+      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
+    (hNoFallback : irContract.fallbackEntrypoint = none)
+    (hNoReceive : irContract.receiveEntrypoint = none)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hAgree :
+      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' irContract tx
+        state observableSlots nativeContract) :
+    nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') irContract tx state
+      observableSlots :=
+  nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_agree
+    hCompile hSupported hExternalBodies hNoFallback hNoReceive hLower hEnv hAgree
 
 /-- Supported compiler-produced native theorem whose generated-fragment check is
 discharged from generated-code shape facts. `SupportedSpec` already rules out
