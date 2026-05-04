@@ -14957,6 +14957,33 @@ def interpretRuntimeNative
   rw [callDispatcher_succ_eq_callDispatcherBlockResult]
   rw [callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult]
 
+@[simp] theorem interpretRuntimeNative_succ_eq_contractDispatcherExecResult_of_lowerRuntimeContractNative
+    (fuel' : Nat)
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (events : List (List Nat))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (hFragment : generatedRuntimeNativeFragment runtimeCode = true)
+    (hLower : lowerRuntimeContractNative runtimeCode = .ok contract)
+    (hEnv : validateNativeRuntimeEnvironment runtimeCode tx = .ok ()) :
+    interpretRuntimeNative (Nat.succ fuel') runtimeCode tx storage observableSlots events =
+      .ok (projectResult tx storage events
+        (let initial :=
+          initialState contract tx storage
+            (materializedStorageSlots runtimeCode observableSlots)
+        let dispatcherDef :=
+          EvmYul.Yul.Ast.FunctionDefinition.Def [] [] [contract.dispatcher]
+        match contractDispatcherExecResult fuel' contract initial with
+        | .error err => .error err
+        | .ok finalState =>
+            let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+            .ok (restored, List.map finalState.lookup! dispatcherDef.rets))) := by
+  rw [interpretRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
+    (contract := contract) (hFragment := hFragment) (hLower := hLower) (hEnv := hEnv)]
+  rw [contractDispatcherBlockResult_eq_execResult]
+
 @[simp] theorem interpretRuntimeNative_environmentError
     (fuel : Nat)
     (runtimeCode : List YulStmt)
@@ -15086,6 +15113,37 @@ def interpretIRRuntimeNative
             (materializedStorageSlots (Compiler.emitYul irContract).runtimeCode
               observableSlots)))) := by
   rw [interpretIRRuntimeNative, interpretRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
+    (contract := nativeContract) (hFragment := hFragment) (hLower := hLower)
+    (hEnv := hEnv)]
+
+@[simp] theorem interpretIRRuntimeNative_succ_eq_contractDispatcherExecResult_of_lowerRuntimeContractNative
+    (fuel' : Nat)
+    (irContract : Compiler.IRContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (state : Compiler.Proofs.IRGeneration.IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hFragment :
+      generatedRuntimeNativeFragment (Compiler.emitYul irContract).runtimeCode = true)
+    (hLower : lowerRuntimeContractNative (Compiler.emitYul irContract).runtimeCode =
+      .ok nativeContract)
+    (hEnv :
+      validateNativeRuntimeEnvironment (Compiler.emitYul irContract).runtimeCode
+        (YulTransaction.ofIR tx) = .ok ()) :
+    interpretIRRuntimeNative (Nat.succ fuel') irContract tx state observableSlots =
+      .ok (projectResult (YulTransaction.ofIR tx) state.storage state.events
+        (let initial :=
+          initialState nativeContract (YulTransaction.ofIR tx) state.storage
+            (materializedStorageSlots (Compiler.emitYul irContract).runtimeCode
+              observableSlots)
+        let dispatcherDef :=
+          EvmYul.Yul.Ast.FunctionDefinition.Def [] [] [nativeContract.dispatcher]
+        match contractDispatcherExecResult fuel' nativeContract initial with
+        | .error err => .error err
+        | .ok finalState =>
+            let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+            .ok (restored, List.map finalState.lookup! dispatcherDef.rets))) := by
+  rw [interpretIRRuntimeNative, interpretRuntimeNative_succ_eq_contractDispatcherExecResult_of_lowerRuntimeContractNative
     (contract := nativeContract) (hFragment := hFragment) (hLower := hLower)
     (hEnv := hEnv)]
 
