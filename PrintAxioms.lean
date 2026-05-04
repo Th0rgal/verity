@@ -2877,8 +2877,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWordMultiSlot_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWordMultiSlot_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2Word_multiSlot_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2Word_multiSlot_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mapping2WordMultiSlot_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mapping2WordMultiSlot_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mapping2WordMultiSlot_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mapping2WordMultiSlot_noFuncDefs
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmts_multiSlot_sstore_mapping_add  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_multiSlot_nonzero_bridged  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingWord_multiSlot_nonzero_bridged
@@ -4107,4 +4110,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3931 theorems/lemmas (2951 public, 980 private, 0 sorry'd)
+-- Total: 3934 theorems/lemmas (2954 public, 980 private, 0 sorry'd)
