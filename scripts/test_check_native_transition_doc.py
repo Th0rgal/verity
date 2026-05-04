@@ -340,6 +340,42 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_native_alias_signature_guard_accepts_current_shape(self) -> None:
+        errors = check.check_native_alias_signatures(
+            check.END_TO_END.read_text(encoding="utf-8"),
+        )
+        self.assertEqual(errors, [])
+
+    def test_native_alias_signature_guard_rejects_raw_fuel_wrapper_hypothesis(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + """
+theorem nativeAliasSurfaceForTestEvmYulLean
+    (h :
+      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper fuel contract tx state
+        observableSlots nativeContract) :
+    True := by
+  trivial
+"""
+        )
+        errors = check.check_native_alias_signatures(end_to_end_text)
+        self.assertTrue(
+            any("nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper" in error for error in errors),
+            errors,
+        )
+
+    def test_native_alias_signature_guard_allows_explicit_fuel_wrapper_theorem(self) -> None:
+        end_to_end_text = """
+theorem nativeAliasSurfaceForTestEvmYulLeanFuelWrapper
+    (h :
+      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper fuel contract tx state
+        observableSlots nativeContract) :
+    True := by
+  trivial
+"""
+        errors = check.check_native_alias_signatures(end_to_end_text)
+        self.assertEqual(errors, [])
+
     def test_unbridged_environment_boundary_accepts_current_shape(self) -> None:
         errors = check.check_unbridged_environment_boundary(
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),

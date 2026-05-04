@@ -636,8 +636,8 @@ def check_native_alias_signatures(end_to_end_text: str) -> list[str]:
 
     errors: list[str] = []
     theorem_pattern = re.compile(
-        r"\btheorem\s+([A-Za-z0-9_']+)\b(.*?)(?=\s:=)",
-        re.DOTALL,
+        r"^\s*theorem\s+([A-Za-z0-9_']+)\b(.*?)(?=\s:=)",
+        re.DOTALL | re.MULTILINE,
     )
     raw_native_fuel_wrapper = re.compile(
         r"\bnative[A-Za-z0-9_']*FuelWrapper[A-Za-z0-9_']*\b"
