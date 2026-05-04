@@ -14228,6 +14228,49 @@ theorem exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
       simpa [nativeSwitchMarkedPrefixStateForId, nativeSwitchPrefixStateForId]
         using hBody pre suffix hCases)
 
+/-- Store-parametric selector-hit projection for lowered native switches.
+
+This is the projection form used when a generated dispatcher has already
+installed additional local bindings before entering the selector switch. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (err : EvmYul.Yul.Exception)
+    (nativeYul : YulResult)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract)
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store) = .error err)
+    (hProject : projectResult tx storage initialEvents (.error err) = nativeYul) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+        (some contract)
+        (.Ok (initialState contract tx storage observableSlots).sharedState store) =
+      .error err ∧
+    projectResult tx storage initialEvents (.error err) = nativeYul := by
+  refine ⟨?_, hProject⟩
+  exact exec_lowerNativeSwitchBlock_selector_find_hit_error_store_fuel
+    fuel selector switchId tag cases defaultBody body contract tx storage
+    observableSlots store err hSelector hFind hSelectorRange hTagsRange
+    (by
+      intro pre suffix hCases
+      simpa [nativeSwitchStoreMarkedPrefixStateForId]
+        using hBody pre suffix hCases)
+
 /-- Guarded selector-miss execution for a fully lowered native switch block,
     lifted through Verity's projected native result boundary. The generated
     `revert(0, 0)` default both executes through the actual native step

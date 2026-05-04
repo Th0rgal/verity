@@ -776,7 +776,10 @@ scope so the native path does not look more complete than it is:
    generic boundary
    `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq`,
    consumed by the SimpleStorage store-hit and retrieve-hit wrappers before
-   their contract-specific IR comparisons.
+   their contract-specific IR comparisons. The store-parametric
+   `exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq`
+   variant carries the same projection package through selector switches
+   entered after earlier dispatcher-local bindings.
 
    This closes the SimpleStorage public theorem against the native
    lowered-dispatcher source of truth. The remaining generic work is to remove

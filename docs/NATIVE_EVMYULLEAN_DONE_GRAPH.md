@@ -105,7 +105,10 @@ N8 public Layer 3 theorem flip
   generic
   `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq` lemma
   packages selector-hit native halt/error execution with the selected body's
-  projected result at the full lowered-switch boundary.
+  projected result at the full lowered-switch boundary; its store-parametric
+  companion
+  `exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq`
+  covers selector switches entered after earlier dispatcher-local bindings.
 - **Definition of done**:
   - Projection lemmas cover every native halt/error/result used by generated
     runtime execution.
