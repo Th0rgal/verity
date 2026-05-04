@@ -526,6 +526,39 @@ theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match
   unfold nativeDispatcherExecMatchesIRPositive at hMatch
   simpa using hMatch
 
+/-- Generated-shape lift for the direct positive dispatcher-exec native-vs-IR
+target. -/
+theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match
+    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hPrefixUnique : Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique
+      ((if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+        contract.internalFunctions) = true)
+    (hInternals : ∀ stmt, stmt ∈ contract.internalFunctions →
+      ∃ name params rets body, stmt = Yul.YulStmt.funcDef name params rets body)
+    (hExternalBodies : ∀ fn, fn ∈ contract.functions →
+      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
+    (hInternalBodies : ∀ name params rets body,
+      Yul.YulStmt.funcDef name params rets body ∈ contract.internalFunctions →
+        Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef body = false)
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hMatch :
+      nativeDispatcherExecMatchesIRPositive fuel' contract tx state
+        observableSlots nativeContract) :
+    nativeIRRuntimeMatchesIR (Nat.succ fuel') contract tx state observableSlots :=
+  nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match
+    (Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment_emitYul_runtimeCode_noFallback_noReceive
+      contract hPrefixUnique hInternals hExternalBodies hInternalBodies
+      hNoFallback hNoReceive)
+    hLower hEnv hMatch
+
 /-- Intro form for the positive-fuel raw dispatcher-exec bridge when native
 execution finishes normally.
 
