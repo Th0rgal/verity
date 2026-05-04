@@ -14271,6 +14271,44 @@ theorem exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_
       simpa [nativeSwitchStoreMarkedPrefixStateForId]
         using hBody pre suffix hCases)
 
+/-- Store-parametric selector-miss projection for lowered native switches.
+
+This is the miss-case companion to
+`exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq`,
+used when earlier dispatcher-local bindings are present before the selector
+switch falls through to `revert(0, 0)`. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+            [nativeRevertZeroZeroStmt])
+        (some contract)
+        (.Ok (initialState contract tx storage observableSlots).sharedState store) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert) =
+      { success := false
+        returnValue := none
+        finalStorage := storage
+        finalMappings := Compiler.Proofs.storageAsMappings storage
+        events := initialEvents } := by
+  refine ⟨?_, by simp⟩
+  exact exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_fuel
+    fuel selector switchId cases contract tx storage observableSlots store
+    hSelector hFind hSelectorRange hTagsRange
+
 /-- Guarded selector-miss execution for a fully lowered native switch block,
     lifted through Verity's projected native result boundary. The generated
     `revert(0, 0)` default both executes through the actual native step

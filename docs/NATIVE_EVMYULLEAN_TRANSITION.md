@@ -779,7 +779,11 @@ scope so the native path does not look more complete than it is:
    their contract-specific IR comparisons. The store-parametric
    `exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq`
    variant carries the same projection package through selector switches
-   entered after earlier dispatcher-local bindings.
+   entered after earlier dispatcher-local bindings. The store-parametric
+   selector-miss companion
+   `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq`
+   carries the exact revert rollback package through the same pre-bound local
+   store shape.
 
    This closes the SimpleStorage public theorem against the native
    lowered-dispatcher source of truth. The remaining generic work is to remove
@@ -837,6 +841,9 @@ scope so the native path does not look more complete than it is:
    `simpleStorage_endToEnd_native_evmYulLean` theorem now consumes this direct
    splitter. The selector-miss revert arm is discharged by
    `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`
+   (with
+   `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq`
+   available for pre-bound dispatcher-local stores)
    before the SimpleStorage-specific selector table specialization reaches
    `simpleStorageNativeSelectorMissMatchBridge_proved`, and the retrieve-hit
    and store-hit selector wrappers consume

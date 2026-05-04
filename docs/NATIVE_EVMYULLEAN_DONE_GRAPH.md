@@ -109,6 +109,10 @@ N8 public Layer 3 theorem flip
   companion
   `exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq`
   covers selector switches entered after earlier dispatcher-local bindings.
+  The selector-miss companion
+  `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq`
+  gives the same exact rollback package for store-parametric miss/default
+  paths.
 - **Definition of done**:
   - Projection lemmas cover every native halt/error/result used by generated
     runtime execution.
