@@ -2219,8 +2219,6 @@ theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_low
     (hSupported : SupportedSpec spec selectors)
     (hExternalBodies : ∀ fn, fn ∈ irContract.functions →
       Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
-    (hNoFallback : irContract.fallbackEntrypoint = none)
-    (hNoReceive : irContract.receiveEntrypoint = none)
     (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
@@ -2238,7 +2236,11 @@ theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_low
     hExternalBodies
     (generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
       hCompile hSupported)
-    hNoFallback hNoReceive hLower hEnv hAgree
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+      spec selectors hSupported irContract hCompile)
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+      spec selectors hSupported irContract hCompile)
+    hLower hEnv hAgree
 
 theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispatcherExec_positive_agree
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
@@ -2249,8 +2251,6 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispat
     (hSupported : SupportedSpec spec selectors)
     (hExternalBodies : ∀ fn, fn ∈ irContract.functions →
       Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
-    (hNoFallback : irContract.fallbackEntrypoint = none)
-    (hNoReceive : irContract.receiveEntrypoint = none)
     (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
@@ -2261,7 +2261,7 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispat
     nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') irContract tx state
       observableSlots :=
   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_agree
-    hCompile hSupported hExternalBodies hNoFallback hNoReceive hLower hEnv hAgree
+    hCompile hSupported hExternalBodies hLower hEnv hAgree
 
 /-- Supported compiler-produced native theorem whose generated-fragment check is
 discharged from generated-code shape facts. `SupportedSpec` already rules out
