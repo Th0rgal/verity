@@ -52,14 +52,6 @@ materializes pre-state storage for those slots.
   wrapper, and the generated native fragment still needs the direct match proof
   to become the public source-of-truth theorem.
 - The same module also exposes
-  `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper`,
-  `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper`,
-  `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper_of_exec_agree`,
-  `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper`,
-  `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive`,
-  `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_positive`,
-  `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`,
-  `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree`,
   `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`,
   `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match`, and
@@ -209,19 +201,11 @@ scope so the native path does not look more complete than it is:
    `callDispatcher_succ_eq_callDispatcherBlockResult` to the named
    `callDispatcherBlockResult`, then rewrites initial-state execution to
    `contractDispatcherBlockResult`, then peels the block wrapper to
-   `contractDispatcherExecResult`. EndToEnd exposes
-   `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper`,
-   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper`,
-   positive-fuel `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive`,
-   `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper_of_exec_agree`,
-   `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`.
-   Positive-fuel callers that already prove raw dispatcher execution can now
-   bypass those intermediate lifts via
-   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_dispatcherExec_positive_agree`
-   and the generated-shape
-   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree`.
-   The remaining bridge is therefore direct native `EvmYul.Yul.exec` execution
-   of the lowered contract dispatcher block against the EVMYulLean fuel wrapper.
+   `contractDispatcherExecResult`. EndToEnd now exposes the direct
+   `nativeDispatcherExecMatchesIRPositive` target plus generated-shape lifts to
+   `nativeIRRuntimeMatchesIR`, so positive-fuel callers prove raw dispatcher
+   execution against IR directly instead of passing through intermediate
+   fuel-wrapper agreement predicates.
 
    Statement-level native lowering through
    `lowerStmtsNativeWithSwitchIds`/`lowerStmtGroupNativeWithSwitchIds` is now
@@ -234,15 +218,14 @@ scope so the native path does not look more complete than it is:
    runs only when no case has marked the switch matched. The top-level partition
    equation and statement-level lowering equations are proved, but full
    dispatcher-block agreement still requires per-statement native execution
-   preservation lemmas against `execYulFuelWithBackend .evmYulLean`.
-   EndToEnd now provides raw-exec intro forms for the three concrete native
-   outcomes:
-   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_ok_agree`,
-   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_yulHalt_agree`, and
-   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_error_agree`. These let
-   each generated-statement simulation case finish from a proved
+   preservation lemmas against IR. EndToEnd provides raw-exec intro forms for
+   the direct native-vs-IR concrete outcomes:
+   `nativeDispatcherExecMatchesIRPositive_of_exec_ok_match`,
+   `nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match`,
+   and `nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match`.
+   These let each generated-statement simulation case finish from a proved
    `contractDispatcherExecResult` equation plus the corresponding observable
-   projection agreement.
+   projection match.
 
    The generated dispatcher selector expression is also pinned for the
    EVMYulLean-backed EVMYulLean fuel wrapper:
@@ -815,10 +798,9 @@ scope so the native path does not look more complete than it is:
    result surface. Remaining generated-fragment work can target a successful
    native run plus `nativeResultsMatchOn` against IR directly, while the current
    fuel-wrapper theorem remains explicitly named as the oracle side of the
-   bridge. The
-   non-`via_reference_oracle` Layer 3 and Layers 2-3 native theorem spellings
-   now consume `nativeIRRuntimeMatchesIR`; the explicit `_via_reference_oracle`
-   variants remain as compatibility wrappers for the older fuel-wrapper route.
+   lower-level comparison. The Layer 3 and Layers 2-3 native theorem spellings
+   now consume `nativeIRRuntimeMatchesIR`; the older `_via_reference_oracle`
+   native wrapper variants have been removed.
    At the raw lowered-dispatcher boundary,
    `nativeDispatcherExecMatchesIRPositive` and
    `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match` expose the

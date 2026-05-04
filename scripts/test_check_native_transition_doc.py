@@ -121,10 +121,10 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertEqual(errors, [])
 
-    def test_public_theorem_target_guard_rejects_missing_native_bridge_obligation(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
-            "nativeRuntimeBridgeObligation",
+    def test_public_theorem_target_guard_rejects_reintroduced_native_fuel_wrapper_obligation(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ndef nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper : Prop := True\n"
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
@@ -136,10 +136,10 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_public_theorem_target_guard_rejects_missing_explicit_fuel_wrapper_obligation(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
-            "nativeIRRuntimeAgreesWithHiddenFuelWrapper",
+    def test_public_theorem_target_guard_rejects_reintroduced_yul_result_agreement(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ndef yulResultsAgreeOn : Prop := True\n"
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
@@ -147,7 +147,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper" in error for error in errors),
+            any("yulResultsAgreeOn" in error for error in errors),
             errors,
         )
 
@@ -281,10 +281,10 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_public_theorem_target_guard_rejects_missing_explicit_call_dispatcher_fuel_wrapper(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper",
-            "nativeCallDispatcherAgreesWithHiddenFuelWrapper",
+    def test_public_theorem_target_guard_rejects_reintroduced_call_dispatcher_fuel_wrapper(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ndef nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper : Prop := True\n"
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
@@ -296,10 +296,10 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_public_theorem_target_guard_rejects_missing_explicit_dispatcher_block_fuel_wrapper(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper",
-            "nativeDispatcherBlockAgreesWithHiddenFuelWrapper",
+    def test_public_theorem_target_guard_rejects_reintroduced_dispatcher_block_fuel_wrapper(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ndef nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper : Prop := True\n"
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
@@ -311,10 +311,10 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_public_theorem_target_guard_rejects_missing_explicit_dispatcher_exec_fuel_wrapper(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper",
-            "nativeDispatcherExecAgreesWithHiddenFuelWrapper",
+    def test_public_theorem_target_guard_rejects_reintroduced_dispatcher_exec_fuel_wrapper(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ndef nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper : Prop := True\n"
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
@@ -545,11 +545,11 @@ theorem nativeAliasSurfaceForTest_evmYulLean
             errors,
         )
 
-    def test_native_alias_signature_guard_allows_explicit_fuel_wrapper_theorem(self) -> None:
+    def test_native_alias_signature_guard_allows_direct_match_theorem(self) -> None:
         end_to_end_text = """
-theorem nativeAliasSurfaceForTestEvmYulLeanFuelWrapper
+theorem nativeAliasSurfaceForTestEvmYulLeanMatch
     (h :
-      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper fuel contract tx state
+      nativeDispatcherExecMatchesIRPositive fuel contract tx state
         observableSlots nativeContract) :
     True := by
   trivial

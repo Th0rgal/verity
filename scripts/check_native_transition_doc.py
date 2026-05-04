@@ -69,12 +69,7 @@ REQUIRED_SNIPPETS = (
     "only materializes pre-state storage for those slots",
     "interpretYulRuntimeEvmYulLeanFuelWrapper",
     "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
-    "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
     "nativeResultsMatchOn",
-    "nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper",
-    "nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper",
-    "nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper",
-    "nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive",
     "explicitly observable final-storage slots",
     "same explicit fuel",
     "default runtime fuel",
@@ -163,35 +158,16 @@ def check_public_theorem_target(
 
     for required_native_seam in (
         "def nativeResultsMatch",
-        "def yulResultsAgreeOn",
         "def nativeResultsMatchOn",
-        "def nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
-        "def nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper",
-        "def nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper",
-        "def nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper",
-        "def nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive",
         "def nativeDispatcherExecMatchesIRPositive",
         "theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match",
         "theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_ok_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_yulHalt_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_yulHalt_project_eq_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_error_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_error_project_eq_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_positive",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_ok_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_yulHalt_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_error_agree",
-        "theorem nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper_of_exec_agree",
-        "theorem nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree",
-        "theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree",
         "def nativeIRRuntimeMatchesIR",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match",
-        "interpretYulRuntimeEvmYulLeanFuelWrapper fuel",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
         "theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge",
         "theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match",
@@ -211,6 +187,39 @@ def check_public_theorem_target(
                 "Compiler/Proofs/EndToEnd.lean must keep the native theorem seam "
                 f"`{required_native_seam}` explicit until the generated-fragment "
                 "native bridge is discharged"
+            )
+
+    for removed_fuel_wrapper_seam in (
+        "def yulResultsAgreeOn",
+        "def nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
+        "def nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper",
+        "def nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper",
+        "def nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper",
+        "def nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive",
+        "theorem nativeResultsMatchOn_ok_of_resultsMatch_of_yulResultsAgreeOn",
+        "theorem yulResultsAgreeOn_of_resultsMatch_of_nativeResultsMatchOn",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_ok_agree",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_ok_agree",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_yulHalt_agree",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_yulHalt_project_eq_agree",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_error_agree",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_error_project_eq_agree",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_positive",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_ok_agree",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_yulHalt_agree",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_error_agree",
+        "theorem nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper_of_exec_agree",
+        "theorem nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_dispatcherExec_positive_agree",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_callDispatcher_agree",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree",
+    ):
+        if removed_fuel_wrapper_seam in normalized_end_to_end:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must not reintroduce the removed "
+                "native fuel-wrapper agreement seam "
+                f"`{removed_fuel_wrapper_seam.removeprefix('theorem ').removeprefix('def ')}`"
             )
 
     direct_native_wrappers = (
