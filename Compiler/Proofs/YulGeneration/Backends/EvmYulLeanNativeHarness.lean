@@ -9645,6 +9645,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
               rcases ret with ⟨returnState, value⟩
               simp [hReturn] at hExec
 
+theorem NativeStmtPreservesWord_exprStmtCall_return_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.RETURN) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, hEval⟩
+      exact ⟨argState, offset, size, hEval,
+        hArgs fuel state argState [size, offset] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -9730,6 +9754,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
           | ok ret =>
               rcases ret with ⟨revertState, value⟩
               simp [hRevert] at hExec
+
+theorem NativeStmtPreservesWord_exprStmtCall_revert_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.REVERT) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, hEval⟩
+      exact ⟨argState, offset, size, hEval,
+        hArgs fuel state argState [size, offset] hLookup hEval⟩)
 
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_evalArgs_preserves
     (name : EvmYul.Identifier)

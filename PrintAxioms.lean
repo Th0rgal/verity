@@ -3649,9 +3649,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_evalArgs_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_nativeEvalArgs_and_evalArgs_shape_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_return_of_nativeEvalArgs_and_evalArgs_shape_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_evalArgs_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_nativeEvalArgs_and_evalArgs_shape_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_revert_of_nativeEvalArgs_and_evalArgs_shape_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_evalArgs_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_nativeEvalArgs_and_evalArgs_shape_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_stop
@@ -4160,4 +4162,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3984 theorems/lemmas (2996 public, 988 private, 0 sorry'd)
+-- Total: 3986 theorems/lemmas (2998 public, 988 private, 0 sorry'd)
