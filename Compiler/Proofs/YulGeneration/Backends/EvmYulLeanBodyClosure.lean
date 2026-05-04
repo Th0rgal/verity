@@ -12628,6 +12628,25 @@ private theorem bridgedStraightStmts_multiSlot_sstore_mapping2_add
           (BridgedExpr.ident "__compat_value")
       · exact ih stmt hMem
 
+private theorem yulStmtsContainFuncDef_multiSlot_sstore_mapping2_add
+    (slots : List Nat) (wordOffset : Nat) :
+    Native.yulStmtsContainFuncDef
+      (slots.map fun slot =>
+        Compiler.Yul.YulStmt.expr
+          (Compiler.Yul.YulExpr.call "sstore" [
+            Compiler.Yul.YulExpr.call "add" [
+              Compiler.Yul.YulExpr.call "mappingSlot" [
+                Compiler.Yul.YulExpr.call "mappingSlot"
+                  [Compiler.Yul.YulExpr.lit slot,
+                   Compiler.Yul.YulExpr.ident "__compat_key1"],
+                Compiler.Yul.YulExpr.ident "__compat_key2"],
+              Compiler.Yul.YulExpr.lit wordOffset],
+            Compiler.Yul.YulExpr.ident "__compat_value"])) = false := by
+  induction slots with
+  | nil => simp [Native.yulStmtsContainFuncDef]
+  | cons slot rest ih =>
+      simp [Native.yulStmtContainsFuncDef, Native.yulStmtsContainFuncDef, ih]
+
 /-- A multi-slot `Stmt.setMapping2Word field key1 key2 wordOffset value`
 source write with pure bridged key1/key2/value at `wordOffset ≠ 0` on a
 declared `isMapping2` field whose write slots list has ≥ 2 entries. -/
@@ -12774,6 +12793,45 @@ theorem compileStmt_setMapping2Word_multiSlot_nonzero_bridged
                     wordOffset stmt (by simpa using hMem)
                 exact BridgedStmt.straight _ hSstore
 
+theorem compileStmt_setMapping2Word_multiSlot_nonzero_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot0 slot1 : Nat} {slotsRest : List Nat}
+    {key1 key2 value : Expr} {wordOffset : Nat}
+    (hMapping2 : isMapping2 fields field = true)
+    (hSlots : findFieldWriteSlots fields field =
+      some (slot0 :: slot1 :: slotsRest))
+    (hNonzero : wordOffset ≠ 0) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames [] (.setMapping2Word field key1 key2 wordOffset value) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  have hBeq : (wordOffset == 0) = false := by
+    cases wordOffset with
+    | zero => exact absurd rfl hNonzero
+    | succ n => rfl
+  simp only [compileStmt] at hOk
+  unfold compileSetMapping2Word at hOk
+  simp [hMapping2, hSlots, hBeq] at hOk
+  cases hKey1Expr : compileExpr fields dynamicSource key1 with
+  | error err => simp [hKey1Expr, bind, Except.bind] at hOk
+  | ok key1Expr =>
+      cases hKey2Expr : compileExpr fields dynamicSource key2 with
+      | error err => simp [hKey1Expr, hKey2Expr, bind, Except.bind] at hOk
+      | ok key2Expr =>
+          cases hValueExpr : compileExpr fields dynamicSource value with
+          | error err =>
+              simp [hKey1Expr, hKey2Expr, hValueExpr, bind, Except.bind] at hOk
+          | ok valueExpr =>
+              simp [hKey1Expr, hKey2Expr, hValueExpr, bind, Except.bind] at hOk
+              subst out
+              simp [Native.yulStmtContainsFuncDef, Native.yulStmtsContainFuncDef]
+              simpa [Function.comp_def] using
+                yulStmtsContainFuncDef_multiSlot_sstore_mapping2_add slotsRest
+                  wordOffset
+
 /-- Each statement in the multi-slot mapping2Word-write wordOffset≠0
 fragment compiles to Yul satisfying `BridgedStmts`. -/
 theorem compileStmt_mapping2WordMultiSlotNonzero_bridged
@@ -12791,6 +12849,22 @@ theorem compileStmt_mapping2WordMultiSlotNonzero_bridged
       exact compileStmt_setMapping2Word_multiSlot_nonzero_bridged fields events errors
         dynamicSource internalRetNames isInternal inScopeNames field
         hKey1 hKey2 hValue hMapping2 hSlots hNonzero hOk
+
+theorem compileStmt_mapping2WordMultiSlotNonzero_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMapping2WordMultiSlotNonzeroStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setMapping2Word field hKey1 hKey2 hValue hMapping2 hSlots hNonzero =>
+      exact compileStmt_setMapping2Word_multiSlot_nonzero_noFuncDefs fields
+        events errors dynamicSource internalRetNames isInternal inScopeNames
+        field hMapping2 hSlots hNonzero hOk
 
 /-- Lists of multi-slot mapping2Word-write wordOffset≠0 source statements
 compile to Yul lists satisfying `BridgedStmts`. -/
@@ -12838,6 +12912,23 @@ theorem compileStmtList_mapping2WordMultiSlotNonzero_bridged
                   dynamicSource internalRetNames isInternal inScopeNames
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_mapping2WordMultiSlotNonzero_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMapping2WordMultiSlotNonzeroStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal
+    (BridgedSourceMapping2WordMultiSlotNonzeroStmt fields)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_mapping2WordMultiSlotNonzero_noFuncDefs fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: multi-slot `setStructMember`
 (wordOffset ≠ 0)
