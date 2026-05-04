@@ -65,8 +65,8 @@ The transition is done only when all criteria in this section are true on
 - The theorem-facing native target is either `Native.interpretIRRuntimeNative`
   or a narrower wrapper that internally lowers to EVMYulLean and executes via
   `EvmYul.Yul.callDispatcher`.
-- No public theorem keeps a generic native-vs-custom-interpreter agreement
-  premise such as `nativeIRRuntimeAgreesWithEvmYulLean`,
+- No public theorem keeps a native-vs-custom-interpreter agreement premise such
+  as `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper`,
   `nativeCallDispatcherAgreesWithEvmYulLean`, or an equivalent bridge
   assumption.
 - Any remaining comparison with the custom interpreter is explicitly marked as
@@ -356,7 +356,7 @@ Before declaring the transition complete, verify these exact facts:
 
 ```bash
 ! rg "interpretYulRuntimeWithBackend \\.evmYulLean" Compiler/Proofs/EndToEnd.lean
-! rg "nativeIRRuntimeAgreesWithEvmYulLean|nativeCallDispatcherAgreesWithEvmYulLean" Compiler/Proofs/EndToEnd.lean
+! rg "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper|nativeCallDispatcherAgreesWithEvmYulLean" Compiler/Proofs/EndToEnd.lean
 ! rg "\\bsorry\\b|\\badmit\\b|^axiom " Compiler Verity Contracts
 python3 scripts/check_axioms.py
 python3 scripts/generate_print_axioms.py --check

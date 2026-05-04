@@ -123,7 +123,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
 
     def test_public_theorem_target_guard_rejects_missing_native_bridge_obligation(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "nativeIRRuntimeAgreesWithEvmYulLean",
+            "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
             "nativeRuntimeBridgeObligation",
         )
         errors = check.check_public_theorem_target(
@@ -132,7 +132,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("nativeIRRuntimeAgreesWithEvmYulLean" in error for error in errors),
+            any("nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper" in error for error in errors),
             errors,
         )
 
@@ -154,7 +154,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
     def test_public_theorem_target_guard_rejects_direct_wrapper_fuel_bridge_obligation(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
             "nativeIRRuntimeMatchesIR fuel contract tx initialState observableSlots",
-            "nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx initialState observableSlots",
+            "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper fuel contract tx initialState observableSlots",
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
@@ -163,6 +163,21 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertTrue(
             any("nativeIRRuntimeMatchesIR" in error for error in errors),
+            errors,
+        )
+
+    def test_public_theorem_target_guard_rejects_hidden_ir_runtime_alias(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ndef nativeIRRuntimeAgreesWithEvmYulLean : Prop := True\n"
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("hidden native IR-runtime fuel-wrapper alias" in error for error in errors),
             errors,
         )
 

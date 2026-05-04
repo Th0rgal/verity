@@ -174,27 +174,12 @@ def nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper
           (YulTransaction.ofIR tx) state.storage state.events)
   | .error _ => False
 
-/-- Compatibility spelling for the current native/EVMYulLean bridge obligation.
-
-The definition body intentionally lives in
-`nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper` because the generic native path
-still compares native execution against the EVMYulLean fuel wrapper rather than
-proving source/IR preservation directly over native EVMYulLean execution. -/
-def nativeIRRuntimeAgreesWithEvmYulLean
-    (fuel : Nat)
-    (contract : IRContract)
-    (tx : IRTransaction)
-    (state : IRState)
-    (observableSlots : List Nat) :
-    Prop :=
-  nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper fuel contract tx state observableSlots
-
 /-- Intro form for the native/EVMYulLean bridge obligation.
 
 Native-lowering proofs can stay at the harness level: prove that
 `interpretIRRuntimeNative` succeeds and that its projected result agrees with
 the current EVMYulLean fuel wrapper on the requested observable slots. This packages
-those two facts as the public `nativeIRRuntimeAgreesWithEvmYulLean`
+those two facts as the explicit `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper`
 obligation consumed by the native EndToEnd seam. -/
 theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_ok_agree
     {fuel : Nat} {contract : IRContract} {tx : IRTransaction}
@@ -211,76 +196,11 @@ theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_ok_agree
   rw [hNative]
   exact hAgree
 
-/-- Compatibility intro form for `nativeIRRuntimeAgreesWithEvmYulLean`. -/
-theorem nativeIRRuntimeAgreesWithEvmYulLean_of_ok_agree
-    {fuel : Nat} {contract : IRContract} {tx : IRTransaction}
-    {state : IRState} {observableSlots : List Nat} {native : YulResult}
-    (hNative :
-      Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-        fuel contract tx state observableSlots = .ok native)
-    (hAgree :
-      yulResultsAgreeOn observableSlots native
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper fuel (Compiler.emitYul contract).runtimeCode
-          (YulTransaction.ofIR tx) state.storage state.events)) :
-    nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx state observableSlots :=
-  nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_ok_agree hNative hAgree
-
-/-- Compatibility bridge from the direct native-vs-IR target to the current
-native/EVMYulLean obligation. -/
-theorem nativeIRRuntimeAgreesWithEvmYulLean_of_nativeIRRuntimeMatchesIR
-    {fuel : Nat} {contract : IRContract} {tx : IRTransaction}
-    {state : IRState} {observableSlots : List Nat}
-    (hOracle :
-      Compiler.Proofs.YulGeneration.resultsMatch
-        (interpretIR contract tx state)
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper fuel
-          (Compiler.emitYul contract).runtimeCode
-          (YulTransaction.ofIR tx) state.storage state.events))
-    (hNative : nativeIRRuntimeMatchesIR fuel contract tx state observableSlots) :
-    nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx state observableSlots := by
-  unfold nativeIRRuntimeMatchesIR at hNative
-  cases hRun :
-      Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-        fuel contract tx state observableSlots with
-  | error err =>
-      rw [hRun] at hNative
-      exact False.elim hNative
-  | ok native =>
-      rw [hRun] at hNative
-      exact nativeIRRuntimeAgreesWithEvmYulLean_of_ok_agree hRun
-        (yulResultsAgreeOn_of_resultsMatch_of_nativeResultsMatchOn hOracle
-          hNative)
-
-/-- Intro form for the native/EVMYulLean bridge from a native-vs-IR observable
-preservation fact.
-
-This packages the next proof direction: if native execution succeeds, the
-current EVMYulLean fuel-wrapper theorem still matches IR, and native execution
-matches IR on the observable result surface, then the native bridge obligation
-follows. -/
-theorem nativeIRRuntimeAgreesWithEvmYulLean_of_ok_nativeResultsMatchOn
-    {fuel : Nat} {contract : IRContract} {tx : IRTransaction}
-    {state : IRState} {observableSlots : List Nat} {native : YulResult}
-    (hNative :
-      Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-        fuel contract tx state observableSlots = .ok native)
-    (hOracle :
-      Compiler.Proofs.YulGeneration.resultsMatch
-        (interpretIR contract tx state)
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper fuel
-          (Compiler.emitYul contract).runtimeCode
-          (YulTransaction.ofIR tx) state.storage state.events))
-    (hNativeMatch :
-      nativeResultsMatchOn observableSlots (interpretIR contract tx state) (.ok native)) :
-    nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx state observableSlots :=
-  nativeIRRuntimeAgreesWithEvmYulLean_of_ok_agree hNative
-    (yulResultsAgreeOn_of_resultsMatch_of_nativeResultsMatchOn hOracle hNativeMatch)
-
 /-- Concrete native execution agreement target after Verity runtime Yul has
 successfully lowered to an EVMYulLean contract.
 
-This is the next proof obligation under the opaque
-`nativeIRRuntimeAgreesWithEvmYulLean` seam: compare the projected native
+This is the next proof obligation under the explicit
+`nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper` seam: compare the projected native
 `callDispatcher` result with the fuel-aligned EVMYulLean fuel wrapper on the same
 emitted runtime code and observable storage slots. -/
 def nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper
@@ -1344,26 +1264,6 @@ theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher
         fuel contract tx state observableSlots nativeContract hFragment hLower hEnv)
   · exact hAgree
 
-/-- Compatibility lowered-call-dispatcher discharge for
-`nativeIRRuntimeAgreesWithEvmYulLean`. -/
-theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree
-    {fuel : Nat} {contract : IRContract} {tx : IRTransaction}
-    {state : IRState} {observableSlots : List Nat}
-    {nativeContract : EvmYul.Yul.Ast.YulContract}
-    (hFragment : Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment
-      (Compiler.emitYul contract).runtimeCode = true)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
-    (hEnv :
-      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hAgree :
-      nativeCallDispatcherAgreesWithEvmYulLean fuel contract tx state
-        observableSlots nativeContract) :
-    nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx state observableSlots :=
-  nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree
-    hFragment hLower hEnv hAgree
-
 /-- Positive-fuel discharge of the public native/EVMYulLean bridge directly
 from raw lowered-dispatcher execution agreement.
 
@@ -1391,27 +1291,6 @@ theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_dispatcherExec
         fuel' contract tx state observableSlots nativeContract hFragment hLower hEnv)
   · unfold nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive at hAgree
     simpa using hAgree
-
-/-- Compatibility positive-fuel discharge to
-`nativeIRRuntimeAgreesWithEvmYulLean`. -/
-theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_dispatcherExec_positive_agree
-    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
-    {state : IRState} {observableSlots : List Nat}
-    {nativeContract : EvmYul.Yul.Ast.YulContract}
-    (hFragment : Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment
-      (Compiler.emitYul contract).runtimeCode = true)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
-    (hEnv :
-      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hAgree :
-      nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' contract tx state
-        observableSlots nativeContract) :
-    nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') contract tx state
-      observableSlots :=
-  nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_dispatcherExec_positive_agree
-    hFragment hLower hEnv hAgree
 
 /-- Discharge the public native/EVMYulLean bridge using generated-code shape
 facts instead of the raw executable fragment predicate. -/
@@ -1446,35 +1325,6 @@ theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_call
       hNoFallback hNoReceive)
     hLower hEnv hAgree
 
-theorem nativeIRRuntimeAgreesWithEvmYulLean_of_generated_lowered_callDispatcher_agree
-    {fuel : Nat} {contract : IRContract} {tx : IRTransaction}
-    {state : IRState} {observableSlots : List Nat}
-    {nativeContract : EvmYul.Yul.Ast.YulContract}
-    (hPrefixUnique : Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique
-      ((if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
-        contract.internalFunctions) = true)
-    (hInternals : ∀ stmt, stmt ∈ contract.internalFunctions →
-      ∃ name params rets body, stmt = Yul.YulStmt.funcDef name params rets body)
-    (hExternalBodies : ∀ fn, fn ∈ contract.functions →
-      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
-    (hInternalBodies : ∀ name params rets body,
-      Yul.YulStmt.funcDef name params rets body ∈ contract.internalFunctions →
-        Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef body = false)
-    (hNoFallback : contract.fallbackEntrypoint = none)
-    (hNoReceive : contract.receiveEntrypoint = none)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
-    (hEnv :
-      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hAgree :
-      nativeCallDispatcherAgreesWithEvmYulLean fuel contract tx state
-        observableSlots nativeContract) :
-    nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx state observableSlots :=
-  nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_callDispatcher_agree
-    hPrefixUnique hInternals hExternalBodies hInternalBodies hNoFallback
-    hNoReceive hLower hEnv hAgree
-
 /-- Positive-fuel generated-shape discharge from raw lowered-dispatcher exec
 agreement. -/
 theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree
@@ -1508,36 +1358,6 @@ theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_disp
       contract hPrefixUnique hInternals hExternalBodies hInternalBodies
       hNoFallback hNoReceive)
     hLower hEnv hAgree
-
-theorem nativeIRRuntimeAgreesWithEvmYulLean_of_generated_lowered_dispatcherExec_positive_agree
-    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
-    {state : IRState} {observableSlots : List Nat}
-    {nativeContract : EvmYul.Yul.Ast.YulContract}
-    (hPrefixUnique : Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique
-      ((if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
-        contract.internalFunctions) = true)
-    (hInternals : ∀ stmt, stmt ∈ contract.internalFunctions →
-      ∃ name params rets body, stmt = Yul.YulStmt.funcDef name params rets body)
-    (hExternalBodies : ∀ fn, fn ∈ contract.functions →
-      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
-    (hInternalBodies : ∀ name params rets body,
-      Yul.YulStmt.funcDef name params rets body ∈ contract.internalFunctions →
-        Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef body = false)
-    (hNoFallback : contract.fallbackEntrypoint = none)
-    (hNoReceive : contract.receiveEntrypoint = none)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
-    (hEnv :
-      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hAgree :
-      nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' contract tx state
-        observableSlots nativeContract) :
-    nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') contract tx state
-      observableSlots :=
-  nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree
-    hPrefixUnique hInternals hExternalBodies hInternalBodies hNoFallback
-    hNoReceive hLower hEnv hAgree
 
 /-! ## Layer 3: IR → Yul (Generic) -/
 
@@ -2105,7 +1925,7 @@ theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYu
     (hFunctions : ∀ fn, fn ∈ contract.functions →
       Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
     (hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1)
-    (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx initialState observableSlots) :
+    (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper fuel contract tx initialState observableSlots) :
     nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel contract tx initialState observableSlots) := by
@@ -2115,8 +1935,7 @@ theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYu
       hselector hNoWrap hvars hmemory htransient hreturn hparamErase
       hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
       hNoReceive hFunctions
-  unfold nativeIRRuntimeAgreesWithEvmYulLean
-    nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper at hNativeBridge
+  unfold nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper at hNativeBridge
   cases hNative :
       Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         (sizeOf (Compiler.emitYul contract).runtimeCode + 1)
@@ -2206,7 +2025,7 @@ theorem layer3_contract_preserves_semantics_native_of_generated_lowered_callDisp
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
     hNoReceive hFunctions hFuel
-    (nativeIRRuntimeAgreesWithEvmYulLean_of_generated_lowered_callDispatcher_agree
+    (nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_callDispatcher_agree
       hPrefixUnique hWF hExternalBodies hInternalBodies hNoFallback hNoReceive
       hLower hEnv hNativeCallDispatcher)
 
@@ -2348,7 +2167,7 @@ theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_p
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
     hNoReceive hFunctions (by simp [hFuel, Nat.succ_eq_add_one])
-    (nativeIRRuntimeAgreesWithEvmYulLean_of_generated_lowered_dispatcherExec_positive_agree
+    (nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree
       hPrefixUnique hWF hExternalBodies hInternalBodies hNoFallback
       hNoReceive hLower hEnv hNativeDispatcherExec)
 
@@ -2515,7 +2334,7 @@ theorem layers2_3_ir_matches_yul_evmYulLean
 
 The conclusion targets `Native.interpretIRRuntimeNative` directly. The remaining
 generated-fragment proof obligation is exactly
-`nativeIRRuntimeAgreesWithEvmYulLean`: native EVMYulLean execution of the
+`nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper`: native EVMYulLean execution of the
 emitted runtime code must agree with the current EVMYulLean fuel wrapper for
 the same fuel, transaction, initial storage/events, and observable storage-slot
 materialization. -/
@@ -2544,7 +2363,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLea
     (hWF : ContractWF irContract) (hNoFallback : irContract.fallbackEntrypoint = none)
     (hNoReceive : irContract.receiveEntrypoint = none)
     (hFuel : fuel = sizeOf (Compiler.emitYul irContract).runtimeCode + 1)
-    (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLean fuel irContract tx initialState observableSlots) :
+    (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper fuel irContract tx initialState observableSlots) :
     nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel irContract tx initialState observableSlots) :=
@@ -2742,27 +2561,6 @@ theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_low
       spec selectors hSupported irContract hCompile)
     hLower hEnv hAgree
 
-theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispatcherExec_positive_agree
-    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
-    {selectors : List Nat} {irContract : IRContract}
-    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
-    {nativeContract : EvmYul.Yul.Ast.YulContract}
-    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
-    (hSupported : SupportedSpec spec selectors)
-    (hExternalBodies : ∀ fn, fn ∈ irContract.functions →
-      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
-    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hAgree :
-      nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' irContract tx
-        state observableSlots nativeContract) :
-    nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') irContract tx state
-      observableSlots :=
-  nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_agree
-    hCompile hSupported hExternalBodies hLower hEnv hAgree
-
 theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
@@ -2816,26 +2614,6 @@ theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_low
     (generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
       hCompile hSupported hStaticParams hSafeBodies)
     hLower hEnv hAgree
-
-theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
-    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
-    {selectors : List Nat} {irContract : IRContract}
-    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
-    {nativeContract : EvmYul.Yul.Ast.YulContract}
-    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
-    (hSupported : SupportedSpec spec selectors)
-    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
-    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
-      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
-        spec.fields spec.errors .calldata [] false entry.1.body)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
-    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hAgree : nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' irContract tx state observableSlots nativeContract) :
-    nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') irContract tx state observableSlots :=
-  nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
-    hCompile hSupported hStaticParams hSafeBodies hLower hEnv hAgree
 
 theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}

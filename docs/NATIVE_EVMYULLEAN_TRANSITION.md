@@ -51,9 +51,7 @@ materializes pre-state storage for those slots.
   run through `interpretYulRuntimeEvmYulLeanFuelWrapper` (the `.evmYulLean`
   specialization of `interpretYulRuntimeWithBackendFuel`), and the theorem seam
   currently requires that fuel to equal the interpreter proof stack's default
-  runtime fuel `sizeOf (Compiler.emitYul contract).runtimeCode + 1`. The
-  compatibility theorem `nativeIRRuntimeAgreesWithEvmYulLean` delegates to this
-  explicit fuel-wrapper obligation, and
+  runtime fuel `sizeOf (Compiler.emitYul contract).runtimeCode + 1`, and
   `layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge` delegates to
   the explicit `_via_reference_oracle` theorem. This is the exact
   remaining native-vs-interpreter equivalence theorem plus a named
@@ -75,7 +73,6 @@ materializes pre-state storage for those slots.
   `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`,
   `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`,
   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree`,
-  `nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree`,
   `layer3_contract_preserves_semantics_native_of_generated_lowered_callDispatcher_bridge`,
   `layer3_contract_preserves_semantics_native_of_generated_dispatcherBlock_bridge`,
   `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_bridge`,
@@ -866,12 +863,10 @@ scope so the native path does not look more complete than it is:
 
    The direct native target is now named `nativeIRRuntimeMatchesIR`: it compares
    `Native.interpretIRRuntimeNative` against `interpretIR` on the observable
-   result surface. The compatibility theorem
-   `nativeIRRuntimeAgreesWithEvmYulLean_of_nativeIRRuntimeMatchesIR`, together
-   with `nativeIRRuntimeAgreesWithEvmYulLean_of_ok_nativeResultsMatchOn`, lets
-   remaining generated-fragment work target a successful native run plus
-   `nativeResultsMatchOn` against IR directly, while the current fuel-wrapper
-   theorem is still available as the oracle side of the bridge. The
+   result surface. Remaining generated-fragment work can target a successful
+   native run plus `nativeResultsMatchOn` against IR directly, while the current
+   fuel-wrapper theorem remains explicitly named as the oracle side of the
+   bridge. The
    non-`via_reference_oracle` Layer 3 and Layers 2-3 native theorem spellings
    now consume `nativeIRRuntimeMatchesIR`; the explicit `_via_reference_oracle`
    variants remain as compatibility wrappers for the older fuel-wrapper route.

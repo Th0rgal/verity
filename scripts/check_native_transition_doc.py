@@ -72,7 +72,6 @@ REQUIRED_SNIPPETS = (
     "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
     "interpretYulRuntimeWithBackendFuel",
     "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
-    "nativeIRRuntimeAgreesWithEvmYulLean",
     "nativeResultsMatchOn",
     "nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper",
     "nativeCallDispatcherAgreesWithEvmYulLean",
@@ -177,7 +176,6 @@ def check_public_theorem_target(
         "def yulResultsAgreeOn",
         "def nativeResultsMatchOn",
         "def nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
-        "def nativeIRRuntimeAgreesWithEvmYulLean",
         "def nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper",
         "def nativeCallDispatcherAgreesWithEvmYulLean",
         "def nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper",
@@ -213,10 +211,7 @@ def check_public_theorem_target(
         "theorem nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree",
         "theorem nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree",
         "theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree",
-        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree",
         "def nativeIRRuntimeMatchesIR",
-        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_nativeIRRuntimeMatchesIR",
-        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_ok_nativeResultsMatchOn",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match",
@@ -269,6 +264,25 @@ def check_public_theorem_target(
                 "Compiler/Proofs/EndToEnd.lean non-reference native wrapper "
                 f"`{wrapper}` must not consume the fuel-wrapper compatibility "
                 "`nativeIRRuntimeAgreesWithEvmYulLean` obligation"
+            )
+
+    for forbidden_ir_runtime_alias in (
+        "def nativeIRRuntimeAgreesWithEvmYulLean ",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_ok_agree ",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_nativeIRRuntimeMatchesIR ",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_ok_nativeResultsMatchOn ",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree ",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_dispatcherExec_positive_agree ",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_generated_lowered_callDispatcher_agree ",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_generated_lowered_dispatcherExec_positive_agree ",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispatcherExec_positive_agree ",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispatcherExec_positive_body_closure ",
+    ):
+        if forbidden_ir_runtime_alias in normalized_end_to_end:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must not reintroduce the hidden "
+                "native IR-runtime fuel-wrapper alias "
+                f"`{forbidden_ir_runtime_alias.strip()}`"
             )
 
     for forbidden_positive_alias in (
@@ -765,7 +779,11 @@ def check_native_alias_signatures(end_to_end_text: str) -> list[str]:
     for match in theorem_pattern.finditer(end_to_end_text):
         name = match.group(1)
         signature = match.group(2)
-        if not re.search(r"evmYulLean", name, re.IGNORECASE) or "FuelWrapper" in name:
+        if (
+            not re.search(r"evmYulLean", name, re.IGNORECASE)
+            or "FuelWrapper" in name
+            or "via_reference_oracle" in name
+        ):
             continue
         raw_matches = sorted(set(raw_native_fuel_wrapper.findall(signature)))
         if raw_matches:
