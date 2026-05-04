@@ -1587,27 +1587,9 @@ theorem lowerStmtsNativeWithSwitchIds_let_head_eq
                 :: rest' ∧
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
         reservedNames n0 rest = .ok (rest', next) := by
-  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons,
-      Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_let]
-    at h
-  -- Reduce the outer `Except.ok ([letStmt], n0) >>= …` to expose the rest's
-  -- lowering call directly threaded with `n0`.
-  simp only [Bind.bind, Except.bind] at h
-  cases hRest :
-      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-        reservedNames n0 rest with
-  | error err =>
-      rw [hRest] at h
-      simp only [reduceCtorEq] at h
-  | ok pair =>
-      cases pair with
-      | mk rest' n =>
-          rw [hRest] at h
-          simp only [Pure.pure, Except.pure, List.singleton_append,
-            Except.ok.injEq, Prod.mk.injEq] at h
-          obtain ⟨hList, hNat⟩ := h
-          subst hNat
-          exact ⟨rest', hList.symm, rfl⟩
+  exact Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_let_head_eq
+      reservedNames n0 name value
+      rest inner next h
 
 /-- An `.if_`-headed statement-list lowering peels its head into a singleton
 `.If` statement and threads the body's switch-counter advance through to the
@@ -1632,29 +1614,9 @@ theorem lowerStmtsNativeWithSwitchIds_if_head_eq
         reservedNames n0 body = .ok (body', midN) ∧
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
         reservedNames midN rest = .ok (rest', next) := by
-  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons,
-      Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_if]
-    at h
-  cases hBody :
-      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-        reservedNames n0 body with
-  | error _ => rw [hBody] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
-  | ok bodyPair =>
-    obtain ⟨body', midN⟩ := bodyPair
-    rw [hBody] at h
-    simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
-    cases hRest :
-        Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-          reservedNames midN rest with
-    | error _ =>
-      rw [hRest] at h; simp only [reduceCtorEq] at h
-    | ok restPair =>
-      obtain ⟨rest', _⟩ := restPair
-      rw [hRest] at h
-      simp only [List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
-      obtain ⟨hList, hNat⟩ := h
-      subst hNat
-      exact ⟨body', midN, rest', hList.symm, rfl, hRest⟩
+  exact Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_if_head_eq
+      reservedNames n0 cond body rest
+      inner next h
 
 set_option linter.unusedSimpArgs false in
 /-- A singleton `.switch`-headed statement-list lowering reduces to a singleton
@@ -1675,36 +1637,9 @@ theorem lowerStmtsNativeWithSwitchIds_singleton_switch_eq
       (default' : List EvmYul.Yul.Ast.Stmt),
       inner = [Backends.lowerNativeSwitchBlock expr
         (Backends.freshNativeSwitchId reservedNames n0) cases' default'] := by
-  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
-      Backends.lowerStmtGroupNativeWithSwitchIds_switch] at h
-  dsimp only [] at h
-  cases hCases : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
-      (Backends.freshNativeSwitchId reservedNames n0 + 1) cases with
-  | error _ =>
-      rw [hCases] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
-  | ok casesPair =>
-      obtain ⟨cases', midN⟩ := casesPair
-      rw [hCases] at h
-      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
-      cases defaultCase with
-      | none =>
-          simp only [Backends.lowerStmtsNativeWithSwitchIds_nil,
-            List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
-          exact ⟨cases', [], h.1.symm⟩
-      | some defaultBody =>
-          dsimp only [] at h
-          cases hDef : Backends.lowerStmtsNativeWithSwitchIds
-              reservedNames midN defaultBody with
-          | error _ =>
-              rw [hDef] at h
-              simp only [Bind.bind, Except.bind, reduceCtorEq] at h
-          | ok defaultPair =>
-              obtain ⟨default', _⟩ := defaultPair
-              rw [hDef] at h
-              simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
-                Backends.lowerStmtsNativeWithSwitchIds_nil,
-                List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
-              exact ⟨cases', default', h.1.symm⟩
+  exact Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_singleton_switch_eq
+      reservedNames n0 expr
+      cases defaultCase inner next h
 
 /-- The head of the SimpleStorage native dispatcher inner-block is the lowered
 `let __has_selector := ...` statement. This peels one further layer beyond the

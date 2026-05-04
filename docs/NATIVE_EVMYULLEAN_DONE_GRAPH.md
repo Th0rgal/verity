@@ -65,7 +65,10 @@ N8 public Layer 3 theorem flip
   `IRFunction` selector hits and misses to lowered native case lookup facts.
   Generic `.block` lowering shape now lives in the native harness via
   `lowerStmtsNative_single_block_ok_singleton` and
-  `lowerStmtsNative_block_stmts_eq`.
+  `lowerStmtsNative_block_stmts_eq`; let/if/switch dispatcher statement peels
+  are named by `lowerStmtsNativeWithSwitchIds_let_head_eq`,
+  `lowerStmtsNativeWithSwitchIds_if_head_eq`, and
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_eq`.
 - **Definition of done**:
   - The compiler-emitted runtime Yul fragment is explicitly characterized.
   - Allowed statements, expressions, builtins, helper functions, dispatcher

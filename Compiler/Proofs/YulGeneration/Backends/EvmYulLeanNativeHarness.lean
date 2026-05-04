@@ -542,6 +542,118 @@ theorem lowerStmtsNative_block_stmts_eq
           subst hEq
           exact ⟨next, rfl⟩
 
+/-- A `.let_`-headed statement-list lowering peels its head into a singleton
+`.Let` statement and threads the unchanged switch counter through the tail. -/
+theorem lowerStmtsNativeWithSwitchIds_let_head_eq
+    (reservedNames : List String) (n0 : Nat)
+    (name : String) (value : YulExpr)
+    (rest : List YulStmt)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            (YulStmt.let_ name value :: rest) = .ok (inner, next)) :
+    ∃ rest' : List EvmYul.Yul.Ast.Stmt,
+      inner = EvmYul.Yul.Ast.Stmt.Let [name]
+                (some (Backends.lowerExprNative value)) :: rest' ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0 rest =
+        .ok (rest', next) := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_let] at h
+  simp only [Bind.bind, Except.bind] at h
+  cases hRest : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0 rest with
+  | error err =>
+      rw [hRest] at h
+      simp only [reduceCtorEq] at h
+  | ok pair =>
+      cases pair with
+      | mk rest' n =>
+          rw [hRest] at h
+          simp only [Pure.pure, Except.pure, List.singleton_append,
+            Except.ok.injEq, Prod.mk.injEq] at h
+          obtain ⟨hList, hNat⟩ := h
+          subst hNat
+          exact ⟨rest', hList.symm, rfl⟩
+
+/-- An `.if_`-headed statement-list lowering peels its head into a singleton
+`.If` statement and threads the body's switch-counter advance through the tail. -/
+theorem lowerStmtsNativeWithSwitchIds_if_head_eq
+    (reservedNames : List String) (n0 : Nat)
+    (cond : YulExpr) (body : List YulStmt)
+    (rest : List YulStmt)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            (YulStmt.if_ cond body :: rest) = .ok (inner, next)) :
+    ∃ (body' : List EvmYul.Yul.Ast.Stmt) (midN : Nat)
+      (rest' : List EvmYul.Yul.Ast.Stmt),
+      inner = EvmYul.Yul.Ast.Stmt.If
+                (Backends.lowerExprNative cond) body' :: rest' ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0 body =
+        .ok (body', midN) ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames midN rest =
+        .ok (rest', next) := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_if] at h
+  cases hBody : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0 body with
+  | error _ => rw [hBody] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok bodyPair =>
+    obtain ⟨body', midN⟩ := bodyPair
+    rw [hBody] at h
+    simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
+    cases hRest : Backends.lowerStmtsNativeWithSwitchIds reservedNames midN rest with
+    | error _ =>
+      rw [hRest] at h; simp only [reduceCtorEq] at h
+    | ok restPair =>
+      obtain ⟨rest', _⟩ := restPair
+      rw [hRest] at h
+      simp only [List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+      obtain ⟨hList, hNat⟩ := h
+      subst hNat
+      exact ⟨body', midN, rest', hList.symm, rfl, hRest⟩
+
+set_option linter.unusedSimpArgs false in
+/-- A singleton `.switch`-headed statement-list lowering reduces to a singleton
+`.lowerNativeSwitchBlock` over the same source expression. -/
+theorem lowerStmtsNativeWithSwitchIds_singleton_switch_eq
+    (reservedNames : List String) (n0 : Nat)
+    (expr : YulExpr) (cases : List (Nat × List YulStmt))
+    (defaultCase : Option (List YulStmt))
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            [YulStmt.switch expr cases defaultCase] = .ok (inner, next)) :
+    ∃ (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (default' : List EvmYul.Yul.Ast.Stmt),
+      inner = [Backends.lowerNativeSwitchBlock expr
+        (Backends.freshNativeSwitchId reservedNames n0) cases' default'] := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_switch] at h
+  dsimp only [] at h
+  cases hCases : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) cases with
+  | error _ =>
+      rw [hCases] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok casesPair =>
+      obtain ⟨cases', midN⟩ := casesPair
+      rw [hCases] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
+      cases defaultCase with
+      | none =>
+          simp only [Backends.lowerStmtsNativeWithSwitchIds_nil,
+            List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+          exact ⟨cases', [], h.1.symm⟩
+      | some defaultBody =>
+          dsimp only [] at h
+          cases hDef : Backends.lowerStmtsNativeWithSwitchIds
+              reservedNames midN defaultBody with
+          | error _ =>
+              rw [hDef] at h
+              simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+          | ok defaultPair =>
+              obtain ⟨default', _⟩ := defaultPair
+              rw [hDef] at h
+              simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+                Backends.lowerStmtsNativeWithSwitchIds_nil,
+                List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+              exact ⟨cases', default', h.1.symm⟩
+
 theorem generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
     (funcs : List IRFunction)
     (hBodies : ∀ fn, fn ∈ funcs → yulStmtsContainFuncDef fn.body = false) :

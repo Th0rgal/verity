@@ -322,8 +322,12 @@ scope so the native path does not look more complete than it is:
   `IRFunction` selector hit or miss now produces the corresponding lowered
   native case lookup fact directly. The native harness also owns the generic
   block-lowering shape lemmas `lowerStmtsNative_single_block_ok_singleton` and
-  `lowerStmtsNative_block_stmts_eq`, leaving the concrete EndToEnd
-  SimpleStorage dispatcher reduction as aliases over native-harness facts. The
+  `lowerStmtsNative_block_stmts_eq`, plus the generated-dispatcher peel facts
+  `lowerStmtsNativeWithSwitchIds_let_head_eq`,
+  `lowerStmtsNativeWithSwitchIds_if_head_eq`, and
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_eq`. That leaves the
+  concrete EndToEnd SimpleStorage dispatcher reduction as aliases over
+  native-harness facts. The
   remaining native dispatcher proof starts after that complete lazy-switch
   bridge, at proving `NativeBlockPreservesWord` for selected/default lowered
   bodies and threading the initialized prefix state plus the lowering lookup
@@ -694,6 +698,10 @@ scope so the native path does not look more complete than it is:
    lowering,
    `lowerStmtsNative_single_block_ok_singleton` and
    `lowerStmtsNative_block_stmts_eq` for generic `.block` lowering shape,
+   `lowerStmtsNativeWithSwitchIds_let_head_eq`,
+   `lowerStmtsNativeWithSwitchIds_if_head_eq`, and
+   `lowerStmtsNativeWithSwitchIds_singleton_switch_eq` for generic dispatcher
+   statement peels,
    `exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel` and
    `exec_nativeSwitchDefaultIf_matched_fuel` for optional generated defaults,
    `exec_block_append_ok`,
