@@ -178,6 +178,25 @@ def yulFunctionBodies (runtimeCode : List YulStmt) : List (String × List YulStm
     | .funcDef name _ _ body => some (name, body)
     | _ => none
 
+@[simp] theorem yulFunctionBodies_nil :
+    yulFunctionBodies [] = [] := by
+  rfl
+
+@[simp] theorem yulFunctionBodies_funcDef_cons
+    (name : String) (params rets : List String) (body rest : List YulStmt) :
+    yulFunctionBodies (YulStmt.funcDef name params rets body :: rest) =
+      (name, body) :: yulFunctionBodies rest := by
+  rfl
+
+@[simp] theorem yulFunctionBodies_nonFunc_cons
+    (stmt : YulStmt) (rest : List YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    yulFunctionBodies (stmt :: rest) = yulFunctionBodies rest := by
+  cases stmt <;> simp [yulFunctionBodies]
+  case funcDef name params rets body =>
+    exact False.elim (hNoFunc name params rets body rfl)
+
 /-! ## Generated Native Runtime Fragment -/
 
 mutual
@@ -208,6 +227,48 @@ def yulRuntimeDispatcherStmts (runtimeCode : List YulStmt) : List YulStmt :=
     | .funcDef _ _ _ _ => false
     | _ => true
 
+@[simp] theorem yulRuntimeTopLevelFunctionNames_nil :
+    yulRuntimeTopLevelFunctionNames [] = [] := by
+  rfl
+
+@[simp] theorem yulRuntimeTopLevelFunctionNames_funcDef_cons
+    (name : String) (params rets : List String) (body rest : List YulStmt) :
+    yulRuntimeTopLevelFunctionNames
+        (YulStmt.funcDef name params rets body :: rest) =
+      name :: yulRuntimeTopLevelFunctionNames rest := by
+  rfl
+
+@[simp] theorem yulRuntimeTopLevelFunctionNames_nonFunc_cons
+    (stmt : YulStmt) (rest : List YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    yulRuntimeTopLevelFunctionNames (stmt :: rest) =
+      yulRuntimeTopLevelFunctionNames rest := by
+  cases stmt <;> simp [yulRuntimeTopLevelFunctionNames]
+  case funcDef name params rets body =>
+    exact False.elim (hNoFunc name params rets body rfl)
+
+@[simp] theorem yulRuntimeDispatcherStmts_nil :
+    yulRuntimeDispatcherStmts [] = [] := by
+  rfl
+
+@[simp] theorem yulRuntimeDispatcherStmts_funcDef_cons
+    (name : String) (params rets : List String) (body rest : List YulStmt) :
+    yulRuntimeDispatcherStmts
+        (YulStmt.funcDef name params rets body :: rest) =
+      yulRuntimeDispatcherStmts rest := by
+  rfl
+
+@[simp] theorem yulRuntimeDispatcherStmts_nonFunc_cons
+    (stmt : YulStmt) (rest : List YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    yulRuntimeDispatcherStmts (stmt :: rest) =
+      stmt :: yulRuntimeDispatcherStmts rest := by
+  cases stmt <;> simp [yulRuntimeDispatcherStmts]
+  case funcDef name params rets body =>
+    exact False.elim (hNoFunc name params rets body rfl)
+
 def stringListHasDuplicate : List String → Bool
   | [] => false
   | name :: rest => rest.contains name || stringListHasDuplicate rest
@@ -222,6 +283,30 @@ def generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
     (runtimeCode : List YulStmt) :
     Bool :=
   (yulFunctionBodies runtimeCode).all fun entry => !yulStmtsContainFuncDef entry.2
+
+@[simp] theorem generatedRuntimeDispatcherHasNoFuncDefs_funcDef_cons
+    (name : String) (params rets : List String) (body rest : List YulStmt) :
+    generatedRuntimeDispatcherHasNoFuncDefs
+        (YulStmt.funcDef name params rets body :: rest) =
+      generatedRuntimeDispatcherHasNoFuncDefs rest := by
+  simp [generatedRuntimeDispatcherHasNoFuncDefs]
+
+@[simp] theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_funcDef_cons
+    (name : String) (params rets : List String) (body rest : List YulStmt) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+        (YulStmt.funcDef name params rets body :: rest) =
+      (!yulStmtsContainFuncDef body &&
+        generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs rest) := by
+  simp [generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs]
+
+@[simp] theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_nonFunc_cons
+    (stmt : YulStmt) (rest : List YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs (stmt :: rest) =
+      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs rest := by
+  simp [generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs,
+    yulFunctionBodies_nonFunc_cons stmt rest hNoFunc]
 
 /-- Executable characterization for the generated runtime shape that the
     native EVMYulLean lowering path currently accepts: top-level `funcDef`
