@@ -14935,6 +14935,28 @@ def interpretRuntimeNative
     hLower, hEnv]
   rfl
 
+@[simp] theorem interpretRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
+    (fuel' : Nat)
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (events : List (List Nat))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (hFragment : generatedRuntimeNativeFragment runtimeCode = true)
+    (hLower : lowerRuntimeContractNative runtimeCode = .ok contract)
+    (hEnv : validateNativeRuntimeEnvironment runtimeCode tx = .ok ()) :
+    interpretRuntimeNative (Nat.succ fuel') runtimeCode tx storage observableSlots events =
+      .ok (projectResult tx storage events
+        (contractDispatcherBlockResult fuel' contract
+          (initialState contract tx storage
+            (materializedStorageSlots runtimeCode observableSlots)))) := by
+  rw [interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
+    (fuel := Nat.succ fuel') (contract := contract)
+    (hFragment := hFragment) (hLower := hLower) (hEnv := hEnv)]
+  rw [callDispatcher_succ_eq_callDispatcherBlockResult]
+  rw [callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult]
+
 @[simp] theorem interpretRuntimeNative_environmentError
     (fuel : Nat)
     (runtimeCode : List YulStmt)
@@ -15042,5 +15064,29 @@ def interpretIRRuntimeNative
     validateGeneratedRuntimeNativeFragment_ok (Compiler.emitYul irContract).runtimeCode
       hFragment, hLower, hEnv]
   rfl
+
+@[simp] theorem interpretIRRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
+    (fuel' : Nat)
+    (irContract : Compiler.IRContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (state : Compiler.Proofs.IRGeneration.IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hFragment :
+      generatedRuntimeNativeFragment (Compiler.emitYul irContract).runtimeCode = true)
+    (hLower : lowerRuntimeContractNative (Compiler.emitYul irContract).runtimeCode =
+      .ok nativeContract)
+    (hEnv :
+      validateNativeRuntimeEnvironment (Compiler.emitYul irContract).runtimeCode
+        (YulTransaction.ofIR tx) = .ok ()) :
+    interpretIRRuntimeNative (Nat.succ fuel') irContract tx state observableSlots =
+      .ok (projectResult (YulTransaction.ofIR tx) state.storage state.events
+        (contractDispatcherBlockResult fuel' nativeContract
+          (initialState nativeContract (YulTransaction.ofIR tx) state.storage
+            (materializedStorageSlots (Compiler.emitYul irContract).runtimeCode
+              observableSlots)))) := by
+  rw [interpretIRRuntimeNative, interpretRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
+    (contract := nativeContract) (hFragment := hFragment) (hLower := hLower)
+    (hEnv := hEnv)]
 
 end Compiler.Proofs.YulGeneration.Backends.Native
