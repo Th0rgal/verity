@@ -65,6 +65,12 @@ materializes pre-state storage for those slots.
   `nativeDispatcherBlockAgreesWithEvmYulLean`,
   `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper_of_exec_agree`,
   `nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree`,
+  `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper`,
+  `nativeDispatcherExecAgreesWithEvmYulLean`,
+  `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive`,
+  `nativeDispatcherExecAgreesWithEvmYulLeanPositive`,
+  `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_positive`,
+  `nativeDispatcherExecAgreesWithEvmYulLean_of_positive`,
   `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`,
   `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`,
   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree`,
@@ -225,7 +231,10 @@ scope so the native path does not look more complete than it is:
    `contractDispatcherExecResult`. EndToEnd exposes
    `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper`,
    compatibility `nativeDispatcherBlockAgreesWithEvmYulLean`, plus
-   `nativeDispatcherExecAgreesWithEvmYulLean`,
+   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper`,
+   compatibility `nativeDispatcherExecAgreesWithEvmYulLean`,
+   positive-fuel `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive`,
+   compatibility `nativeDispatcherExecAgreesWithEvmYulLeanPositive`,
    `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper_of_exec_agree`,
    compatibility `nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree`, and
    `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`.
@@ -249,6 +258,10 @@ scope so the native path does not look more complete than it is:
    preservation lemmas against `execYulFuelWithBackend .evmYulLean`.
    EndToEnd now provides raw-exec intro forms for the three concrete native
    outcomes:
+   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_ok_agree`,
+   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_yulHalt_agree`,
+   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_error_agree`,
+   plus compatibility
    `nativeDispatcherExecAgreesWithEvmYulLean_of_exec_ok_agree`,
    `nativeDispatcherExecAgreesWithEvmYulLean_of_exec_yulHalt_agree`, and
    `nativeDispatcherExecAgreesWithEvmYulLean_of_exec_error_agree`. These let
@@ -784,7 +797,8 @@ scope so the native path does not look more complete than it is:
    It replaces the opaque bridge hypothesis with successful
    `lowerRuntimeContractNative`, successful
    `validateNativeRuntimeEnvironment`, and
-   `nativeDispatcherExecAgreesWithEvmYulLean` for the lowered native contract.
+   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper` for the lowered native
+   contract.
    The higher `layers2_3_ir_matches_native_evmYulLean_of_dispatcherBlock_bridge`
    and
    `layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge`
@@ -794,8 +808,10 @@ scope so the native path does not look more complete than it is:
    `contractDispatcherBlockResult` execution with the EVMYulLean fuel wrapper;
    compatibility `nativeDispatcherBlockAgreesWithEvmYulLean` delegates to that
    explicit predicate. It can in turn be discharged from
-   `nativeDispatcherExecAgreesWithEvmYulLean`, which targets raw
-   `contractDispatcherExecResult`.
+   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper`, which targets raw
+   `contractDispatcherExecResult`; compatibility
+   `nativeDispatcherExecAgreesWithEvmYulLean` delegates to that explicit
+   predicate.
    The concrete `simpleStorage_endToEnd_native_evmYulLean` theorem now uses the
    dispatcher-exec wrapper directly, after its retrieve-hit, store-hit, and
    selector-miss cases prove the raw lowered-dispatcher agreement.

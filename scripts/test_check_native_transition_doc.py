@@ -181,6 +181,21 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_theorem_target_guard_rejects_missing_explicit_dispatcher_exec_fuel_wrapper(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper",
+            "nativeDispatcherExecAgreesWithHiddenFuelWrapper",
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper" in error for error in errors),
+            errors,
+        )
+
     def test_public_theorem_target_guard_rejects_low_level_native_target(self) -> None:
         end_to_end_text = (
             check.END_TO_END.read_text(encoding="utf-8")
