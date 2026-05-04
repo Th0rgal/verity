@@ -193,6 +193,23 @@ service_known_to_systemd() {
   systemctl list-unit-files "$service_name" >/dev/null 2>&1 || systemctl status "$service_name" >/dev/null 2>&1
 }
 
+harden_runner_service() {
+  local service_name="$1"
+  local dropin_dir="/etc/systemd/system/${service_name}.d"
+  local dropin_file="${dropin_dir}/10-verity-runner-stop.conf"
+
+  mkdir -p "$dropin_dir"
+  cat > "$dropin_file" <<'EOF'
+[Service]
+# GitHub's generated service defaults to KillMode=process, which can leave
+# cancelled job child processes running and keep a runner effectively busy.
+KillMode=control-group
+SendSIGKILL=yes
+TimeoutStopSec=90s
+EOF
+  systemctl daemon-reload
+}
+
 stop_runner_service_if_present() {
   local runner_dir="$1"
   local service_name="$2"
@@ -213,6 +230,7 @@ ensure_runner_service() {
       ./svc.sh install "$RUNNER_USER"
     )
   fi
+  harden_runner_service "$service_name"
   (
     cd "$runner_dir"
     ./svc.sh start

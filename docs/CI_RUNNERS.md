@@ -116,6 +116,21 @@ The repository includes a manual-only smoke test:
 gh workflow run dgx-smoke.yml
 ```
 
+The repository also includes a manual-only runner benchmark workflow for
+forcing real Verity tasks onto a chosen label set:
+
+```bash
+gh workflow run runner-benchmark.yml \
+  -f task=checks \
+  -f runner_labels_json='["self-hosted","linux","ARM64","dgx-spark","gpu"]'
+```
+
+Use it when adding a new host or comparing runner profiles. Keep it
+`workflow_dispatch` only.
+
+The latest benchmark report is in
+[`docs/CI_RUNNER_BENCHMARK_REPORT.md`](CI_RUNNER_BENCHMARK_REPORT.md).
+
 ## Maintenance Expectations
 
 Each CI host should have the weekly Verity maintenance timer installed. It
@@ -134,3 +149,17 @@ The target health state is:
 - `95.216.244.60` has enough free disk for fastlane jobs;
 - `88.99.4.254` has enough free disk for sticky build caches;
 - no more than one active full `LEAN_NUM_THREADS=8` build job per 8-core host.
+
+Runner services should also have the Verity systemd stop hardening drop-in
+installed:
+
+```ini
+[Service]
+KillMode=control-group
+SendSIGKILL=yes
+TimeoutStopSec=90s
+```
+
+GitHub's generated service uses `KillMode=process`, which can leave cancelled
+job children running. The repository installer writes this drop-in for future
+runner installs.
