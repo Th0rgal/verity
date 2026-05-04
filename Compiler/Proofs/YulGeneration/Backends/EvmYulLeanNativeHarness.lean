@@ -8839,6 +8839,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
               cases jump <;>
                 simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart datastart size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, datastart, mstart])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.CALLDATACOPY) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, mstart, datastart, size, hEval⟩
+      exact ⟨argState, mstart, datastart, size, hEval,
+        hArgs fuel state argState [size, datastart, mstart] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -8926,6 +8950,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserve
           | Checkpoint jump =>
               cases jump <;>
                 simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart rstart size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, rstart, mstart])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.RETURNDATACOPY) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, mstart, rstart, size, hEval⟩
+      exact ⟨argState, mstart, rstart, size, hEval,
+        hArgs fuel state argState [size, rstart, mstart] hLookup hEval⟩)
 
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_evalArgs_preserves
     (name : EvmYul.Identifier)
@@ -9019,6 +9067,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_log0_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG0) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, hEval⟩
+      exact ⟨argState, offset, size, hEval,
+        hArgs fuel state argState [size, offset] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -9110,6 +9182,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
             | Checkpoint jump =>
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_log1_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic0, size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG1) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, topic0, hEval⟩
+      exact ⟨argState, offset, size, topic0, hEval,
+        hArgs fuel state argState [topic0, size, offset] hLookup hEval⟩)
 
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_evalArgs_preserves
     (name : EvmYul.Identifier)
@@ -9203,6 +9299,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_log2_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic1, topic0, size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG2) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, topic0, topic1, hEval⟩
+      exact ⟨argState, offset, size, topic0, topic1, hEval,
+        hArgs fuel state argState [topic1, topic0, size, offset] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -9294,6 +9414,31 @@ theorem NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
             | Checkpoint jump =>
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_log3_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic2, topic1, topic0, size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG3) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, topic0, topic1, topic2, hEval⟩
+      exact ⟨argState, offset, size, topic0, topic1, topic2, hEval,
+        hArgs fuel state argState [topic2, topic1, topic0, size, offset]
+          hLookup hEval⟩)
 
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_evalArgs_preserves
     (name : EvmYul.Identifier)
@@ -9387,6 +9532,31 @@ theorem NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
             | Checkpoint jump =>
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_log4_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2 topic3,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic3, topic2, topic1, topic0, size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG4) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, topic0, topic1, topic2, topic3, hEval⟩
+      exact ⟨argState, offset, size, topic0, topic1, topic2, topic3, hEval,
+        hArgs fuel state argState
+          [topic3, topic2, topic1, topic0, size, offset] hLookup hEval⟩)
 
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_evalArgs_preserves
     (name : EvmYul.Identifier)
