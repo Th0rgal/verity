@@ -1,9 +1,9 @@
 /-
   Phase 4: Retarget the theorem stack to EVMYulLean.
 
-  This module proves that the Verity Yul semantics — currently targeting the
-  `.verity` builtin backend — are equivalent to execution under the `.evmYulLean`
-  backend for programs that use only bridged builtins.
+  This module proves that the legacy Verity builtin backend and the
+  `.evmYulLean` builtin backend are equivalent for programs that use only
+  bridged builtins.
 
   **Key theorem**: `backends_agree_on_bridged_builtins` shows that
   `evalBuiltinCallWithBackendContext .verity ... func args =

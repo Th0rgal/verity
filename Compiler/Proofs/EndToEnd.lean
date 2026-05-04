@@ -19,24 +19,23 @@
              (proven generically in Compiler/Proofs/YulGeneration/Preservation.lean)
   - This file: compose them into a single theorem statement.
 
-  **EVMYulLean note (Phase 4)**: This file now exposes both the historical
-  Verity-backed Yul target (`interpretYulFromIR`) and safe-body public wrappers
-  targeting the explicit EVMYulLean default-fuel proof-interpreter wrapper
-  `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel`.
-  The default Yul execution semantics (`interpretYulFromIR`, `interpretYulRuntime`)
-  are still defined in terms of `evalBuiltinCallWithBackend` which defaults to
-  the Verity backend. The EVMYulLean bridge is established in
+  **EVMYulLean note (Phase 4)**: The default builtin backend is now
+  EVMYulLean, and this file exposes safe-body public wrappers targeting the
+  explicit EVMYulLean default-fuel proof-interpreter wrapper
+  `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel`. Historical
+  Verity-backed comparison entry points remain available under explicit
+  reference-oracle names. The backend bridge is established in
   `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, proving
-  that for all 36 bridged builtins, the Verity backend agrees with EVMYulLean.
-  The Phase 4 retargeting module (`EvmYulLeanRetarget.lean`) composes these
-  per-builtin equivalences through expression evaluation and recursive
-  `BridgedTarget` statement execution. It also proves that the emitted runtime
-  wrapper satisfies that predicate, and executes equivalently under the
+  that for all 36 bridged builtins, the legacy Verity backend agrees with
+  EVMYulLean. The Phase 4 retargeting module (`EvmYulLeanRetarget.lean`)
+  composes these per-builtin equivalences through expression evaluation and
+  recursive `BridgedTarget` statement execution. It also proves that the emitted
+  runtime wrapper satisfies that predicate, and executes equivalently under the
   EVMYulLean backend, when the IR bodies it contains do. It also exposes a
   lower-level Layer-3 theorem whose Yul side is
-  `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel` and whose body witnesses are
-  supplied by this file's public wrappers. Those wrappers derive raw external
-  function-body bridge witnesses from source-level `SupportedSpec`,
+  `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel` and whose body witnesses
+  are supplied by this file's public wrappers. Those wrappers derive raw
+  external function-body bridge witnesses from source-level `SupportedSpec`,
   static-parameter, and `BridgedSafeStmts` witnesses where the public theorem
   applies.
 
