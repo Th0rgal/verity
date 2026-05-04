@@ -118,6 +118,10 @@ N8 public Layer 3 theorem flip
   `__has_selector` binding shape, while
   `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq`
   packages selector-hit halt/error projection through the same block shape.
+  Selector-hit normal-success projection is now packaged by
+  `exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq`
+  and its dispatcher-block companion
+  `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq`.
 - **Definition of done**:
   - Projection lemmas cover every native halt/error/result used by generated
     runtime execution.
