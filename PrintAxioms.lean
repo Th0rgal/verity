@@ -4045,4 +4045,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3867 theorems/lemmas (2907 public, 960 private, 0 sorry'd)
+-- Total: 3869 theorems/lemmas (2909 public, 960 private, 0 sorry'd)
