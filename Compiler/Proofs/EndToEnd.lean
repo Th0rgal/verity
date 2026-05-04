@@ -2241,6 +2241,38 @@ theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_p
     hNoReceive hFunctions hFuel hPrefixUnique hExternalBodies hInternalBodies
     hLower hEnv hNativeDispatcherExec
 
+/-- Native Layer 3 generated-shape variant at raw lowered-dispatcher exec on
+the direct native-vs-IR target. -/
+theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match
+    (fuel' : Nat) (contract : IRContract) (tx : IRTransaction)
+    (initialState : IRState) (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hPrefixUnique : Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique
+      ((if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+        contract.internalFunctions) = true)
+    (hInternals : ∀ stmt, stmt ∈ contract.internalFunctions →
+      ∃ name params rets body, stmt = Yul.YulStmt.funcDef name params rets body)
+    (hExternalBodies : ∀ fn, fn ∈ contract.functions →
+      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
+    (hInternalBodies : ∀ name params rets body,
+      Yul.YulStmt.funcDef name params rets body ∈ contract.internalFunctions →
+        Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef body = false)
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hNativeDispatcherExec :
+      nativeDispatcherExecMatchesIRPositive fuel' contract tx initialState
+        observableSlots nativeContract) :
+    nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (Nat.succ fuel') contract tx initialState observableSlots) :=
+  nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match
+    hPrefixUnique hInternals hExternalBodies hInternalBodies hNoFallback
+    hNoReceive hLower hEnv hNativeDispatcherExec
+
 /-! ## Layers 2+3 Composition -/
 
 /-- Reference-oracle end-to-end wrapper: given a successfully compiled

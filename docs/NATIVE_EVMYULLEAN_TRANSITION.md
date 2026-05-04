@@ -888,7 +888,9 @@ scope so the native path does not look more complete than it is:
    `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
    and compiled supported contracts can use
    `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`
-   or the Layers 2-3 wrapper
+   or the Layer 3 / Layers 2-3 wrappers
+   `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match`
+   and
    `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match`.
 
 ## Cleanup After the Flip
