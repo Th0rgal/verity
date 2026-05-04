@@ -381,9 +381,7 @@ def check_public_theorem_target(
                 )
 
     for required_fuel_surface in (
-        "def interpretYulRuntimeWithBackendFuel",
         "def interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
-        "theorem interpretYulRuntimeWithBackend_eq_fuel",
     ):
         if required_fuel_surface not in normalized_retarget:
             errors.append(

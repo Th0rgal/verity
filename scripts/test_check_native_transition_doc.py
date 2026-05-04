@@ -338,21 +338,6 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertTrue(any("callDispatcher" in error for error in errors), errors)
 
-    def test_public_theorem_target_guard_rejects_missing_fuel_aligned_oracle(self) -> None:
-        retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
-            "interpretYulRuntimeWithBackendFuel",
-            "interpretYulRuntimeWithBackendDefaultFuel",
-        )
-        errors = check.check_public_theorem_target(
-            check.END_TO_END.read_text(encoding="utf-8"),
-            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
-            retarget_text,
-        )
-        self.assertTrue(
-            any("interpretYulRuntimeWithBackendFuel" in error for error in errors),
-            errors,
-        )
-
     def test_public_theorem_target_guard_rejects_missing_default_evmyullean_fuel_wrapper(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
             "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
