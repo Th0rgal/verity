@@ -307,6 +307,44 @@ def check_public_theorem_target(
                 f"must target `{target_marker}`, not the legacy reference oracle"
             )
 
+    simple_storage_native_marker = "theorem simpleStorage_endToEnd_native_evmYulLean "
+    simple_storage_native_start = normalized_end_to_end.find(simple_storage_native_marker)
+    if simple_storage_native_start < 0:
+        errors.append(
+            "Compiler/Proofs/EndToEnd.lean must keep the public native "
+            "`simpleStorage_endToEnd_native_evmYulLean` theorem explicit"
+        )
+    else:
+        next_theorem = normalized_end_to_end.find(
+            " theorem ",
+            simple_storage_native_start + len(simple_storage_native_marker),
+        )
+        simple_storage_native_span = (
+            normalized_end_to_end[simple_storage_native_start:]
+            if next_theorem < 0
+            else normalized_end_to_end[simple_storage_native_start:next_theorem]
+        )
+        for required_direct_target in (
+            "simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match",
+            "simpleStorageNativeCallDispatcherMatchBridge_of_per_case",
+        ):
+            if required_direct_target not in simple_storage_native_span:
+                errors.append(
+                    "Compiler/Proofs/EndToEnd.lean public native SimpleStorage "
+                    "theorem must consume the direct native-vs-IR dispatcher "
+                    f"target `{required_direct_target}`"
+                )
+        for forbidden_compat_target in (
+            "simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_bridge",
+            "simpleStorageNativeCallDispatcherBridge_of_per_case",
+        ):
+            if forbidden_compat_target in simple_storage_native_span:
+                errors.append(
+                    "Compiler/Proofs/EndToEnd.lean public native SimpleStorage "
+                    "theorem must not consume the compatibility dispatcher "
+                    f"bridge `{forbidden_compat_target}`"
+                )
+
     for required_fuel_surface in (
         "def interpretYulRuntimeWithBackendFuel",
         "def interpretYulRuntimeEvmYulLeanFuelWrapper",

@@ -166,6 +166,48 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_theorem_target_guard_rejects_simple_storage_native_compat_wrapper(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match\n"
+            "    tx initialState observableSlots hEnv",
+            "simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_bridge\n"
+            "    tx initialState observableSlots hselector hNoWrap _hvars _hmemory",
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("positive_dispatcherExec_match" in error for error in errors),
+            errors,
+        )
+        self.assertTrue(
+            any("positive_dispatcherExec_bridge" in error for error in errors),
+            errors,
+        )
+
+    def test_public_theorem_target_guard_rejects_simple_storage_native_compat_splitter(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "simpleStorageNativeCallDispatcherMatchBridge_of_per_case\n"
+            "      tx initialState observableSlots",
+            "simpleStorageNativeCallDispatcherBridge_of_per_case\n"
+            "      tx initialState observableSlots",
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("CallDispatcherMatchBridge" in error for error in errors),
+            errors,
+        )
+        self.assertTrue(
+            any("CallDispatcherBridge" in error for error in errors),
+            errors,
+        )
+
     def test_rejects_verity_default_builtin_backend(self) -> None:
         builtins_text = check.BUILTINS.read_text(encoding="utf-8").replace(
             "abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",
