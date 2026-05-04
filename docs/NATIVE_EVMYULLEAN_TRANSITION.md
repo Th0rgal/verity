@@ -12,7 +12,7 @@ The detailed completion contract and reusable agent prompt live in
 The current public proof path still targets:
 
 ```lean
-interpretYulRuntimeEvmYulLean
+interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
 ```
 
 That path executes Verity's custom fuel-based Yul statement interpreter and
@@ -818,10 +818,11 @@ scope so the native path does not look more complete than it is:
    selector-miss cases prove the raw lowered-dispatcher agreement.
 
    This makes the remaining proof obligation concrete: for the supported
-   generated fragment, native `lowerRuntimeContractNative` plus
-   `EvmYul.Yul.exec` of the lowered contract dispatcher block must produce the
-   same projected `YulResult` as the current
-   `interpretYulRuntimeEvmYulLean` EVMYulLean fuel wrapper. The
+  generated fragment, native `lowerRuntimeContractNative` plus
+  `EvmYul.Yul.exec` of the lowered contract dispatcher block must produce the
+  same projected `YulResult` as the current
+   `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel` EVMYulLean fuel
+   wrapper. The
    successor theorem should discharge that bridge, or target a total native
    wrapper once the remaining closed-failure cases are ruled out by syntactic
    invariants.
@@ -829,7 +830,7 @@ scope so the native path does not look more complete than it is:
    A clean intermediate theorem is:
 
    ```lean
-   interpretYulRuntimeEvmYulLean emittedRuntime
+   interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel emittedRuntime
      =
    interpretRuntimeNative fuel emittedRuntime ...
    ```

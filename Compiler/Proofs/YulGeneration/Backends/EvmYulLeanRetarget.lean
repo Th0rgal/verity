@@ -2695,15 +2695,32 @@ noncomputable def interpretYulRuntimeWithBackend
   interpretYulRuntimeWithBackendFuel backend (sizeOf runtimeCode + 1)
     runtimeCode tx storage events
 
-/-- Native EVMYulLean-backed runtime entry point using the standard structural
-fuel bound. -/
-noncomputable def interpretYulRuntimeEvmYulLean
+/-- EVMYulLean-backed fuel-wrapper runtime entry point using the standard
+structural fuel bound. -/
+noncomputable def interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
     (runtimeCode : List Compiler.Yul.YulStmt)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (events : List (List Nat) := []) :
     YulResult :=
   interpretYulRuntimeEvmYulLeanFuelWrapper (sizeOf runtimeCode + 1)
     runtimeCode tx storage events
+
+/-- Compatibility spelling for the default-fuel EVMYulLean fuel-wrapper runtime
+entry point. -/
+noncomputable def interpretYulRuntimeEvmYulLean
+    (runtimeCode : List Compiler.Yul.YulStmt)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
+    (events : List (List Nat) := []) :
+    YulResult :=
+  interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel runtimeCode tx storage events
+
+@[simp] theorem interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel_eq_backend
+    (runtimeCode : List Compiler.Yul.YulStmt)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
+    (events : List (List Nat) := []) :
+    interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel runtimeCode tx storage events =
+      interpretYulRuntimeWithBackend .evmYulLean runtimeCode tx storage events := by
+  rfl
 
 @[simp] theorem interpretYulRuntimeEvmYulLean_eq_backend
     (runtimeCode : List Compiler.Yul.YulStmt)
@@ -2760,7 +2777,7 @@ theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
     (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
     (hInternals : BridgedStmts contract.internalFunctions) :
     interpretYulFromIR contract tx state =
-    interpretYulRuntimeEvmYulLean
+    interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
       (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
       state.storage state.events := by
   unfold interpretYulFromIR
@@ -2773,10 +2790,11 @@ theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
           exact (interpretYulRuntimeWithBackend_verity_eq
             (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
             state.storage (events := state.events)).symm
-    _ = interpretYulRuntimeEvmYulLean
+    _ = interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
         state.storage state.events := by
-          unfold interpretYulRuntimeEvmYulLean interpretYulRuntimeEvmYulLeanFuelWrapper
+          unfold interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
+            interpretYulRuntimeEvmYulLeanFuelWrapper
             interpretYulRuntimeWithBackendFuel
           change
             yulResultOfExecWithRollback
@@ -2824,7 +2842,7 @@ theorem yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle
     (hInternals : BridgedStmts contract.internalFunctions) :
     resultsMatch
       (interpretIR contract tx initialState)
-      (interpretYulRuntimeEvmYulLean
+      (interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
         initialState.storage initialState.events) := by
   have hLayer3 :=

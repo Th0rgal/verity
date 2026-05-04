@@ -61,6 +61,7 @@ REQUIRED_SNIPPETS = (
     "only materializes pre-state storage for those slots",
     "layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge",
     "interpretYulRuntimeEvmYulLeanFuelWrapper",
+    "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
     "interpretYulRuntimeWithBackendFuel",
     "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
     "nativeIRRuntimeAgreesWithEvmYulLean",
@@ -155,10 +156,10 @@ def check_public_theorem_target(
     normalized_native_harness = normalize_ws(native_harness_text)
     normalized_retarget = normalize_ws(retarget_text)
 
-    if "interpretYulRuntimeEvmYulLean" not in normalized_end_to_end:
+    if "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel" not in normalized_end_to_end:
         errors.append(
             "Compiler/Proofs/EndToEnd.lean must still expose the current "
-            "`interpretYulRuntimeEvmYulLean` public theorem target "
+            "`interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel` public theorem target "
             "until the native preservation theorem is proved and this guard is updated"
         )
 
@@ -230,11 +231,11 @@ def check_public_theorem_target(
     public_targets = (
         (
             "theorem layer3_contract_preserves_semantics ",
-            "interpretYulRuntimeEvmYulLean",
+            "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
         ),
         (
             "theorem simpleStorage_endToEnd ",
-            "interpretYulRuntimeEvmYulLean",
+            "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
         ),
     )
     for theorem_marker, target_marker in public_targets:
@@ -256,7 +257,9 @@ def check_public_theorem_target(
     for required_fuel_surface in (
         "def interpretYulRuntimeWithBackendFuel",
         "def interpretYulRuntimeEvmYulLeanFuelWrapper",
+        "def interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
         "def interpretYulRuntimeEvmYulLeanFuel",
+        "def interpretYulRuntimeEvmYulLean",
         "theorem interpretYulRuntimeWithBackend_eq_fuel",
     ):
         if required_fuel_surface not in normalized_retarget:
