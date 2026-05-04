@@ -2620,6 +2620,37 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispat
   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_agree
     hCompile hSupported hExternalBodies hLower hEnv hAgree
 
+theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hExternalBodies : ∀ fn, fn ∈ irContract.functions →
+      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hMatch :
+      nativeDispatcherExecMatchesIRPositive fuel' irContract tx state
+        observableSlots nativeContract) :
+    nativeIRRuntimeMatchesIR (Nat.succ fuel') irContract tx state observableSlots :=
+  nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match
+    (generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
+      hCompile hSupported)
+    (generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported
+      hCompile hSupported)
+    hExternalBodies
+    (generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+      hCompile hSupported)
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+      spec selectors hSupported irContract hCompile)
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+      spec selectors hSupported irContract hCompile)
+    hLower hEnv hMatch
+
 theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
@@ -2662,6 +2693,29 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispat
     nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') irContract tx state observableSlots :=
   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
     hCompile hSupported hStaticParams hSafeBodies hLower hEnv hAgree
+
+theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hMatch : nativeDispatcherExecMatchesIRPositive fuel' irContract tx state observableSlots nativeContract) :
+    nativeIRRuntimeMatchesIR (Nat.succ fuel') irContract tx state observableSlots :=
+  nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match
+    hCompile hSupported
+    (generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
+      hCompile hSupported hStaticParams hSafeBodies)
+    hLower hEnv hMatch
 
 /-- Supported compiler-produced native theorem whose generated-fragment check is
 discharged from generated-code shape facts. `SupportedSpec` already rules out

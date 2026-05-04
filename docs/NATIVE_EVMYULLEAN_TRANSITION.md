@@ -885,7 +885,9 @@ scope so the native path does not look more complete than it is:
    `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match` expose the
    same direct native-vs-IR target for positive-fuel generated dispatcher
    proofs. Generated-code shape facts lift this target through
-   `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`.
+   `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
+   and compiled supported contracts can use
+   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`.
 
 ## Cleanup After the Flip
 

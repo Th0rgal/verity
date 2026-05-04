@@ -189,6 +189,8 @@ def check_public_theorem_target(
         "def nativeDispatcherExecMatchesIRPositive",
         "theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match",
         "theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match",
+        "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match",
+        "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_ok_agree",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_ok_agree",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_yulHalt_agree",
