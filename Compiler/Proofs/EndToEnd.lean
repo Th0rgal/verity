@@ -6616,7 +6616,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
         simpleStorageIRContract tx initialState observableSlots) :=
-  layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge
+  layer3_contract_preserves_semantics_native_of_generated_lowered_callDispatcher_bridge
     (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
@@ -6628,7 +6628,17 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
     rfl
     simpleStorage_functions_bridged
     rfl
-    Compiler.SimpleStorageNativeWitness.generatedRuntimeNativeFragment_eq
+    (by
+      simp [simpleStorageIRContract,
+        Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique,
+        Compiler.Proofs.YulGeneration.Backends.Native.stringListHasDuplicate])
+    (by
+      intro fn hmem
+      simp [simpleStorageIRContract] at hmem ⊢
+      rcases hmem with rfl | rfl <;> rfl)
+    (by
+      intro name params rets body hmem
+      simp [simpleStorageIRContract] at hmem)
     Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq
     hEnv
     hNativeCallDispatcher
@@ -6669,7 +6679,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_dispatcherExec_bridge
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
         simpleStorageIRContract tx initialState observableSlots) :=
-  layer3_contract_preserves_semantics_native_of_dispatcherExec_bridge
+  layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_bridge
     (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
@@ -6681,7 +6691,17 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_dispatcherExec_bridge
     rfl
     simpleStorage_functions_bridged
     rfl
-    Compiler.SimpleStorageNativeWitness.generatedRuntimeNativeFragment_eq
+    (by
+      simp [simpleStorageIRContract,
+        Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique,
+        Compiler.Proofs.YulGeneration.Backends.Native.stringListHasDuplicate])
+    (by
+      intro fn hmem
+      simp [simpleStorageIRContract] at hmem ⊢
+      rcases hmem with rfl | rfl <;> rfl)
+    (by
+      intro name params rets body hmem
+      simp [simpleStorageIRContract] at hmem)
     Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq
     hEnv
     hNativeDispatcherExec
