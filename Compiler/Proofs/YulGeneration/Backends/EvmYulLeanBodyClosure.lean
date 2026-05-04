@@ -2332,6 +2332,92 @@ theorem compileStmt_ite_internal_body_fragment_bridged
                     (bridgedExpr_iszero_ident _) hElseBridged
                 · cases hNil
 
+theorem compileStmt_ite_external_body_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String)
+    {cond : Expr} {thenBranch elseBranch : List Stmt}
+    (_hCond : BridgedSourceExpr cond)
+    (hThen : BridgedSourceExternalBodyStmts fields dynamicSource thenBranch)
+    (hElse : BridgedSourceExternalBodyStmts fields dynamicSource elseBranch) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames
+        (isInternal := false) inScopeNames [] (.ite cond thenBranch elseBranch) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hCondExpr : compileExpr fields dynamicSource cond with
+  | error err => simp [hCondExpr] at hOk
+  | ok condExpr =>
+      cases hThenCompile : compileStmtList fields events errors dynamicSource
+          internalRetNames false inScopeNames [] thenBranch with
+      | error err => simp [hCondExpr, hThenCompile] at hOk
+      | ok thenOut =>
+          cases hElseCompile : compileStmtList fields events errors dynamicSource
+              internalRetNames false inScopeNames [] elseBranch with
+          | error err => simp [hCondExpr, hThenCompile, hElseCompile] at hOk
+          | ok elseOut =>
+              have hThenNoFunc :=
+                compileStmtList_external_body_fragment_noFuncDefs fields events
+                  errors dynamicSource internalRetNames thenBranch inScopeNames hThen
+                  hThenCompile
+              have hElseNoFunc :=
+                compileStmtList_external_body_fragment_noFuncDefs fields events
+                  errors dynamicSource internalRetNames elseBranch inScopeNames hElse
+                  hElseCompile
+              by_cases hEmpty : elseBranch.isEmpty
+              · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty, Pure.pure,
+                  Except.pure] at hOk
+                subst out
+                simp [Native.yulStmtContainsFuncDef, hThenNoFunc]
+              · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty, Pure.pure,
+                  Except.pure] at hOk
+                subst out
+                simp [Native.yulStmtContainsFuncDef, hThenNoFunc, hElseNoFunc]
+
+theorem compileStmt_ite_internal_body_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String)
+    {cond : Expr} {thenBranch elseBranch : List Stmt}
+    (_hCond : BridgedSourceExpr cond)
+    (hThen : BridgedSourceInternalBodyStmts fields dynamicSource thenBranch)
+    (hElse : BridgedSourceInternalBodyStmts fields dynamicSource elseBranch) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames
+        (isInternal := true) inScopeNames [] (.ite cond thenBranch elseBranch) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hCondExpr : compileExpr fields dynamicSource cond with
+  | error err => simp [hCondExpr] at hOk
+  | ok condExpr =>
+      cases hThenCompile : compileStmtList fields events errors dynamicSource
+          internalRetNames true inScopeNames [] thenBranch with
+      | error err => simp [hCondExpr, hThenCompile] at hOk
+      | ok thenOut =>
+          cases hElseCompile : compileStmtList fields events errors dynamicSource
+              internalRetNames true inScopeNames [] elseBranch with
+          | error err => simp [hCondExpr, hThenCompile, hElseCompile] at hOk
+          | ok elseOut =>
+              have hThenNoFunc :=
+                compileStmtList_internal_body_fragment_noFuncDefs fields events
+                  errors dynamicSource internalRetNames thenBranch inScopeNames hThen
+                  hThenCompile
+              have hElseNoFunc :=
+                compileStmtList_internal_body_fragment_noFuncDefs fields events
+                  errors dynamicSource internalRetNames elseBranch inScopeNames hElse
+                  hElseCompile
+              by_cases hEmpty : elseBranch.isEmpty
+              · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty, Pure.pure,
+                  Except.pure] at hOk
+                subst out
+                simp [Native.yulStmtContainsFuncDef, hThenNoFunc]
+              · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty, Pure.pure,
+                  Except.pure] at hOk
+                subst out
+                simp [Native.yulStmtContainsFuncDef, hThenNoFunc, hElseNoFunc]
+
 /-- Each external structured-body statement in the currently supported
 fragment compiles to Yul satisfying `BridgedStmts`. -/
 theorem compileStmt_external_structured_body_fragment_bridged
@@ -2350,6 +2436,24 @@ theorem compileStmt_external_structured_body_fragment_bridged
         dynamicSource internalRetNames inScopeNames hBase hOk
   | ite cond thenBranch elseBranch hCond hThen hElse =>
       exact compileStmt_ite_external_body_fragment_bridged fields events errors
+        dynamicSource internalRetNames inScopeNames hCond hThen hElse hOk
+
+theorem compileStmt_external_structured_body_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceExternalStructuredBodyStmt fields dynamicSource stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | base hBase =>
+      exact compileStmt_external_body_fragment_noFuncDefs fields events errors
+        dynamicSource internalRetNames inScopeNames hBase hOk
+  | ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact compileStmt_ite_external_body_fragment_noFuncDefs fields events errors
         dynamicSource internalRetNames inScopeNames hCond hThen hElse hOk
 
 /-- External structured source bodies made from mixed body fragments plus one
@@ -2399,6 +2503,22 @@ theorem compileStmtList_external_structured_body_fragment_bridged
                   errors dynamicSource internalRetNames inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+theorem compileStmtList_external_structured_body_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceExternalStructuredBodyStmts fields dynamicSource stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames false
+    (BridgedSourceExternalStructuredBodyStmt fields dynamicSource)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_external_structured_body_fragment_noFuncDefs fields events
+        errors dynamicSource internalRetNames inScopeNames hStmt hOk)
+
 /-- Each internal structured-body statement in the currently supported
 fragment compiles to Yul satisfying `BridgedStmts`. -/
 theorem compileStmt_internal_structured_body_fragment_bridged
@@ -2417,6 +2537,24 @@ theorem compileStmt_internal_structured_body_fragment_bridged
         dynamicSource internalRetNames inScopeNames hBase hOk
   | ite cond thenBranch elseBranch hCond hThen hElse =>
       exact compileStmt_ite_internal_body_fragment_bridged fields events errors
+        dynamicSource internalRetNames inScopeNames hCond hThen hElse hOk
+
+theorem compileStmt_internal_structured_body_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceInternalStructuredBodyStmt fields dynamicSource stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          (isInternal := true) inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | base hBase =>
+      exact compileStmt_internal_body_fragment_noFuncDefs fields events errors
+        dynamicSource internalRetNames inScopeNames hBase hOk
+  | ite cond thenBranch elseBranch hCond hThen hElse =>
+      exact compileStmt_ite_internal_body_fragment_noFuncDefs fields events errors
         dynamicSource internalRetNames inScopeNames hCond hThen hElse hOk
 
 /-- Internal structured source bodies made from mixed body fragments plus one
@@ -2465,6 +2603,22 @@ theorem compileStmtList_internal_structured_body_fragment_bridged
                 (compileStmt_internal_structured_body_fragment_bridged fields events
                   errors dynamicSource internalRetNames inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_internal_structured_body_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceInternalStructuredBodyStmts fields dynamicSource stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          (isInternal := true) inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames true
+    (BridgedSourceInternalStructuredBodyStmt fields dynamicSource)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_internal_structured_body_fragment_noFuncDefs fields events
+        errors dynamicSource internalRetNames inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: nested `ite` composition
 
