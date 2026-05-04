@@ -206,6 +206,7 @@ def check_public_theorem_target(
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure",
         "def nativeIRRuntimeMatchesIR",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_match",
+        "theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",

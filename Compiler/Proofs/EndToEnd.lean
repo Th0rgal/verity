@@ -225,6 +225,41 @@ theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_match
   simp [hExec]
   exact hMatch
 
+/-- Intro form for a direct positive-fuel normal finish when a concrete native
+execution lemma already packages the projected `YulResult`. -/
+theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match
+    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    {finalState : EvmYul.Yul.State} {nativeYul : YulResult}
+    (hExec :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial =
+        .ok finalState)
+    (hProject :
+      let initial :=
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode contract) observableSlots)
+      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+        (YulTransaction.ofIR tx) state.storage state.events
+        (.ok (finalState.reviveJump.overwrite? initial |>.setStore initial, [])) =
+        nativeYul)
+    (hMatch :
+      nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+        (.ok nativeYul)) :
+    nativeDispatcherExecMatchesIRPositive fuel' contract tx state
+      observableSlots nativeContract := by
+  apply nativeDispatcherExecMatchesIRPositive_of_exec_ok_match
+  · exact hExec
+  · simpa [hProject] using hMatch
+
 /-- Intro form for the direct positive-fuel native-vs-IR dispatcher-exec target
 when native execution halts through EVMYulLean's Yul halt channel. -/
 theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_match

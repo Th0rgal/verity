@@ -221,6 +221,7 @@ scope so the native path does not look more complete than it is:
    preservation lemmas against IR. EndToEnd provides raw-exec intro forms for
    the direct native-vs-IR concrete outcomes:
    `nativeDispatcherExecMatchesIRPositive_of_exec_ok_match`,
+   `nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match`,
    `nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match`,
    and `nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match`.
    These let each generated-statement simulation case finish from a proved
@@ -834,6 +835,7 @@ scope so the native path does not look more complete than it is:
    proofs. Concrete case proofs can now package normal, projected halt, and
    projected error runs with
    `nativeDispatcherExecMatchesIRPositive_of_exec_ok_match`,
+   `nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match`,
    `nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match`, and
    `nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match`.
    Generated-code shape facts lift this target through
