@@ -2815,7 +2815,7 @@ theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
             (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
             contract hFunctions hFallback hReceive hInternals]
 
-theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_of_backend_bridge
+theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle
     (contract : Compiler.IRContract)
     (tx : IRTransaction)
     (initialState : IRState)
@@ -2856,10 +2856,11 @@ theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_of_backe
 /-- Compatibility spelling for the current EVMYulLean Layer-3 retarget.
 
 The proof body intentionally lives in
-`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_of_backend_bridge`
-because this theorem records the backend bridge from the historical Layer-3
-preservation theorem to the EVMYulLean fuel-wrapper target. -/
-theorem yulCodegen_preserves_semantics_evmYulLean_of_backend_bridge
+`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`
+so callers that still rely on the legacy Layer-3 oracle make that dependency
+explicit. This wrapper should be replaced by a direct native/EVMYulLean proof
+when the public compiler-correctness path is fully flipped. -/
+theorem yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle
     (contract : Compiler.IRContract)
     (tx : IRTransaction)
     (initialState : IRState)
@@ -2889,7 +2890,7 @@ theorem yulCodegen_preserves_semantics_evmYulLean_of_backend_bridge
       (interpretYulRuntimeEvmYulLean
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
         initialState.storage initialState.events) :=
-  yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_of_backend_bridge
+  yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle
     contract tx initialState hselector hNoWrap hWF hNoFallback hNoReceive
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hbody
     hFunctions hFallback hReceive hInternals
@@ -2897,9 +2898,10 @@ theorem yulCodegen_preserves_semantics_evmYulLean_of_backend_bridge
 /-- Compatibility spelling for the current EVMYulLean Layer-3 retarget.
 
 The proof body intentionally lives in
-`yulCodegen_preserves_semantics_evmYulLean_of_backend_bridge` because this
-theorem records the backend bridge from the historical Layer-3 preservation
-theorem to the EVMYulLean fuel-wrapper target. -/
+`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle` so callers that
+still rely on the legacy Layer-3 oracle make that dependency explicit. This
+wrapper should be replaced by a direct native/EVMYulLean proof when the public
+compiler-correctness path is fully flipped. -/
 theorem yulCodegen_preserves_semantics_evmYulLean
     (contract : Compiler.IRContract)
     (tx : IRTransaction)
@@ -2930,7 +2932,7 @@ theorem yulCodegen_preserves_semantics_evmYulLean
       (interpretYulRuntimeEvmYulLean
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
         initialState.storage initialState.events) :=
-  yulCodegen_preserves_semantics_evmYulLean_of_backend_bridge
+  yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle
     contract tx initialState hselector hNoWrap hWF hNoFallback hNoReceive
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hbody
     hFunctions hFallback hReceive hInternals
@@ -2977,7 +2979,7 @@ theorem yulCodegen_preserves_semantics_evmYulLean
     emitted runtime-wrapper closure with recursive target equivalence to state
     that Verity `legacyExecYulFuel` equals the EVMYulLean backend executor for
     `emitYul` runtime code when its embedded bodies are bridged.
-12. **`yulCodegen_preserves_semantics_evmYulLean_of_backend_bridge`**:
+12. **`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`**:
     Composes the existing Layer-3 IR-to-Yul preservation theorem with the
     bridged-runtime equality above, yielding a contract-level result whose Yul
     side is evaluated by the EVMYulLean builtin backend. This lower-level
