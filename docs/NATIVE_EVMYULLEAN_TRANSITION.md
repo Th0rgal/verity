@@ -876,7 +876,10 @@ scope so the native path does not look more complete than it is:
    with `nativeIRRuntimeAgreesWithEvmYulLean_of_ok_nativeResultsMatchOn`, lets
    remaining generated-fragment work target a successful native run plus
    `nativeResultsMatchOn` against IR directly, while the current fuel-wrapper
-   theorem is still available as the oracle side of the bridge.
+   theorem is still available as the oracle side of the bridge. The
+   non-`via_reference_oracle` Layer 3 and Layers 2-3 native theorem spellings
+   now consume `nativeIRRuntimeMatchesIR`; the explicit `_via_reference_oracle`
+   variants remain as compatibility wrappers for the older fuel-wrapper route.
 
 ## Cleanup After the Flip
 

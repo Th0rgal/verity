@@ -1847,17 +1847,22 @@ theorem layer3_contract_preserves_semantics
 theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge
     (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
     (initialState : IRState) (observableSlots : List Nat)
-    (hselector : tx.functionSelector < selectorModulus) (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (hvars : initialState.vars = []) (hmemory : initialState.memory = fun _ => 0)
-    (htransient : initialState.transientStorage = fun _ => 0) (hreturn : initialState.returnValue = none)
-    (hparamErase : ∀ fn, fn ∈ contract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ contract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx))
     (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions → DispatchGuardsSafe fn tx)
     (hNoHasSelector : ∀ fn, fn ∈ contract.functions → yulStmtsNoRef "__has_selector" fn.body)
     (hHasSelectorDead : ∀ fn, fn ∈ contract.functions → HasSelectorDeadBridge fn.body)
     (hLoopFree : ∀ fn, fn ∈ contract.functions → yulStmtsLoopFree fn.body = true)
     (hWF : ContractWF contract) (hNoFallback : contract.fallbackEntrypoint = none)
     (hNoReceive : contract.receiveEntrypoint = none)
-    (hFunctions : ∀ fn, fn ∈ contract.functions → Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
+    (hFunctions : ∀ fn, fn ∈ contract.functions →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
     (hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1)
     (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx initialState observableSlots) :
     nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
@@ -1885,34 +1890,34 @@ theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYu
 
 /-- Compatibility spelling for the current generic native Layer 3 seam.
 
-The proof body intentionally lives in
-`layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge`
-because the generic native path still composes through the EVMYulLean fuel
-wrapper and the explicitly named reference-oracle Layer 3 retarget. -/
+This non-`via_reference_oracle` spelling consumes the direct native-vs-IR
+target. The older fuel-wrapper compatibility path remains available under the
+explicit `_via_reference_oracle` theorem above. -/
 theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
     (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
     (initialState : IRState) (observableSlots : List Nat)
-    (hselector : tx.functionSelector < selectorModulus) (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (hvars : initialState.vars = []) (hmemory : initialState.memory = fun _ => 0)
-    (htransient : initialState.transientStorage = fun _ => 0) (hreturn : initialState.returnValue = none)
-    (hparamErase : ∀ fn, fn ∈ contract.functions → paramLoadErasure fn tx (initialState.withTx tx))
-    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions → DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ contract.functions → yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions → HasSelectorDeadBridge fn.body)
-    (hLoopFree : ∀ fn, fn ∈ contract.functions → yulStmtsLoopFree fn.body = true)
-    (hWF : ContractWF contract) (hNoFallback : contract.fallbackEntrypoint = none)
-    (hNoReceive : contract.receiveEntrypoint = none)
-    (hFunctions : ∀ fn, fn ∈ contract.functions → Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
-    (hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1)
-    (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx initialState observableSlots) :
+    (_hselector : tx.functionSelector < selectorModulus)
+    (_hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (_hvars : initialState.vars = [])
+    (_hmemory : initialState.memory = fun _ => 0)
+    (_htransient : initialState.transientStorage = fun _ => 0)
+    (_hreturn : initialState.returnValue = none)
+    (_hparamErase : ∀ fn, fn ∈ contract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx))
+    (_hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions → DispatchGuardsSafe fn tx)
+    (_hNoHasSelector : ∀ fn, fn ∈ contract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (_hHasSelectorDead : ∀ fn, fn ∈ contract.functions → HasSelectorDeadBridge fn.body)
+    (_hLoopFree : ∀ fn, fn ∈ contract.functions → yulStmtsLoopFree fn.body = true)
+    (_hWF : ContractWF contract) (_hNoFallback : contract.fallbackEntrypoint = none)
+    (_hNoReceive : contract.receiveEntrypoint = none)
+    (_hFunctions : ∀ fn, fn ∈ contract.functions →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
+    (_hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1)
+    (hNativeBridge : nativeIRRuntimeMatchesIR fuel contract tx initialState observableSlots) :
     nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel contract tx initialState observableSlots) :=
-  layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge
-    fuel contract tx initialState observableSlots
-    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
-    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
-    hNoReceive hFunctions hFuel hNativeBridge
+  hNativeBridge
 
 /-- Native Layer 3 bridge theorem with generated-code shape facts discharging
 the executable native-fragment check. -/
@@ -2326,50 +2331,44 @@ theorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLea
 
 /-- Compatibility spelling for the current supported native theorem seam.
 
-The proof body intentionally lives in
-`layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge`
-because the generic native path still reaches native EVMYulLean by comparing
-against the EVMYulLean fuel wrapper produced from the reference-oracle Layer 3
-retarget. -/
+This non-`via_reference_oracle` spelling consumes the direct native-vs-IR
+target. The explicit `_via_reference_oracle` theorem above remains available
+for callers that still discharge the older fuel-wrapper bridge. -/
 theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
     (fuel : Nat)
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction)
     (initialState : IRState) (observableSlots : List Nat)
-    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
-    (hSupported : SupportedSpec spec selectors)
-    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+    (_hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (_hSupported : SupportedSpec spec selectors)
+    (_hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
       Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
-    (hSafeBodies :
+    (_hSafeBodies :
       ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
         Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts spec.fields
           spec.errors .calldata [] false entry.1.body)
-    (hselector : tx.functionSelector < selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (hvars : initialState.vars = [])
-    (hmemory : initialState.memory = fun _ => 0)
-    (htransient : initialState.transientStorage = fun _ => 0)
-    (hreturn : initialState.returnValue = none)
-    (hparamErase : ∀ fn, fn ∈ irContract.functions →
+    (_hselector : tx.functionSelector < selectorModulus)
+    (_hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (_hvars : initialState.vars = [])
+    (_hmemory : initialState.memory = fun _ => 0)
+    (_htransient : initialState.transientStorage = fun _ => 0)
+    (_hreturn : initialState.returnValue = none)
+    (_hparamErase : ∀ fn, fn ∈ irContract.functions →
       paramLoadErasure fn tx (initialState.withTx tx))
-    (hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions → DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ irContract.functions → yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ irContract.functions → HasSelectorDeadBridge fn.body)
-    (hLoopFree : ∀ fn, fn ∈ irContract.functions → yulStmtsLoopFree fn.body = true)
-    (hWF : ContractWF irContract) (hNoFallback : irContract.fallbackEntrypoint = none)
-    (hNoReceive : irContract.receiveEntrypoint = none)
-    (hFuel : fuel = sizeOf (Compiler.emitYul irContract).runtimeCode + 1)
-    (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLean fuel irContract tx
+    (_hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions → DispatchGuardsSafe fn tx)
+    (_hNoHasSelector : ∀ fn, fn ∈ irContract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (_hHasSelectorDead : ∀ fn, fn ∈ irContract.functions → HasSelectorDeadBridge fn.body)
+    (_hLoopFree : ∀ fn, fn ∈ irContract.functions → yulStmtsLoopFree fn.body = true)
+    (_hWF : ContractWF irContract) (_hNoFallback : irContract.fallbackEntrypoint = none)
+    (_hNoReceive : irContract.receiveEntrypoint = none)
+    (_hFuel : fuel = sizeOf (Compiler.emitYul irContract).runtimeCode + 1)
+    (hNativeBridge : nativeIRRuntimeMatchesIR fuel irContract tx
       initialState observableSlots) :
     nativeResultsMatchOn observableSlots
       (interpretIR irContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel irContract tx initialState observableSlots) :=
-  layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge
-    fuel spec selectors irContract tx initialState observableSlots
-    hCompile hSupported hStaticParams hSafeBodies hselector hNoWrap hvars
-    hmemory htransient hreturn hparamErase hdispatchGuardSafe hNoHasSelector
-    hHasSelectorDead hLoopFree hWF hNoFallback hNoReceive hFuel hNativeBridge
+  hNativeBridge
 
 /-- Supported compiler output has a unique generated-runtime helper prefix.
 
