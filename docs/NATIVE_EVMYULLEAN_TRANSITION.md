@@ -60,8 +60,11 @@ materializes pre-state storage for those slots.
   `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`,
   `nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree`,
   `layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge`,
-  and
-  `layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge`.
+  `layer3_contract_preserves_semantics_native_of_dispatcherBlock_bridge`,
+  `layer3_contract_preserves_semantics_native_of_dispatcherExec_bridge`,
+  `layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge`,
+  `layers2_3_ir_matches_native_evmYulLean_of_dispatcherBlock_bridge`, and
+  `layers2_3_ir_matches_native_evmYulLean_of_dispatcherExec_bridge`.
   These move the remaining proof obligation down to concrete native lowering,
   selected-path environment validation, and projected native dispatcher-block
   execution agreement with the fuel-aligned EVMYulLean fuel wrapper.
@@ -751,17 +754,21 @@ scope so the native path does not look more complete than it is:
    The next theorem in that chain is:
 
    ```lean
-   layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge
+   layers2_3_ir_matches_native_evmYulLean_of_dispatcherExec_bridge
    ```
 
    It replaces the opaque bridge hypothesis with successful
    `lowerRuntimeContractNative`, successful
    `validateNativeRuntimeEnvironment`, and
-   `nativeCallDispatcherAgreesWithEvmYulLean` for the lowered native contract.
-   That obligation can now be discharged from
-   `nativeDispatcherBlockAgreesWithEvmYulLean`, which compares projected
-   `contractDispatcherBlockResult` execution with the EVMYulLean fuel wrapper.
-   The block obligation can in turn be discharged from
+   `nativeDispatcherExecAgreesWithEvmYulLean` for the lowered native contract.
+   The higher `layers2_3_ir_matches_native_evmYulLean_of_dispatcherBlock_bridge`
+   and
+   `layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge`
+   wrappers remain available when callers have already proved the block-level
+   or `callDispatcher`-level obligation instead.
+   `nativeDispatcherBlockAgreesWithEvmYulLean` compares projected
+   `contractDispatcherBlockResult` execution with the EVMYulLean fuel wrapper;
+   it can in turn be discharged from
    `nativeDispatcherExecAgreesWithEvmYulLean`, which targets raw
    `contractDispatcherExecResult`.
 

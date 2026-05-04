@@ -1150,6 +1150,96 @@ theorem layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bri
     (nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree
       hFragment hLower hEnv hNativeCallDispatcher)
 
+/-- Native Layer 3 bridge theorem with the remaining obligation stated at the
+lowered dispatcher-block boundary. This keeps the `callDispatcher` wrapper
+discharge out of callers that are already proving facts about the selected
+dispatcher block. -/
+theorem layer3_contract_preserves_semantics_native_of_dispatcherBlock_bridge
+    (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
+    (initialState : IRState) (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = []) (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ contract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions → HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ contract.functions → yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF contract) (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hFunctions : ∀ fn, fn ∈ contract.functions →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
+    (hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1)
+    (hFragment :
+      Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment
+        (Compiler.emitYul contract).runtimeCode = true)
+    (hLower :
+      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+        (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hNativeDispatcherBlock :
+      nativeDispatcherBlockAgreesWithEvmYulLean fuel contract tx initialState
+        observableSlots nativeContract) :
+    nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel contract tx initialState observableSlots) :=
+  layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge
+    fuel contract tx initialState observableSlots nativeContract
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
+    hNoReceive hFunctions hFuel hFragment hLower hEnv
+    (nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree
+      hNativeDispatcherBlock)
+
+/-- Native Layer 3 bridge theorem with the remaining obligation stated at raw
+lowered-dispatcher `EvmYul.Yul.exec` execution. -/
+theorem layer3_contract_preserves_semantics_native_of_dispatcherExec_bridge
+    (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
+    (initialState : IRState) (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = []) (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ contract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions → HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ contract.functions → yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF contract) (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hFunctions : ∀ fn, fn ∈ contract.functions →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
+    (hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1)
+    (hFragment :
+      Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment
+        (Compiler.emitYul contract).runtimeCode = true)
+    (hLower :
+      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+        (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hNativeDispatcherExec :
+      nativeDispatcherExecAgreesWithEvmYulLean fuel contract tx initialState
+        observableSlots nativeContract) :
+    nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel contract tx initialState observableSlots) :=
+  layer3_contract_preserves_semantics_native_of_dispatcherBlock_bridge
+    fuel contract tx initialState observableSlots nativeContract
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
+    hNoReceive hFunctions hFuel hFragment hLower hEnv
+    (nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree
+      hNativeDispatcherExec)
+
 /-! ## Layers 2+3 Composition -/
 
 /-- Reference-oracle end-to-end wrapper: given a successfully compiled
@@ -1379,6 +1469,103 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge
         spec selectors hSupported irContract hCompile)
       hStaticParams hSafeBodies)
     hFuel hFragment hLower hEnv hNativeCallDispatcher
+
+/-- Supported compiler-produced native theorem seam with the remaining native
+obligation exposed at the lowered dispatcher-block boundary. -/
+theorem layers2_3_ir_matches_native_evmYulLean_of_dispatcherBlock_bridge
+    (fuel : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+        Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts spec.fields spec.errors .calldata [] false entry.1.body)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ irContract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ irContract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ irContract.functions → HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ irContract.functions → yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF irContract) (hNoFallback : irContract.fallbackEntrypoint = none)
+    (hNoReceive : irContract.receiveEntrypoint = none)
+    (hFuel : fuel = sizeOf (Compiler.emitYul irContract).runtimeCode + 1)
+    (hFragment :
+      Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment
+        (Compiler.emitYul irContract).runtimeCode = true)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hNativeDispatcherBlock :
+      nativeDispatcherBlockAgreesWithEvmYulLean fuel irContract tx initialState
+        observableSlots nativeContract) :
+    nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel irContract tx initialState observableSlots) :=
+  layer3_contract_preserves_semantics_native_of_dispatcherBlock_bridge
+    fuel irContract tx initialState observableSlots nativeContract
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
+    hNoReceive
+    (compiledExternalFunctions_bridged_of_safe_static
+      spec.fields spec.events spec.errors
+      (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
+        spec selectors hSupported irContract hCompile)
+      hStaticParams hSafeBodies)
+    hFuel hFragment hLower hEnv hNativeDispatcherBlock
+
+/-- Supported compiler-produced native theorem seam with the remaining native
+obligation exposed at raw lowered-dispatcher `EvmYul.Yul.exec` execution. -/
+theorem layers2_3_ir_matches_native_evmYulLean_of_dispatcherExec_bridge
+    (fuel : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+        Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts spec.fields spec.errors .calldata [] false entry.1.body)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ irContract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ irContract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ irContract.functions → HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ irContract.functions → yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF irContract) (hNoFallback : irContract.fallbackEntrypoint = none)
+    (hNoReceive : irContract.receiveEntrypoint = none)
+    (hFuel : fuel = sizeOf (Compiler.emitYul irContract).runtimeCode + 1)
+    (hFragment :
+      Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment
+        (Compiler.emitYul irContract).runtimeCode = true)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hNativeDispatcherExec :
+      nativeDispatcherExecAgreesWithEvmYulLean fuel irContract tx initialState
+        observableSlots nativeContract) :
+    nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel irContract tx initialState observableSlots) :=
+  layers2_3_ir_matches_native_evmYulLean_of_dispatcherBlock_bridge
+    fuel spec selectors irContract tx initialState observableSlots nativeContract
+    hCompile hSupported hStaticParams hSafeBodies
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
+    hNoReceive hFuel hFragment hLower hEnv
+    (nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree
+      hNativeDispatcherExec)
 
 /-! ## Concrete Instantiation: SimpleStorage -/
 
