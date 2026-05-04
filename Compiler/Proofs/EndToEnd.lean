@@ -1790,7 +1790,7 @@ theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYu
     (hNoReceive : contract.receiveEntrypoint = none)
     (hFunctions : ∀ fn, fn ∈ contract.functions → Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
     (hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1)
-    (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper fuel contract tx initialState observableSlots) :
+    (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx initialState observableSlots) :
     nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel contract tx initialState observableSlots) := by
@@ -1800,7 +1800,8 @@ theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYu
       hselector hNoWrap hvars hmemory htransient hreturn hparamErase
       hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
       hNoReceive hFunctions
-  unfold nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper at hNativeBridge
+  unfold nativeIRRuntimeAgreesWithEvmYulLean
+    nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper at hNativeBridge
   cases hNative :
       Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         (sizeOf (Compiler.emitYul contract).runtimeCode + 1)
@@ -2237,7 +2238,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLea
     (hWF : ContractWF irContract) (hNoFallback : irContract.fallbackEntrypoint = none)
     (hNoReceive : irContract.receiveEntrypoint = none)
     (hFuel : fuel = sizeOf (Compiler.emitYul irContract).runtimeCode + 1)
-    (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper fuel irContract tx initialState observableSlots) :
+    (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLean fuel irContract tx initialState observableSlots) :
     nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel irContract tx initialState observableSlots) :=
@@ -2593,7 +2594,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherBlock_brid
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hNativeDispatcherBlock :
-      nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper fuel irContract tx initialState
+      nativeDispatcherBlockAgreesWithEvmYulLean fuel irContract tx initialState
         observableSlots nativeContract) :
     nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
@@ -2604,7 +2605,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherBlock_brid
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
     hNoReceive hFuel hExternalBodies hLower hEnv
-    (nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree
+    (nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree
       hNativeDispatcherBlock)
 
 /-- Supported compiler-produced generated-shape variant at raw
@@ -7087,7 +7088,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
         (Compiler.emitYul simpleStorageIRContract).runtimeCode
         (YulTransaction.ofIR tx) = .ok ())
     (hNativeCallDispatcher :
-      nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper
+      nativeCallDispatcherAgreesWithEvmYulLean
         (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
         simpleStorageIRContract tx initialState observableSlots
         Compiler.SimpleStorageNativeWitness.nativeContract) :
@@ -7150,7 +7151,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_dispatcherExec_bridge
         (Compiler.emitYul simpleStorageIRContract).runtimeCode
         (YulTransaction.ofIR tx) = .ok ())
     (hNativeDispatcherExec :
-      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper
+      nativeDispatcherExecAgreesWithEvmYulLean
         (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
         simpleStorageIRContract tx initialState observableSlots
         Compiler.SimpleStorageNativeWitness.nativeContract) :
@@ -7211,7 +7212,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_brid
           (Compiler.emitYul simpleStorageIRContract).runtimeCode
         (YulTransaction.ofIR tx) = .ok ())
     (hNativeDispatcherExec :
-      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive
+      nativeDispatcherExecAgreesWithEvmYulLeanPositive
         simpleStorageNativeDispatcherFuel simpleStorageIRContract tx initialState
         observableSlots Compiler.SimpleStorageNativeWitness.nativeContract) :
     nativeResultsMatchOn observableSlots
@@ -7224,7 +7225,7 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_brid
     hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead hparamErase hEnv
     (by
       rw [simpleStorage_runtimeCode_eq_single_dispatcher]
-      exact nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_positive
+      exact nativeDispatcherExecAgreesWithEvmYulLean_of_positive
         hNativeDispatcherExec)
 
 /-- Native SimpleStorage end-to-end theorem with the concrete native dispatcher

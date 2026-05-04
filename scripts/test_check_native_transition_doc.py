@@ -364,6 +364,21 @@ theorem nativeAliasSurfaceForTestEvmYulLean
             errors,
         )
 
+    def test_native_alias_signature_guard_rejects_lowercase_evmYulLean_name(self) -> None:
+        end_to_end_text = """
+theorem nativeAliasSurfaceForTest_evmYulLean
+    (h :
+      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper fuel contract tx state
+        observableSlots nativeContract) :
+    True := by
+  trivial
+"""
+        errors = check.check_native_alias_signatures(end_to_end_text)
+        self.assertTrue(
+            any("nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper" in error for error in errors),
+            errors,
+        )
+
     def test_native_alias_signature_guard_allows_explicit_fuel_wrapper_theorem(self) -> None:
         end_to_end_text = """
 theorem nativeAliasSurfaceForTestEvmYulLeanFuelWrapper

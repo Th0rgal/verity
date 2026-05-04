@@ -646,7 +646,7 @@ def check_native_alias_signatures(end_to_end_text: str) -> list[str]:
     for match in theorem_pattern.finditer(end_to_end_text):
         name = match.group(1)
         signature = match.group(2)
-        if "EvmYulLean" not in name or "FuelWrapper" in name:
+        if not re.search(r"evmYulLean", name, re.IGNORECASE) or "FuelWrapper" in name:
             continue
         raw_matches = sorted(set(raw_native_fuel_wrapper.findall(signature)))
         if raw_matches:
