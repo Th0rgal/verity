@@ -2895,48 +2895,6 @@ theorem yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hbody
     hFunctions hFallback hReceive hInternals
 
-/-- Compatibility spelling for the current EVMYulLean Layer-3 retarget.
-
-The proof body intentionally lives in
-`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle` so callers that
-still rely on the legacy Layer-3 oracle make that dependency explicit. This
-wrapper should be replaced by a direct native/EVMYulLean proof when the public
-compiler-correctness path is fully flipped. -/
-theorem yulCodegen_preserves_semantics_evmYulLean
-    (contract : Compiler.IRContract)
-    (tx : IRTransaction)
-    (initialState : IRState)
-    (hselector : tx.functionSelector < selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (hWF : ContractWF contract)
-    (hNoFallback : contract.fallbackEntrypoint = none)
-    (hNoReceive : contract.receiveEntrypoint = none)
-    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
-      DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
-      yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
-      HasSelectorDeadBridge fn.body)
-    (hLoopFree : ∀ fn, fn ∈ contract.functions →
-      yulStmtsLoopFree fn.body = true)
-    (hbody : ∀ fn, fn ∈ contract.functions →
-      resultsMatch
-        (execIRFunction fn tx.args (initialState.withTx tx))
-        (interpretYulBody fn tx (initialState.withTx tx)))
-    (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
-    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
-    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
-    (hInternals : BridgedStmts contract.internalFunctions) :
-    resultsMatch
-      (interpretIR contract tx initialState)
-      (interpretYulRuntimeEvmYulLean
-        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
-        initialState.storage initialState.events) :=
-  yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle
-    contract tx initialState hselector hNoWrap hWF hNoFallback hNoReceive
-    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hbody
-    hFunctions hFallback hReceive hInternals
-
 /-! ## Phase 4 Completion Summary
 
 ### What this module establishes:
@@ -2984,10 +2942,8 @@ theorem yulCodegen_preserves_semantics_evmYulLean
     bridged-runtime equality above, yielding a contract-level result whose Yul
     side is evaluated by the EVMYulLean builtin backend. This lower-level
     theorem is intentionally parameterized by generated embedded-body
-    `BridgedStmts` witnesses; the compatibility theorem
-    `yulCodegen_preserves_semantics_evmYulLean` delegates to it, and the public
-    safe-body EndToEnd wrapper derives those witnesses for supported
-    compiler-produced contracts.
+    `BridgedStmts` witnesses; the public safe-body EndToEnd wrapper derives
+    those witnesses for supported compiler-produced contracts.
 
 The public safe-body EndToEnd wrapper consumes this Layer-3 theorem after
 deriving the raw `BridgedStmts` body witnesses from source-level

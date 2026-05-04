@@ -656,7 +656,7 @@ def build_report() -> dict[str, object]:
             "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"
         )
         has_layer3_evm_retarget = _has_theorem(
-            "yulCodegen_preserves_semantics_evmYulLean"
+            "yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle"
         )
         if END_TO_END_FILE.exists():
             end_to_end_code = _strip_lean_strings(
@@ -707,7 +707,7 @@ def build_report() -> dict[str, object]:
             "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"
         )
         layer3_evm_retarget_has_sorry = _theorem_body_has_sorry(
-            "yulCodegen_preserves_semantics_evmYulLean"
+            "yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle"
         )
         admitted_deps = sorted(admitted_lemmas)
         admitted_dep_status = (
@@ -1423,7 +1423,7 @@ def build_report() -> dict[str, object]:
             "execYulFuelWithBackend_eq_on_bridged_target": recursive_target_retarget_status,
             "emitYul_runtimeCode_bridged": runtime_closure_status,
             "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies": runtime_backend_eq_status,
-            "yulCodegen_preserves_semantics_evmYulLean": layer3_evm_retarget_status,
+            "yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle": layer3_evm_retarget_status,
             "layers2_3_ir_matches_yul_evmYulLean": end_to_end_evm_retarget_status,
             "genParamLoads_scalar_bridged": scalar_param_body_closure_status,
             "genStaticTypeLoads_calldataload_bridged": static_type_body_closure_status,

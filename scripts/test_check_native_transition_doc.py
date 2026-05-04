@@ -395,6 +395,21 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_reference_oracle_names_guard_rejects_hidden_evmyullean_alias(self) -> None:
+        retarget_text = (
+            check.RETARGET.read_text(encoding="utf-8")
+            + "\ntheorem yulCodegen_preserves_semantics_evmYulLean : True := by trivial\n"
+        )
+        errors = check.check_reference_oracle_names(
+            check.END_TO_END.read_text(encoding="utf-8"),
+            retarget_text,
+            check.PRESERVATION.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("hidden reference-oracle compatibility alias" in error for error in errors),
+            errors,
+        )
+
     def test_reference_oracle_names_guard_rejects_missing_explicit_evmyullean_fuel_wrapper_retarget(self) -> None:
         retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
             "theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle",

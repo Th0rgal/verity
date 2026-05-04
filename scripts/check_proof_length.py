@@ -454,7 +454,7 @@ ALLOWLIST: set[str] = {
     # Conditional Layer-3 EVMYulLean theorem composes existing codegen
     # preservation with emitted-runtime backend equality; the scanner also
     # counts the trailing Phase 4 summary block in its theorem span.
-    "yulCodegen_preserves_semantics_evmYulLean",
+    "yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle",
     # Scalar parameter body closure is a structural induction over the six
     # scalar ABI cases emitted by `genParamLoadBodyFrom`.
     "genParamLoadBodyFrom_calldataload_bridged",

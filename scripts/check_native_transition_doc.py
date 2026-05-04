@@ -711,6 +711,14 @@ def check_reference_oracle_names(
             "`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`"
         )
 
+    if "theorem yulCodegen_preserves_semantics_evmYulLean " in normalized_retarget:
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
+            "not reintroduce the hidden reference-oracle compatibility alias "
+            "`yulCodegen_preserves_semantics_evmYulLean`; use the explicit "
+            "`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle` name"
+        )
+
     if "yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle" not in normalized_end_to_end:
         errors.append(
             "Compiler/Proofs/EndToEnd.lean must call the current EVMYulLean "
