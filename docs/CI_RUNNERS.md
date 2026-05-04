@@ -16,9 +16,14 @@ GitHub Actions for lfglabs-dev/verity
   |     labels: self-hosted, linux, x64, verity, build, hetzner, hz2
   |
   |-- tmd-verity-fastlane-1
-        host: 95.216.244.60
-        role: short checks, change detection, failure hints
-        labels: self-hosted, linux, x64, verity, fastlane, hetzner, hz1
+  |     host: 95.216.244.60
+  |     role: short checks, change detection, failure hints
+  |     labels: self-hosted, linux, x64, verity, fastlane, hetzner, hz1
+  |
+  |-- dgx-spark-gpu-1
+        host: spark-de79 over Tailscale
+        role: trusted manual GPU jobs only
+        labels: self-hosted, linux, ARM64, dgx, dgx-spark, gpu, nvidia
 ```
 
 The workflows route by capability, not by hostname:
@@ -26,6 +31,7 @@ The workflows route by capability, not by hostname:
 ```yaml
 runs-on: [self-hosted, linux, x64, verity, fastlane]
 runs-on: [self-hosted, linux, x64, verity, build]
+runs-on: [self-hosted, linux, ARM64, dgx-spark, gpu]
 ```
 
 Host labels such as `hz1`, `hz2`, and `ci-host-*` are inventory labels. Use
@@ -48,6 +54,9 @@ them only for temporary debugging or deliberate host pinning.
   Docker cache, and `/tmp/verity-main-test-*` directories must be pruned.
 - Do not run untrusted public fork PRs on these machines. Self-hosted runners
   execute repository code on owned hosts.
+- The DGX is especially sensitive. Keep it off `pull_request` workflows for
+  this public repository; use `workflow_dispatch`, trusted branches, or a
+  restricted private repository.
 
 ## Adding A CPU Server
 
@@ -80,13 +89,13 @@ GPU workflows and, at organization level, place it in a restricted runner group
 instead of the default group.
 
 ```bash
-RUNNER_URL=https://github.com/<trusted-owner-or-repo> \
+RUNNER_URL=https://github.com/lfglabs-dev/verity \
 RUNNER_TOKEN=<registration-token> \
 RUNNER_PROFILE=dgx-gpu \
 RUNNER_ARCH=arm64 \
 RUNNER_COUNT=1 \
 RUNNER_NAME_PREFIX=dgx-spark-gpu \
-RUNNER_LABELS_1=dgx,dgx-spark,gpu,nvidia,home \
+RUNNER_LABELS_1=dgx,dgx-spark,gpu,nvidia,home,arm64-gb10 \
 scripts/install_self_hosted_runner.sh
 ```
 
@@ -97,6 +106,15 @@ runs-on: [self-hosted, linux, ARM64, dgx-spark, gpu]
 ```
 
 Do not let ordinary Verity `build` or `fastlane` jobs use the DGX labels.
+Do not add the `verity`, `build`, or `fastlane` labels to the DGX runner unless
+you have separately proven the ARM64 Lean build is reliable and intentionally
+want general Verity CI to schedule there.
+
+The repository includes a manual-only smoke test:
+
+```bash
+gh workflow run dgx-smoke.yml
+```
 
 ## Maintenance Expectations
 

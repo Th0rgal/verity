@@ -1,0 +1,25 @@
+name: DGX GPU smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dgx-gpu-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Probe DGX GPU runner
+    runs-on: [self-hosted, linux, ARM64, dgx-spark, gpu]
+    timeout-minutes: 5
+    steps:
+      - name: Show host and GPU state
+        run: |
+          hostname
+          uname -a
+          nvidia-smi
+          df -h / /srv/verity-ci-cache || true
+          uptime

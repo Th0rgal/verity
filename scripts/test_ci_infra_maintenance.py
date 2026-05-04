@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNNER_SCRIPT = ROOT / "scripts" / "install_self_hosted_runner.sh"
 MAINTENANCE_SCRIPT = ROOT / "scripts" / "ci_host_maintenance.sh"
 VERIFY_WORKFLOW = ROOT / ".github" / "workflows" / "verify.yml"
+DGX_SMOKE_WORKFLOW = ROOT / ".github" / "workflows" / "dgx-smoke.yml"
 
 
 class CiInfraMaintenanceTests(unittest.TestCase):
@@ -27,6 +28,20 @@ class CiInfraMaintenanceTests(unittest.TestCase):
         self.assertIn("ci-host-95-216-244-60", text)
         self.assertIn("decommission_surplus_runners", text)
         self.assertIn('if [ "$index" -gt "$RUNNER_COUNT" ]; then', text)
+
+    def test_runner_host_profiles_keep_dgx_gpu_only(self) -> None:
+        text = RUNNER_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("spark-de79|dgx-spark", text)
+        self.assertIn('RUNNER_PROFILE="${RUNNER_PROFILE_INPUT:-dgx-gpu}"', text)
+        self.assertIn('RUNNER_ARCH="${RUNNER_ARCH_INPUT:-arm64}"', text)
+        self.assertIn("arm64-gb10", text)
+
+    def test_dgx_smoke_workflow_is_manual_only_and_gpu_routed(self) -> None:
+        text = DGX_SMOKE_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", text)
+        self.assertNotIn("pull_request:", text)
+        self.assertIn("runs-on: [self-hosted, linux, ARM64, dgx-spark, gpu]", text)
+        self.assertIn("nvidia-smi", text)
 
     def test_weekly_host_maintenance_prunes_ci_disk_journald_and_docker(self) -> None:
         text = MAINTENANCE_SCRIPT.read_text(encoding="utf-8")

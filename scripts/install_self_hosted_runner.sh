@@ -15,14 +15,20 @@ RUNNER_TOKEN="${RUNNER_TOKEN:-}"
 RUNNER_GROUP_NAME="${RUNNER_GROUP_NAME:-Default}"
 RUNNER_PROFILE_INPUT="${RUNNER_PROFILE:-}"
 RUNNER_NAME_PREFIX_INPUT="${RUNNER_NAME_PREFIX:-}"
+RUNNER_ARCH_INPUT="${RUNNER_ARCH:-}"
 RUNNER_PROFILE="${RUNNER_PROFILE:-build}"
 RUNNER_ARCH="${RUNNER_ARCH:-x64}"
 HOST_IP="${HOST_IP:-}"
 if [ -z "$HOST_IP" ]; then
   HOST_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 fi
+HOST_NAME="$(hostname)"
+RUNNER_DETECTED_PROFILE="${RUNNER_HOST_PROFILE:-$HOST_IP}"
+if [ -z "${RUNNER_HOST_PROFILE:-}" ] && [ "$HOST_NAME" = "spark-de79" ]; then
+  RUNNER_DETECTED_PROFILE="spark-de79"
+fi
 
-case "${RUNNER_HOST_PROFILE:-$HOST_IP}" in
+case "$RUNNER_DETECTED_PROFILE" in
   88.99.4.254|healthy-build)
     RUNNER_PROFILE="${RUNNER_PROFILE_INPUT:-build}"
     RUNNER_COUNT="${RUNNER_COUNT:-1}"
@@ -32,6 +38,12 @@ case "${RUNNER_HOST_PROFILE:-$HOST_IP}" in
     RUNNER_PROFILE="${RUNNER_PROFILE_INPUT:-fastlane}"
     RUNNER_COUNT="${RUNNER_COUNT:-1}"
     RUNNER_LABELS_1="${RUNNER_LABELS_1:-verity,fastlane,hetzner,hz1,cpu-8,ci-host-95-216-244-60}"
+    ;;
+  spark-de79|dgx-spark)
+    RUNNER_PROFILE="${RUNNER_PROFILE_INPUT:-dgx-gpu}"
+    RUNNER_ARCH="${RUNNER_ARCH_INPUT:-arm64}"
+    RUNNER_COUNT="${RUNNER_COUNT:-1}"
+    RUNNER_LABELS_1="${RUNNER_LABELS_1:-dgx,dgx-spark,gpu,nvidia,home,arm64-gb10}"
     ;;
 esac
 RUNNER_NAME_PREFIX="${RUNNER_NAME_PREFIX_INPUT:-$(hostname)-verity-${RUNNER_PROFILE}}"

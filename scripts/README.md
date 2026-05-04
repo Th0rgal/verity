@@ -29,6 +29,10 @@ sudo RUNNER_HOST_PROFILE=88.99.4.254 RUNNER_URL=https://github.com/<owner>/<repo
 sudo RUNNER_HOST_PROFILE=95.216.244.60 RUNNER_URL=https://github.com/<owner>/<repo> RUNNER_TOKEN=<token> \
   scripts/install_self_hosted_runner.sh
 
+# On spark-de79, register one ARM64 GPU-only runner. Do not add Verity build labels.
+sudo RUNNER_HOST_PROFILE=dgx-spark RUNNER_URL=https://github.com/<owner>/<repo> RUNNER_TOKEN=<token> \
+  scripts/install_self_hosted_runner.sh
+
 # Install weekly cache, journald, and Docker image cleanup.
 sudo scripts/ci_host_maintenance.sh install-systemd
 ```
