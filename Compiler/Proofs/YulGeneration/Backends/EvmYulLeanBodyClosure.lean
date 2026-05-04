@@ -11848,6 +11848,33 @@ theorem compileStmt_setMappingWord_multiSlot_bridged
             (compileExpr_bridgedSource fields dynamicSource hValue hValueExpr)
             hMapping hSlots hOk
 
+theorem compileStmt_setMappingWord_multiSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot0 slot1 : Nat} {slotsRest : List Nat}
+    {key value : Expr} (wordOffset : Nat)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field =
+      some (slot0 :: slot1 :: slotsRest))
+    (hWordOffset : wordOffset = 0) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames [] (.setMappingWord field key wordOffset value) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  subst hWordOffset
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hKeyExpr : compileExpr fields dynamicSource key with
+  | error err => simp [hKeyExpr] at hOk
+  | ok keyExpr =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExpr, hValueExpr] at hOk
+      | ok valueExpr =>
+          simp [hKeyExpr, hValueExpr] at hOk
+          exact compileMappingSlotWrite_multiSlot_noFuncDefs fields field
+            keyExpr valueExpr "setMappingWord" hMapping hSlots hOk
+
 /-- Each statement in the multi-slot mappingWord-write fragment compiles
 to Yul satisfying `BridgedStmts`. -/
 theorem compileStmt_mappingWordMultiSlot_bridged
@@ -11865,6 +11892,22 @@ theorem compileStmt_mappingWordMultiSlot_bridged
       exact compileStmt_setMappingWord_multiSlot_bridged fields events errors
         dynamicSource internalRetNames isInternal inScopeNames field wordOffset
         hKey hValue hMapping hSlots hWordOffset hOk
+
+theorem compileStmt_mappingWordMultiSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMappingWordMultiSlotStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setMappingWord field wordOffset hKey hValue hMapping hSlots hWordOffset =>
+      exact compileStmt_setMappingWord_multiSlot_noFuncDefs fields events
+        errors dynamicSource internalRetNames isInternal inScopeNames field
+        wordOffset hMapping hSlots hWordOffset hOk
 
 /-- Lists of multi-slot mappingWord-write source statements compile to
 Yul lists satisfying `BridgedStmts`. -/
@@ -11912,6 +11955,22 @@ theorem compileStmtList_mappingWordMultiSlot_bridged
                   dynamicSource internalRetNames isInternal inScopeNames
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_mappingWordMultiSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMappingWordMultiSlotStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal (BridgedSourceMappingWordMultiSlotStmt fields)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_mappingWordMultiSlot_noFuncDefs fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: multi-slot `setMapping2Word`
 (wordOffset=0)
