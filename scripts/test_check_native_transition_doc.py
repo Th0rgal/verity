@@ -223,6 +223,25 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_theorem_target_guard_rejects_missing_explicit_evmyullean_fuel_wrapper(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "interpretYulRuntimeEvmYulLeanFuelWrapper",
+            "interpretYulRuntimeEvmYulLeanHiddenFuel",
+        )
+        retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
+            "interpretYulRuntimeEvmYulLeanFuelWrapper",
+            "interpretYulRuntimeEvmYulLeanHiddenFuel",
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            retarget_text,
+        )
+        self.assertTrue(
+            any("interpretYulRuntimeEvmYulLeanFuelWrapper" in error for error in errors),
+            errors,
+        )
+
     def test_reference_oracle_names_guard_accepts_current_shape(self) -> None:
         errors = check.check_reference_oracle_names(
             check.END_TO_END.read_text(encoding="utf-8"),

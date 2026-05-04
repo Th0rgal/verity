@@ -60,6 +60,8 @@ REQUIRED_SNIPPETS = (
     "observable storage slot set explicitly",
     "only materializes pre-state storage for those slots",
     "layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge",
+    "interpretYulRuntimeEvmYulLeanFuelWrapper",
+    "interpretYulRuntimeWithBackendFuel",
     "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
     "nativeIRRuntimeAgreesWithEvmYulLean",
     "nativeResultsMatchOn",
@@ -197,7 +199,7 @@ def check_public_theorem_target(
         "theorem nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree",
         "theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree",
         "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree",
-        "interpretYulRuntimeEvmYulLeanFuel fuel",
+        "interpretYulRuntimeEvmYulLeanFuelWrapper fuel",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
         "theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge",
         "theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge",
@@ -253,6 +255,8 @@ def check_public_theorem_target(
 
     for required_fuel_surface in (
         "def interpretYulRuntimeWithBackendFuel",
+        "def interpretYulRuntimeEvmYulLeanFuelWrapper",
+        "def interpretYulRuntimeEvmYulLeanFuel",
         "theorem interpretYulRuntimeWithBackend_eq_fuel",
     ):
         if required_fuel_surface not in normalized_retarget:

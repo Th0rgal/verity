@@ -152,7 +152,7 @@ def nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper
       fuel contract tx state observableSlots with
   | .ok native =>
       yulResultsAgreeOn observableSlots native
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel fuel (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper fuel (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)
   | .error _ => False
 
@@ -186,7 +186,7 @@ theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_ok_agree
         fuel contract tx state observableSlots = .ok native)
     (hAgree :
       yulResultsAgreeOn observableSlots native
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel fuel (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper fuel (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper fuel contract tx state observableSlots := by
   unfold nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper
@@ -202,7 +202,7 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_ok_agree
         fuel contract tx state observableSlots = .ok native)
     (hAgree :
       yulResultsAgreeOn observableSlots native
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel fuel (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper fuel (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx state observableSlots :=
   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_ok_agree hNative hAgree
@@ -230,7 +230,7 @@ def nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper
           nativeContract (YulTransaction.ofIR tx) state.storage
           (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
             (Compiler.runtimeCode contract) observableSlots))))
-    (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel fuel (Compiler.emitYul contract).runtimeCode
+    (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper fuel (Compiler.emitYul contract).runtimeCode
       (YulTransaction.ofIR tx) state.storage state.events)
 
 /-- Compatibility spelling for the current native call-dispatcher bridge
@@ -280,7 +280,7 @@ def nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper
   yulResultsAgreeOn observableSlots
     (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
       (YulTransaction.ofIR tx) state.storage state.events nativeResult)
-    (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel fuel (Compiler.emitYul contract).runtimeCode
+    (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper fuel (Compiler.emitYul contract).runtimeCode
       (YulTransaction.ofIR tx) state.storage state.events)
 
 /-- Compatibility spelling for the dispatcher-block bridge obligation. The
@@ -334,7 +334,7 @@ def nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper
   yulResultsAgreeOn observableSlots
     (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
       (YulTransaction.ofIR tx) state.storage state.events nativeResult)
-    (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel fuel (Compiler.emitYul contract).runtimeCode
+    (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper fuel (Compiler.emitYul contract).runtimeCode
       (YulTransaction.ofIR tx) state.storage state.events)
 
 /-- Compatibility spelling for the raw dispatcher-exec bridge obligation. The
@@ -385,7 +385,7 @@ def nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive
   yulResultsAgreeOn observableSlots
     (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
       (YulTransaction.ofIR tx) state.storage state.events nativeResult)
-    (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+    (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
       (YulTransaction.ofIR tx) state.storage state.events)
 
 /-- Compatibility spelling for the positive-fuel raw dispatcher-exec bridge
@@ -434,7 +434,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_ok_a
           (.ok
             (finalState.reviveJump.overwrite? initial |>.setStore initial,
               [])))
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' contract tx state
       observableSlots nativeContract := by
@@ -470,7 +470,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_ok_agree
           (.ok
             (finalState.reviveJump.overwrite? initial |>.setStore initial,
               [])))
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' contract tx state
       observableSlots nativeContract :=
@@ -498,7 +498,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_yulH
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.error (.YulHalt haltState haltValue)))
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' contract tx state
       observableSlots nativeContract := by
@@ -527,7 +527,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_yulHalt_agree
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.error (.YulHalt haltState haltValue)))
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' contract tx state
       observableSlots nativeContract :=
@@ -562,7 +562,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_yulH
         nativeYul)
     (hAgree :
       yulResultsAgreeOn observableSlots nativeYul
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' contract tx state
       observableSlots nativeContract := by
@@ -594,7 +594,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_yulHalt_project
         nativeYul)
     (hAgree :
       yulResultsAgreeOn observableSlots nativeYul
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' contract tx state
       observableSlots nativeContract :=
@@ -621,7 +621,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_erro
       yulResultsAgreeOn observableSlots
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events (.error err))
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' contract tx state
       observableSlots nativeContract := by
@@ -649,7 +649,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_error_agree
       yulResultsAgreeOn observableSlots
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events (.error err))
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' contract tx state
       observableSlots nativeContract :=
@@ -684,7 +684,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_erro
         nativeYul)
     (hAgree :
       yulResultsAgreeOn observableSlots nativeYul
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' contract tx state
       observableSlots nativeContract := by
@@ -714,7 +714,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_error_project_e
         nativeYul)
     (hAgree :
       yulResultsAgreeOn observableSlots nativeYul
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' contract tx state
       observableSlots nativeContract :=
@@ -782,7 +782,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_ok_agree
           (.ok
             (finalState.reviveJump.overwrite? initial |>.setStore initial,
               [])))
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper (Nat.succ fuel') contract tx state
       observableSlots nativeContract := by
@@ -817,7 +817,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLean_of_exec_ok_agree
           (.ok
             (finalState.reviveJump.overwrite? initial |>.setStore initial,
               [])))
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLean (Nat.succ fuel') contract tx state
       observableSlots nativeContract :=
@@ -845,7 +845,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_yulHalt_agre
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.error (.YulHalt haltState haltValue)))
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper (Nat.succ fuel') contract tx state
       observableSlots nativeContract := by
@@ -873,7 +873,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLean_of_exec_yulHalt_agree
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.error (.YulHalt haltState haltValue)))
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLean (Nat.succ fuel') contract tx state
       observableSlots nativeContract :=
@@ -904,7 +904,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_error_agree
       yulResultsAgreeOn observableSlots
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events (.error err))
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper (Nat.succ fuel') contract tx state
       observableSlots nativeContract := by
@@ -931,7 +931,7 @@ theorem nativeDispatcherExecAgreesWithEvmYulLean_of_exec_error_agree
       yulResultsAgreeOn observableSlots
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events (.error err))
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ fuel') (Compiler.emitYul contract).runtimeCode
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeDispatcherExecAgreesWithEvmYulLean (Nat.succ fuel') contract tx state
       observableSlots nativeContract :=
@@ -5692,7 +5692,7 @@ theorem simpleStorageNativeRetrieveHitBridge_proved
           finalStorage := initialState.storage
           finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
           events := initialState.events }
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ simpleStorageNativeDispatcherFuel)
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ simpleStorageNativeDispatcherFuel)
           (Compiler.emitYul simpleStorageIRContract).runtimeCode
           (YulTransaction.ofIR tx) initialState.storage initialState.events) := by
     simpa [hIR, Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend,
@@ -5785,7 +5785,7 @@ theorem simpleStorageNativeRetrieveHitBridge_proved
             initialState.events ++
               Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
                 (EvmYul.Yul.State.Ok shared3 store) }
-        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ simpleStorageNativeDispatcherFuel)
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ simpleStorageNativeDispatcherFuel)
           (Compiler.emitYul simpleStorageIRContract).runtimeCode
           (YulTransaction.ofIR tx) initialState.storage initialState.events) := by
     rcases hLayerFuel with ⟨hsuccess, hreturnValue, hstorage, _hmappings, hevents⟩
@@ -5883,7 +5883,7 @@ theorem simpleStorageNativeStoreHitBridge_proved
               finalStorage := initialState.storage
               finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
               events := initialState.events }
-            (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ simpleStorageNativeDispatcherFuel)
+            (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ simpleStorageNativeDispatcherFuel)
               (Compiler.emitYul simpleStorageIRContract).runtimeCode
               (YulTransaction.ofIR tx) initialState.storage initialState.events) := by
         simpa [hIR, Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend,
@@ -5930,7 +5930,7 @@ theorem simpleStorageNativeStoreHitBridge_proved
                   (Compiler.Proofs.abstractStoreStorageOrMapping initialState.storage 0
                     (arg % evmModulus))
               events := initialState.events }
-            (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ simpleStorageNativeDispatcherFuel)
+            (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ simpleStorageNativeDispatcherFuel)
               (Compiler.emitYul simpleStorageIRContract).runtimeCode
               (YulTransaction.ofIR tx) initialState.storage initialState.events) := by
         simpa [hIR, Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend,
@@ -5993,7 +5993,7 @@ theorem simpleStorageNativeStoreHitBridge_proved
                 initialState.events ++
                   Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
                     haltState }
-            (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel (Nat.succ simpleStorageNativeDispatcherFuel)
+            (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper (Nat.succ simpleStorageNativeDispatcherFuel)
               (Compiler.emitYul simpleStorageIRContract).runtimeCode
               (YulTransaction.ofIR tx) initialState.storage initialState.events) := by
         rcases hLayerFuel with ⟨hsuccess, hreturnValue, hstorage, _hmappings, hevents⟩
@@ -6106,7 +6106,7 @@ theorem simpleStorageNativeSelectorMissBridge_proved
       simpa [evmModulus, EvmYul.UInt256.size] using hNoWrap
   · rfl
   · show yulResultsAgreeOn observableSlots _
-      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuel simpleStorageNativeDispatcherFuel.succ
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper simpleStorageNativeDispatcherFuel.succ
         (Compiler.emitYul simpleStorageIRContract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events)
     have hFuelGoal :

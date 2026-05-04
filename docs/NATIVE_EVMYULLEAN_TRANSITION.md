@@ -48,7 +48,8 @@ materializes pre-state storage for those slots.
   explicitly observable final-storage slots, but it still requires the explicit
   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper` obligation for the generated
   runtime. That obligation is observable-slot and fuel-aligned with the native
-  run through `interpretYulRuntimeWithBackendFuel`, and the theorem seam
+  run through `interpretYulRuntimeEvmYulLeanFuelWrapper` (the `.evmYulLean`
+  specialization of `interpretYulRuntimeWithBackendFuel`), and the theorem seam
   currently requires that fuel to equal the interpreter proof stack's default
   runtime fuel `sizeOf (Compiler.emitYul contract).runtimeCode + 1`. The
   compatibility theorem `nativeIRRuntimeAgreesWithEvmYulLean` delegates to this

@@ -2662,20 +2662,30 @@ noncomputable def interpretYulRuntimeWithBackendFuel
   yulResultOfExecWithRollback initialState
     (execYulFuelWithBackend backend fuel initialState (.stmts runtimeCode))
 
-/-- Native EVMYulLean-backed runtime entry point with an explicit fuel bound.
+/-- EVMYulLean-backed fuel-wrapper runtime entry point with an explicit fuel
+bound.
 
-This is the public source-of-truth spelling for Yul runtime execution during
-the native retarget. The backend-parameterized interpreter remains available
-for legacy `.verity` bridge comparisons, but public EVMYulLean correctness
-statements should prefer this wrapper over spelling `.evmYulLean` through the
-generic backend API. -/
-noncomputable def interpretYulRuntimeEvmYulLeanFuel
+This is still a wrapper around the backend-parameterized proof interpreter,
+with the builtin backend fixed to `.evmYulLean`. It is not native
+`EvmYul.Yul.exec`/`callDispatcher` execution; native correctness seams use this
+name while the remaining native-vs-fuel-wrapper proof obligation is explicit. -/
+noncomputable def interpretYulRuntimeEvmYulLeanFuelWrapper
     (fuel : Nat)
     (runtimeCode : List Compiler.Yul.YulStmt)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (events : List (List Nat) := []) :
     YulResult :=
   interpretYulRuntimeWithBackendFuel .evmYulLean fuel runtimeCode tx storage events
+
+/-- Compatibility spelling for the EVMYulLean fuel-wrapper runtime entry point.
+-/
+noncomputable def interpretYulRuntimeEvmYulLeanFuel
+    (fuel : Nat)
+    (runtimeCode : List Compiler.Yul.YulStmt)
+    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
+    (events : List (List Nat) := []) :
+    YulResult :=
+  interpretYulRuntimeEvmYulLeanFuelWrapper fuel runtimeCode tx storage events
 
 noncomputable def interpretYulRuntimeWithBackend
     (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
@@ -2692,7 +2702,7 @@ noncomputable def interpretYulRuntimeEvmYulLean
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (events : List (List Nat) := []) :
     YulResult :=
-  interpretYulRuntimeEvmYulLeanFuel (sizeOf runtimeCode + 1)
+  interpretYulRuntimeEvmYulLeanFuelWrapper (sizeOf runtimeCode + 1)
     runtimeCode tx storage events
 
 @[simp] theorem interpretYulRuntimeEvmYulLean_eq_backend
@@ -2766,7 +2776,7 @@ theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
     _ = interpretYulRuntimeEvmYulLean
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
         state.storage state.events := by
-          unfold interpretYulRuntimeEvmYulLean interpretYulRuntimeEvmYulLeanFuel
+          unfold interpretYulRuntimeEvmYulLean interpretYulRuntimeEvmYulLeanFuelWrapper
             interpretYulRuntimeWithBackendFuel
           change
             yulResultOfExecWithRollback
