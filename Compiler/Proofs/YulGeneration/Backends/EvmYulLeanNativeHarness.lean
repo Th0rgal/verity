@@ -7395,6 +7395,53 @@ theorem execSwitchCases_ok_branch_preserves_word
                   · exact ih hTailCases fuel' state tailBranches hLookup hTail
                       tag branchState hMem
 
+theorem NativeStmtPreservesWord_switch_of_cond_preserves
+    (name : EvmYul.Identifier) (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (cases : List (EvmYul.Literal × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond : NativeExprPreservesWord name value cond codeOverride)
+    (hCases : ∀ tag body, (tag, body) ∈ cases →
+      NativeBlockPreservesWord name value body codeOverride)
+    (hDefault :
+      NativeBlockPreservesWord name value defaultBody codeOverride) :
+    NativeStmtPreservesWord name value (.Switch cond cases defaultBody)
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [EvmYul.Yul.exec] at hExec
+      cases hEval : EvmYul.Yul.eval fuel' cond codeOverride state with
+      | error err =>
+          simp [hEval] at hExec
+      | ok condResult =>
+          rcases condResult with ⟨condState, condValue⟩
+          have hCondLookup : condState[name]! = value :=
+            hCond fuel' state condState condValue hLookup hEval
+          cases hSwitch :
+              EvmYul.Yul.execSwitchCases fuel' codeOverride condState cases with
+          | error err =>
+              simp [hEval, hSwitch] at hExec
+          | ok branches =>
+              cases hDefaultExec :
+                  EvmYul.Yul.exec fuel' (.Block defaultBody) codeOverride
+                    condState with
+              | error err =>
+                  simp [hEval, hSwitch, hDefaultExec] at hExec
+              | ok defaultState =>
+                  simp [hEval, hSwitch, hDefaultExec] at hExec
+                  exact nativeSwitchBranchFold_ok_preserves_word name value
+                    condValue branches defaultState final
+                    (execSwitchCases_ok_branch_preserves_word name value cases
+                      codeOverride hCases fuel' condState branches hCondLookup
+                      hSwitch)
+                    (hDefault fuel' condState defaultState hCondLookup
+                      hDefaultExec)
+                    hExec
+
 theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
     (name target : EvmYul.Identifier)
     (expected : EvmYul.Literal)

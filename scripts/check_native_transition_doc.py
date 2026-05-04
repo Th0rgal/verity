@@ -485,6 +485,7 @@ def check_public_theorem_target(
         "theorem NativeStmtPreservesWord_if_of_cond_preserves",
         "theorem nativeSwitchBranchFold_ok_preserves_word",
         "theorem execSwitchCases_ok_branch_preserves_word",
+        "theorem NativeStmtPreservesWord_switch_of_cond_preserves",
         "theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne",
         "theorem NativeStmtPreservesWord_lowerAssignNative_hex_of_ne",
         "theorem NativeStmtPreservesWord_lowerAssignNative_ident_of_ne",
