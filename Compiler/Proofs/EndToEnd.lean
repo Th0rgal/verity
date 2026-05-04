@@ -133,6 +133,24 @@ theorem yulResultsAgreeOn_of_resultsMatch_of_nativeResultsMatchOn
     hnativeEvents.symm.trans hevents
   ⟩
 
+/-- Native EVMYulLean execution matches the IR semantics on the observable
+result surface.
+
+This is the direct native source-of-truth target for the remaining generic
+generated-fragment proof. The compatibility bridge below still translates it
+through the current EVMYulLean fuel-wrapper theorem until the public theorem
+can consume this predicate directly. -/
+def nativeIRRuntimeMatchesIR
+    (fuel : Nat)
+    (contract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat) :
+    Prop :=
+  nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+    (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+      fuel contract tx state observableSlots)
+
 /-- The exact semantic bridge still needed before the public theorem can be
 retargeted unconditionally to native EVMYulLean.
 
@@ -206,6 +224,32 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_ok_agree
           (YulTransaction.ofIR tx) state.storage state.events)) :
     nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx state observableSlots :=
   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_ok_agree hNative hAgree
+
+/-- Compatibility bridge from the direct native-vs-IR target to the current
+native/EVMYulLean obligation. -/
+theorem nativeIRRuntimeAgreesWithEvmYulLean_of_nativeIRRuntimeMatchesIR
+    {fuel : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    (hOracle :
+      Compiler.Proofs.YulGeneration.resultsMatch
+        (interpretIR contract tx state)
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper fuel
+          (Compiler.emitYul contract).runtimeCode
+          (YulTransaction.ofIR tx) state.storage state.events))
+    (hNative : nativeIRRuntimeMatchesIR fuel contract tx state observableSlots) :
+    nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx state observableSlots := by
+  unfold nativeIRRuntimeMatchesIR at hNative
+  cases hRun :
+      Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel contract tx state observableSlots with
+  | error err =>
+      rw [hRun] at hNative
+      exact False.elim hNative
+  | ok native =>
+      rw [hRun] at hNative
+      exact nativeIRRuntimeAgreesWithEvmYulLean_of_ok_agree hRun
+        (yulResultsAgreeOn_of_resultsMatch_of_nativeResultsMatchOn hOracle
+          hNative)
 
 /-- Intro form for the native/EVMYulLean bridge from a native-vs-IR observable
 preservation fact.

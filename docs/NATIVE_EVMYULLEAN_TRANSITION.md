@@ -869,9 +869,12 @@ scope so the native path does not look more complete than it is:
    EVMYulLean-backed builtin bridge proven, native runtime harness executable,
    native public theorem pending.
 
-   The bridge-introduction lemma
-   `nativeIRRuntimeAgreesWithEvmYulLean_of_ok_nativeResultsMatchOn` now lets the
-   remaining proof target a successful native run plus
+   The direct native target is now named `nativeIRRuntimeMatchesIR`: it compares
+   `Native.interpretIRRuntimeNative` against `interpretIR` on the observable
+   result surface. The compatibility theorem
+   `nativeIRRuntimeAgreesWithEvmYulLean_of_nativeIRRuntimeMatchesIR`, together
+   with `nativeIRRuntimeAgreesWithEvmYulLean_of_ok_nativeResultsMatchOn`, lets
+   remaining generated-fragment work target a successful native run plus
    `nativeResultsMatchOn` against IR directly, while the current fuel-wrapper
    theorem is still available as the oracle side of the bridge.
 

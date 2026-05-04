@@ -209,6 +209,8 @@ def check_public_theorem_target(
         "theorem nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree",
         "theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree",
         "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree",
+        "def nativeIRRuntimeMatchesIR",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_nativeIRRuntimeMatchesIR",
         "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_ok_nativeResultsMatchOn",
         "interpretYulRuntimeEvmYulLeanFuelWrapper fuel",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
