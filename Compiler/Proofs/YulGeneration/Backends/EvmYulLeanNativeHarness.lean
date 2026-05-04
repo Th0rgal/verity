@@ -7306,6 +7306,45 @@ theorem NativeStmtPreservesWord_if_of_cond_preserves_and_nativeStmtsWriteNames_n
     (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
       name value body codeOverride hFresh hPreserves)
 
+theorem nativeSwitchBranchFold_ok_preserves_word
+    (name : EvmYul.Identifier)
+    (value cond : EvmYul.Literal)
+    (branches :
+      List (EvmYul.Literal × Except EvmYul.Yul.Exception EvmYul.Yul.State))
+    (defaultState final : EvmYul.Yul.State)
+    (hBranches :
+      ∀ tag branchState, (tag, .ok branchState) ∈ branches →
+        branchState[name]! = value)
+    (hDefault : defaultState[name]! = value)
+    (hFold :
+      List.foldr
+        (fun (valᵢ, sᵢ) s => if valᵢ = cond then sᵢ else s)
+        (.ok defaultState) branches = .ok final) :
+    final[name]! = value := by
+  induction branches with
+  | nil =>
+      simp at hFold
+      cases hFold
+      exact hDefault
+  | cons head tail ih =>
+      rcases head with ⟨tag, result⟩
+      by_cases hEq : tag = cond
+      · simp [hEq] at hFold
+        cases result with
+        | error err =>
+            simp at hFold
+        | ok branchState =>
+            have hBranch : branchState[name]! = value :=
+              hBranches tag branchState (by simp)
+            cases hFold
+            exact hBranch
+      · simp [hEq] at hFold
+        exact ih
+          (by
+            intro tag' branchState hMem
+            exact hBranches tag' branchState (by simp [hMem]))
+          hFold
+
 theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
     (name target : EvmYul.Identifier)
     (expected : EvmYul.Literal)

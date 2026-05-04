@@ -336,6 +336,7 @@ scope so the native path does not look more complete than it is:
   `NativeStmtPreservesWord_if_of_eval_self`,
   `NativeStmtPreservesWord_if_of_eval_preserves`,
   `NativeStmtPreservesWord_if_of_cond_preserves`,
+  `nativeSwitchBranchFold_ok_preserves_word`,
   `NativeStmtPreservesWord_lowerAssignNative_lit_of_ne`,
   `NativeStmtPreservesWord_lowerAssignNative_hex_of_ne`,
   `NativeStmtPreservesWord_lowerAssignNative_ident_of_ne`,
