@@ -947,6 +947,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.filterInternalFunctions_eq_nil_of_supported  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.filterInternalFunctions_eq_nil_of_supported_except_mapping_writes  -- private
 -- #print axioms Compiler.Proofs.IRGeneration.Contract.compileValidatedCore_ok_yields_internalFunctions_nil  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.compileValidatedCore_ok_yields_noFallbackEntrypoint  -- private
+-- #print axioms Compiler.Proofs.IRGeneration.Contract.compileValidatedCore_ok_yields_noReceiveEntrypoint  -- private
 #print axioms Compiler.Proofs.IRGeneration.Contract.supported_params_of_supportedSpec
 #print axioms Compiler.Proofs.IRGeneration.Contract.supported_params_of_supportedSpec_except_mapping_writes
 #print axioms Compiler.Proofs.IRGeneration.Contract.interpretIR_eq_runtimeContractOfFunctions
@@ -4035,4 +4037,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3857 theorems/lemmas (2899 public, 958 private, 0 sorry'd)
+-- Total: 3861 theorems/lemmas (2901 public, 960 private, 0 sorry'd)
