@@ -470,6 +470,62 @@ def nativeDispatcherExecAgreesWithEvmYulLeanPositive
   nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive
     fuel' contract tx state observableSlots nativeContract
 
+/-- Positive-fuel raw native dispatcher-exec target against IR directly.
+
+This is the native source-of-truth counterpart to
+`nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive`: it compares the
+projected lowered-dispatcher execution result with `interpretIR`, not with the
+EVMYulLean fuel wrapper. -/
+def nativeDispatcherExecMatchesIRPositive
+    (fuel' : Nat)
+    (contract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract) :
+    Prop :=
+  let initial :=
+    Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+      (YulTransaction.ofIR tx) state.storage
+      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode contract) observableSlots)
+  let nativeResult :=
+    match
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial with
+    | .error err => .error err
+    | .ok finalState =>
+        let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+        .ok (restored, [])
+  nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+    (.ok
+      (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+        (YulTransaction.ofIR tx) state.storage state.events nativeResult))
+
+/-- Lift a direct positive dispatcher-exec native-vs-IR proof through the native
+runtime harness. -/
+theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match
+    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hFragment : Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment
+      (Compiler.emitYul contract).runtimeCode = true)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hMatch :
+      nativeDispatcherExecMatchesIRPositive fuel' contract tx state
+        observableSlots nativeContract) :
+    nativeIRRuntimeMatchesIR (Nat.succ fuel') contract tx state observableSlots := by
+  unfold nativeIRRuntimeMatchesIR
+  rw
+    [Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_succ_eq_contractDispatcherExecResult_of_lowerRuntimeContractNative
+      fuel' contract tx state observableSlots nativeContract hFragment hLower hEnv]
+  unfold nativeDispatcherExecMatchesIRPositive at hMatch
+  simpa using hMatch
+
 /-- Intro form for the positive-fuel raw dispatcher-exec bridge when native
 execution finishes normally.
 

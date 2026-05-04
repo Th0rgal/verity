@@ -880,6 +880,11 @@ scope so the native path does not look more complete than it is:
    non-`via_reference_oracle` Layer 3 and Layers 2-3 native theorem spellings
    now consume `nativeIRRuntimeMatchesIR`; the explicit `_via_reference_oracle`
    variants remain as compatibility wrappers for the older fuel-wrapper route.
+   At the raw lowered-dispatcher boundary,
+   `nativeDispatcherExecMatchesIRPositive` and
+   `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match` expose the
+   same direct native-vs-IR target for positive-fuel generated dispatcher
+   proofs.
 
 ## Cleanup After the Flip
 

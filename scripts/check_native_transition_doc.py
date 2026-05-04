@@ -186,6 +186,8 @@ def check_public_theorem_target(
         "def nativeDispatcherExecAgreesWithEvmYulLean",
         "def nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive",
         "def nativeDispatcherExecAgreesWithEvmYulLeanPositive",
+        "def nativeDispatcherExecMatchesIRPositive",
+        "theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_ok_agree",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_ok_agree",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_yulHalt_agree",
