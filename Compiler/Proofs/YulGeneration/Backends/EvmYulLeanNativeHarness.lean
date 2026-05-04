@@ -200,7 +200,7 @@ def yulFunctionBodies (runtimeCode : List YulStmt) : List (String × List YulStm
 /-! ## Generated Native Runtime Fragment -/
 
 mutual
-  partial def yulStmtContainsFuncDef : YulStmt → Bool
+  def yulStmtContainsFuncDef : YulStmt → Bool
     | .funcDef _ _ _ _ => true
     | .if_ _ body => yulStmtsContainFuncDef body
     | .for_ init _ post body =>
@@ -208,14 +208,32 @@ mutual
           yulStmtsContainFuncDef post ||
           yulStmtsContainFuncDef body
     | .switch _ cases defaultBody =>
-        cases.any (fun entry => yulStmtsContainFuncDef entry.2) ||
-          defaultBody.any yulStmtsContainFuncDef
+        yulSwitchCasesContainFuncDef cases ||
+          match defaultBody with
+          | some stmts => yulStmtsContainFuncDef stmts
+          | none => false
     | .block stmts => yulStmtsContainFuncDef stmts
     | .comment _ | .let_ _ _ | .letMany _ _ | .assign _ _ | .expr _ | .leave => false
 
-  partial def yulStmtsContainFuncDef (stmts : List YulStmt) : Bool :=
-    stmts.any yulStmtContainsFuncDef
+  def yulStmtsContainFuncDef : List YulStmt → Bool
+    | [] => false
+    | stmt :: rest => yulStmtContainsFuncDef stmt || yulStmtsContainFuncDef rest
+
+  def yulSwitchCasesContainFuncDef : List (Nat × List YulStmt) → Bool
+    | [] => false
+    | (_, body) :: rest =>
+        yulStmtsContainFuncDef body || yulSwitchCasesContainFuncDef rest
 end
+
+@[simp] theorem yulStmtsContainFuncDef_nil :
+    yulStmtsContainFuncDef [] = false := by
+  rfl
+
+@[simp] theorem yulStmtsContainFuncDef_cons
+    (stmt : YulStmt) (stmts : List YulStmt) :
+    yulStmtsContainFuncDef (stmt :: stmts) =
+      (yulStmtContainsFuncDef stmt || yulStmtsContainFuncDef stmts) := by
+  rfl
 
 def yulRuntimeTopLevelFunctionNames (runtimeCode : List YulStmt) : List String :=
   runtimeCode.filterMap fun
@@ -291,6 +309,16 @@ def generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
       generatedRuntimeDispatcherHasNoFuncDefs rest := by
   simp [generatedRuntimeDispatcherHasNoFuncDefs]
 
+@[simp] theorem generatedRuntimeDispatcherHasNoFuncDefs_nonFunc_cons
+    (stmt : YulStmt) (rest : List YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    generatedRuntimeDispatcherHasNoFuncDefs (stmt :: rest) =
+      (!yulStmtContainsFuncDef stmt &&
+        generatedRuntimeDispatcherHasNoFuncDefs rest) := by
+  simp [generatedRuntimeDispatcherHasNoFuncDefs,
+    yulRuntimeDispatcherStmts_nonFunc_cons stmt rest hNoFunc]
+
 @[simp] theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_funcDef_cons
     (name : String) (params rets : List String) (body rest : List YulStmt) :
     generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
@@ -307,6 +335,128 @@ def generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
       generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs rest := by
   simp [generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs,
     yulFunctionBodies_nonFunc_cons stmt rest hNoFunc]
+
+theorem dispatchBody_noFuncDefs
+    (payable : Bool) (label : String) (body : List YulStmt)
+    (hBody : yulStmtsContainFuncDef body = false) :
+    yulStmtsContainFuncDef
+      (Compiler.CodegenCommon.dispatchBody payable label body) = false := by
+  cases payable <;>
+    simp [Compiler.CodegenCommon.dispatchBody, Compiler.CodegenCommon.callvalueGuard,
+      yulStmtContainsFuncDef, yulStmtsContainFuncDef, hBody]
+
+theorem buildSwitchCases_noFuncDefs
+    (funcs : List IRFunction)
+    (hBodies : ∀ fn, fn ∈ funcs → yulStmtsContainFuncDef fn.body = false) :
+    yulSwitchCasesContainFuncDef
+      (funcs.map fun fn =>
+        (fn.selector,
+          Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
+            (Compiler.CodegenCommon.calldatasizeGuard fn.params.length :: fn.body))) =
+      false := by
+  induction funcs with
+  | nil => rfl
+  | cons fn rest ih =>
+      have hFnBody : yulStmtsContainFuncDef fn.body = false := hBodies fn (by simp)
+      have hRest : ∀ fn, fn ∈ rest → yulStmtsContainFuncDef fn.body = false := by
+        intro fn hmem
+        exact hBodies fn (by simp [hmem])
+      have hDispatch :
+          yulStmtsContainFuncDef
+            (Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
+              (Compiler.CodegenCommon.calldatasizeGuard fn.params.length :: fn.body)) =
+            false := by
+        apply dispatchBody_noFuncDefs
+        simp [Compiler.CodegenCommon.calldatasizeGuard, yulStmtContainsFuncDef,
+          yulStmtsContainFuncDef, hFnBody]
+      simp [yulSwitchCasesContainFuncDef, hDispatch, ih hRest]
+
+theorem buildSwitch_noFuncDefs_noFallback_noReceive
+    (funcs : List IRFunction)
+    (hBodies : ∀ fn, fn ∈ funcs → yulStmtsContainFuncDef fn.body = false) :
+    yulStmtContainsFuncDef
+      (Compiler.CodegenCommon.buildSwitch funcs none none) = false := by
+  have hCases := buildSwitchCases_noFuncDefs funcs hBodies
+  simpa [Compiler.CodegenCommon.buildSwitch, Compiler.CodegenCommon.defaultDispatchCase,
+    Compiler.CodegenCommon.dispatchBody, Compiler.CodegenCommon.calldatasizeGuard,
+    Compiler.CodegenCommon.callvalueGuard, yulStmtContainsFuncDef,
+    yulStmtsContainFuncDef, yulSwitchCasesContainFuncDef] using hCases
+
+theorem generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
+    (funcs : List IRFunction)
+    (hBodies : ∀ fn, fn ∈ funcs → yulStmtsContainFuncDef fn.body = false) :
+    generatedRuntimeDispatcherHasNoFuncDefs
+      [Compiler.CodegenCommon.buildSwitch funcs none none] = true := by
+  have hNoFunc : ∀ name params rets body,
+      Compiler.CodegenCommon.buildSwitch funcs none none ≠
+        YulStmt.funcDef name params rets body := by
+    intro name params rets body h
+    simp [Compiler.CodegenCommon.buildSwitch] at h
+  rw [generatedRuntimeDispatcherHasNoFuncDefs_nonFunc_cons
+    (Compiler.CodegenCommon.buildSwitch funcs none none) [] hNoFunc]
+  simp [generatedRuntimeDispatcherHasNoFuncDefs,
+    buildSwitch_noFuncDefs_noFallback_noReceive funcs hBodies]
+
+theorem generatedRuntimeDispatcherHasNoFuncDefs_funcDef_prefix_append
+    (funcPrefix suffix : List YulStmt)
+    (hFuncDefs : ∀ stmt, stmt ∈ funcPrefix →
+      ∃ name params rets body, stmt = YulStmt.funcDef name params rets body) :
+    generatedRuntimeDispatcherHasNoFuncDefs (funcPrefix ++ suffix) =
+      generatedRuntimeDispatcherHasNoFuncDefs suffix := by
+  induction funcPrefix with
+  | nil => rfl
+  | cons stmt rest ih =>
+      rcases hFuncDefs stmt (by simp) with ⟨name, params, rets, body, rfl⟩
+      simp [ih (by
+        intro stmt hmem
+        exact hFuncDefs stmt (by simp [hmem]))]
+
+theorem generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive
+    (contract : IRContract)
+    (hInternals : ∀ stmt, stmt ∈ contract.internalFunctions →
+      ∃ name params rets body, stmt = YulStmt.funcDef name params rets body)
+    (hBodies : ∀ fn, fn ∈ contract.functions →
+      yulStmtsContainFuncDef fn.body = false)
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none) :
+    generatedRuntimeDispatcherHasNoFuncDefs (Compiler.runtimeCode contract) = true := by
+  let runtimePrefix :=
+    (if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+      contract.internalFunctions
+  have hPrefix :
+      ∀ stmt, stmt ∈ runtimePrefix →
+        ∃ name params rets body, stmt = YulStmt.funcDef name params rets body := by
+    intro stmt hmem
+    simp only [runtimePrefix, List.mem_append] at hmem
+    rcases hmem with hMapping | hInternal
+    · split at hMapping <;> simp at hMapping
+      subst hMapping
+      exact ⟨"mappingSlot", ["baseSlot", "key"], ["slot"], _, rfl⟩
+    · exact hInternals stmt hInternal
+  rw [Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode]
+  simp [hNoFallback, hNoReceive]
+  rw [← List.append_assoc]
+  change generatedRuntimeDispatcherHasNoFuncDefs
+      (runtimePrefix ++ [Compiler.CodegenCommon.buildSwitch contract.functions none none]) =
+    true
+  rw [generatedRuntimeDispatcherHasNoFuncDefs_funcDef_prefix_append runtimePrefix
+    [Compiler.CodegenCommon.buildSwitch contract.functions none none] hPrefix]
+  exact generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
+    contract.functions hBodies
+
+theorem generatedRuntimeDispatcherHasNoFuncDefs_emitYul_runtimeCode_noFallback_noReceive
+    (contract : IRContract)
+    (hInternals : ∀ stmt, stmt ∈ contract.internalFunctions →
+      ∃ name params rets body, stmt = YulStmt.funcDef name params rets body)
+    (hBodies : ∀ fn, fn ∈ contract.functions →
+      yulStmtsContainFuncDef fn.body = false)
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none) :
+    generatedRuntimeDispatcherHasNoFuncDefs
+      (Compiler.emitYul contract).runtimeCode = true := by
+  simpa [Compiler.emitYul, Compiler.CodegenCommon.emitYul] using
+    generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive
+      contract hInternals hBodies hNoFallback hNoReceive
 
 /-- Executable characterization for the generated runtime shape that the
     native EVMYulLean lowering path currently accepts: top-level `funcDef`
