@@ -830,6 +830,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_bridge
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure
+#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_via_reference_oracle
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_functions_bridged  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_functions_loop_free  -- private
@@ -4176,4 +4177,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4000 theorems/lemmas (3012 public, 988 private, 0 sorry'd)
+-- Total: 4001 theorems/lemmas (3013 public, 988 private, 0 sorry'd)
