@@ -59,7 +59,7 @@ REQUIRED_SNIPPETS = (
     "EvmYul.Yul.callDispatcher",
     "observable storage slot set explicitly",
     "only materializes pre-state storage for those slots",
-    "layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
+    "layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge",
     "nativeIRRuntimeAgreesWithEvmYulLean",
     "nativeResultsMatchOn",
     "nativeCallDispatcherAgreesWithEvmYulLean",
@@ -161,8 +161,10 @@ def check_public_theorem_target(
         "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree",
         "interpretYulRuntimeEvmYulLeanFuel fuel",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
+        "theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge",
         "theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge",
         "theorem layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge",
+        "theorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge",
         "theorem layer3_contract_preserves_semantics ",
@@ -519,6 +521,20 @@ def check_reference_oracle_names(
             "Compiler/Proofs/EndToEnd.lean must call the current EVMYulLean "
             "Layer-3 retarget through "
             "`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`"
+        )
+
+    if "theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge" not in normalized_end_to_end:
+        errors.append(
+            "Compiler/Proofs/EndToEnd.lean must name the current generic native "
+            "Layer-3 seam as "
+            "`layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge`"
+        )
+
+    if "theorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge" not in normalized_end_to_end:
+        errors.append(
+            "Compiler/Proofs/EndToEnd.lean must name the current supported "
+            "native EndToEnd seam as "
+            "`layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge`"
         )
 
     return errors

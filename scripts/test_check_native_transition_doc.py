@@ -201,6 +201,36 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_reference_oracle_names_guard_rejects_missing_explicit_native_layer3_seam(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge",
+            "theorem layer3_contract_preserves_semantics_native_reference_hidden",
+        )
+        errors = check.check_reference_oracle_names(
+            end_to_end_text,
+            check.RETARGET.read_text(encoding="utf-8"),
+            check.PRESERVATION.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge" in error for error in errors),
+            errors,
+        )
+
+    def test_reference_oracle_names_guard_rejects_missing_explicit_native_end_to_end_seam(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "theorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge",
+            "theorem layers2_3_ir_matches_native_evmYulLean_reference_hidden",
+        )
+        errors = check.check_reference_oracle_names(
+            end_to_end_text,
+            check.RETARGET.read_text(encoding="utf-8"),
+            check.PRESERVATION.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge" in error for error in errors),
+            errors,
+        )
+
     def test_unbridged_environment_boundary_accepts_current_shape(self) -> None:
         errors = check.check_unbridged_environment_boundary(
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),

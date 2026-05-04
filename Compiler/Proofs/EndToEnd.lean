@@ -1063,7 +1063,7 @@ theorem layer3_contract_preserves_semantics
     hNoReceive hFunctions
 
 /-- Native Layer 3 bridge theorem under the named generated-fragment bridge obligation. -/
-theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
+theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge
     (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
     (initialState : IRState) (observableSlots : List Nat)
     (hselector : tx.functionSelector < selectorModulus) (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -1100,6 +1100,37 @@ theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
       rw [hNative] at hNativeBridge
       exact nativeResultsMatchOn_ok_of_resultsMatch_of_yulResultsAgreeOn hLayer
         hNativeBridge
+
+/-- Compatibility spelling for the current generic native Layer 3 seam.
+
+The proof body intentionally lives in
+`layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge`
+because the generic native path still composes through the EVMYulLean fuel
+wrapper and the explicitly named reference-oracle Layer 3 retarget. -/
+theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
+    (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
+    (initialState : IRState) (observableSlots : List Nat)
+    (hselector : tx.functionSelector < selectorModulus) (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = []) (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0) (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ contract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions → HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ contract.functions → yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF contract) (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hFunctions : ∀ fn, fn ∈ contract.functions → Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body)
+    (hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1)
+    (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx initialState observableSlots) :
+    nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel contract tx initialState observableSlots) :=
+  layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge
+    fuel contract tx initialState observableSlots
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
+    hNoReceive hFunctions hFuel hNativeBridge
 
 /-- Native Layer 3 bridge theorem with the remaining obligation stated at the
 concrete lowered EVMYulLean contract boundary.
@@ -1142,7 +1173,7 @@ theorem layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bri
     nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel contract tx initialState observableSlots) :=
-  layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
+  layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge
     fuel contract tx initialState observableSlots
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
@@ -1375,6 +1406,55 @@ generated-fragment proof obligation is exactly
 emitted runtime code must agree with the current EVMYulLean fuel wrapper for
 the same fuel, transaction, initial storage/events, and observable storage-slot
 materialization. -/
+theorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge
+    (fuel : Nat)
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction)
+    (initialState : IRState) (observableSlots : List Nat)
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts spec.fields spec.errors .calldata [] false entry.1.body)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = [])
+    (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0)
+    (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ irContract.functions →
+      paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ irContract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ irContract.functions → HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ irContract.functions → yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF irContract) (hNoFallback : irContract.fallbackEntrypoint = none)
+    (hNoReceive : irContract.receiveEntrypoint = none)
+    (hFuel : fuel = sizeOf (Compiler.emitYul irContract).runtimeCode + 1)
+    (hNativeBridge : nativeIRRuntimeAgreesWithEvmYulLean fuel irContract tx initialState observableSlots) :
+    nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel irContract tx initialState observableSlots) :=
+  layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge
+    fuel irContract tx initialState observableSlots
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
+    hNoReceive
+    (compiledExternalFunctions_bridged_of_safe_static
+      spec.fields spec.events spec.errors
+      (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
+        spec selectors hSupported irContract hCompile)
+      hStaticParams hSafeBodies)
+    hFuel
+    hNativeBridge
+
+/-- Compatibility spelling for the current supported native theorem seam.
+
+The proof body intentionally lives in
+`layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge`
+because the generic native path still reaches native EVMYulLean by comparing
+against the EVMYulLean fuel wrapper produced from the reference-oracle Layer 3
+retarget. -/
 theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
     (fuel : Nat)
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
@@ -1409,18 +1489,11 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
       (interpretIR irContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel irContract tx initialState observableSlots) :=
-  layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
-    fuel irContract tx initialState observableSlots
-    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
-    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
-    hNoReceive
-    (compiledExternalFunctions_bridged_of_safe_static
-      spec.fields spec.events spec.errors
-      (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
-        spec selectors hSupported irContract hCompile)
-      hStaticParams hSafeBodies)
-    hFuel
-    hNativeBridge
+  layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge
+    fuel spec selectors irContract tx initialState observableSlots
+    hCompile hSupported hStaticParams hSafeBodies hselector hNoWrap hvars
+    hmemory htransient hreturn hparamErase hdispatchGuardSafe hNoHasSelector
+    hHasSelectorDead hLoopFree hWF hNoFallback hNoReceive hFuel hNativeBridge
 
 /-- Supported compiler-produced native theorem seam with the remaining native
 obligation exposed at the concrete lowered `callDispatcher` boundary. -/
