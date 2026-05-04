@@ -1276,6 +1276,32 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
   nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
     hCompile hSupported hStaticParams hSafeBodies hLower hEnv hNativeDispatcherExec
 
+/-- Supported compiler-produced positive dispatcher-exec theorem on the direct
+native-vs-IR target, with source-level body closure named explicitly. -/
+theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure
+    (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hNativeDispatcherExec :
+      nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
+        observableSlots nativeContract) :
+    nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (Nat.succ fuel') irContract tx initialState observableSlots) :=
+  layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match
+    fuel' spec selectors irContract tx initialState observableSlots nativeContract
+    hCompile hSupported hStaticParams hSafeBodies hLower hEnv hNativeDispatcherExec
+
 /-! ## Concrete Instantiation: SimpleStorage -/
 
 /-- The concrete SimpleStorage IR fixture uses only EVMYulLean-bridged Yul

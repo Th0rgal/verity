@@ -217,6 +217,7 @@ def check_public_theorem_target(
         "theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match",
+        "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure",
         "theorem layer3_contract_preserves_semantics_evmYulLeanBackend ",
         "theorem layers2_3_ir_matches_yul_evmYulLeanBackend ",
         "theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match",
