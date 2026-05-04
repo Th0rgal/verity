@@ -819,7 +819,10 @@ scope so the native path does not look more complete than it is:
    `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`,
    which exposes the native `Revert` execution and exact projected rollback
    result for arbitrary generated selector tables whose tags fit in one EVM
-   word. Selector-hit native halt/error projection now has the analogous
+   word. The same miss package is also lifted to the public raw dispatcher
+   boundary by
+   `contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`.
+   Selector-hit native halt/error projection now has the analogous
    generic boundary
    `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq`,
    consumed by the SimpleStorage store-hit and retrieve-hit wrappers before
@@ -899,6 +902,8 @@ scope so the native path does not look more complete than it is:
    `simpleStorage_endToEnd_native_evmYulLean` theorem now consumes this direct
    splitter. The selector-miss revert arm is discharged by
    `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`
+   and its contract-dispatcher boundary lift
+   `contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`
    (with
    `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq`
    and

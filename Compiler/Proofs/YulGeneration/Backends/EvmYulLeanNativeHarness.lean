@@ -15649,6 +15649,55 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_proje
     ⟨hExec, _hSuccess, _hReturn, _hStorage⟩
   exact ⟨hExec, by simp⟩
 
+/-- Contract-dispatcher boundary for a generated lowered selector-switch miss.
+
+This lifts the generic `lowerNativeSwitchBlock` selector-miss theorem through
+the actual native dispatcher execution wrapper used by the public EndToEnd
+target. -/
+theorem contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    let dispatcher :=
+      Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+        [nativeRevertZeroZeroStmt]
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [dispatcher], functions := functions }
+    contractDispatcherExecResult (Nat.succ (Nat.succ (fuel + cases.length + 12)))
+        contract (initialState contract tx storage observableSlots) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert) =
+      { success := false
+        returnValue := none
+        finalStorage := storage
+        finalMappings := Compiler.Proofs.storageAsMappings storage
+        events := initialEvents } := by
+  intro dispatcher contract
+  rcases
+    exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
+      fuel selector switchId cases contract tx storage initialEvents
+      observableSlots hSelector hFind hSelectorRange hTagsRange with
+    ⟨hExec, hProject⟩
+  rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+    (fuel + cases.length + 12) [dispatcher] functions tx storage observableSlots]
+  exact
+    ⟨exec_block_cons_error (fuel + cases.length + 12) dispatcher [] (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots)
+        EvmYul.Yul.Exception.Revert hExec,
+      hProject⟩
+
 /-- The two generated SimpleStorage selector tags fit in one EVM word. -/
 private theorem simpleStorageSelectors_tagsRange
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt) :
