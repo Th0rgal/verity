@@ -786,7 +786,9 @@ scope so the native path does not look more complete than it is:
    store shape, and
    `exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_projectResult_eq`
    lifts it through the generated dispatcher block shape after
-   `__has_selector` is installed.
+   `__has_selector` is installed. Selector-hit halt/error projection has the
+   matching block-level package
+   `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq`.
 
    This closes the SimpleStorage public theorem against the native
    lowered-dispatcher source of truth. The remaining generic work is to remove
@@ -853,6 +855,9 @@ scope so the native path does not look more complete than it is:
    `simpleStorageNativeSelectorMissMatchBridge_proved`, and the retrieve-hit
    and store-hit selector wrappers consume
    `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq`
+   (with
+   `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq`
+   available at the generated dispatcher block boundary)
    before their direct native-vs-IR proofs. The retrieve-hit arm has the proof
    `simpleStorageNativeRetrieveHitMatchBridge_proved`. The store-hit arm is
    closed by `simpleStorageNativeStoreHitMatchBridge_proved`, which covers both

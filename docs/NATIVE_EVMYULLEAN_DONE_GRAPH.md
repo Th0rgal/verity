@@ -115,7 +115,9 @@ N8 public Layer 3 theorem flip
   paths. The block-level
   `exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_projectResult_eq`
   wrapper lifts that package through the generated dispatcher-local
-  `__has_selector` binding shape.
+  `__has_selector` binding shape, while
+  `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq`
+  packages selector-hit halt/error projection through the same block shape.
 - **Definition of done**:
   - Projection lemmas cover every native halt/error/result used by generated
     runtime execution.

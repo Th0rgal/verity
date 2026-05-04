@@ -14352,6 +14352,47 @@ theorem exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_projec
   exact exec_block_cons_error (fuel + cases.length + 12) _ [] _ _
     EvmYul.Yul.Exception.Revert hEndpoint
 
+/-- Bridge-shape selector-hit error projection on the post-`__has_selector := 1`
+    state. This packages a selected body halt/error with its projected result
+    after the generated dispatcher-local binding has been installed. -/
+theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception)
+    (nativeYul : YulResult)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract) (nativeSwitchStoreMarkedPrefixStateForId contract tx
+          storage observableSlots switchId nativeSwitchHasSelectorStore) =
+        .error err)
+    (hProject : projectResult tx storage initialEvents (.error err) = nativeYul) :
+    EvmYul.Yul.exec (fuel + cases.length + 13)
+      (.Block [Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody])
+      (some contract)
+      ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+          "__has_selector" (EvmYul.UInt256.ofNat 1)) = .error err ∧
+    projectResult tx storage initialEvents (.error err) = nativeYul := by
+  rcases exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq
+      fuel selector switchId tag cases defaultBody body contract tx storage
+      initialEvents observableSlots nativeSwitchHasSelectorStore err nativeYul
+      hSelector hFind hSelectorRange hTagsRange hBody hProject with
+    ⟨hEndpoint, hProject'⟩
+  have hFuelEq : fuel + cases.length + 13 = (fuel + cases.length + 12).succ := by
+    omega
+  rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
+  exact ⟨exec_block_cons_error (fuel + cases.length + 12) _ [] _ _ err hEndpoint,
+    hProject'⟩
+
 /-- Guarded selector-miss execution for a fully lowered native switch block,
     lifted through Verity's projected native result boundary. The generated
     `revert(0, 0)` default both executes through the actual native step
