@@ -233,6 +233,7 @@ def check_public_theorem_target(
         "theorem layer3_contract_preserves_semantics ",
         "theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match",
         "theorem simpleStorageNativeCallDispatcherMatchBridge_of_per_case",
+        "theorem simpleStorageNativeRetrieveHitMatchBridge_proved",
         "theorem simpleStorageNativeSelectorMissMatchBridge_proved",
         "theorem simpleStorage_endToEnd ",
     ):

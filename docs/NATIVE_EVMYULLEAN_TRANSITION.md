@@ -903,7 +903,9 @@ scope so the native path does not look more complete than it is:
    `simpleStorageNativeCallDispatcherMatchBridge_of_per_case` while its
    concrete per-case dischargers are migrated from the compatibility bridge.
    The selector-miss revert arm has been moved first through
-   `simpleStorageNativeSelectorMissMatchBridge_proved`.
+   `simpleStorageNativeSelectorMissMatchBridge_proved`, and the retrieve-hit
+   arm now has the direct native-vs-IR proof
+   `simpleStorageNativeRetrieveHitMatchBridge_proved`.
 
 ## Cleanup After the Flip
 

@@ -359,6 +359,12 @@ ALLOWLIST: set[str] = {
     # Splitting would create several single-use helpers whose proofs are mostly
     # repeated hypothesis plumbing around the same concrete retrieve path.
     "simpleStorageNativeRetrieveHitBridge_proved",
+    # Direct native-vs-IR retrieve-hit closure: intentionally mirrors the
+    # concrete native dispatcher halt and projected-storage plumbing above, but
+    # targets `nativeDispatcherExecMatchesIRPositive` instead of the legacy
+    # EVMYulLean fuel-wrapper agreement. Keeping it explicit makes the
+    # compatibility dependency visible until the old bridge is deleted.
+    "simpleStorageNativeRetrieveHitMatchBridge_proved",
     # Phase 3 selector-miss bridge closure: composes the closed-form
     # selector-miss IR result, native revert endpoint, and Layer-3 agreement
     # under the public theorem hypotheses. Splitting would create single-use
