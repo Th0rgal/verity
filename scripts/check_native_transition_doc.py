@@ -82,6 +82,7 @@ REQUIRED_SNIPPETS = (
     "native public theorem pending",
     "not yet proved",
     "`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`",
+    "`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`",
     "compatibility theorem",
     "`yulCodegen_preserves_semantics_via_reference_oracle`",
     "not yet a native source-of-truth Layer 3 proof",
@@ -554,18 +555,25 @@ def check_reference_oracle_names(
             "`yulCodegen_preserves_semantics_via_reference_oracle`"
         )
 
-    if "theorem yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle" not in normalized_retarget:
+    if "theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle" not in normalized_retarget:
         errors.append(
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
             "name the current EVMYulLean Layer-3 retarget as "
+            "`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`"
+        )
+
+    if "theorem yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle" not in normalized_retarget:
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
+            "keep the compatibility Layer-3 retarget named "
             "`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`"
         )
 
-    if "yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle" not in normalized_end_to_end:
+    if "yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle" not in normalized_end_to_end:
         errors.append(
             "Compiler/Proofs/EndToEnd.lean must call the current EVMYulLean "
             "Layer-3 retarget through "
-            "`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`"
+            "`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`"
         )
 
     if "theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge" not in normalized_end_to_end:

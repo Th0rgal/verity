@@ -280,6 +280,25 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_reference_oracle_names_guard_rejects_missing_explicit_evmyullean_fuel_wrapper_retarget(self) -> None:
+        retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
+            "theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle",
+            "theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapper_reference_hidden",
+        )
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle",
+            "yulCodegen_preserves_semantics_evmYulLeanFuelWrapper_reference_hidden",
+        )
+        errors = check.check_reference_oracle_names(
+            end_to_end_text,
+            retarget_text,
+            check.PRESERVATION.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle" in error for error in errors),
+            errors,
+        )
+
     def test_reference_oracle_names_guard_rejects_missing_explicit_native_layer3_seam(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
             "theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge",

@@ -1339,7 +1339,8 @@ theorem layer3_contract_preserves_semantics_via_reference_oracle_with_function_b
 
 /-- Lower-level Layer 3 contract-level preservation targeting the
 EVMYulLean-backed Yul runtime. This is the EndToEnd-facing wrapper around
-`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`; callers supply the existing
+`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`;
+callers supply the existing
 function-body simulation hypotheses plus `BridgedStmts` witnesses for emitted
 external function bodies. Fallback/receive witnesses are discharged from the
 existing `none` hypotheses, and the internal-function table witness is derived
@@ -1369,7 +1370,7 @@ theorem layer3_contract_preserves_semantics_evmYulLean_with_function_bridge
       (interpretIR contract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel (Compiler.emitYul contract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
-  Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle
+  Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle
     contract tx initialState hselector hNoWrap hWF hNoFallback hNoReceive
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hbody
     hFunctions
