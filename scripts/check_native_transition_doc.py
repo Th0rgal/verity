@@ -283,6 +283,23 @@ def check_public_theorem_target(
                 "use the explicit `_positive_bridge` theorem name"
             )
 
+    for forbidden_simple_storage_bridge_surface in (
+        "def simpleStorageNativeCallDispatcherBridge ",
+        "def simpleStorageNativeRetrieveHitBridge ",
+        "def simpleStorageNativeStoreHitBridge ",
+        "def simpleStorageNativeSelectorMissBridge ",
+        "theorem simpleStorageNativeRetrieveHitBridge_proved ",
+        "theorem simpleStorageNativeStoreHitBridge_proved ",
+        "theorem simpleStorageNativeSelectorMissBridge_proved ",
+        "theorem simpleStorageNativeCallDispatcherBridge_of_per_case ",
+    ):
+        if forbidden_simple_storage_bridge_surface in normalized_end_to_end:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must not reintroduce the "
+                "obsolete SimpleStorage fuel-wrapper bridge surface "
+                f"`{forbidden_simple_storage_bridge_surface.strip()}`"
+            )
+
     for required_reference_oracle_seam in (
         "theorem layer3_contract_preserves_semantics_via_reference_oracle ",
         "theorem simpleStorage_endToEnd_via_reference_oracle ",
