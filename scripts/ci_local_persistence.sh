@@ -9,7 +9,7 @@ Usage:
   scripts/ci_local_persistence.sh mount    --root ROOT --key KEY --path PATH [--fallback-key KEY]
   scripts/ci_local_persistence.sh publish  --run-id ID --name NAME --path PATH
   scripts/ci_local_persistence.sh fetch    --run-id ID --name NAME [--timeout SECONDS]
-  scripts/ci_local_persistence.sh cleanup  [--max-age-hours HOURS]
+  scripts/ci_local_persistence.sh cleanup  [--max-age-hours HOURS] [--cache-max-age-hours HOURS] [--tmp-max-age-hours HOURS]
 
 Subcommands:
   mount    Symlink a persistent host-local directory into the workspace.
@@ -178,27 +178,56 @@ fetch_artifact() {
 
 cleanup_artifacts() {
   local max_age_hours=24
+  local cache_max_age_hours=168
+  local tmp_max_age_hours=24
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --max-age-hours) max_age_hours="$2"; shift 2 ;;
+      --cache-max-age-hours) cache_max_age_hours="$2"; shift 2 ;;
+      --tmp-max-age-hours) tmp_max_age_hours="$2"; shift 2 ;;
       *) echo "Unknown argument: $1" >&2; usage >&2; exit 1 ;;
     esac
   done
 
+  local artifact_count=0
   if [ ! -d "$ARTIFACT_ROOT" ]; then
     mkdir -p "$ARTIFACT_ROOT"
-    return 0
+  else
+    while IFS= read -r -d '' dir; do
+      rm -rf "$dir"
+      artifact_count=$((artifact_count + 1))
+    done < <(find "$ARTIFACT_ROOT" -maxdepth 1 -mindepth 1 -type d -mmin +"$((max_age_hours * 60))" -print0 2>/dev/null)
   fi
 
-  local count=0
+  if [ "$artifact_count" -gt 0 ]; then
+    echo "Cleaned up ${artifact_count} stale artifact directories"
+  fi
+
+  local cache_count=0
+  for cache_root in \
+    "$(dirname "$ARTIFACT_ROOT")/lake-build" \
+    "$(dirname "$ARTIFACT_ROOT")/compiler-ccache"
+  do
+    [ -d "$cache_root" ] || continue
+    while IFS= read -r -d '' dir; do
+      rm -rf "$dir"
+      cache_count=$((cache_count + 1))
+    done < <(find "$cache_root" -maxdepth 1 -mindepth 1 -type d -mmin +"$((cache_max_age_hours * 60))" -print0 2>/dev/null)
+  done
+
+  if [ "$cache_count" -gt 0 ]; then
+    echo "Cleaned up ${cache_count} stale persistent cache directories"
+  fi
+
+  local tmp_count=0
   while IFS= read -r -d '' dir; do
     rm -rf "$dir"
-    count=$((count + 1))
-  done < <(find "$ARTIFACT_ROOT" -maxdepth 1 -mindepth 1 -type d -mmin +"$((max_age_hours * 60))" -print0 2>/dev/null)
+    tmp_count=$((tmp_count + 1))
+  done < <(find /tmp -maxdepth 1 -type d \( -name 'verity-main-test-*' -o -name 'foundryup-*' \) -mmin +"$((tmp_max_age_hours * 60))" -print0 2>/dev/null)
 
-  if [ "$count" -gt 0 ]; then
-    echo "Cleaned up ${count} stale artifact directories"
+  if [ "$tmp_count" -gt 0 ]; then
+    echo "Cleaned up ${tmp_count} stale temporary Verity test directories"
   fi
 }
 

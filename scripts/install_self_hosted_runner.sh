@@ -15,7 +15,8 @@ RUNNER_TOKEN="${RUNNER_TOKEN:-}"
 RUNNER_GROUP_NAME="${RUNNER_GROUP_NAME:-Default}"
 RUNNER_PROFILE_INPUT="${RUNNER_PROFILE:-}"
 RUNNER_NAME_PREFIX_INPUT="${RUNNER_NAME_PREFIX:-}"
-RUNNER_PROFILE="${RUNNER_PROFILE:-auto}"
+RUNNER_PROFILE="${RUNNER_PROFILE:-build}"
+RUNNER_ARCH="${RUNNER_ARCH:-x64}"
 HOST_IP="${HOST_IP:-}"
 if [ -z "$HOST_IP" ]; then
   HOST_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
@@ -25,73 +26,75 @@ case "${RUNNER_HOST_PROFILE:-$HOST_IP}" in
   88.99.4.254|healthy-build)
     RUNNER_PROFILE="${RUNNER_PROFILE_INPUT:-build}"
     RUNNER_COUNT="${RUNNER_COUNT:-1}"
-    RUNNER_LABELS_1="${RUNNER_LABELS_1:-verity,build,build-heavy,cpu-8,mem-64g,ci-host-88-99-4-254}"
+    RUNNER_LABELS_1="${RUNNER_LABELS_1:-verity,build,build-heavy,hetzner,hz2,cpu-8,mem-64g,ci-host-88-99-4-254}"
     ;;
   95.216.244.60|mixed-8core)
     RUNNER_PROFILE="${RUNNER_PROFILE_INPUT:-fastlane}"
     RUNNER_COUNT="${RUNNER_COUNT:-1}"
-    RUNNER_LABELS_1="${RUNNER_LABELS_1:-verity,fastlane,cpu-8,ci-host-95-216-244-60}"
+    RUNNER_LABELS_1="${RUNNER_LABELS_1:-verity,fastlane,hetzner,hz1,cpu-8,ci-host-95-216-244-60}"
     ;;
 esac
 RUNNER_NAME_PREFIX="${RUNNER_NAME_PREFIX_INPUT:-$(hostname)-verity-${RUNNER_PROFILE}}"
 RUNNER_VERSION="${RUNNER_VERSION:-}"
+case "$RUNNER_ARCH" in
+  x64|arm64|arm) ;;
+  *)
+    echo "Unsupported RUNNER_ARCH: $RUNNER_ARCH" >&2
+    echo "Use one of: x64, arm64, arm." >&2
+    exit 1
+    ;;
+esac
+case "$RUNNER_PROFILE" in
+  fastlane|build|dgx-gpu) ;;
+  *)
+    echo "Unsupported RUNNER_PROFILE: $RUNNER_PROFILE" >&2
+    echo "Use one of: fastlane, build, dgx-gpu." >&2
+    exit 1
+    ;;
+esac
 if [ -z "${RUNNER_COUNT:-}" ]; then
   case "$RUNNER_PROFILE" in
-    fastlane)
+    fastlane|build|dgx-gpu)
       RUNNER_COUNT=1
       ;;
     *)
-      RUNNER_COUNT=2
+      RUNNER_COUNT=1
       ;;
   esac
 fi
 
 runner_labels_for_index() {
   case "$RUNNER_PROFILE" in
-    auto)
-      if [ "$RUNNER_COUNT" -eq 1 ]; then
-        case "$1" in
-          1)
-            printf '%s' "${RUNNER_LABELS_1:-verity,fastlane,build,cpu-8,mem-64g}"
-            ;;
-          *)
-            printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
-            ;;
-        esac
-        return
-      fi
-      case "$1" in
-        1)
-          printf '%s' "${RUNNER_LABELS_1:-verity,fastlane}"
-          ;;
-        2)
-          printf '%s' "${RUNNER_LABELS_2:-verity,build,build-heavy,cpu-8,mem-64g}"
-          ;;
-        *)
-          printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
-          ;;
-      esac
-      ;;
     fastlane)
       case "$1" in
         1)
-          printf '%s' "${RUNNER_LABELS_1:-verity,fastlane}"
+          printf '%s' "${RUNNER_LABELS_1:-verity,fastlane,hetzner}"
           ;;
         *)
-          printf '%s' "${RUNNER_LABELS_EXTRA:-verity,fastlane}"
+          printf '%s' "${RUNNER_LABELS_EXTRA:-verity,fastlane,hetzner}"
+          ;;
+      esac
+      ;;
+    dgx-gpu)
+      case "$1" in
+        1)
+          printf '%s' "${RUNNER_LABELS_1:-dgx,dgx-spark,gpu,nvidia}"
+          ;;
+        *)
+          printf '%s' "${RUNNER_LABELS_EXTRA:-dgx,dgx-spark,gpu,nvidia}"
           ;;
       esac
       ;;
     *)
       case "$1" in
         1)
-          printf '%s' "${RUNNER_LABELS_1:-verity,build,cpu-8,mem-64g}"
+          printf '%s' "${RUNNER_LABELS_1:-verity,build,hetzner,cpu-8,mem-64g}"
           ;;
         2)
-          printf '%s' "${RUNNER_LABELS_2:-verity,build,build-heavy,cpu-8,mem-64g}"
+          printf '%s' "${RUNNER_LABELS_2:-verity,build,build-heavy,hetzner,cpu-8,mem-64g}"
           ;;
         *)
-          printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,cpu-8,mem-64g}"
+          printf '%s' "${RUNNER_LABELS_EXTRA:-verity,build,build-heavy,hetzner,cpu-8,mem-64g}"
           ;;
       esac
       ;;
@@ -147,7 +150,7 @@ resolve_runner_version() {
 
 install_runner_files() {
   local runner_dir="$1"
-  local archive="actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz"
+  local archive="actions-runner-linux-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz"
   local url="https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/${archive}"
 
   mkdir -p "$runner_dir"
@@ -343,12 +346,14 @@ Host preparation is complete.
 Runner root: $RUNNER_ROOT
 Shared cache root: $CACHE_ROOT
 Runner profile: $RUNNER_PROFILE
+Runner architecture: $RUNNER_ARCH
 Runner version: $RUNNER_VERSION
 
 If RUNNER_URL and RUNNER_TOKEN were set, the runner services are now installed.
 Otherwise, rerun with:
   RUNNER_URL=https://github.com/<owner>/<repo> \\
   RUNNER_TOKEN=<registration-token> \\
-  RUNNER_PROFILE=auto|fastlane|build \\
+  RUNNER_PROFILE=fastlane|build|dgx-gpu \\
+  RUNNER_ARCH=x64|arm64 \\
   $0
 EOF
