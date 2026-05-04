@@ -76,15 +76,17 @@ materializes pre-state storage for those slots.
   `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`,
   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree`,
   `nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree`,
-  `layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge`,
-  `layer3_contract_preserves_semantics_native_of_dispatcherBlock_bridge`,
-  `layer3_contract_preserves_semantics_native_of_dispatcherExec_bridge`,
-  `layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge`,
-  `layers2_3_ir_matches_native_evmYulLean_of_dispatcherBlock_bridge`, and
-  `layers2_3_ir_matches_native_evmYulLean_of_dispatcherExec_bridge`.
-  These move the remaining proof obligation down to concrete native lowering,
-  selected-path environment validation, and projected native dispatcher-block
-  execution agreement with the fuel-aligned EVMYulLean fuel wrapper.
+  `layer3_contract_preserves_semantics_native_of_generated_lowered_callDispatcher_bridge`,
+  `layer3_contract_preserves_semantics_native_of_generated_dispatcherBlock_bridge`,
+  `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_bridge`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_bridge`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherBlock_bridge`, and
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_bridge`.
+  These derive the executable generated-fragment check from generated-code
+  shape facts and move the remaining proof obligation down to concrete native
+  lowering, selected-path environment validation, and projected native
+  dispatcher-block execution agreement with the fuel-aligned EVMYulLean fuel
+  wrapper.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with
@@ -794,17 +796,18 @@ scope so the native path does not look more complete than it is:
    The next theorem in that chain is:
 
    ```lean
-   layers2_3_ir_matches_native_evmYulLean_of_dispatcherExec_bridge
+   layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_bridge
    ```
 
    It replaces the opaque bridge hypothesis with successful
    `lowerRuntimeContractNative`, successful
    `validateNativeRuntimeEnvironment`, and
    `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper` for the lowered native
-   contract.
-   The higher `layers2_3_ir_matches_native_evmYulLean_of_dispatcherBlock_bridge`
+   contract, plus generated-code shape facts that discharge the executable
+   generated-fragment check. The higher
+   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherBlock_bridge`
    and
-   `layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge`
+   `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_bridge`
    wrappers remain available when callers have already proved the block-level
    or `callDispatcher`-level obligation instead.
    `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper` compares projected
