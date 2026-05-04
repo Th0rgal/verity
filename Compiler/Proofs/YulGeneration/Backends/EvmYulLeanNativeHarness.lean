@@ -7841,6 +7841,42 @@ theorem NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves
                   rw [state_getElem_multifill_of_not_mem callState name vars rets hnot]
                   exact hCallLookup
 
+theorem NativeStmtPreservesWord_let_prim_of_nativeEvalArgs_primCall_preserves
+    (name : EvmYul.Identifier) (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier) (prim : EvmYul.Yul.Ast.PrimOp)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hnot : name ∉ vars)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hPrim :
+      ∀ fuel state values primState rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state prim values = .ok (primState, rets) →
+          primState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (.Call (Sum.inl prim) args))) codeOverride :=
+  NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves
+    name expected vars prim args codeOverride hnot hArgs hPrim
+
+theorem NativeStmtPreservesWord_let_user_of_nativeEvalArgs_call_preserves
+    (name : EvmYul.Identifier) (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (functionName : EvmYul.Yul.Ast.YulFunctionName)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hnot : name ∉ vars)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hCall :
+      ∀ fuel state values callState rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some functionName) codeOverride state =
+            .ok (callState, rets) →
+          callState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (.Call (Sum.inr functionName) args))) codeOverride :=
+  NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves
+    name expected vars functionName args codeOverride hnot hArgs hCall
+
 theorem NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
     (name func : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -8135,6 +8171,41 @@ theorem NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves
                     hCall callFuel argState values.reverse callState rets
                       hArgLookup hUserCall
                   cases callState <;> simpa using hCallLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (prim : EvmYul.Yul.Ast.PrimOp)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hPrim :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state prim values = .ok (final, rets) →
+          final[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl prim) args)) codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves
+    name expected prim args codeOverride hArgs hPrim
+
+theorem NativeStmtPreservesWord_exprStmtCall_user_of_nativeEvalArgs_call_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (functionName : EvmYul.Yul.Ast.YulFunctionName)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hCall :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some functionName) codeOverride state =
+            .ok (final, rets) →
+          final[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inr functionName) args)) codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves
+    name expected functionName args codeOverride hArgs hCall
 
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
     (name func : EvmYul.Identifier)
