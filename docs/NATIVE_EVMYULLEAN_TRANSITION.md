@@ -56,6 +56,7 @@ materializes pre-state storage for those slots.
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`,
   `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match`, and
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match`.
   These direct match seams keep the remaining proof obligation at concrete
