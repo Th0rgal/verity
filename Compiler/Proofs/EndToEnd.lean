@@ -22,7 +22,7 @@
   **EVMYulLean note (Phase 4)**: The default builtin backend is now
   EVMYulLean, and this file exposes safe-body public wrappers targeting the
   explicit EVMYulLean default-fuel proof-interpreter wrapper
-  `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel`. Historical
+  `interpretYulRuntimeWithBackend .evmYulLean`. Historical
   Verity-backed comparison entry points remain available under explicit
   reference-oracle names. The backend bridge is established in
   `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, proving
@@ -33,7 +33,7 @@
   runtime wrapper satisfies that predicate, and executes equivalently under the
   EVMYulLean backend, when the IR bodies it contains do. It also exposes a
   lower-level Layer-3 theorem whose Yul side is
-  `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel` and whose body witnesses
+  `interpretYulRuntimeWithBackend .evmYulLean` and whose body witnesses
   are supplied by this file's public wrappers. Those wrappers derive raw
   external function-body bridge witnesses from source-level `SupportedSpec`,
   static-parameter, and `BridgedSafeStmts` witnesses where the public theorem
@@ -711,13 +711,13 @@ theorem yulBody_from_state_eq_yulBody
 
 /-- Lower-level Layer 3 contract-level preservation targeting the
 EVMYulLean-backed Yul runtime. This is the EndToEnd-facing wrapper around
-`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`;
+`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`;
 callers supply the existing
 function-body simulation hypotheses plus `BridgedStmts` witnesses for emitted
 external function bodies. Fallback/receive witnesses are discharged from the
 existing `none` hypotheses, and the internal-function table witness is derived
 from `ContractWF`. -/
-theorem layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_with_function_bridge
+theorem layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -740,9 +740,9 @@ theorem layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_wit
       Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
-      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel (Compiler.emitYul contract).runtimeCode
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend .evmYulLean (Compiler.emitYul contract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
-  Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle
+  Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle
     contract tx initialState hselector hNoWrap hWF hNoFallback hNoReceive
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hbody
     hFunctions
@@ -753,7 +753,7 @@ theorem layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_wit
 /-- Layer 3 contract-level preservation targeting EVMYulLean under explicit
 function-body bridge witnesses, using the same entry-state normalization
 hypotheses as the reference-oracle theorem. -/
-theorem layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel
+theorem layer3_contract_preserves_semantics_evmYulLeanBackend
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -774,9 +774,9 @@ theorem layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel
       Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR contract tx initialState)
-      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel (Compiler.emitYul contract).runtimeCode
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend .evmYulLean (Compiler.emitYul contract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) := by
-  apply layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_with_function_bridge contract tx initialState
+  apply layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge contract tx initialState
     hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector
     hHasSelectorDead hLoopFree
   · intro fn hmem
@@ -855,7 +855,7 @@ IR execution matches EVMYulLean-backed Yul execution under explicit
 function-body closure hypotheses. Fallback/receive bridge witnesses are
 vacuous under the public `none` hypotheses and are discharged internally, as is
 the internal function table witness via `ContractWF`. -/
-theorem layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel_with_function_bridge
+theorem layers2_3_ir_matches_yul_evmYulLeanBackend_with_function_bridge
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (_hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -882,9 +882,9 @@ theorem layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel_with_function_
       Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR irContract tx initialState)
-      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel (Compiler.emitYul irContract).runtimeCode
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend .evmYulLean (Compiler.emitYul irContract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
-  layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel irContract tx initialState
+  layer3_contract_preserves_semantics_evmYulLeanBackend irContract tx initialState
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
     hNoReceive hFunctions
@@ -894,7 +894,7 @@ selector-dispatched function bodies are in the EVMYulLean-safe source fragment
 and whose ABI parameters compile through the static-scalar prologue bridge, IR
 execution matches EVMYulLean-backed Yul execution without exposing a raw
 `BridgedStmts fn.body` hypothesis to callers. -/
-theorem layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel
+theorem layers2_3_ir_matches_yul_evmYulLeanBackend
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -928,9 +928,9 @@ theorem layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel
     (hNoReceive : irContract.receiveEntrypoint = none) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR irContract tx initialState)
-      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel (Compiler.emitYul irContract).runtimeCode
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend .evmYulLean (Compiler.emitYul irContract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
-  layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel_with_function_bridge
+  layers2_3_ir_matches_yul_evmYulLeanBackend_with_function_bridge
     spec selectors irContract tx initialState
     hCompile hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
@@ -5041,7 +5041,7 @@ theorem simpleStorageNativeCallDispatcherMatchBridge_of_per_case
 
 /-- SimpleStorage end-to-end: compile → IR → EVMYulLean-backed Yul preserves
 semantics. The concrete function-body bridge witnesses are discharged above. -/
-theorem simpleStorage_endToEnd_evmYulLeanFuelWrapperDefaultFuel
+theorem simpleStorage_endToEnd_evmYulLeanBackend
     (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -5059,9 +5059,9 @@ theorem simpleStorage_endToEnd_evmYulLeanFuelWrapperDefaultFuel
       paramLoadErasure fn tx (initialState.withTx tx)) :
     Compiler.Proofs.YulGeneration.resultsMatch
       (interpretIR simpleStorageIRContract tx initialState)
-      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel (Compiler.emitYul simpleStorageIRContract).runtimeCode
+      (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend .evmYulLean (Compiler.emitYul simpleStorageIRContract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
-  layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel simpleStorageIRContract tx initialState
+  layer3_contract_preserves_semantics_evmYulLeanBackend simpleStorageIRContract tx initialState
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead
     (by intro fn hmem; simp [simpleStorageIRContract] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
@@ -5187,15 +5187,15 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   emitted-runtime equality between Verity `legacyExecYulFuel` and the EVMYulLean
   backend executor under those body witnesses. These theorems compose the
   fully proven builtin bridge equivalences. It also proves
-  `yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`, the
+  `yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`, the
   lower-level Layer-3 theorem whose Yul side is the EVMYulLean backend runtime.
   This file now exposes
   EndToEnd wrappers
-  `layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_with_function_bridge`,
-  `layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel`,
-  `layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel`, and
-  `simpleStorage_endToEnd_evmYulLeanFuelWrapperDefaultFuel` over that target. The public
-  `layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel` wrapper discharges raw external
+  `layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge`,
+  `layer3_contract_preserves_semantics_evmYulLeanBackend`,
+  `layers2_3_ir_matches_yul_evmYulLeanBackend`, and
+  `simpleStorage_endToEnd_evmYulLeanBackend` over that target. The public
+  `layers2_3_ir_matches_yul_evmYulLeanBackend` wrapper discharges raw external
   function-body bridge witnesses from `SupportedSpec`, static-parameter
   witnesses, and `BridgedSafeStmts` source-body witnesses.
   Body-closure increments also prove scalar and static-scalar calldata
@@ -5214,10 +5214,10 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   and execute equivalently under the EVMYulLean backend when the IR bodies it
   embeds satisfy `BridgedStmt`.
 - Layer 3 now has a contract-level theorem targeting
-  `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel`; the public safe-body wrapper
+  `interpretYulRuntimeWithBackend .evmYulLean`; the public safe-body wrapper
   derives its raw body witnesses from supported source bodies.
 - This public EndToEnd module now has a safe-body wrapper targeting
-  `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel` without raw `BridgedStmts`
+  `interpretYulRuntimeWithBackend .evmYulLean` without raw `BridgedStmts`
   body hypotheses; the historical Verity-backed public `via_reference_oracle`
   EndToEnd wrappers have been removed.
 - Scalar and static-scalar calldata parameter-loading prologues are now known

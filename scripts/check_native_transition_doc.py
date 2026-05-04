@@ -59,7 +59,7 @@ NATIVE_SMOKE_TEST = (
 )
 
 REQUIRED_SNIPPETS = (
-    "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
+    "interpretYulRuntimeWithBackend .evmYulLean",
     "Verity's custom fuel-based Yul statement interpreter",
     "not the final architecture",
     "Native.interpretRuntimeNative",
@@ -73,7 +73,7 @@ REQUIRED_SNIPPETS = (
     "default runtime fuel",
     "native public theorem pending",
     "not yet proved",
-    "`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`",
+    "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`",
     "`yulCodegen_preserves_semantics_via_reference_oracle`",
     "not yet a native source-of-truth Layer 3 proof",
     "#1741",
@@ -147,10 +147,10 @@ def check_public_theorem_target(
     normalized_native_harness = normalize_ws(native_harness_text)
     normalized_retarget = normalize_ws(retarget_text)
 
-    if "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel" not in normalized_end_to_end:
+    if "interpretYulRuntimeWithBackend .evmYulLean" not in normalized_end_to_end:
         errors.append(
             "Compiler/Proofs/EndToEnd.lean must still expose the current "
-            "`interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel` public theorem target "
+            "`interpretYulRuntimeWithBackend .evmYulLean` public theorem target "
             "until the native preservation theorem is proved and this guard is updated"
         )
 
@@ -171,14 +171,14 @@ def check_public_theorem_target(
         "theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match",
-        "theorem layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel ",
-        "theorem layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel ",
+        "theorem layer3_contract_preserves_semantics_evmYulLeanBackend ",
+        "theorem layers2_3_ir_matches_yul_evmYulLeanBackend ",
         "theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match",
         "theorem simpleStorageNativeCallDispatcherMatchBridge_of_per_case",
         "theorem simpleStorageNativeRetrieveHitMatchBridge_proved",
         "theorem simpleStorageNativeStoreHitMatchBridge_proved",
         "theorem simpleStorageNativeSelectorMissMatchBridge_proved",
-        "theorem simpleStorage_endToEnd_evmYulLeanFuelWrapperDefaultFuel ",
+        "theorem simpleStorage_endToEnd_evmYulLeanBackend ",
     ):
         if required_native_seam not in normalized_end_to_end:
             errors.append(
@@ -381,13 +381,13 @@ def check_public_theorem_target(
                 )
 
     for required_fuel_surface in (
-        "def interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
+        "def interpretYulRuntimeWithBackend",
     ):
         if required_fuel_surface not in normalized_retarget:
             errors.append(
                 "Compiler/Proofs/YulGeneration/Backends/"
-                "EvmYulLeanRetarget.lean must keep the fuel-aligned "
-                f"EVMYulLean fuel wrapper surface `{required_fuel_surface}` explicit"
+                "EvmYulLeanRetarget.lean must keep the backend-parameterized "
+                f"EVMYulLean interpreter surface `{required_fuel_surface}` explicit"
             )
 
     for forbidden_fuel_alias in (
@@ -704,11 +704,11 @@ def check_reference_oracle_names(
             "`yulCodegen_preserves_semantics_via_reference_oracle`"
         )
 
-    if "theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle" not in normalized_retarget:
+    if "theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle" not in normalized_retarget:
         errors.append(
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
             "name the current EVMYulLean Layer-3 retarget as "
-            "`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`"
+            "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`"
         )
 
     if "theorem yulCodegen_preserves_semantics_evmYulLean " in normalized_retarget:
@@ -716,7 +716,7 @@ def check_reference_oracle_names(
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
             "not reintroduce the hidden reference-oracle compatibility alias "
             "`yulCodegen_preserves_semantics_evmYulLean`; use the explicit "
-            "`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle` name"
+            "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle` name"
         )
 
     if "theorem yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle " in normalized_retarget:
@@ -725,14 +725,14 @@ def check_reference_oracle_names(
             "not reintroduce the hidden default-fuel compatibility alias "
             "`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`; "
             "use the explicit "
-            "`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle` name"
+            "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle` name"
         )
 
-    if "yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle" not in normalized_end_to_end:
+    if "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle" not in normalized_end_to_end:
         errors.append(
             "Compiler/Proofs/EndToEnd.lean must call the current EVMYulLean "
             "Layer-3 retarget through "
-            "`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`"
+            "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`"
         )
 
     for removed_native_reference_alias in (

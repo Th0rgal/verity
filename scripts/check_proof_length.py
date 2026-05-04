@@ -307,11 +307,11 @@ ALLOWLIST: set[str] = {
     "SwitchCaseBodyBridge",
     # Thin EVMYulLean EndToEnd wrapper; signature carries explicit body-closure
     # witnesses and the proof mostly forwards existing Layer-3 hypotheses.
-    "layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel",
+    "layer3_contract_preserves_semantics_evmYulLeanBackend",
     # --- End-to-end proofs ---
     # Thin public wrapper; the scanner counts the trailing Phase 4 summary
     # comment in its theorem span.
-    "simpleStorage_endToEnd_evmYulLeanFuelWrapperDefaultFuel",
+    "simpleStorage_endToEnd_evmYulLeanBackend",
     # Native SimpleStorage wrapper keeps the dispatcher-agreement seam explicit
     # while delegating to the lowered native theorem; the long span is the public
     # hypothesis surface, not a large proof script.
@@ -356,6 +356,7 @@ ALLOWLIST: set[str] = {
     # plumbing around one public transition theorem.
     "interpretYulFromIR_evmYulLean_eq_on_bridged_bodies",
     "layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel",
+    "layers2_3_ir_matches_yul_evmYulLeanBackend",
     # --- Contract proofs (Contracts/) ---
     "constructor_increment_getCount",
     "add_one_preserves_order_iff_no_overflow",
@@ -447,7 +448,7 @@ ALLOWLIST: set[str] = {
     # Conditional Layer-3 EVMYulLean theorem composes existing codegen
     # preservation with emitted-runtime backend equality; the scanner also
     # counts the trailing Phase 4 summary block in its theorem span.
-    "yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle",
+    "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle",
     # Scalar parameter body closure is a structural induction over the six
     # scalar ABI cases emitted by `genParamLoadBodyFrom`.
     "genParamLoadBodyFrom_calldataload_bridged",

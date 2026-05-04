@@ -2662,23 +2662,6 @@ noncomputable def interpretYulRuntimeWithBackend
     (execYulFuelWithBackend backend (sizeOf runtimeCode + 1) initialState
       (.stmts runtimeCode))
 
-/-- EVMYulLean-backed fuel-wrapper runtime entry point using the standard
-structural fuel bound. -/
-noncomputable def interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
-    (runtimeCode : List Compiler.Yul.YulStmt)
-    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
-    (events : List (List Nat) := []) :
-    YulResult :=
-  interpretYulRuntimeWithBackend .evmYulLean runtimeCode tx storage events
-
-@[simp] theorem interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel_eq_backend
-    (runtimeCode : List Compiler.Yul.YulStmt)
-    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
-    (events : List (List Nat) := []) :
-    interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel runtimeCode tx storage events =
-      interpretYulRuntimeWithBackend .evmYulLean runtimeCode tx storage events := by
-  rfl
-
 theorem interpretYulRuntimeWithBackend_verity_eq
     (runtimeCode : List Compiler.Yul.YulStmt) (tx : YulTransaction)
     (storage : IRStorageSlot → IRStorageWord) (events : List (List Nat) := []) :
@@ -2715,8 +2698,8 @@ theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
     (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
     (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
     (hInternals : BridgedStmts contract.internalFunctions) :
-    interpretYulFromIR contract tx state =
-    interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
+  interpretYulFromIR contract tx state =
+    interpretYulRuntimeWithBackend .evmYulLean
       (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
       state.storage state.events := by
   unfold interpretYulFromIR
@@ -2729,11 +2712,10 @@ theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
           exact (interpretYulRuntimeWithBackend_verity_eq
             (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
             state.storage (events := state.events)).symm
-    _ = interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
+    _ = interpretYulRuntimeWithBackend .evmYulLean
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
         state.storage state.events := by
-          unfold interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
-            interpretYulRuntimeWithBackend
+          unfold interpretYulRuntimeWithBackend
           change
             yulResultOfExecWithRollback
               (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
@@ -2753,7 +2735,7 @@ theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
             (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
             contract hFunctions hFallback hReceive hInternals]
 
-theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle
+theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle
     (contract : Compiler.IRContract)
     (tx : IRTransaction)
     (initialState : IRState)
@@ -2780,7 +2762,7 @@ theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_refe
     (hInternals : BridgedStmts contract.internalFunctions) :
     resultsMatch
       (interpretIR contract tx initialState)
-      (interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
+      (interpretYulRuntimeWithBackend .evmYulLean
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
         initialState.storage initialState.events) := by
   have hLayer3 :=
@@ -2833,7 +2815,7 @@ theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_refe
     emitted runtime-wrapper closure with recursive target equivalence to state
     that Verity `legacyExecYulFuel` equals the EVMYulLean backend executor for
     `emitYul` runtime code when its embedded bodies are bridged.
-12. **`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`**:
+12. **`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`**:
     Composes the existing Layer-3 IR-to-Yul preservation theorem with the
     bridged-runtime equality above, yielding a contract-level result whose Yul
     side is evaluated by the explicitly named EVMYulLean fuel-wrapper runtime.

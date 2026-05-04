@@ -19,7 +19,7 @@ match proofs for selector miss, retrieve hit, and store hit.
 Those two cases cannot be discharged inside the current public theorem
 signature because of a type-level mismatch:
 
-- The Verity proof oracle `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel` reads
+- The Verity proof oracle `interpretYulRuntimeWithBackend .evmYulLean` reads
   from `IRState.storage : Nat → Nat` (see
   [`Compiler/Proofs/IRGeneration/IRInterpreter.lean`](../Compiler/Proofs/IRGeneration/IRInterpreter.lean)).
   The carrier is unbounded.

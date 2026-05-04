@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import unittest
 from pathlib import Path
 import sys
@@ -73,13 +72,13 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
 
     def test_rejects_missing_explicit_evmyullean_reference_oracle_name(self) -> None:
         text = check.DOC.read_text(encoding="utf-8").replace(
-            "`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`",
+            "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`",
             "`yulCodegen_preserves_semantics_evmYulLean`",
         )
         errors = check.check_doc(text)
         self.assertTrue(
             any(
-                "yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle" in error
+                "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle" in error
                 for error in errors
             ),
             errors,
@@ -94,10 +93,9 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_public_theorem_target_guard_rejects_missing_current_target(self) -> None:
-        end_to_end_text = re.sub(
-            r"interpretYulRuntimeEvmYulLean",
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "interpretYulRuntimeWithBackend .evmYulLean",
             "interpretYulRuntimeWithBackend .verity",
-            check.END_TO_END.read_text(encoding="utf-8"),
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
@@ -105,7 +103,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("interpretYulRuntimeEvmYulLean" in error for error in errors),
+            any("interpretYulRuntimeWithBackend .evmYulLean" in error for error in errors),
             errors,
         )
 
@@ -338,13 +336,13 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertTrue(any("callDispatcher" in error for error in errors), errors)
 
-    def test_public_theorem_target_guard_rejects_missing_default_evmyullean_fuel_wrapper(self) -> None:
+    def test_public_theorem_target_guard_rejects_missing_evmyullean_backend_target(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
+            "interpretYulRuntimeWithBackend .evmYulLean",
             "interpretYulRuntimeEvmYulLeanHiddenFuel",
         )
         retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
-            "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
+            "interpretYulRuntimeWithBackend .evmYulLean",
             "interpretYulRuntimeEvmYulLeanHiddenFuel",
         )
         errors = check.check_public_theorem_target(
@@ -353,7 +351,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             retarget_text,
         )
         self.assertTrue(
-            any("interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel" in error for error in errors),
+            any("interpretYulRuntimeWithBackend .evmYulLean" in error for error in errors),
             errors,
         )
 
@@ -412,7 +410,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
 
     def test_reference_oracle_names_guard_rejects_missing_explicit_evmyullean_retarget(self) -> None:
         retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
-            "theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle",
+            "theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle",
             "theorem yulCodegen_preserves_semantics_evmYulLean_reference_hidden",
         )
         errors = check.check_reference_oracle_names(
@@ -421,7 +419,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.PRESERVATION.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle" in error for error in errors),
+            any("yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle" in error for error in errors),
             errors,
         )
 
@@ -457,11 +455,11 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
 
     def test_reference_oracle_names_guard_rejects_missing_explicit_evmyullean_fuel_wrapper_retarget(self) -> None:
         retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
-            "theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle",
+            "theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle",
             "theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapper_reference_hidden",
         )
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle",
+            "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle",
             "yulCodegen_preserves_semantics_evmYulLeanFuelWrapper_reference_hidden",
         )
         errors = check.check_reference_oracle_names(
@@ -470,7 +468,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.PRESERVATION.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle" in error for error in errors),
+            any("yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle" in error for error in errors),
             errors,
         )
 
