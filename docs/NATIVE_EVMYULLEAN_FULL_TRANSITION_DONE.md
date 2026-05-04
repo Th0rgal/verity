@@ -6,18 +6,19 @@ compiler-verification target.
 
 It is stricter than the current storage-semantics milestone. The SimpleStorage
 native theorem now discharges its retrieve, store, and selector bridge cases,
-but the generic compiler theorem stack still uses Verity's custom fuel-based
-Yul interpreter through:
+but the generic compiler theorem stack still uses Verity's custom Yul
+statement interpreter through the EVMYulLean-backed builtin backend:
 
 ```lean
-interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
+interpretYulRuntimeWithBackend .evmYulLean
 ```
 
 That path proves the custom interpreter agrees with EVMYulLean-backed builtin
-semantics for the bridged fragment. The final transition is complete only when
-the public compiler-correctness theorem targets native EVMYulLean execution
-directly, or an equivalent wrapper whose only execution engine is
-`EvmYul.Yul.callDispatcher`.
+semantics for the bridged fragment through
+`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`. The
+final transition is complete only when the public compiler-correctness theorem
+targets native EVMYulLean execution directly, or an equivalent wrapper whose
+only execution engine is `EvmYul.Yul.callDispatcher`.
 
 ## Current Baseline
 
@@ -61,7 +62,7 @@ The transition is done only when all criteria in this section are true on
 
 - The generic Layer 3 and end-to-end compiler-correctness theorem statements
   target native EVMYulLean execution, not
-  `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel`.
+  `interpretYulRuntimeWithBackend .evmYulLean`.
 - The theorem-facing native target is either `Native.interpretIRRuntimeNative`
   or a narrower wrapper that internally lowers to EVMYulLean and executes via
   `EvmYul.Yul.callDispatcher`.
@@ -257,9 +258,9 @@ Goal:
 Current architecture:
   The generic public path still uses:
 
-    interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
+    interpretYulRuntimeWithBackend .evmYulLean
 
-  This is Verity's custom fuel-based Yul interpreter with EVMYulLean-backed
+  This is Verity's custom Yul statement interpreter with EVMYulLean-backed
   builtin semantics. The native path exists through:
 
     Native.interpretRuntimeNative

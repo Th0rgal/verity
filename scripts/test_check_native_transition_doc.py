@@ -16,6 +16,22 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         text = check.DOC.read_text(encoding="utf-8")
         self.assertEqual(check.check_doc(text), [])
 
+    def test_current_definition_of_done_doc_passes(self) -> None:
+        text = check.DOD_DOC.read_text(encoding="utf-8")
+        self.assertEqual(check.check_definition_of_done_doc(text), [])
+
+    def test_definition_of_done_doc_rejects_removed_fuel_wrapper_target(self) -> None:
+        text = check.DOD_DOC.read_text(encoding="utf-8").replace(
+            "interpretYulRuntimeWithBackend .evmYulLean",
+            "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
+            1,
+        )
+        errors = check.check_definition_of_done_doc(text)
+        self.assertTrue(
+            any("FuelWrapperDefaultFuel" in error for error in errors),
+            errors,
+        )
+
     def test_rejects_missing_blocker_issue(self) -> None:
         text = check.DOC.read_text(encoding="utf-8").replace("#1738", "#0000")
         errors = check.check_doc(text)

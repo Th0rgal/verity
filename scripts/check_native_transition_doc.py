@@ -15,6 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOC = ROOT / "docs" / "NATIVE_EVMYULLEAN_TRANSITION.md"
+DOD_DOC = ROOT / "docs" / "NATIVE_EVMYULLEAN_FULL_TRANSITION_DONE.md"
 END_TO_END = ROOT / "Compiler" / "Proofs" / "EndToEnd.lean"
 NATIVE_HARNESS = (
     ROOT
@@ -126,6 +127,38 @@ def check_doc(text: str) -> list[str]:
         if issue_1738 < 0 or issue_1742 < 0:
             errors.append(
                 f"{DOC.relative_to(ROOT)} must list blockers #1741, #1738, and #1742 together"
+            )
+
+    return errors
+
+
+def check_definition_of_done_doc(text: str) -> list[str]:
+    """Keep the definition-of-done baseline synchronized with current names."""
+
+    normalized = normalize_ws(text)
+    errors: list[str] = []
+
+    for required in (
+        "interpretYulRuntimeWithBackend .evmYulLean",
+        "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle",
+        "Native.interpretIRRuntimeNative",
+        "EvmYul.Yul.callDispatcher",
+    ):
+        if normalize_ws(required) not in normalized:
+            errors.append(
+                f"{DOD_DOC.relative_to(ROOT)} is missing current native-transition "
+                f"definition-of-done text: `{required}`"
+            )
+
+    for forbidden in (
+        "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
+        "interpretYulRuntimeEvmYulLeanFuelWrapper",
+        "evmYulLeanFuelWrapperDefaultFuel",
+    ):
+        if forbidden in normalized:
+            errors.append(
+                f"{DOD_DOC.relative_to(ROOT)} must not mention removed "
+                f"EVMYulLean fuel-wrapper surface `{forbidden}`"
             )
 
     return errors
@@ -838,6 +871,9 @@ def main() -> int:
     if not DOC.exists():
         print(f"Missing: {DOC.relative_to(ROOT)}", file=sys.stderr)
         return 1
+    if not DOD_DOC.exists():
+        print(f"Missing: {DOD_DOC.relative_to(ROOT)}", file=sys.stderr)
+        return 1
     for path in (
         END_TO_END,
         NATIVE_HARNESS,
@@ -854,6 +890,9 @@ def main() -> int:
     native_harness_text = NATIVE_HARNESS.read_text(encoding="utf-8")
     native_smoke_text = NATIVE_SMOKE_TEST.read_text(encoding="utf-8")
     errors = check_doc(DOC.read_text(encoding="utf-8"))
+    errors.extend(
+        check_definition_of_done_doc(DOD_DOC.read_text(encoding="utf-8"))
+    )
     errors.extend(
         check_public_theorem_target(
             END_TO_END.read_text(encoding="utf-8"),
