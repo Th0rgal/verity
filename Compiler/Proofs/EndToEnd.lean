@@ -7447,6 +7447,56 @@ theorem simpleStorageNativeSelectorMissBridge_proved
       exact hstorage (IRStorageSlot.ofNat slot)
     · exact hevents
 
+/-- Selector-miss direct-match native dispatcher bridge.
+
+The native selector-miss path projects to the same revert result as the IR
+selector-miss interpreter case, so this proof avoids the compatibility
+fuel-wrapper bridge entirely. -/
+theorem simpleStorageNativeSelectorMissMatchBridge_proved
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus) :
+    simpleStorageNativeSelectorMissMatchBridge tx initialState observableSlots := by
+  intro hSelMissRetrieve hSelMissStore
+  have hSelEq : tx.functionSelector % selectorModulus = tx.functionSelector :=
+    Nat.mod_eq_of_lt hselector
+  have hSelMissTxStore : tx.functionSelector ≠ 0x6057361d := by
+    rw [← hSelEq]
+    exact hSelMissStore
+  have hSelMissTxRetrieve : tx.functionSelector ≠ 0x2e64cec1 := by
+    rw [← hSelEq]
+    exact hSelMissRetrieve
+  have hIR := interpretIR_simpleStorage_selectorMiss tx initialState
+    hSelMissTxStore hSelMissTxRetrieve
+  refine nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match
+    (err := EvmYul.Yul.Exception.Revert)
+    (nativeYul :=
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events })
+    ?_ ?_ ?_
+  · apply simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel
+    · have hMod :
+          (YulTransaction.ofIR tx).functionSelector
+            % Compiler.Constants.selectorModulus
+            < Compiler.Constants.selectorModulus :=
+        Nat.mod_lt _ (by decide)
+      exact Nat.lt_trans hMod (by decide)
+    · change (YulTransaction.ofIR tx).functionSelector % selectorModulus ≠ _
+      change tx.functionSelector % selectorModulus ≠ _
+      exact hSelMissStore
+    · change (YulTransaction.ofIR tx).functionSelector % selectorModulus ≠ _
+      change tx.functionSelector % selectorModulus ≠ _
+      exact hSelMissRetrieve
+    · change 4 + (YulTransaction.ofIR tx).args.length * 32 < EvmYul.UInt256.size
+      change 4 + tx.args.length * 32 < EvmYul.UInt256.size
+      simpa [evmModulus, EvmYul.UInt256.size] using hNoWrap
+  · rfl
+  · rw [hIR]
+    exact ⟨rfl, rfl, (by intro slot _; rfl), rfl⟩
+
 /-- Recover the monolithic `simpleStorageNativeCallDispatcherBridge` from the
 three per-case sub-bridges by case analysis on
 `tx.functionSelector % selectorModulus`. -/
