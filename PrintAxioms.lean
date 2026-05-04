@@ -2767,19 +2767,33 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mapping2Word_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mapping2Word_bridged
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_external_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_external_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesEmpty_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesEmpty_noFuncDefs
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_internal_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_internal_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_internal_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_internal_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesEmpty_internal_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesEmpty_internal_noFuncDefs
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.zip_assigns_bridgedStmts  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.zip_assigns_noFuncDefs  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesInternal_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesInternal_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesInternal_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesInternal_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesInternal_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesInternal_noFuncDefs
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.zipIdx_mstores_bridgedStmts  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.zipIdx_mstores_noFuncDefs  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesExternal_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesExternal_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesExternal_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesExternal_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesExternal_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesExternal_noFuncDefs
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mstore_bridged  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mstore_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mstore_fragment_bridged
@@ -4062,4 +4076,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3886 theorems/lemmas (2919 public, 967 private, 0 sorry'd)
+-- Total: 3900 theorems/lemmas (2927 public, 973 private, 0 sorry'd)

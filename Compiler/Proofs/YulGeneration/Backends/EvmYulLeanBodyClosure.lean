@@ -8359,6 +8359,20 @@ private theorem compileStmt_returnValuesEmpty_external_bridged
     (BridgedStraightStmt.expr_return (.lit 0) (.lit 0)
       (BridgedExpr.lit 0) (BridgedExpr.lit 0))
 
+private theorem compileStmt_returnValuesEmpty_external_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames
+        (isInternal := false) inScopeNames [] (.returnValues []) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp [compileStmt, Pure.pure, Except.pure, Native.yulStmtContainsFuncDef]
+    at hOk
+  subst out
+  simp [Native.yulStmtContainsFuncDef]
+
 /-- Each statement in the empty-returnValues external fragment compiles to
 Yul satisfying `BridgedStmts`. -/
 theorem compileStmt_returnValuesEmpty_bridged
@@ -8374,6 +8388,21 @@ theorem compileStmt_returnValuesEmpty_bridged
   cases hStmt with
   | returnValuesEmpty =>
       exact compileStmt_returnValuesEmpty_external_bridged fields events errors
+        dynamicSource internalRetNames inScopeNames hOk
+
+theorem compileStmt_returnValuesEmpty_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceReturnValuesEmptyStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | returnValuesEmpty =>
+      exact compileStmt_returnValuesEmpty_external_noFuncDefs fields events errors
         dynamicSource internalRetNames inScopeNames hOk
 
 /-- Lists of external empty-returnValues source statements compile to Yul
@@ -8419,6 +8448,21 @@ theorem compileStmtList_returnValuesEmpty_bridged
                   dynamicSource internalRetNames inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
 
+theorem compileStmtList_returnValuesEmpty_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceReturnValuesEmptyStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames false BridgedSourceReturnValuesEmptyStmt
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_returnValuesEmpty_noFuncDefs fields events errors dynamicSource
+        internalRetNames inScopeNames hStmt hOk)
+
 /-! ## Source statement body closure: internal `returnValues []`
 
 `Stmt.returnValues []` with `isInternal = true` and `internalRetNames = []`
@@ -8452,6 +8496,19 @@ private theorem compileStmt_returnValuesEmpty_internal_bridged
   subst yulStmt
   exact BridgedStmt.straight _ BridgedStraightStmt.leave
 
+private theorem compileStmt_returnValuesEmpty_internal_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (inScopeNames : List String) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource (internalRetNames := [])
+        (isInternal := true) inScopeNames [] (.returnValues []) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp [compileStmt, compileExprList, bind, Except.bind, Pure.pure,
+    Except.pure, Native.yulStmtContainsFuncDef] at hOk
+  subst out
+  simp [Native.yulStmtContainsFuncDef]
+
 /-- Each statement in the empty-returnValues internal fragment compiles to
 Yul satisfying `BridgedStmts`. -/
 theorem compileStmt_returnValuesEmpty_internal_fragment_bridged
@@ -8466,6 +8523,20 @@ theorem compileStmt_returnValuesEmpty_internal_fragment_bridged
   cases hStmt with
   | returnValuesEmptyInternal =>
       exact compileStmt_returnValuesEmpty_internal_bridged fields events errors
+        dynamicSource inScopeNames hOk
+
+theorem compileStmt_returnValuesEmpty_internal_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceReturnValuesEmptyInternalStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource (internalRetNames := [])
+          (isInternal := true) inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | returnValuesEmptyInternal =>
+      exact compileStmt_returnValuesEmpty_internal_noFuncDefs fields events errors
         dynamicSource inScopeNames hOk
 
 /-- Lists of internal empty-returnValues source statements compile to Yul
@@ -8510,6 +8581,21 @@ theorem compileStmtList_returnValuesEmpty_internal_bridged
                 (compileStmt_returnValuesEmpty_internal_fragment_bridged fields events
                   errors dynamicSource inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_returnValuesEmpty_internal_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceReturnValuesEmptyInternalStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource (internalRetNames := [])
+          (isInternal := true) inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    [] true BridgedSourceReturnValuesEmptyInternalStmt
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_returnValuesEmpty_internal_fragment_noFuncDefs fields events
+        errors dynamicSource inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: internal non-empty `returnValues`
 
@@ -8569,6 +8655,22 @@ private theorem zip_assigns_bridgedStmts (names : List String) :
           | inr h =>
               exact ih cs hCs stmt h
 
+private theorem zip_assigns_noFuncDefs (names : List String) :
+    ∀ (compiled : List YulExpr),
+      Native.yulStmtsContainFuncDef
+        ((names.zip compiled).map (fun p => YulStmt.assign p.1 p.2)) = false := by
+  induction names with
+  | nil =>
+      intro compiled
+      simp [Native.yulStmtsContainFuncDef]
+  | cons n ns ih =>
+      intro compiled
+      cases compiled with
+      | nil =>
+          simp [Native.yulStmtsContainFuncDef]
+      | cons c cs =>
+          simp [Native.yulStmtContainsFuncDef, ih cs]
+
 /-- An internal non-empty `Stmt.returnValues values` with matching arity and
 bridged source value expressions compiles to a Yul list satisfying
 `BridgedStmts`. -/
@@ -8598,6 +8700,28 @@ private theorem compileStmt_returnValuesInternal_bridged
         (zip_assigns_bridgedStmts internalRetNames compiled hAllBridged)
         (BridgedStmt.straight _ BridgedStraightStmt.leave)
 
+private theorem compileStmt_returnValuesInternal_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) (values : List Expr)
+    (hLen : values.length = internalRetNames.length) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames
+        (isInternal := true) inScopeNames [] (.returnValues values) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  have hLenFalse : (values.length != internalRetNames.length) = false := by
+    simp [hLen]
+  simp only [compileStmt, hLenFalse, bind, Except.bind,
+    Pure.pure, Except.pure] at hOk
+  cases hCompiled : compileExprList fields dynamicSource values with
+  | error err => simp [hCompiled] at hOk
+  | ok compiled =>
+      simp [hCompiled, Native.yulStmtContainsFuncDef] at hOk
+      subst out
+      simp [Native.yulStmtContainsFuncDef,
+        zip_assigns_noFuncDefs internalRetNames compiled]
+
 /-- Each statement in the internal-non-empty-`returnValues` fragment
 compiles to Yul satisfying `BridgedStmts`. -/
 theorem compileStmt_returnValuesInternal_fragment_bridged
@@ -8615,6 +8739,22 @@ theorem compileStmt_returnValuesInternal_fragment_bridged
   | returnValuesInternal values hValues hLen =>
       exact compileStmt_returnValuesInternal_bridged fields events errors
         dynamicSource internalRetNames inScopeNames values hValues hLen hOk
+
+theorem compileStmt_returnValuesInternal_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {stmt : Stmt},
+      BridgedSourceReturnValuesInternalStmt internalRetNames stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          (isInternal := true) inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | returnValuesInternal values hValues hLen =>
+      exact compileStmt_returnValuesInternal_noFuncDefs fields events errors
+        dynamicSource internalRetNames inScopeNames values hLen hOk
 
 /-- Lists of internal non-empty `returnValues` source statements (all sharing
 the same `internalRetNames` arity) compile to Yul lists satisfying
@@ -8661,6 +8801,21 @@ theorem compileStmtList_returnValuesInternal_bridged
                 (compileStmt_returnValuesInternal_fragment_bridged fields events errors
                   dynamicSource internalRetNames inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_returnValuesInternal_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceReturnValuesInternalStmts internalRetNames stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          (isInternal := true) inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames true (BridgedSourceReturnValuesInternalStmt internalRetNames)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_returnValuesInternal_fragment_noFuncDefs fields events errors
+        dynamicSource internalRetNames inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: external general `returnValues`
 
@@ -8722,6 +8877,21 @@ private theorem zipIdx_mstores_bridgedStmts :
       | inr h =>
           exact ih (startIdx + 1) hCs stmt h
 
+private theorem zipIdx_mstores_noFuncDefs :
+    ∀ (compiled : List YulExpr) (startIdx : Nat),
+      Native.yulStmtsContainFuncDef
+        ((compiled.zipIdx startIdx).map (fun p =>
+          YulStmt.expr (YulExpr.call "mstore"
+            [YulExpr.lit (p.2 * 32), p.1]))) = false := by
+  intro compiled
+  induction compiled with
+  | nil =>
+      intro startIdx
+      simp [Native.yulStmtsContainFuncDef]
+  | cons c cs ih =>
+      intro startIdx
+      simp [List.zipIdx_cons, Native.yulStmtContainsFuncDef, ih (startIdx + 1)]
+
 /-- An external `Stmt.returnValues values` (for any `values`) with bridged
 source value expressions compiles to a Yul list satisfying `BridgedStmts`. -/
 private theorem compileStmt_returnValuesExternal_bridged
@@ -8761,6 +8931,32 @@ private theorem compileStmt_returnValuesExternal_bridged
             (BridgedStraightStmt.expr_return (.lit 0) (.lit (values.length * 32))
               (BridgedExpr.lit 0) (BridgedExpr.lit (values.length * 32))))
 
+private theorem compileStmt_returnValuesExternal_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) (values : List Expr) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames
+        (isInternal := false) inScopeNames [] (.returnValues values) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  by_cases hValuesNil : values = []
+  · subst hValuesNil
+    simp [compileStmt, Pure.pure, Except.pure, Native.yulStmtContainsFuncDef]
+      at hOk
+    subst out
+    simp [Native.yulStmtContainsFuncDef]
+  · have hEmptyFalse : values.isEmpty = false := by
+      simp [hValuesNil]
+    simp only [compileStmt, hEmptyFalse, bind, Except.bind,
+      Pure.pure, Except.pure] at hOk
+    cases hCompiled : compileExprList fields dynamicSource values with
+    | error err => simp [hCompiled] at hOk
+    | ok compiled =>
+        simp [hCompiled, Native.yulStmtContainsFuncDef] at hOk
+        subst out
+        simp [Native.yulStmtContainsFuncDef, zipIdx_mstores_noFuncDefs compiled 0]
+
 /-- Each statement in the external-`returnValues` fragment compiles to Yul
 satisfying `BridgedStmts`. -/
 theorem compileStmt_returnValuesExternal_fragment_bridged
@@ -8777,6 +8973,21 @@ theorem compileStmt_returnValuesExternal_fragment_bridged
   | returnValuesExternal values hValues =>
       exact compileStmt_returnValuesExternal_bridged fields events errors
         dynamicSource internalRetNames inScopeNames values hValues hOk
+
+theorem compileStmt_returnValuesExternal_fragment_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceReturnValuesExternalStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | returnValuesExternal values hValues =>
+      exact compileStmt_returnValuesExternal_noFuncDefs fields events errors
+        dynamicSource internalRetNames inScopeNames values hOk
 
 /-- Lists of external `returnValues` source statements compile to Yul lists
 satisfying `BridgedStmts`. -/
@@ -8821,6 +9032,21 @@ theorem compileStmtList_returnValuesExternal_bridged
                   errors dynamicSource internalRetNames inScopeNames hHeadSource
                   hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_returnValuesExternal_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceReturnValuesExternalStmts stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          (isInternal := false) inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames false BridgedSourceReturnValuesExternalStmt
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_returnValuesExternal_fragment_noFuncDefs fields events errors
+        dynamicSource internalRetNames inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: mstore / tstore
 
