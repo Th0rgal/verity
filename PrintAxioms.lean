@@ -3528,8 +3528,10 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_str
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_ident
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_prim_of_nativeEvalArgs_primCall_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_user_of_nativeEvalArgs_call_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
@@ -4162,4 +4164,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3986 theorems/lemmas (2998 public, 988 private, 0 sorry'd)
+-- Total: 3988 theorems/lemmas (3000 public, 988 private, 0 sorry'd)

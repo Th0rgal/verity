@@ -6616,6 +6616,23 @@ theorem NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
                   exact hPrim fuel' argState values.reverse primState (ret :: rest)
                     hArgLookup hPrimCall
 
+theorem NativeExprPreservesWord_call_prim_of_nativeEvalArgs_primCall_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (prim : EvmYul.Yul.Ast.PrimOp)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hPrim :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state prim values = .ok (final, rets) →
+          final[name]! = expected) :
+    NativeExprPreservesWord name expected
+      (.Call (Sum.inl prim) args) codeOverride :=
+  NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
+    name expected prim args codeOverride hArgs hPrim
+
 theorem NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
     (name func : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -6686,6 +6703,20 @@ theorem NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
                       rcases hEval with ⟨rfl, _⟩
                       exact hCall callFuel argState values.reverse callState
                         (ret :: rest) hArgLookup hUserCall
+
+theorem NativeExprPreservesWord_call_user_of_nativeEvalArgs_call_preserves
+    (name : EvmYul.Identifier) (expected : EvmYul.Literal)
+    (functionName : EvmYul.Yul.Ast.YulFunctionName) (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hCall :
+      ∀ fuel state values final rets, state[name]! = expected →
+        EvmYul.Yul.call fuel values (some functionName) codeOverride state =
+          .ok (final, rets) → final[name]! = expected) :
+    NativeExprPreservesWord name expected (.Call (Sum.inr functionName) args)
+      codeOverride :=
+  NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
+    name expected functionName args codeOverride hArgs hCall
 
 theorem NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
     (name func : EvmYul.Identifier)
