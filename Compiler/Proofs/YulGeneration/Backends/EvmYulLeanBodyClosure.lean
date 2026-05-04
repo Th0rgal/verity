@@ -10482,6 +10482,31 @@ theorem compileStmt_setMappingChain_singleSlot_bridged
               (BridgedStraightStmt.expr_sstore_mapping _ last valueExpr
                 hPreFold hLast hBridgedValue)
 
+private theorem compileStmt_setMappingChain_singleSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot : Nat} {keys : List Expr} {value : Expr}
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field = some [slot]) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames [] (.setMappingChain field keys value) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt] at hOk
+  unfold compileSetMappingChain at hOk
+  simp [hMapping, hSlots] at hOk
+  cases hKeyExprs : compileExprList fields dynamicSource keys with
+  | error err => simp [hKeyExprs, bind, Except.bind] at hOk
+  | ok keyExprs =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExprs, hValueExpr, bind, Except.bind] at hOk
+      | ok valueExpr =>
+          simp [hKeyExprs, hValueExpr, bind, Except.bind] at hOk
+          subst out
+          simp [Native.yulStmtContainsFuncDef, Native.yulStmtsContainFuncDef]
+
 /-- Each statement in the mapping-chain-write fragment compiles to Yul
 satisfying `BridgedStmts`. -/
 theorem compileStmt_mappingChain_bridged
@@ -10499,6 +10524,22 @@ theorem compileStmt_mappingChain_bridged
       exact compileStmt_setMappingChain_singleSlot_bridged fields events errors
         dynamicSource internalRetNames isInternal inScopeNames field
         hKeys hValue hMapping hSlots hOk
+
+theorem compileStmt_mappingChain_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceMappingChainStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setMappingChain field hKeys hValue hMapping hSlots =>
+      exact compileStmt_setMappingChain_singleSlot_noFuncDefs fields events
+        errors dynamicSource internalRetNames isInternal inScopeNames field
+        hMapping hSlots hOk
 
 /-- Lists of single-slot mapping-chain-write source statements compile to
 Yul lists satisfying `BridgedStmts`. -/
@@ -10543,6 +10584,22 @@ theorem compileStmtList_mappingChain_bridged
                 (compileStmt_mappingChain_bridged fields events errors dynamicSource
                   internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_mappingChain_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMappingChainStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal (BridgedSourceMappingChainStmt fields)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_mappingChain_noFuncDefs fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-! ## Multi-slot mapping-write source body closure (wordOffset = 0)
 
