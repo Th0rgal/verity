@@ -112,7 +112,10 @@ N8 public Layer 3 theorem flip
   The selector-miss companion
   `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq`
   gives the same exact rollback package for store-parametric miss/default
-  paths.
+  paths. The block-level
+  `exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_projectResult_eq`
+  wrapper lifts that package through the generated dispatcher-local
+  `__has_selector` binding shape.
 - **Definition of done**:
   - Projection lemmas cover every native halt/error/result used by generated
     runtime execution.

@@ -783,7 +783,10 @@ scope so the native path does not look more complete than it is:
    selector-miss companion
    `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq`
    carries the exact revert rollback package through the same pre-bound local
-   store shape.
+   store shape, and
+   `exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_projectResult_eq`
+   lifts it through the generated dispatcher block shape after
+   `__has_selector` is installed.
 
    This closes the SimpleStorage public theorem against the native
    lowered-dispatcher source of truth. The remaining generic work is to remove
@@ -843,6 +846,8 @@ scope so the native path does not look more complete than it is:
    `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`
    (with
    `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq`
+   and
+   `exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_projectResult_eq`
    available for pre-bound dispatcher-local stores)
    before the SimpleStorage-specific selector table specialization reaches
    `simpleStorageNativeSelectorMissMatchBridge_proved`, and the retrieve-hit

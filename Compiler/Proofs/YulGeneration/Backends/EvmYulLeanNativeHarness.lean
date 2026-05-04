@@ -14309,6 +14309,49 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store
     fuel selector switchId cases contract tx storage observableSlots store
     hSelector hFind hSelectorRange hTagsRange
 
+/-- Bridge-shape selector-miss projection on the post-`__has_selector := 1`
+    state. This packages both the block-level native `Revert` endpoint and
+    the exact projected rollback result. -/
+theorem exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_projectResult_eq
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 13)
+      (.Block [Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+        [nativeRevertZeroZeroStmt]])
+      (some contract)
+      ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+          "__has_selector" (EvmYul.UInt256.ofNat 1)) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert) =
+      { success := false
+        returnValue := none
+        finalStorage := storage
+        finalMappings := Compiler.Proofs.storageAsMappings storage
+        events := initialEvents } := by
+  rcases
+    exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq
+      fuel selector switchId cases contract tx storage initialEvents
+      observableSlots nativeSwitchHasSelectorStore hSelector hFind
+      hSelectorRange hTagsRange with
+    ⟨hEndpoint, hProject⟩
+  have hFuelEq : fuel + cases.length + 13 = (fuel + cases.length + 12).succ := by
+    omega
+  rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
+  refine ⟨?_, hProject⟩
+  exact exec_block_cons_error (fuel + cases.length + 12) _ [] _ _
+    EvmYul.Yul.Exception.Revert hEndpoint
+
 /-- Guarded selector-miss execution for a fully lowered native switch block,
     lifted through Verity's projected native result boundary. The generated
     `revert(0, 0)` default both executes through the actual native step
