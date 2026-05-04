@@ -6852,6 +6852,20 @@ def simpleStorageNativeCallDispatcherBridge
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
 
+/-- Named SimpleStorage native dispatcher direct-match obligation.
+
+This is the native source-of-truth counterpart to
+`simpleStorageNativeCallDispatcherBridge`: the lowered native dispatcher result
+is compared with `interpretIR` directly instead of with the EVMYulLean fuel
+wrapper. -/
+def simpleStorageNativeCallDispatcherMatchBridge
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    : Prop :=
+  nativeDispatcherExecMatchesIRPositive
+    simpleStorageNativeDispatcherFuel
+    simpleStorageIRContract tx initialState observableSlots
+    Compiler.SimpleStorageNativeWitness.nativeContract
+
 /-! ### Per-case sub-bridges for the SimpleStorage native dispatcher.
 
 The monolithic `simpleStorageNativeCallDispatcherBridge` bundles three
@@ -6880,6 +6894,16 @@ def simpleStorageNativeRetrieveHitBridge
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
 
+/-- Direct-match per-case sub-bridge for the `retrieve()` selector hit. -/
+def simpleStorageNativeRetrieveHitMatchBridge
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    : Prop :=
+  tx.functionSelector % Compiler.Constants.selectorModulus = 0x2e64cec1 →
+  nativeDispatcherExecMatchesIRPositive
+    simpleStorageNativeDispatcherFuel
+    simpleStorageIRContract tx initialState observableSlots
+    Compiler.SimpleStorageNativeWitness.nativeContract
+
 /-- Per-case sub-bridge: the dispatcher-exec agreement obligation when the
 caller-supplied transaction selector matches `store(uint256)` (selector
 `0x6057361d`). -/
@@ -6888,6 +6912,16 @@ def simpleStorageNativeStoreHitBridge
     : Prop :=
   tx.functionSelector % Compiler.Constants.selectorModulus = 0x6057361d →
   nativeDispatcherExecAgreesWithEvmYulLeanPositive
+    simpleStorageNativeDispatcherFuel
+    simpleStorageIRContract tx initialState observableSlots
+    Compiler.SimpleStorageNativeWitness.nativeContract
+
+/-- Direct-match per-case sub-bridge for the `store(uint256)` selector hit. -/
+def simpleStorageNativeStoreHitMatchBridge
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    : Prop :=
+  tx.functionSelector % Compiler.Constants.selectorModulus = 0x6057361d →
+  nativeDispatcherExecMatchesIRPositive
     simpleStorageNativeDispatcherFuel
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
@@ -6902,6 +6936,17 @@ def simpleStorageNativeSelectorMissBridge
   tx.functionSelector % Compiler.Constants.selectorModulus ≠ 0x2e64cec1 →
   tx.functionSelector % Compiler.Constants.selectorModulus ≠ 0x6057361d →
   nativeDispatcherExecAgreesWithEvmYulLeanPositive
+    simpleStorageNativeDispatcherFuel
+    simpleStorageIRContract tx initialState observableSlots
+    Compiler.SimpleStorageNativeWitness.nativeContract
+
+/-- Direct-match per-case sub-bridge for the selector-miss revert arm. -/
+def simpleStorageNativeSelectorMissMatchBridge
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    : Prop :=
+  tx.functionSelector % Compiler.Constants.selectorModulus ≠ 0x2e64cec1 →
+  tx.functionSelector % Compiler.Constants.selectorModulus ≠ 0x6057361d →
+  nativeDispatcherExecMatchesIRPositive
     simpleStorageNativeDispatcherFuel
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
@@ -7415,6 +7460,26 @@ theorem simpleStorageNativeCallDispatcherBridge_of_per_case
       simpleStorageNativeSelectorMissBridge tx initialState observableSlots) :
     simpleStorageNativeCallDispatcherBridge tx initialState observableSlots := by
   unfold simpleStorageNativeCallDispatcherBridge
+  by_cases hR :
+      tx.functionSelector % Compiler.Constants.selectorModulus = 0x2e64cec1
+  · exact hRetrieveHit hR
+  · by_cases hS :
+        tx.functionSelector % Compiler.Constants.selectorModulus = 0x6057361d
+    · exact hStoreHit hS
+    · exact hSelectorMiss hR hS
+
+/-- Recover the direct-match monolithic SimpleStorage dispatcher obligation
+from the three direct per-case sub-bridges. -/
+theorem simpleStorageNativeCallDispatcherMatchBridge_of_per_case
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    (hRetrieveHit :
+      simpleStorageNativeRetrieveHitMatchBridge tx initialState observableSlots)
+    (hStoreHit :
+      simpleStorageNativeStoreHitMatchBridge tx initialState observableSlots)
+    (hSelectorMiss :
+      simpleStorageNativeSelectorMissMatchBridge tx initialState observableSlots) :
+    simpleStorageNativeCallDispatcherMatchBridge tx initialState observableSlots := by
+  unfold simpleStorageNativeCallDispatcherMatchBridge
   by_cases hR :
       tx.functionSelector % Compiler.Constants.selectorModulus = 0x2e64cec1
   · exact hRetrieveHit hR
