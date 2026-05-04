@@ -2470,7 +2470,9 @@ theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_low
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
     (hSupported : SupportedSpec spec selectors)
     (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
-    (hBodyNoFuncDefs : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → ∀ bodyStmts, CompilationModel.compileStmtList spec.fields spec.events spec.errors .calldata [] false (entry.1.params.map (·.name)) [] entry.1.body = Except.ok bodyStmts → Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef bodyStmts = false)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
     (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
@@ -2479,8 +2481,8 @@ theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_low
     nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper (Nat.succ fuel') irContract tx state observableSlots :=
   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_agree
     hCompile hSupported
-    (generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_supported
-      hCompile hSupported hStaticParams hBodyNoFuncDefs)
+    (generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
+      hCompile hSupported hStaticParams hSafeBodies)
     hLower hEnv hAgree
 
 theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
@@ -2491,7 +2493,9 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispat
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
     (hSupported : SupportedSpec spec selectors)
     (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
-    (hBodyNoFuncDefs : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → ∀ bodyStmts, CompilationModel.compileStmtList spec.fields spec.events spec.errors .calldata [] false (entry.1.params.map (·.name)) [] entry.1.body = Except.ok bodyStmts → Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef bodyStmts = false)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
     (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
@@ -2499,7 +2503,7 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispat
     (hAgree : nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' irContract tx state observableSlots nativeContract) :
     nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') irContract tx state observableSlots :=
   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
-    hCompile hSupported hStaticParams hBodyNoFuncDefs hLower hEnv hAgree
+    hCompile hSupported hStaticParams hSafeBodies hLower hEnv hAgree
 
 /-- Supported compiler-produced native theorem whose generated-fragment check is
 discharged from generated-code shape facts. `SupportedSpec` already rules out
