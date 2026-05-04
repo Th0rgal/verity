@@ -41,13 +41,11 @@ import Compiler.Proofs.IRGeneration.SourceSemantics
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 import Compiler.Proofs.YulGeneration.Codegen
 import Compiler.Proofs.YulGeneration.Equivalence
 import Compiler.Proofs.YulGeneration.Lemmas
 import Compiler.Proofs.YulGeneration.PatchRulesProofs
 import Compiler.Proofs.YulGeneration.Preservation
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 import Compiler.Proofs.YulGeneration.StatementEquivalence
 import Compiler.Proofs.EndToEnd
 import Compiler.Proofs.ArithmeticProfile
