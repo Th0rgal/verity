@@ -1034,6 +1034,11 @@ ALLOWLIST: set[str] = {
     # closure theorem; splitting would create a parallel dispatch helper with
     # the same 24-case shape.
     "compileStmtList_always_bridged",
+    # Universal no-function-definition aggregation mirrors
+    # compileStmtList_always_bridged: one constructor dispatch over
+    # BridgedSafeStmts, with each branch delegating to a fragment-specific
+    # noFuncDefs theorem.
+    "compileStmtList_always_noFuncDefs",
     # --- Misc ---
     "findUniqueInternalFunction",
     # Native dispatcher bridge wrapper: mostly argument plumbing through the

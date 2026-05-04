@@ -2561,10 +2561,15 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_require_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_require_noFuncDefs
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_singleSlot_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_singleSlot_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping_singleSlot_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingUint_singleSlot_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping_singleSlot_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingUint_singleSlot_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_fragment_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_fragment_bridged
@@ -2607,17 +2612,31 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_recursive_body_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_memoryWrite_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_memoryWrite_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_memoryWrite_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_memoryWrite_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_forEach_with_bridged_body
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_with_noFuncDefs_body
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_forEach_with_noFuncDefs_body
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.sigStores_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.sigStores_noFuncDefs  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.revertWithCustomError_zero_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.revertWithCustomError_zero_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_revertError_zero_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_requireError_zero_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_customError_zero_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_revertError_zero_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_requireError_zero_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_customError_zero_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_customError_zero_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_customError_zero_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_with_errors_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_with_errors_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_with_errors_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_with_errors_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_with_errors_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_with_errors_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_body_with_errors_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_body_with_errors_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_external_body_with_errors_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_internal_body_with_errors_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_structured_body_with_errors_bridged
@@ -2742,12 +2761,20 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_rawLog_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_with_raw_log_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_with_raw_log_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_with_raw_log_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_with_raw_log_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_with_raw_log_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_with_raw_log_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_body_with_raw_log_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_body_with_raw_log_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_recursive_body_with_raw_log_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_recursive_body_with_raw_log_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_recursive_body_with_raw_log_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_recursive_body_with_raw_log_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_recursive_body_with_raw_log_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_recursive_body_with_raw_log_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_recursive_body_with_raw_log_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_recursive_body_with_raw_log_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2_singleSlot_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite2_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite2_bridged
@@ -2943,6 +2970,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordMultiSlotNonzero_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordMultiSlotNonzero_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_noFuncDefs
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
@@ -4139,4 +4167,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3963 theorems/lemmas (2978 public, 985 private, 0 sorry'd)
+-- Total: 3991 theorems/lemmas (3003 public, 988 private, 0 sorry'd)
