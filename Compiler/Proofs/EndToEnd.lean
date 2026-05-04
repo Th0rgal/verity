@@ -2455,6 +2455,53 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_bridg
     (nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree
       hNativeDispatcherExec)
 
+/-- Supported compiler-produced generated-shape variant at raw
+lowered-dispatcher exec, using the direct positive-fuel native bridge. -/
+theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_bridge
+    (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts spec.fields spec.errors .calldata [] false entry.1.body)
+    (hselector : tx.functionSelector < selectorModulus) (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = []) (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0) (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ irContract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ irContract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ irContract.functions → HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ irContract.functions → yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF irContract) (hFuel : fuel' = sizeOf (Compiler.emitYul irContract).runtimeCode)
+    (hExternalBodies : ∀ fn, fn ∈ irContract.functions →
+      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hNativeDispatcherExec :
+      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' irContract tx initialState
+        observableSlots nativeContract) :
+    nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (Nat.succ fuel') irContract tx initialState observableSlots) :=
+  layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_bridge
+    fuel' irContract tx initialState observableSlots nativeContract
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+      spec selectors hSupported irContract hCompile)
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+      spec selectors hSupported irContract hCompile)
+    (compiledExternalFunctions_bridged_of_safe_static spec.fields spec.events spec.errors
+      (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
+        spec selectors hSupported irContract hCompile)
+      hStaticParams hSafeBodies)
+    hFuel (generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported hCompile hSupported)
+    hExternalBodies (generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported hCompile hSupported)
+    hLower hEnv hNativeDispatcherExec
+
 /-! ## Concrete Instantiation: SimpleStorage -/
 
 /-- Reference-oracle SimpleStorage end-to-end theorem: compile → IR →
