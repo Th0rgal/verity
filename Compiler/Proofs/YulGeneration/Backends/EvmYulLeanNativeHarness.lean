@@ -266,6 +266,31 @@ def yulRuntimeDispatcherStmts (runtimeCode : List YulStmt) : List YulStmt :=
   case funcDef name params rets body =>
     exact False.elim (hNoFunc name params rets body rfl)
 
+@[simp] theorem yulRuntimeTopLevelFunctionNames_append
+    (left right : List YulStmt) :
+    yulRuntimeTopLevelFunctionNames (left ++ right) =
+      yulRuntimeTopLevelFunctionNames left ++
+        yulRuntimeTopLevelFunctionNames right := by
+  induction left with
+  | nil => rfl
+  | cons stmt rest ih =>
+      cases stmt <;> simp [yulRuntimeTopLevelFunctionNames]
+
+theorem yulRuntimeTopLevelFunctionNames_eq_nil_of_all_nonFunc
+    (stmts : List YulStmt)
+    (hNoFunc : ∀ stmt, stmt ∈ stmts →
+      ∀ name params rets body, stmt ≠ YulStmt.funcDef name params rets body) :
+    yulRuntimeTopLevelFunctionNames stmts = [] := by
+  induction stmts with
+  | nil => rfl
+  | cons stmt rest ih =>
+      rw [yulRuntimeTopLevelFunctionNames_nonFunc_cons]
+      · exact ih (by
+          intro stmt hmem
+          exact hNoFunc stmt (by simp [hmem]))
+      · intro name params rets body h
+        exact hNoFunc stmt (by simp) name params rets body h
+
 @[simp] theorem yulRuntimeDispatcherStmts_nil :
     yulRuntimeDispatcherStmts [] = [] := by
   rfl
@@ -458,6 +483,56 @@ theorem generatedRuntimeDispatcherHasNoFuncDefs_emitYul_runtimeCode_noFallback_n
     generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive
       contract hInternals hBodies hNoFallback hNoReceive
 
+theorem generatedRuntimeFunctionNamesUnique_append_nonFunc_suffix
+    (funcPrefix suffix : List YulStmt)
+    (hSuffix : ∀ stmt, stmt ∈ suffix →
+      ∀ name params rets body, stmt ≠ YulStmt.funcDef name params rets body) :
+    generatedRuntimeFunctionNamesUnique (funcPrefix ++ suffix) =
+      generatedRuntimeFunctionNamesUnique funcPrefix := by
+  simp [generatedRuntimeFunctionNamesUnique,
+    yulRuntimeTopLevelFunctionNames_eq_nil_of_all_nonFunc suffix hSuffix]
+
+theorem generatedRuntimeFunctionNamesUnique_buildSwitch_append
+    (funcPrefix : List YulStmt)
+    (funcs : List IRFunction)
+    (fallback : Option IREntrypoint)
+    (receive : Option IREntrypoint) :
+    generatedRuntimeFunctionNamesUnique
+      (funcPrefix ++ [Compiler.CodegenCommon.buildSwitch funcs fallback receive]) =
+      generatedRuntimeFunctionNamesUnique funcPrefix := by
+  apply generatedRuntimeFunctionNamesUnique_append_nonFunc_suffix
+  intro stmt hmem name params rets body h
+  simp only [List.mem_singleton] at hmem
+  subst hmem
+  cases fallback <;> cases receive <;>
+    simp [Compiler.CodegenCommon.buildSwitch] at h
+
+theorem generatedRuntimeFunctionNamesUnique_runtimeCode
+    (contract : IRContract)
+    (hPrefixUnique : generatedRuntimeFunctionNamesUnique
+      ((if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+        contract.internalFunctions) = true) :
+    generatedRuntimeFunctionNamesUnique (Compiler.runtimeCode contract) = true := by
+  let runtimePrefix :=
+    (if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+      contract.internalFunctions
+  rw [Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode]
+  change generatedRuntimeFunctionNamesUnique
+      (runtimePrefix ++ [Compiler.CodegenCommon.buildSwitch contract.functions
+        contract.fallbackEntrypoint contract.receiveEntrypoint]) = true
+  rw [generatedRuntimeFunctionNamesUnique_buildSwitch_append]
+  exact hPrefixUnique
+
+theorem generatedRuntimeFunctionNamesUnique_emitYul_runtimeCode
+    (contract : IRContract)
+    (hPrefixUnique : generatedRuntimeFunctionNamesUnique
+      ((if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+        contract.internalFunctions) = true) :
+    generatedRuntimeFunctionNamesUnique
+      (Compiler.emitYul contract).runtimeCode = true := by
+  simpa [Compiler.emitYul, Compiler.CodegenCommon.emitYul] using
+    generatedRuntimeFunctionNamesUnique_runtimeCode contract hPrefixUnique
+
 theorem mappingSlotFuncAt_body_noFuncDefs (scratchBase : Nat) :
     yulStmtsContainFuncDef
       (match Compiler.mappingSlotFuncAt scratchBase with
@@ -575,6 +650,28 @@ def generatedRuntimeNativeFragment (runtimeCode : List YulStmt) : Bool :=
   generatedRuntimeFunctionNamesUnique runtimeCode &&
     generatedRuntimeDispatcherHasNoFuncDefs runtimeCode &&
     generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs runtimeCode
+
+theorem generatedRuntimeNativeFragment_emitYul_runtimeCode_noFallback_noReceive
+    (contract : IRContract)
+    (hPrefixUnique : generatedRuntimeFunctionNamesUnique
+      ((if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+        contract.internalFunctions) = true)
+    (hInternals : ∀ stmt, stmt ∈ contract.internalFunctions →
+      ∃ name params rets body, stmt = YulStmt.funcDef name params rets body)
+    (hExternalBodies : ∀ fn, fn ∈ contract.functions →
+      yulStmtsContainFuncDef fn.body = false)
+    (hInternalBodies : ∀ name params rets body,
+      YulStmt.funcDef name params rets body ∈ contract.internalFunctions →
+        yulStmtsContainFuncDef body = false)
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none) :
+    generatedRuntimeNativeFragment (Compiler.emitYul contract).runtimeCode = true := by
+  simp [generatedRuntimeNativeFragment,
+    generatedRuntimeFunctionNamesUnique_emitYul_runtimeCode contract hPrefixUnique,
+    generatedRuntimeDispatcherHasNoFuncDefs_emitYul_runtimeCode_noFallback_noReceive
+      contract hInternals hExternalBodies hNoFallback hNoReceive,
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_emitYul_runtimeCode
+      contract hInternalBodies]
 
 def unsupportedGeneratedRuntimeNativeFragmentError : AdapterError :=
   "native EVMYulLean generated runtime fragment check failed"
