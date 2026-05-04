@@ -151,6 +151,17 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_rejects_verity_default_builtin_backend(self) -> None:
+        builtins_text = check.BUILTINS.read_text(encoding="utf-8").replace(
+            "abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",
+            "abbrev defaultBuiltinBackend : BuiltinBackend := .verity",
+        )
+        errors = check.check_default_builtin_backend(builtins_text)
+        self.assertTrue(
+            any("default builtin backend" in error for error in errors),
+            errors,
+        )
+
     def test_public_theorem_target_guard_rejects_missing_explicit_call_dispatcher_fuel_wrapper(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
             "nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper",

@@ -32,6 +32,14 @@ RETARGET = (
     / "Backends"
     / "EvmYulLeanRetarget.lean"
 )
+BUILTINS = (
+    ROOT
+    / "Compiler"
+    / "Proofs"
+    / "YulGeneration"
+    / "ReferenceOracle"
+    / "Builtins.lean"
+)
 PRESERVATION = ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Preservation.lean"
 NATIVE_ADAPTER = (
     ROOT
@@ -518,6 +526,29 @@ def check_native_switch_lowering_boundary(native_adapter_text: str, native_smoke
     return errors
 
 
+def check_default_builtin_backend(builtins_text: str) -> list[str]:
+    """Pin the public default backend to EVMYulLean.
+
+    The legacy Verity backend remains available through `legacyBuiltinBackend`
+    for reference-oracle comparisons, but unqualified builtin evaluation must
+    not silently drift back to that backend.
+    """
+
+    errors: list[str] = []
+    normalized = normalize_ws(builtins_text)
+    required = (
+        "abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",
+        "theorem defaultBuiltinBackend_eq_evmYulLean",
+    )
+    for snippet in required:
+        if normalize_ws(snippet) not in normalized:
+            errors.append(
+                "Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean "
+                f"must pin the public default builtin backend with `{snippet}`"
+            )
+    return errors
+
+
 def check_reference_oracle_names(
     end_to_end_text: str, retarget_text: str, preservation_text: str
 ) -> list[str]:
@@ -658,6 +689,7 @@ def main() -> int:
         END_TO_END,
         NATIVE_HARNESS,
         RETARGET,
+        BUILTINS,
         PRESERVATION,
         NATIVE_ADAPTER,
         NATIVE_SMOKE_TEST,
@@ -675,6 +707,9 @@ def main() -> int:
             native_harness_text,
             RETARGET.read_text(encoding="utf-8"),
         )
+    )
+    errors.extend(
+        check_default_builtin_backend(BUILTINS.read_text(encoding="utf-8"))
     )
     errors.extend(
         check_reference_oracle_names(

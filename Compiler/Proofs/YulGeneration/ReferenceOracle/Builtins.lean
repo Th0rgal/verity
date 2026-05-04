@@ -259,6 +259,9 @@ abbrev legacyBuiltinBackend : BuiltinBackend := .verity
 /-- Default builtin backend for public native-retargeted proof entry points. -/
 abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean
 
+@[simp] theorem defaultBuiltinBackend_eq_evmYulLean :
+    defaultBuiltinBackend = BuiltinBackend.evmYulLean := rfl
+
 def evalBuiltinCallWithBackendContext
     (backend : BuiltinBackend)
     (storage : IRStorageSlot → IRStorageWord)
