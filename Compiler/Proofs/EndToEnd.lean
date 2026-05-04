@@ -1330,6 +1330,53 @@ theorem compiledExternalFunctions_bridged_of_safe_static
           (fun next hnext => hSafe next (by simp [hnext]))
           target hmemTail
 
+/-- Lift function-level native-fragment body shape across the compiled external
+function table. This is the no-`funcDef` analogue of
+`compiledExternalFunctions_bridged_of_safe_static`, staged separately because
+the body-shape source predicate is still being proved fragment by fragment. -/
+theorem compiledExternalFunctions_noFuncDefs_of_scalar_params_and_body
+    (fields : List CompilationModel.Field)
+    (events : List CompilationModel.EventDef)
+    (errors : List CompilationModel.ErrorDef) :
+    ∀ {entries : List (CompilationModel.FunctionSpec × Nat)}
+      {irFns : List IRFunction},
+      List.Forall₂
+        (fun entry irFn =>
+          CompilationModel.compileFunctionSpec fields events errors
+            [] entry.2 entry.1 = Except.ok irFn)
+        entries irFns →
+      (∀ entry, entry ∈ entries →
+        Compiler.Proofs.YulGeneration.Backends.AllScalarParams
+          entry.1.params) →
+      (∀ entry, entry ∈ entries →
+        ∀ bodyStmts,
+          CompilationModel.compileStmtList fields events errors .calldata [] false
+            (entry.1.params.map (·.name)) [] entry.1.body =
+              Except.ok bodyStmts →
+          Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
+            bodyStmts = false) →
+      ∀ irFn, irFn ∈ irFns →
+        Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
+          irFn.body = false := by
+  intro entries irFns hcompiled hScalar hBody
+  induction hcompiled with
+  | nil =>
+      intro irFn hmem
+      cases hmem
+  | @cons entry irFn entries irFns hhead htail ih =>
+      intro target hmem
+      simp only [List.mem_cons] at hmem
+      rcases hmem with rfl | hmemTail
+      · exact compileFunctionSpec_noFuncDefs_of_scalar_params_and_body
+          fields events errors entry.2 entry.1 target
+          (hScalar entry (by simp))
+          (hBody entry (by simp))
+          hhead
+      · exact ih
+          (fun next hnext => hScalar next (by simp [hnext]))
+          (fun next hnext => hBody next (by simp [hnext]))
+          target hmemTail
+
 /-- Bridging: the two Yul execution entry points produce the same result
 when the IR state has empty vars and zero memory. -/
 theorem yulBody_from_state_eq_yulBody
