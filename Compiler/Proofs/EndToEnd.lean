@@ -6427,7 +6427,7 @@ dispatcher-block result wrapper has already been discharged by
 def simpleStorageNativeCallDispatcherBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
-  nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive
+  nativeDispatcherExecAgreesWithEvmYulLeanPositive
     simpleStorageNativeDispatcherFuel
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
@@ -6455,7 +6455,7 @@ def simpleStorageNativeRetrieveHitBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
   tx.functionSelector % Compiler.Constants.selectorModulus = 0x2e64cec1 →
-  nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive
+  nativeDispatcherExecAgreesWithEvmYulLeanPositive
     simpleStorageNativeDispatcherFuel
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
@@ -6467,7 +6467,7 @@ def simpleStorageNativeStoreHitBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
   tx.functionSelector % Compiler.Constants.selectorModulus = 0x6057361d →
-  nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive
+  nativeDispatcherExecAgreesWithEvmYulLeanPositive
     simpleStorageNativeDispatcherFuel
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
@@ -6481,7 +6481,7 @@ def simpleStorageNativeSelectorMissBridge
     : Prop :=
   tx.functionSelector % Compiler.Constants.selectorModulus ≠ 0x2e64cec1 →
   tx.functionSelector % Compiler.Constants.selectorModulus ≠ 0x6057361d →
-  nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive
+  nativeDispatcherExecAgreesWithEvmYulLeanPositive
     simpleStorageNativeDispatcherFuel
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
@@ -6661,7 +6661,7 @@ theorem simpleStorageNativeRetrieveHitBridge_proved
       exact (hNative.trans (hstorage (IRStorageSlot.ofNat slot)))
     · rw [hLogs, List.append_nil]
       exact hevents
-  apply nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_yulHalt_project_eq_agree
+  apply nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_yulHalt_project_eq_agree
     (haltState := EvmYul.Yul.State.Ok shared3 store) (haltValue := ⟨1⟩)
   · simpa [simpleStorage_runtimeCode_eq_single_dispatcher, yulTx, slots,
       shared, p, shared1, shared2, shared3] using hExec
@@ -6748,7 +6748,7 @@ theorem simpleStorageNativeStoreHitBridge_proved
           simpleStorageNativeDispatcherFuel, simpleStorage_runtimeCode_eq_single_dispatcher]
           using hLayer
       rcases hLayerFuel with ⟨hsuccess, hreturnValue, hstorage, _hmappings, hevents⟩
-      refine nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_error_project_eq_agree
+      refine nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_error_project_eq_agree
         (err := EvmYul.Yul.Exception.Revert)
         (nativeYul :=
           { success := false
@@ -6882,7 +6882,7 @@ theorem simpleStorageNativeStoreHitBridge_proved
           exact hNative'.trans (hstorage (IRStorageSlot.ofNat slot))
         · rw [hLogs, List.append_nil]
           exact hevents
-      apply nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_yulHalt_project_eq_agree
+      apply nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_yulHalt_project_eq_agree
         (haltState := haltState) (haltValue := ⟨0⟩)
       · simpa [simpleStorage_runtimeCode_eq_single_dispatcher, yulTx, slots] using hExec
       · exact hProject
@@ -6937,7 +6937,7 @@ theorem simpleStorageNativeSelectorMissBridge_proved
     rw [simpleStorage_runtimeCode_eq_single_dispatcher]
     rfl
   rcases hLayer3 with ⟨hsuccess, hreturnValue, hstorage, _hmappings, hevents⟩
-  refine nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_error_project_eq_agree
+  refine nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_error_project_eq_agree
     (err := EvmYul.Yul.Exception.Revert)
     (nativeYul :=
       { success := false
