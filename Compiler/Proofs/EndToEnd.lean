@@ -2374,6 +2374,45 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispat
   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_agree
     hCompile hSupported hExternalBodies hLower hEnv hAgree
 
+theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hScalarParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllScalarParams entry.1.params)
+    (hBodyNoFuncDefs : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → ∀ bodyStmts, CompilationModel.compileStmtList spec.fields spec.events spec.errors .calldata [] false (entry.1.params.map (·.name)) [] entry.1.body = Except.ok bodyStmts → Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef bodyStmts = false)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hAgree : nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' irContract tx state observableSlots nativeContract) :
+    nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper (Nat.succ fuel') irContract tx state observableSlots :=
+  nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_agree
+    hCompile hSupported
+    (generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+      hCompile hSupported hScalarParams hBodyNoFuncDefs)
+    hLower hEnv hAgree
+
+theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hScalarParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllScalarParams entry.1.params)
+    (hBodyNoFuncDefs : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → ∀ bodyStmts, CompilationModel.compileStmtList spec.fields spec.events spec.errors .calldata [] false (entry.1.params.map (·.name)) [] entry.1.body = Except.ok bodyStmts → Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef bodyStmts = false)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hAgree : nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' irContract tx state observableSlots nativeContract) :
+    nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') irContract tx state observableSlots :=
+  nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
+    hCompile hSupported hScalarParams hBodyNoFuncDefs hLower hEnv hAgree
+
 /-- Supported compiler-produced native theorem whose generated-fragment check is
 discharged from generated-code shape facts. `SupportedSpec` already rules out
 internal helper definitions, so callers only provide external body shape. -/
