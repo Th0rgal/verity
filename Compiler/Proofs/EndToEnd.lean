@@ -8074,17 +8074,17 @@ theorem simpleStorage_endToEnd_native_evmYulLean
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (hvars : initialState.vars = [])
-    (hmemory : initialState.memory = fun _ => 0)
-    (htransient : initialState.transientStorage = fun _ => 0)
-    (hreturn : initialState.returnValue = none)
+    (_hvars : initialState.vars = [])
+    (_hmemory : initialState.memory = fun _ => 0)
+    (_htransient : initialState.transientStorage = fun _ => 0)
+    (_hreturn : initialState.returnValue = none)
     (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+    (_hNoHasSelector : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+    (_hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       HasSelectorDeadBridge fn.body)
-    (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
+    (_hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       paramLoadErasure fn tx (initialState.withTx tx))
     (hEnv :
         Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
@@ -8095,23 +8095,16 @@ theorem simpleStorage_endToEnd_native_evmYulLean
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
         simpleStorageIRContract tx initialState observableSlots) :=
-  simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_bridge
-    tx initialState observableSlots hselector hNoWrap hvars hmemory htransient
-    hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead hparamErase hEnv
-    (simpleStorageNativeCallDispatcherBridge_of_per_case
+  simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match
+    tx initialState observableSlots hEnv
+    (simpleStorageNativeCallDispatcherMatchBridge_of_per_case
       tx initialState observableSlots
-      (simpleStorageNativeRetrieveHitBridge_proved tx initialState
-        observableSlots hselector hNoWrap hvars hmemory htransient
-          hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
-          hparamErase)
-      (simpleStorageNativeStoreHitBridge_proved tx initialState
-        observableSlots hselector hNoWrap hvars hmemory htransient
-          hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
-          hparamErase)
-      (simpleStorageNativeSelectorMissBridge_proved tx initialState
-        observableSlots hselector hNoWrap hvars hmemory htransient
-          hreturn hdispatchGuardSafe hNoHasSelector hHasSelectorDead
-          hparamErase))
+      (simpleStorageNativeRetrieveHitMatchBridge_proved tx initialState
+        observableSlots hselector hNoWrap hdispatchGuardSafe)
+      (simpleStorageNativeStoreHitMatchBridge_proved tx initialState
+        observableSlots hselector hNoWrap hdispatchGuardSafe)
+      (simpleStorageNativeSelectorMissMatchBridge_proved tx initialState
+        observableSlots hselector hNoWrap))
 
 /-! ## Universal Pure Arithmetic Bridge
 
