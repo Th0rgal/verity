@@ -482,6 +482,66 @@ theorem lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function
     reservedNames nextSwitchId final selector (switchCases funcs) cases'
     hLower hCase
 
+/-- A `.block` head in native lowering surfaces as a singleton `.Block` output
+when the lowering succeeds. -/
+theorem lowerStmtsNative_single_block_ok_singleton
+    (stmts : List YulStmt)
+    (lowered : List EvmYul.Yul.Ast.Stmt)
+    (h : Backends.lowerStmtsNative [YulStmt.block stmts] = .ok lowered) :
+    ∃ inner, lowered = [.Block inner] := by
+  unfold Backends.lowerStmtsNative at h
+  dsimp at h
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons] at h
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_block] at h
+  cases hInner :
+      Backends.lowerStmtsNativeWithSwitchIds
+        (Backends.yulStmtsIdentifierNames [YulStmt.block stmts])
+        0 stmts with
+  | error err =>
+      rw [hInner] at h
+      simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok pair =>
+      cases pair with
+      | mk inner next =>
+          rw [hInner] at h
+          simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+            Backends.lowerStmtsNativeWithSwitchIds_nil, List.append_nil,
+            Except.ok.injEq] at h
+          exact ⟨inner, h.symm⟩
+
+/-- A successful lowering of singleton `[.block stmts]` reveals exactly the
+lowering result for the inner statement list. -/
+theorem lowerStmtsNative_block_stmts_eq
+    (stmts : List YulStmt)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (h : Backends.lowerStmtsNative [YulStmt.block stmts] = .ok [.Block inner]) :
+    ∃ next : Nat,
+      Backends.lowerStmtsNativeWithSwitchIds
+        (Backends.yulStmtsIdentifierNames [YulStmt.block stmts])
+        0 stmts = .ok (inner, next) := by
+  unfold Backends.lowerStmtsNative at h
+  dsimp at h
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons] at h
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_block] at h
+  cases hInner :
+      Backends.lowerStmtsNativeWithSwitchIds
+        (Backends.yulStmtsIdentifierNames [YulStmt.block stmts])
+        0 stmts with
+  | error err =>
+      rw [hInner] at h
+      simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok pair =>
+      cases pair with
+      | mk inner' next =>
+          rw [hInner] at h
+          simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+            Backends.lowerStmtsNativeWithSwitchIds_nil, List.append_nil,
+            Except.ok.injEq] at h
+          injection h with hStmt _
+          injection hStmt with hEq
+          subst hEq
+          exact ⟨next, rfl⟩
+
 theorem generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
     (funcs : List IRFunction)
     (hBodies : ∀ fn, fn ∈ funcs → yulStmtsContainFuncDef fn.body = false) :

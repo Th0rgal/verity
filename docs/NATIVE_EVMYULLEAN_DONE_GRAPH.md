@@ -63,6 +63,9 @@ N8 public Layer 3 theorem flip
   `lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function` and
   `lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function`, bridging
   `IRFunction` selector hits and misses to lowered native case lookup facts.
+  Generic `.block` lowering shape now lives in the native harness via
+  `lowerStmtsNative_single_block_ok_singleton` and
+  `lowerStmtsNative_block_stmts_eq`.
 - **Definition of done**:
   - The compiler-emitted runtime Yul fragment is explicitly characterized.
   - Allowed statements, expressions, builtins, helper functions, dispatcher

@@ -1437,26 +1437,8 @@ theorem lowerStmtsNative_single_block_ok_singleton
     (h : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
             [Yul.YulStmt.block stmts] = .ok lowered) :
     ∃ inner, lowered = [.Block inner] := by
-  unfold Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative at h
-  dsimp at h
-  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons] at h
-  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_block] at h
-  cases hInner :
-      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
-          [Yul.YulStmt.block stmts])
-        0 stmts with
-  | error err =>
-      rw [hInner] at h
-      simp only [Bind.bind, Except.bind, reduceCtorEq] at h
-  | ok pair =>
-      cases pair with
-      | mk inner next =>
-          rw [hInner] at h
-          simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
-            Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil,
-            List.append_nil, Except.ok.injEq] at h
-          exact ⟨inner, h.symm⟩
+  exact Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNative_single_block_ok_singleton
+    stmts lowered h
 
 /-- The `simpleStorageNativeDispatcherStmts` lowering succeeds and equals the
 SimpleStorage native witness dispatcher contents.
@@ -1582,29 +1564,8 @@ theorem lowerStmtsNative_block_stmts_eq
         (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
           [Yul.YulStmt.block stmts])
         0 stmts = .ok (inner, next) := by
-  unfold Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative at h
-  dsimp at h
-  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons] at h
-  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_block] at h
-  cases hInner :
-      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
-          [Yul.YulStmt.block stmts])
-        0 stmts with
-  | error err =>
-      rw [hInner] at h
-      simp only [Bind.bind, Except.bind, reduceCtorEq] at h
-  | ok pair =>
-      cases pair with
-      | mk inner' next =>
-          rw [hInner] at h
-          simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
-            Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil,
-            List.append_nil, Except.ok.injEq] at h
-          injection h with hStmt _
-          injection hStmt with hEq
-          subst hEq
-          exact ⟨next, rfl⟩
+  exact Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNative_block_stmts_eq
+    stmts inner h
 
 /-- A `.let_`-headed statement-list lowering peels its head into a singleton
 `.Let` statement and threads the unchanged switch counter through the tail.
