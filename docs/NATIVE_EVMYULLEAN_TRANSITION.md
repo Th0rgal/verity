@@ -46,13 +46,15 @@ materializes pre-state storage for those slots.
   Its conclusion targets `Native.interpretIRRuntimeNative` through
   `nativeResultsMatchOn`, comparing success, return value, events, and the
   explicitly observable final-storage slots, but it still requires the explicit
-  `nativeIRRuntimeAgreesWithEvmYulLean` obligation for the generated runtime.
-  That obligation is observable-slot and fuel-aligned with the native run
-  through `interpretYulRuntimeWithBackendFuel`, and the theorem seam currently
-  requires that fuel to equal the interpreter proof stack's default runtime fuel
-  `sizeOf (Compiler.emitYul contract).runtimeCode + 1`. The compatibility
-  theorem `layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge`
-  delegates to the explicit `_via_reference_oracle` theorem. This is the exact
+  `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper` obligation for the generated
+  runtime. That obligation is observable-slot and fuel-aligned with the native
+  run through `interpretYulRuntimeWithBackendFuel`, and the theorem seam
+  currently requires that fuel to equal the interpreter proof stack's default
+  runtime fuel `sizeOf (Compiler.emitYul contract).runtimeCode + 1`. The
+  compatibility theorem `nativeIRRuntimeAgreesWithEvmYulLean` delegates to this
+  explicit fuel-wrapper obligation, and
+  `layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge` delegates to
+  the explicit `_via_reference_oracle` theorem. This is the exact
   remaining native-vs-interpreter equivalence theorem plus a named
   full-storage-projection and fuel-parametric-preservation gap, not a completed
   public flip.
@@ -60,6 +62,7 @@ materializes pre-state storage for those slots.
   `nativeCallDispatcherAgreesWithEvmYulLean`,
   `nativeDispatcherBlockAgreesWithEvmYulLean`,
   `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`,
+  `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree`,
   `nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree`,
   `layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge`,
   `layer3_contract_preserves_semantics_native_of_dispatcherBlock_bridge`,
@@ -758,7 +761,7 @@ scope so the native path does not look more complete than it is:
    It targets `Native.interpretIRRuntimeNative` directly, but only under:
 
    ```lean
-   nativeIRRuntimeAgreesWithEvmYulLean fuel irContract tx initialState
+   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper fuel irContract tx initialState
      observableSlots
    ```
 

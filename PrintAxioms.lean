@@ -745,6 +745,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/EndToEnd.lean
 #print axioms Compiler.Proofs.EndToEnd.nativeResultsMatchOn_ok_of_resultsMatch_of_yulResultsAgreeOn
 #print axioms Compiler.Proofs.EndToEnd.yulResultsAgreeOn_of_resultsMatch_of_nativeResultsMatchOn
+#print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_ok_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithEvmYulLean_of_ok_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_ok_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_yulHalt_agree
@@ -757,6 +758,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithEvmYulLean_of_exec_error_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree
+#print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree
 #print axioms Compiler.Proofs.EndToEnd.layer3_function_preserves_semantics
 #print axioms Compiler.Proofs.EndToEnd.interpretYulRuntime_eq_yulResultOfExec
@@ -3920,4 +3922,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3744 theorems/lemmas (2793 public, 951 private, 0 sorry'd)
+-- Total: 3746 theorems/lemmas (2795 public, 951 private, 0 sorry'd)
