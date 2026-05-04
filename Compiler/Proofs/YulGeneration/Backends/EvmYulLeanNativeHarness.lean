@@ -235,6 +235,16 @@ end
       (yulStmtContainsFuncDef stmt || yulStmtsContainFuncDef stmts) := by
   rfl
 
+@[simp] theorem yulStmtsContainFuncDef_append
+    (xs ys : List YulStmt) :
+    yulStmtsContainFuncDef (xs ++ ys) =
+      (yulStmtsContainFuncDef xs || yulStmtsContainFuncDef ys) := by
+  induction xs with
+  | nil =>
+      simp
+  | cons stmt rest ih =>
+      simp [ih, Bool.or_assoc]
+
 def yulRuntimeTopLevelFunctionNames (runtimeCode : List YulStmt) : List String :=
   runtimeCode.filterMap fun
     | .funcDef name _ _ _ => some name
