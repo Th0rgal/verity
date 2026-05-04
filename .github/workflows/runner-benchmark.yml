@@ -1,0 +1,147 @@
+name: Runner benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_labels_json:
+        description: 'JSON array of runs-on labels to pin the benchmark runner'
+        required: true
+        default: '["self-hosted","linux","x64","verity","fastlane"]'
+        type: string
+      task:
+        description: 'Repo task to benchmark'
+        required: true
+        default: checks
+        type: choice
+        options:
+          - checks
+          - evmyullean-smoke
+          - print-axioms
+      lean_num_threads:
+        description: 'LEAN_NUM_THREADS for Lean benchmark tasks'
+        required: false
+        default: '4'
+        type: string
+      use_sticky_disks:
+        description: 'Use host-local Lean caches for Lean benchmark tasks'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runner-benchmark-${{ github.ref }}-${{ inputs.task }}-${{ inputs.runner_labels_json }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: ${{ inputs.task }}
+    runs-on: ${{ fromJSON(inputs.runner_labels_json) }}
+    timeout-minutes: 90
+    env:
+      LEAN_NUM_THREADS: ${{ inputs.lean_num_threads }}
+      BENCHMARK_TASK: ${{ inputs.task }}
+    steps:
+      - name: Show runner state
+        run: |
+          {
+            echo "## Runner state"
+            echo
+            echo "- Host: $(hostname)"
+            echo "- Kernel: $(uname -srmo)"
+            echo "- Runner OS: $RUNNER_OS"
+            echo "- Runner arch: $RUNNER_ARCH"
+            echo "- Labels JSON: ${{ inputs.runner_labels_json }}"
+            echo "- Task: $BENCHMARK_TASK"
+            echo "- LEAN_NUM_THREADS: $LEAN_NUM_THREADS"
+            echo
+            echo "### CPU"
+            lscpu | sed -n '1,24p'
+            echo
+            echo "### Memory"
+            free -h
+            echo
+            echo "### Disk"
+            df -h / /srv/verity-ci-cache 2>/dev/null || df -h /
+            echo
+            echo "### Load"
+            uptime
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Lean
+        if: inputs.task != 'checks'
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: runner-benchmark
+          use-sticky-disks: ${{ inputs.use_sticky_disks }}
+          sticky-disk-key-prefix: runner-benchmark
+          lake-packages-sticky-key: runner-benchmark-lake-packages-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          use-build-sticky-disk: ${{ inputs.use_sticky_disks }}
+          build-sticky-disk-key: runner-benchmark-build-${{ inputs.task }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          disable-lake-cache-restore: "true"
+
+      - name: Run benchmark task
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "$BENCHMARK_TASK" in
+            checks)
+              command=(make check)
+              ;;
+            evmyullean-smoke)
+              command=(lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeSmokeTest)
+              ;;
+            print-axioms)
+              command=(lake build PrintAxioms)
+              ;;
+            *)
+              echo "::error::Unknown benchmark task: $BENCHMARK_TASK"
+              exit 1
+              ;;
+          esac
+
+          start_epoch="$(date +%s)"
+          start_iso="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Running: ${command[*]}"
+          if command -v /usr/bin/time >/dev/null 2>&1; then
+            /usr/bin/time -f "elapsed=%E user=%U system=%S max_rss_kb=%M" "${command[@]}" 2>&1 | tee benchmark.log
+          else
+            "${command[@]}" 2>&1 | tee benchmark.log
+          fi
+          end_epoch="$(date +%s)"
+          end_iso="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          elapsed="$((end_epoch - start_epoch))"
+
+          {
+            echo "## Benchmark result"
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Task | \`$BENCHMARK_TASK\` |"
+            echo "| Command | \`${command[*]}\` |"
+            echo "| Host | \`$(hostname)\` |"
+            echo "| Runner arch | \`$RUNNER_ARCH\` |"
+            echo "| LEAN_NUM_THREADS | \`$LEAN_NUM_THREADS\` |"
+            echo "| Start UTC | \`$start_iso\` |"
+            echo "| End UTC | \`$end_iso\` |"
+            echo "| Elapsed seconds | \`$elapsed\` |"
+            echo
+            echo "### /usr/bin/time"
+            echo
+            tail -n 5 benchmark.log | sed 's/^/    /'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runner-benchmark-${{ inputs.task }}-${{ runner.arch }}-${{ github.run_id }}
+          path: benchmark.log
+          if-no-files-found: ignore
