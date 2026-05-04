@@ -6747,7 +6747,7 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   emitted-runtime equality between Verity `legacyExecYulFuel` and the EVMYulLean
   backend executor under those body witnesses. These theorems compose the
   fully proven builtin bridge equivalences. It also proves
-  `yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`, the
+  `yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`, the
   lower-level Layer-3 theorem whose Yul side is the EVMYulLean backend runtime.
   This file now exposes
   EndToEnd wrappers

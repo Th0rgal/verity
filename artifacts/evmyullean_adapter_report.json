@@ -253,7 +253,7 @@
     "retarget_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
     "status": "full_semantic_integration",
     "trust_boundary": "recursive BridgedTarget statement fragment: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr expressions, BridgedStraightStmts (including mapping-slot, literal-slot, and identifier-slot sstore), and recursively nested BridgedStmt targets; generated runtime-code closure, emitted-runtime backend equality, and the lower-level Layer-3 EVMYulLean retarget theorem are proven under bridged IR-body witnesses; the public EndToEnd safe-body wrapper discharges raw BridgedStmts body hypotheses from SupportedSpec, static-parameter, and BridgedSafeStmts source witnesses; compileStmtList_always_bridged proves a universal BridgedSafeStmts aggregation theorem with the external-call family carved out behind explicit function-table hypotheses",
-    "yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle": "proven (conditional on bridged IR bodies)"
+    "yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle": "proven (conditional on bridged IR bodies)"
   },
   "schema_version": 7,
   "status": "ok",

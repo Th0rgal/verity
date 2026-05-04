@@ -105,7 +105,7 @@ materializes pre-state storage for those slots.
   theorem still composes through
   `yulCodegen_preserves_semantics_via_reference_oracle` before rewriting the
   emitted runtime to the EVMYulLean backend executor. The explicit
-  `yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle` theorem
+  `yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle` theorem
   gives an EVMYulLean-backed Yul target, but it is not yet a native
   source-of-truth Layer 3 proof.
 - The current generic native Layer 3 seam

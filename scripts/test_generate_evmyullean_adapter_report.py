@@ -815,7 +815,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "missing",
         )
         self.assertEqual(
-            phase4["yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle"],
+            phase4["yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle"],
             "missing",
         )
 
@@ -872,7 +872,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
                     theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies : True := by
                       trivial
 
-                    theorem yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle : True := by
+                    theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -917,7 +917,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "proven (conditional on bridged IR bodies)",
         )
         self.assertEqual(
-            phase4["yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle"],
+            phase4["yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle"],
             "proven (conditional on bridged IR bodies)",
         )
         self.assertEqual(phase4["admitted_bridge_dependencies"], [])
@@ -1045,7 +1045,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
                     theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies : True := by
                       trivial
 
-                    theorem yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle : True := by
+                    theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -1096,7 +1096,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         )
         self.assertIn(
             "smod",
-            phase4["yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle"],
+            phase4["yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle"],
         )
 
     def test_universal_body_closure_proven_in_repo(self) -> None:
@@ -1142,7 +1142,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies : True := by
               trivial
 
-            theorem yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle : True := by
+            theorem yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle : True := by
               trivial
         """)
 

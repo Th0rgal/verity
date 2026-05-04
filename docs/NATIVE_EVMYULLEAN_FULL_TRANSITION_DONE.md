@@ -10,7 +10,7 @@ but the generic compiler theorem stack still uses Verity's custom fuel-based
 Yul interpreter through:
 
 ```lean
-interpretYulRuntimeEvmYulLean
+interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
 ```
 
 That path proves the custom interpreter agrees with EVMYulLean-backed builtin
@@ -61,7 +61,7 @@ The transition is done only when all criteria in this section are true on
 
 - The generic Layer 3 and end-to-end compiler-correctness theorem statements
   target native EVMYulLean execution, not
-  `interpretYulRuntimeEvmYulLean`.
+  `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel`.
 - The theorem-facing native target is either `Native.interpretIRRuntimeNative`
   or a narrower wrapper that internally lowers to EVMYulLean and executes via
   `EvmYul.Yul.callDispatcher`.
@@ -257,7 +257,7 @@ Goal:
 Current architecture:
   The generic public path still uses:
 
-    interpretYulRuntimeEvmYulLean
+    interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel
 
   This is Verity's custom fuel-based Yul interpreter with EVMYulLean-backed
   builtin semantics. The native path exists through:
