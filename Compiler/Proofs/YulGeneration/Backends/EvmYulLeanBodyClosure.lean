@@ -11644,6 +11644,45 @@ theorem compileStmt_setStructMember2_multiSlot_bridged
                     (by simpa using hMem)
                 exact BridgedStmt.straight _ hSstore
 
+theorem compileStmt_setStructMember2_multiSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot0 slot1 : Nat} {slotsRest : List Nat}
+    {key1 key2 value : Expr} (memberName : String)
+    (members : List StructMember) (member : StructMember)
+    (hMapping2 : isMapping2 fields field = true)
+    (hMembers : findStructMembers fields field = some members)
+    (hFindMember : findStructMember members memberName = some member)
+    (hUnpacked : member.packed = none)
+    (hWordOffset : member.wordOffset = 0)
+    (hSlots : findFieldWriteSlots fields field =
+      some (slot0 :: slot1 :: slotsRest)) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames [] (.setStructMember2 field key1 key2 memberName value) =
+          .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  simp only [compileStmt] at hOk
+  unfold compileSetStructMember2 at hOk
+  simp [hMapping2, hMembers, hFindMember, hUnpacked, hWordOffset, hSlots] at hOk
+  cases hKey1Expr : compileExpr fields dynamicSource key1 with
+  | error err => simp [hKey1Expr, bind, Except.bind] at hOk
+  | ok key1Expr =>
+      cases hKey2Expr : compileExpr fields dynamicSource key2 with
+      | error err => simp [hKey1Expr, hKey2Expr, bind, Except.bind] at hOk
+      | ok key2Expr =>
+          cases hValueExpr : compileExpr fields dynamicSource value with
+          | error err =>
+              simp [hKey1Expr, hKey2Expr, hValueExpr, bind, Except.bind] at hOk
+          | ok valueExpr =>
+              simp [hKey1Expr, hKey2Expr, hValueExpr, bind, Except.bind] at hOk
+              subst out
+              simp [Native.yulStmtContainsFuncDef, Native.yulStmtsContainFuncDef]
+              simpa [Function.comp_def] using
+                yulStmtsContainFuncDef_multiSlot_sstore_mapping2 slotsRest
+
 /-- Each statement in the multi-slot struct-member2-write fragment
 compiles to Yul satisfying `BridgedStmts`. -/
 theorem compileStmt_structMember2MultiSlot_bridged
@@ -11662,6 +11701,24 @@ theorem compileStmt_structMember2MultiSlot_bridged
       exact compileStmt_setStructMember2_multiSlot_bridged fields events errors
         dynamicSource internalRetNames isInternal inScopeNames field memberName
         members member hKey1 hKey2 hValue hMapping2 hMembers hFindMember hUnpacked
+        hWordOffset hSlots hOk
+
+theorem compileStmt_structMember2MultiSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceStructMember2MultiSlotStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setStructMember2 field memberName members member hKey1 hKey2 hValue hMapping2
+      hMembers hFindMember hUnpacked hWordOffset hSlots =>
+      exact compileStmt_setStructMember2_multiSlot_noFuncDefs fields events
+        errors dynamicSource internalRetNames isInternal inScopeNames field
+        memberName members member hMapping2 hMembers hFindMember hUnpacked
         hWordOffset hSlots hOk
 
 /-- Lists of multi-slot struct-member2-write source statements compile
@@ -11710,6 +11767,22 @@ theorem compileStmtList_structMember2MultiSlot_bridged
                   dynamicSource internalRetNames isInternal inScopeNames
                   hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_structMember2MultiSlot_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceStructMember2MultiSlotStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal (BridgedSourceStructMember2MultiSlotStmt fields)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_structMember2MultiSlot_noFuncDefs fields events errors
+        dynamicSource internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: multi-slot `setMappingWord`
 (wordOffset=0)
