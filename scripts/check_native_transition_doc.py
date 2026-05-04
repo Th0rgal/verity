@@ -70,7 +70,8 @@ REQUIRED_SNIPPETS = (
     "default runtime fuel",
     "native public theorem pending",
     "not yet proved",
-    "`yulCodegen_preserves_semantics_evmYulLean` theorem still",
+    "`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`",
+    "compatibility theorem",
     "`yulCodegen_preserves_semantics_via_reference_oracle`",
     "not yet a native source-of-truth Layer 3 proof",
     "#1741",
@@ -504,6 +505,20 @@ def check_reference_oracle_names(
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
             "make the temporary legacy Layer-3 dependency explicit by invoking "
             "`yulCodegen_preserves_semantics_via_reference_oracle`"
+        )
+
+    if "theorem yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle" not in normalized_retarget:
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
+            "name the current EVMYulLean Layer-3 retarget as "
+            "`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`"
+        )
+
+    if "yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle" not in normalized_end_to_end:
+        errors.append(
+            "Compiler/Proofs/EndToEnd.lean must call the current EVMYulLean "
+            "Layer-3 retarget through "
+            "`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`"
         )
 
     return errors

@@ -71,6 +71,20 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_rejects_missing_explicit_evmyullean_reference_oracle_name(self) -> None:
+        text = check.DOC.read_text(encoding="utf-8").replace(
+            "`yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle`",
+            "`yulCodegen_preserves_semantics_evmYulLean`",
+        )
+        errors = check.check_doc(text)
+        self.assertTrue(
+            any(
+                "yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle" in error
+                for error in errors
+            ),
+            errors,
+        )
+
     def test_public_theorem_target_guard_accepts_current_transition_shape(self) -> None:
         errors = check.check_public_theorem_target(
             check.END_TO_END.read_text(encoding="utf-8"),
@@ -169,6 +183,21 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertTrue(
             any("bare `yulCodegen_preserves_semantics`" in error for error in errors),
+            errors,
+        )
+
+    def test_reference_oracle_names_guard_rejects_missing_explicit_evmyullean_retarget(self) -> None:
+        retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
+            "theorem yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle",
+            "theorem yulCodegen_preserves_semantics_evmYulLean_reference_hidden",
+        )
+        errors = check.check_reference_oracle_names(
+            check.END_TO_END.read_text(encoding="utf-8"),
+            retarget_text,
+            check.PRESERVATION.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("yulCodegen_preserves_semantics_evmYulLean_via_reference_oracle" in error for error in errors),
             errors,
         )
 
