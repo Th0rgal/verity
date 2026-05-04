@@ -2556,10 +2556,16 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_structured_body_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_external_nested_body_fragment_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_internal_nested_body_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_external_nested_body_fragment_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_internal_nested_body_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_nested_body_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_nested_body_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_nested_body_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_nested_body_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_nested_body_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_nested_body_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_nested_body_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_nested_body_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_recursive_body_fragment_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_recursive_body_fragment_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_recursive_body_fragment_bridged
@@ -4009,4 +4015,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3833 theorems/lemmas (2875 public, 958 private, 0 sorry'd)
+-- Total: 3839 theorems/lemmas (2881 public, 958 private, 0 sorry'd)
