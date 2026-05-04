@@ -2293,6 +2293,32 @@ theorem generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
   rw [hInternalNil] at hmem
   simp at hmem
 
+/-- Source-level body closure discharges the generated runtime fragment's
+external-function-body shape witness for supported compiler output. -/
+theorem generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hScalarParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.AllScalarParams entry.1.params)
+    (hBodyNoFuncDefs :
+      ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+        ∀ bodyStmts,
+          CompilationModel.compileStmtList spec.fields spec.events spec.errors
+            .calldata [] false (entry.1.params.map (·.name)) [] entry.1.body =
+              Except.ok bodyStmts →
+          Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
+            bodyStmts = false) :
+    ∀ fn, fn ∈ irContract.functions →
+      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
+        fn.body = false :=
+  compiledExternalFunctions_noFuncDefs_of_scalar_params_and_body
+    spec.fields spec.events spec.errors
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
+      spec selectors hSupported irContract hCompile)
+    hScalarParams hBodyNoFuncDefs
+
 /-- Supported compiler-produced positive-fuel bridge at raw lowered-dispatcher
 exec. Generated-runtime shape facts discharge the native fragment predicate. -/
 theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_agree
@@ -2580,6 +2606,44 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hFuel
     hExternalBodies hLower hEnv hNativeDispatcherExec
+
+/-- Positive dispatcher-exec wrapper that derives the external no-`funcDef`
+shape from source-level scalar prologues and compiled statement-list closure. -/
+theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure
+    (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts spec.fields spec.errors .calldata [] false entry.1.body)
+    (hScalarParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllScalarParams entry.1.params)
+    (hBodyNoFuncDefs : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → ∀ bodyStmts, CompilationModel.compileStmtList spec.fields spec.events spec.errors .calldata [] false (entry.1.params.map (·.name)) [] entry.1.body = Except.ok bodyStmts → Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef bodyStmts = false)
+    (hselector : tx.functionSelector < selectorModulus) (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hvars : initialState.vars = []) (hmemory : initialState.memory = fun _ => 0)
+    (htransient : initialState.transientStorage = fun _ => 0) (hreturn : initialState.returnValue = none)
+    (hparamErase : ∀ fn, fn ∈ irContract.functions → paramLoadErasure fn tx (initialState.withTx tx))
+    (hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions → DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ irContract.functions → yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ irContract.functions → HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ irContract.functions → yulStmtsLoopFree fn.body = true)
+    (hWF : ContractWF irContract) (hFuel : fuel' = sizeOf (Compiler.emitYul irContract).runtimeCode)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hNativeDispatcherExec : nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' irContract tx initialState observableSlots nativeContract) :
+    nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (Nat.succ fuel') irContract tx initialState observableSlots) :=
+  layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive
+    fuel' spec selectors irContract tx initialState observableSlots nativeContract
+    hCompile hSupported hStaticParams hSafeBodies
+    hselector hNoWrap hvars hmemory htransient hreturn hparamErase
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hFuel
+    (generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+      hCompile hSupported hScalarParams hBodyNoFuncDefs)
+    hLower hEnv hNativeDispatcherExec
 
 /-! ## Concrete Instantiation: SimpleStorage -/
 
