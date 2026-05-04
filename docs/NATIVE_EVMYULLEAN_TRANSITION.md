@@ -245,9 +245,13 @@ scope so the native path does not look more complete than it is:
    `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`.
    The compatibility theorem
    `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree` delegates
-   to that explicit fuel-wrapper lift. The remaining bridge is therefore direct
-   native `EvmYul.Yul.exec` execution of the lowered contract dispatcher block
-   against the EVMYulLean fuel wrapper.
+   to that explicit fuel-wrapper lift. Positive-fuel callers that already prove
+   raw dispatcher execution can now bypass those intermediate lifts via
+   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_dispatcherExec_positive_agree`
+   and the generated-shape
+   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree`.
+   The remaining bridge is therefore direct native `EvmYul.Yul.exec` execution
+   of the lowered contract dispatcher block against the EVMYulLean fuel wrapper.
 
    Statement-level native lowering through
    `lowerStmtsNativeWithSwitchIds`/`lowerStmtGroupNativeWithSwitchIds` is now
@@ -817,7 +821,10 @@ scope so the native path does not look more complete than it is:
    `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper`, which targets raw
    `contractDispatcherExecResult`; compatibility
    `nativeDispatcherExecAgreesWithEvmYulLean` delegates to that explicit
-   predicate.
+   predicate. Positive-fuel generated dispatcher proofs can also lift directly
+   to `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper` through
+   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree`,
+   avoiding the older block and `callDispatcher` wrapper path.
    The concrete `simpleStorage_endToEnd_native_evmYulLean` theorem now uses the
    dispatcher-exec wrapper directly, after its retrieve-hit, store-hit, and
    selector-miss cases prove the raw lowered-dispatcher agreement.
