@@ -14582,6 +14582,39 @@ private theorem bridgedStmts_slotsMap_packedInnerBlock_wordOffsetNonzero
   subst hEq
   exact bridgedStmt_packedInnerBlock_wordOffsetNonzero slot wordOffset packed
 
+private theorem yulStmtsContainFuncDef_slotsMap_packedInnerBlock_wordOffsetNonzero
+    (slots : List Nat) (wordOffset : Nat) (packed : PackedBits) :
+    Native.yulStmtsContainFuncDef (slots.map (fun slot =>
+      Compiler.Yul.YulStmt.block [
+        Compiler.Yul.YulStmt.let_ "__compat_slot_word"
+          (Compiler.Yul.YulExpr.call "sload" [
+            Compiler.Yul.YulExpr.call "add" [
+              Compiler.Yul.YulExpr.call "mappingSlot" [
+                Compiler.Yul.YulExpr.lit slot,
+                Compiler.Yul.YulExpr.ident "__compat_key"],
+              Compiler.Yul.YulExpr.lit wordOffset]]),
+        Compiler.Yul.YulStmt.let_ "__compat_slot_cleared"
+          (Compiler.Yul.YulExpr.call "and" [
+            Compiler.Yul.YulExpr.ident "__compat_slot_word",
+            Compiler.Yul.YulExpr.call "not" [
+              Compiler.Yul.YulExpr.lit (packedShiftedMaskNat packed)]]),
+        Compiler.Yul.YulStmt.expr (
+          Compiler.Yul.YulExpr.call "sstore" [
+            Compiler.Yul.YulExpr.call "add" [
+              Compiler.Yul.YulExpr.call "mappingSlot" [
+                Compiler.Yul.YulExpr.lit slot,
+                Compiler.Yul.YulExpr.ident "__compat_key"],
+              Compiler.Yul.YulExpr.lit wordOffset],
+            Compiler.Yul.YulExpr.call "or" [
+              Compiler.Yul.YulExpr.ident "__compat_slot_cleared",
+              Compiler.Yul.YulExpr.call "shl" [
+                Compiler.Yul.YulExpr.lit packed.offset,
+                Compiler.Yul.YulExpr.ident "__compat_packed"]]])])) = false := by
+  induction slots with
+  | nil => simp [Native.yulStmtsContainFuncDef]
+  | cons slot rest ih =>
+      simp [Native.yulStmtContainsFuncDef, Native.yulStmtsContainFuncDef, ih]
+
 /-- A multi-slot `Stmt.setMappingPackedWord field key wordOffset packed
 value` source write with pure bridged key and value at `wordOffset ≠ 0`,
 on a declared `isMapping` field whose write slots list has ≥ 2 entries. -/
@@ -14674,6 +14707,42 @@ theorem compileStmt_setMappingPackedWord_multiSlot_nonzero_bridged
           · exact bridgedStmts_slotsMap_packedInnerBlock_wordOffsetNonzero
               slotsRest wordOffset packed stmt hMem
 
+theorem compileStmt_setMappingPackedWord_multiSlot_nonzero_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String)
+    (field : String) {slot0 slot1 : Nat} {slotsRest : List Nat}
+    {key value : Expr} {wordOffset : Nat} (packed : PackedBits)
+    (hMapping : isMapping fields field = true)
+    (hSlots : findFieldWriteSlots fields field =
+      some (slot0 :: slot1 :: slotsRest))
+    (hNonzero : wordOffset ≠ 0)
+    (hPacked : packedBitsValid packed = true) :
+    ∀ {out : List YulStmt},
+      compileStmt fields events errors dynamicSource internalRetNames isInternal
+        inScopeNames
+        [] (.setMappingPackedWord field key wordOffset packed value) = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro out hOk
+  have hBeq : (wordOffset == 0) = false := by
+    cases wordOffset with
+    | zero => exact absurd rfl hNonzero
+    | succ n => rfl
+  simp only [compileStmt, bind, Except.bind] at hOk
+  cases hKeyExpr : compileExpr fields dynamicSource key with
+  | error err => simp [hKeyExpr] at hOk
+  | ok keyExpr =>
+      cases hValueExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hKeyExpr, hValueExpr] at hOk
+      | ok valueExpr =>
+          simp [hKeyExpr, hValueExpr, compileMappingPackedSlotWrite,
+            hMapping, hPacked, hSlots, hBeq, Pure.pure, Except.pure] at hOk
+          subst out
+          simp [Native.yulStmtContainsFuncDef, Native.yulStmtsContainFuncDef]
+          simpa using
+            yulStmtsContainFuncDef_slotsMap_packedInnerBlock_wordOffsetNonzero
+              slotsRest wordOffset packed
+
 /-- Each statement in the multi-slot wordOffset≠0 mappingPackedWord-write
 fragment compiles to Yul satisfying `BridgedStmts`. -/
 theorem compileStmt_mappingPackedWordMultiSlotNonzero_bridged
@@ -14693,6 +14762,24 @@ theorem compileStmt_mappingPackedWordMultiSlotNonzero_bridged
       exact compileStmt_setMappingPackedWord_multiSlot_nonzero_bridged fields
         events errors dynamicSource internalRetNames isInternal inScopeNames
         field packed hKey hValue hMapping hSlots hNonzero hPacked hOk
+
+theorem compileStmt_mappingPackedWordMultiSlotNonzero_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt},
+      BridgedSourceMappingPackedWordMultiSlotNonzeroStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setMappingPackedWord field packed hKey hValue hMapping hSlots hNonzero
+      hPacked =>
+      exact compileStmt_setMappingPackedWord_multiSlot_nonzero_noFuncDefs fields
+        events errors dynamicSource internalRetNames isInternal inScopeNames
+        field packed hMapping hSlots hNonzero hPacked hOk
 
 /-- Lists of multi-slot wordOffset≠0 mappingPackedWord-write source
 statements compile to Yul lists satisfying `BridgedStmts`. -/
@@ -14742,6 +14829,23 @@ theorem compileStmtList_mappingPackedWordMultiSlotNonzero_bridged
                   events errors dynamicSource internalRetNames isInternal
                   inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmtList_mappingPackedWordMultiSlotNonzero_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceMappingPackedWordMultiSlotNonzeroStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal
+    (BridgedSourceMappingPackedWordMultiSlotNonzeroStmt fields)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_mappingPackedWordMultiSlotNonzero_noFuncDefs fields events
+        errors dynamicSource internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-!
 ## Universal safe-body closure

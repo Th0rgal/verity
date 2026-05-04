@@ -2935,9 +2935,13 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordMultiSlot_noFuncDefs
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_packedInnerBlock_wordOffsetNonzero  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmts_slotsMap_packedInnerBlock_wordOffsetNonzero  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.yulStmtsContainFuncDef_slotsMap_packedInnerBlock_wordOffsetNonzero  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingPackedWord_multiSlot_nonzero_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingPackedWord_multiSlot_nonzero_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingPackedWordMultiSlotNonzero_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingPackedWordMultiSlotNonzero_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordMultiSlotNonzero_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordMultiSlotNonzero_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_bridged
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
@@ -4135,4 +4139,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3959 theorems/lemmas (2975 public, 984 private, 0 sorry'd)
+-- Total: 3963 theorems/lemmas (2978 public, 985 private, 0 sorry'd)
