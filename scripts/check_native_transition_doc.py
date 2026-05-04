@@ -74,13 +74,9 @@ REQUIRED_SNIPPETS = (
     "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
     "nativeResultsMatchOn",
     "nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper",
-    "nativeCallDispatcherAgreesWithEvmYulLean",
     "nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper",
-    "nativeDispatcherBlockAgreesWithEvmYulLean",
     "nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper",
-    "nativeDispatcherExecAgreesWithEvmYulLean",
     "nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive",
-    "nativeDispatcherExecAgreesWithEvmYulLeanPositive",
     "layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_bridge",
     "explicitly observable final-storage slots",
     "full-storage-projection",
@@ -177,38 +173,24 @@ def check_public_theorem_target(
         "def nativeResultsMatchOn",
         "def nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
         "def nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper",
-        "def nativeCallDispatcherAgreesWithEvmYulLean",
         "def nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper",
-        "def nativeDispatcherBlockAgreesWithEvmYulLean",
         "def nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper",
-        "def nativeDispatcherExecAgreesWithEvmYulLean",
         "def nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive",
-        "def nativeDispatcherExecAgreesWithEvmYulLeanPositive",
         "def nativeDispatcherExecMatchesIRPositive",
         "theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match",
         "theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_ok_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_ok_agree",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_yulHalt_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_yulHalt_agree",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_yulHalt_project_eq_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_yulHalt_project_eq_agree",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_error_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_error_agree",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive_of_exec_error_project_eq_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_error_project_eq_agree",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_positive",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLean_of_positive",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_ok_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLean_of_exec_ok_agree",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_yulHalt_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLean_of_exec_yulHalt_agree",
         "theorem nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_error_agree",
-        "theorem nativeDispatcherExecAgreesWithEvmYulLean_of_exec_error_agree",
         "theorem nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper_of_exec_agree",
-        "theorem nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree",
         "theorem nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree",
         "theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree",
         "def nativeIRRuntimeMatchesIR",
@@ -283,6 +265,30 @@ def check_public_theorem_target(
                 "Compiler/Proofs/EndToEnd.lean must not reintroduce the hidden "
                 "native IR-runtime fuel-wrapper alias "
                 f"`{forbidden_ir_runtime_alias.strip()}`"
+            )
+
+    for forbidden_dispatcher_alias in (
+        "def nativeCallDispatcherAgreesWithEvmYulLean ",
+        "def nativeDispatcherBlockAgreesWithEvmYulLean ",
+        "def nativeDispatcherExecAgreesWithEvmYulLean ",
+        "def nativeDispatcherExecAgreesWithEvmYulLeanPositive ",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_ok_agree ",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_yulHalt_agree ",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_yulHalt_project_eq_agree ",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_error_agree ",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLeanPositive_of_exec_error_project_eq_agree ",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLean_of_positive ",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLean_of_exec_ok_agree ",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLean_of_exec_yulHalt_agree ",
+        "theorem nativeDispatcherExecAgreesWithEvmYulLean_of_exec_error_agree ",
+        "theorem nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree ",
+        "theorem nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree ",
+    ):
+        if forbidden_dispatcher_alias in normalized_end_to_end:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must not reintroduce the hidden "
+                "native dispatcher fuel-wrapper alias "
+                f"`{forbidden_dispatcher_alias.strip()}`"
             )
 
     for forbidden_positive_alias in (
@@ -758,40 +764,28 @@ def check_reference_oracle_names(
 
 
 def check_native_alias_signatures(end_to_end_text: str) -> list[str]:
-    """Keep public native compatibility wrappers on the public alias surface.
-
-    The explicitly named `...FuelWrapper...` declarations are allowed to expose
-    the current fuel-wrapper bridge obligation. The compatibility declarations
-    whose theorem names omit `FuelWrapper` should consume and return the
-    corresponding public aliases instead of reintroducing raw
-    `native...FuelWrapper...` proposition names in their signatures.
-    """
+    """Reject hidden native dispatcher fuel-wrapper aliases in theorem signatures."""
 
     errors: list[str] = []
     theorem_pattern = re.compile(
         r"^\s*theorem\s+([A-Za-z0-9_']+)\b(.*?)(?=\s:=)",
         re.DOTALL | re.MULTILINE,
     )
-    raw_native_fuel_wrapper = re.compile(
-        r"\bnative[A-Za-z0-9_']*FuelWrapper[A-Za-z0-9_']*\b"
+    hidden_dispatcher_alias = re.compile(
+        r"\bnative(?:CallDispatcher|DispatcherBlock|DispatcherExec)"
+        r"AgreesWithEvmYulLean(?:Positive)?\b"
     )
 
     for match in theorem_pattern.finditer(end_to_end_text):
         name = match.group(1)
         signature = match.group(2)
-        if (
-            not re.search(r"evmYulLean", name, re.IGNORECASE)
-            or "FuelWrapper" in name
-            or "via_reference_oracle" in name
-        ):
-            continue
-        raw_matches = sorted(set(raw_native_fuel_wrapper.findall(signature)))
-        if raw_matches:
+        hidden_matches = sorted(set(hidden_dispatcher_alias.findall(signature)))
+        if hidden_matches:
             errors.append(
-                "Compiler/Proofs/EndToEnd.lean compatibility theorem "
-                f"`{name}` must expose public native aliases in its signature, "
-                "not raw fuel-wrapper bridge predicates: "
-                + ", ".join(f"`{raw}`" for raw in raw_matches)
+                "Compiler/Proofs/EndToEnd.lean theorem "
+                f"`{name}` must expose explicit fuel-wrapper predicates instead "
+                "of hidden native dispatcher aliases: "
+                + ", ".join(f"`{hidden}`" for hidden in hidden_matches)
             )
 
     return errors

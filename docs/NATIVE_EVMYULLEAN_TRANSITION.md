@@ -59,19 +59,12 @@ materializes pre-state storage for those slots.
   public flip.
 - The same module also exposes
   `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper`,
-  `nativeCallDispatcherAgreesWithEvmYulLean`,
   `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper`,
-  `nativeDispatcherBlockAgreesWithEvmYulLean`,
   `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper_of_exec_agree`,
-  `nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree`,
   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper`,
-  `nativeDispatcherExecAgreesWithEvmYulLean`,
   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive`,
-  `nativeDispatcherExecAgreesWithEvmYulLeanPositive`,
   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_positive`,
-  `nativeDispatcherExecAgreesWithEvmYulLean_of_positive`,
   `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`,
-  `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`,
   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree`,
   `layer3_contract_preserves_semantics_native_of_generated_lowered_callDispatcher_bridge`,
   `layer3_contract_preserves_semantics_native_of_generated_dispatcherBlock_bridge`,
@@ -231,18 +224,12 @@ scope so the native path does not look more complete than it is:
    `contractDispatcherBlockResult`, then peels the block wrapper to
    `contractDispatcherExecResult`. EndToEnd exposes
    `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper`,
-   compatibility `nativeDispatcherBlockAgreesWithEvmYulLean`, plus
    `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper`,
-   compatibility `nativeDispatcherExecAgreesWithEvmYulLean`,
    positive-fuel `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive`,
-   compatibility `nativeDispatcherExecAgreesWithEvmYulLeanPositive`,
    `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper_of_exec_agree`,
-   compatibility `nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree`, and
    `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`.
-   The compatibility theorem
-   `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree` delegates
-   to that explicit fuel-wrapper lift. Positive-fuel callers that already prove
-   raw dispatcher execution can now bypass those intermediate lifts via
+   Positive-fuel callers that already prove raw dispatcher execution can now
+   bypass those intermediate lifts via
    `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_dispatcherExec_positive_agree`
    and the generated-shape
    `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree`.
@@ -264,12 +251,8 @@ scope so the native path does not look more complete than it is:
    EndToEnd now provides raw-exec intro forms for the three concrete native
    outcomes:
    `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_ok_agree`,
-   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_yulHalt_agree`,
-   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_error_agree`,
-   plus compatibility
-   `nativeDispatcherExecAgreesWithEvmYulLean_of_exec_ok_agree`,
-   `nativeDispatcherExecAgreesWithEvmYulLean_of_exec_yulHalt_agree`, and
-   `nativeDispatcherExecAgreesWithEvmYulLean_of_exec_error_agree`. These let
+   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_yulHalt_agree`, and
+   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_exec_error_agree`. These let
    each generated-statement simulation case finish from a proved
    `contractDispatcherExecResult` equation plus the corresponding observable
    projection agreement.
@@ -812,13 +795,10 @@ scope so the native path does not look more complete than it is:
    or `callDispatcher`-level obligation instead.
    `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper` compares projected
    `contractDispatcherBlockResult` execution with the EVMYulLean fuel wrapper;
-   compatibility `nativeDispatcherBlockAgreesWithEvmYulLean` delegates to that
-   explicit predicate. It can in turn be discharged from
+   it can in turn be discharged from
    `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper`, which targets raw
-   `contractDispatcherExecResult`; compatibility
-   `nativeDispatcherExecAgreesWithEvmYulLean` delegates to that explicit
-   predicate. Positive-fuel generated dispatcher proofs can also lift directly
-   to `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper` through
+   `contractDispatcherExecResult`. Positive-fuel generated dispatcher proofs
+   can also lift directly to `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper` through
    `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree`,
    avoiding the older block and `callDispatcher` wrapper path.
    The compiled supported path additionally has source-body-closure wrappers:

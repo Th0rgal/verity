@@ -480,13 +480,13 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertEqual(errors, [])
 
-    def test_native_alias_signature_guard_rejects_raw_fuel_wrapper_hypothesis(self) -> None:
+    def test_native_alias_signature_guard_rejects_hidden_dispatcher_alias(self) -> None:
         end_to_end_text = (
             check.END_TO_END.read_text(encoding="utf-8")
             + """
 theorem nativeAliasSurfaceForTestEvmYulLean
     (h :
-      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper fuel contract tx state
+      nativeDispatcherExecAgreesWithEvmYulLean fuel contract tx state
         observableSlots nativeContract) :
     True := by
   trivial
@@ -494,7 +494,7 @@ theorem nativeAliasSurfaceForTestEvmYulLean
         )
         errors = check.check_native_alias_signatures(end_to_end_text)
         self.assertTrue(
-            any("nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper" in error for error in errors),
+            any("nativeDispatcherExecAgreesWithEvmYulLean" in error for error in errors),
             errors,
         )
 
@@ -502,14 +502,14 @@ theorem nativeAliasSurfaceForTestEvmYulLean
         end_to_end_text = """
 theorem nativeAliasSurfaceForTest_evmYulLean
     (h :
-      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper fuel contract tx state
+      nativeDispatcherExecAgreesWithEvmYulLean fuel contract tx state
         observableSlots nativeContract) :
     True := by
   trivial
 """
         errors = check.check_native_alias_signatures(end_to_end_text)
         self.assertTrue(
-            any("nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper" in error for error in errors),
+            any("nativeDispatcherExecAgreesWithEvmYulLean" in error for error in errors),
             errors,
         )
 
