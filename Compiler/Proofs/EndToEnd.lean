@@ -2147,6 +2147,50 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
     hmemory htransient hreturn hparamErase hdispatchGuardSafe hNoHasSelector
     hHasSelectorDead hLoopFree hWF hNoFallback hNoReceive hFuel hNativeBridge
 
+/-- Supported compiler output has a unique generated-runtime helper prefix.
+
+`SupportedSpec` rules out emitted internal helper definitions, leaving only the
+optional mapping-slot helper in the generated runtime prefix. -/
+theorem generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors) :
+    Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique
+      ((if irContract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+        irContract.internalFunctions) = true := by
+  have hInternalNil : irContract.internalFunctions = [] :=
+    Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+      (model := spec) (selectors := selectors) (hSupported := hSupported)
+      (ir := irContract) (hcompile := hCompile)
+  rw [hInternalNil]
+  by_cases hUsesMapping : irContract.usesMapping
+  · simp [hUsesMapping,
+      Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique,
+      Compiler.Proofs.YulGeneration.Backends.Native.stringListHasDuplicate,
+      Compiler.mappingSlotFuncAt, Compiler.CodegenCommon.mappingSlotFuncAt]
+  · simp [hUsesMapping,
+      Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique,
+      Compiler.Proofs.YulGeneration.Backends.Native.stringListHasDuplicate]
+
+/-- Supported compiler output has no internal helper bodies that can contain
+nested function definitions. -/
+theorem generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors) :
+    ∀ name params rets body,
+      Yul.YulStmt.funcDef name params rets body ∈ irContract.internalFunctions →
+        Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef body = false := by
+  intro name params rets body hmem
+  have hInternalNil : irContract.internalFunctions = [] :=
+    Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+      (model := spec) (selectors := selectors) (hSupported := hSupported)
+      (ir := irContract) (hcompile := hCompile)
+  rw [hInternalNil] at hmem
+  simp at hmem
+
 /-- Supported compiler-produced native theorem whose generated-fragment check is
 discharged from generated-code shape facts. `SupportedSpec` already rules out
 internal helper definitions, so callers only provide external body shape. -/
@@ -2183,29 +2227,6 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatch
     nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel irContract tx initialState observableSlots) := by
-  have hInternalNil : irContract.internalFunctions = [] :=
-    Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
-      (model := spec) (selectors := selectors) (hSupported := hSupported)
-      (ir := irContract) (hcompile := hCompile)
-  have hPrefixUnique :
-      Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique
-        ((if irContract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
-          irContract.internalFunctions) = true := by
-    rw [hInternalNil]
-    by_cases hUsesMapping : irContract.usesMapping
-    · simp [hUsesMapping,
-        Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique,
-        Compiler.Proofs.YulGeneration.Backends.Native.stringListHasDuplicate,
-        Compiler.mappingSlotFuncAt, Compiler.CodegenCommon.mappingSlotFuncAt]
-    · simp [hUsesMapping,
-        Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique,
-        Compiler.Proofs.YulGeneration.Backends.Native.stringListHasDuplicate]
-  have hInternalBodies : ∀ name params rets body,
-      Yul.YulStmt.funcDef name params rets body ∈ irContract.internalFunctions →
-        Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef body = false := by
-    intro name params rets body hmem
-    rw [hInternalNil] at hmem
-    simp at hmem
   exact
     layer3_contract_preserves_semantics_native_of_generated_lowered_callDispatcher_bridge
       fuel irContract tx initialState observableSlots nativeContract
@@ -2217,7 +2238,13 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatch
         (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
           spec selectors hSupported irContract hCompile)
         hStaticParams hSafeBodies)
-      hFuel hPrefixUnique hExternalBodies hInternalBodies hLower hEnv
+      hFuel
+      (generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
+        hCompile hSupported)
+      hExternalBodies
+      (generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+        hCompile hSupported)
+      hLower hEnv
       hNativeCallDispatcher
 
 /-- Supported compiler-produced generated-shape variant at the
