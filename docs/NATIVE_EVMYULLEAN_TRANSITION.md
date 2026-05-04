@@ -825,14 +825,25 @@ scope so the native path does not look more complete than it is:
    to `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper` through
    `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree`,
    avoiding the older block and `callDispatcher` wrapper path.
+   The compiled supported path additionally has source-body-closure wrappers:
+   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`,
+   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure`,
+   `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_body_closure`,
+   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherBlock_body_closure`,
+   and
+   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_body_closure`.
+   These variants derive the external no-`funcDef` generated-fragment witness
+   from source-level scalar parameter witnesses plus compiled statement-list
+   no-`funcDef` closure, leaving the native dispatcher agreement itself as the
+   remaining proof obligation.
    The concrete `simpleStorage_endToEnd_native_evmYulLean` theorem now uses the
    dispatcher-exec wrapper directly, after its retrieve-hit, store-hit, and
    selector-miss cases prove the raw lowered-dispatcher agreement.
 
    This makes the remaining proof obligation concrete: for the supported
-  generated fragment, native `lowerRuntimeContractNative` plus
-  `EvmYul.Yul.exec` of the lowered contract dispatcher block must produce the
-  same projected `YulResult` as the current
+   generated fragment, native `lowerRuntimeContractNative` plus
+   `EvmYul.Yul.exec` of the lowered contract dispatcher block must produce the
+   same projected `YulResult` as the current
    `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel` EVMYulLean fuel
    wrapper. The
    successor theorem should discharge that bridge, or target a total native
