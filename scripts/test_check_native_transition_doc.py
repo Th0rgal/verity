@@ -353,13 +353,13 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_public_theorem_target_guard_rejects_missing_explicit_evmyullean_fuel_wrapper(self) -> None:
+    def test_public_theorem_target_guard_rejects_missing_default_evmyullean_fuel_wrapper(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "interpretYulRuntimeEvmYulLeanFuelWrapper",
+            "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
             "interpretYulRuntimeEvmYulLeanHiddenFuel",
         )
         retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
-            "interpretYulRuntimeEvmYulLeanFuelWrapper",
+            "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
             "interpretYulRuntimeEvmYulLeanHiddenFuel",
         )
         errors = check.check_public_theorem_target(
@@ -368,7 +368,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             retarget_text,
         )
         self.assertTrue(
-            any("interpretYulRuntimeEvmYulLeanFuelWrapper" in error for error in errors),
+            any("interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel" in error for error in errors),
             errors,
         )
 

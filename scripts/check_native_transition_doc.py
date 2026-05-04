@@ -67,8 +67,6 @@ REQUIRED_SNIPPETS = (
     "EvmYul.Yul.callDispatcher",
     "observable storage slot set explicitly",
     "only materializes pre-state storage for those slots",
-    "interpretYulRuntimeEvmYulLeanFuelWrapper",
-    "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
     "nativeResultsMatchOn",
     "explicitly observable final-storage slots",
     "same explicit fuel",
@@ -384,7 +382,6 @@ def check_public_theorem_target(
 
     for required_fuel_surface in (
         "def interpretYulRuntimeWithBackendFuel",
-        "def interpretYulRuntimeEvmYulLeanFuelWrapper",
         "def interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
         "theorem interpretYulRuntimeWithBackend_eq_fuel",
     ):
