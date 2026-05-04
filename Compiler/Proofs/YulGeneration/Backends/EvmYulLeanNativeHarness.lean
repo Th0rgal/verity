@@ -14222,6 +14222,47 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_proje
   · intro slot
     simp
 
+/-- Guarded selector-miss execution for a fully lowered native switch block,
+    with the projected revert result exposed as one exact `YulResult`.
+
+This generic package is the native dispatcher boundary needed by generated
+selector-miss proofs: the lowered switch reaches EVMYulLean's `Revert`, and
+Verity's projection rolls storage and events back to the call pre-state. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+            [nativeRevertZeroZeroStmt])
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert) =
+      { success := false
+        returnValue := none
+        finalStorage := storage
+        finalMappings := Compiler.Proofs.storageAsMappings storage
+        events := initialEvents } := by
+  rcases
+    exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult
+      fuel selector switchId cases contract tx storage initialEvents
+      observableSlots hSelector hFind hSelectorRange hTagsRange with
+    ⟨hExec, _hSuccess, _hReturn, _hStorage⟩
+  exact ⟨hExec, by simp⟩
+
 /-- The two generated SimpleStorage selector tags fit in one EVM word. -/
 private theorem simpleStorageSelectors_tagsRange
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt) :
@@ -14318,12 +14359,13 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert
         finalStorage := storage
         finalMappings := Compiler.Proofs.storageAsMappings storage
         events := initialEvents } := by
-  rcases
-    exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult
-      fuel selector switchId storeBody retrieveBody contract tx storage
-      initialEvents observableSlots hSelector hFind hSelectorRange with
-    ⟨hExec, _hSuccess, _hReturn, _hStorage⟩
-  exact ⟨hExec, by simp⟩
+  exact
+    exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
+      fuel selector switchId
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+      contract tx storage initialEvents observableSlots
+      hSelector hFind hSelectorRange
+      (simpleStorageSelectors_tagsRange storeBody retrieveBody)
 
 def simpleStorageRevertProjectedResult
     (storage : IRStorageSlot → IRStorageWord)

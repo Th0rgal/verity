@@ -767,7 +767,12 @@ scope so the native path does not look more complete than it is:
    The concrete `simpleStorage_endToEnd_native_evmYulLean` theorem now uses the
    direct positive dispatcher-exec match wrapper, after its retrieve-hit,
    store-hit, and selector-miss cases prove the lowered native dispatcher result
-   matches `interpretIR` directly.
+   matches `interpretIR` directly. The generic selector-miss boundary is now
+   packaged by
+   `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`,
+   which exposes the native `Revert` execution and exact projected rollback
+   result for arbitrary generated selector tables whose tags fit in one EVM
+   word.
 
    This closes the SimpleStorage public theorem against the native
    lowered-dispatcher source of truth. The remaining generic work is to remove
@@ -824,6 +829,8 @@ scope so the native path does not look more complete than it is:
    `simpleStorageNativeCallDispatcherMatchBridge_of_per_case`. The public
    `simpleStorage_endToEnd_native_evmYulLean` theorem now consumes this direct
    splitter. The selector-miss revert arm is discharged by
+   `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`
+   before the SimpleStorage-specific selector table specialization reaches
    `simpleStorageNativeSelectorMissMatchBridge_proved`, and the retrieve-hit
    arm has the direct native-vs-IR proof
    `simpleStorageNativeRetrieveHitMatchBridge_proved`. The store-hit arm is
