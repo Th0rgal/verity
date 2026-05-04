@@ -751,6 +751,38 @@ theorem compileStmt_pure_binding_bridged
           exact BridgedStmt.straight _
             (BridgedStraightStmt.assign name valueExpr hBridged)
 
+/-- Pure-expression binding statements compile to Yul lists with no nested
+function declarations. -/
+theorem compileStmt_pure_binding_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourcePureBindingStmt stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | letVar name value _hValue =>
+      simp only [compileStmt, bind, Except.bind] at hOk
+      cases hExpr : compileExpr fields dynamicSource value with
+      | error err =>
+          simp [hExpr] at hOk
+      | ok valueExpr =>
+          simp [hExpr, Pure.pure, Except.pure] at hOk
+          subst out
+          simp [Native.yulStmtContainsFuncDef]
+  | assignVar name value _hValue =>
+      simp only [compileStmt, bind, Except.bind] at hOk
+      cases hExpr : compileExpr fields dynamicSource value with
+      | error err =>
+          simp [hExpr] at hOk
+      | ok valueExpr =>
+          simp [hExpr, Pure.pure, Except.pure] at hOk
+          subst out
+          simp [Native.yulStmtContainsFuncDef]
+
 /-- Lists made only of pure-expression `letVar`/`assignVar` statements compile
 to Yul lists satisfying `BridgedStmts`. -/
 theorem compileStmtList_pure_binding_bridged
@@ -796,6 +828,47 @@ theorem compileStmtList_pure_binding_bridged
                 (compileStmt_pure_binding_bridged fields events errors dynamicSource
                   internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+/-- Lists made only of pure-expression `letVar`/`assignVar` statements compile
+to Yul lists with no nested function declarations. -/
+theorem compileStmtList_pure_binding_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String) (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String), BridgedSourcePureBindingStmts stmts →
+      ∀ {out : List YulStmt}, compileStmtList fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames [] stmts = .ok out →
+      Native.yulStmtsContainFuncDef out = false := by
+  intro stmts
+  induction stmts with
+  | nil =>
+      intro inScopeNames _ out hOk
+      simp [compileStmtList, Pure.pure, Except.pure] at hOk
+      subst out
+      rfl
+  | cons head tail ih =>
+      intro inScopeNames hSource out hOk
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHead : compileStmt fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] head with
+      | error err =>
+          simp [hHead] at hOk
+      | ok headOut =>
+          simp [hHead] at hOk
+          cases hTail : compileStmtList fields events errors dynamicSource internalRetNames
+              isInternal (collectStmtNames head ++ inScopeNames) [] tail with
+          | error err =>
+              simp [hTail] at hOk
+          | ok tailOut =>
+              simp [hTail, Pure.pure, Except.pure] at hOk
+              subst out
+              have hHeadSource : BridgedSourcePureBindingStmt head := hSource head (by simp)
+              have hTailSource : BridgedSourcePureBindingStmts tail := by
+                intro stmt hMem; exact hSource stmt (by simp [hMem])
+              simp [
+                compileStmt_pure_binding_noFuncDefs fields events errors
+                  dynamicSource internalRetNames isInternal inScopeNames
+                  hHeadSource hHead,
+                ih (collectStmtNames head ++ inScopeNames) hTailSource hTail]
 
 /-! ## Source statement body closure: pure bindings plus single-slot storage writes -/
 
