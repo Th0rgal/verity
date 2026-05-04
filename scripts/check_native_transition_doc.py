@@ -271,6 +271,18 @@ def check_public_theorem_target(
                 "`nativeIRRuntimeAgreesWithEvmYulLean` obligation"
             )
 
+    for forbidden_positive_alias in (
+        "theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive ",
+        "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive ",
+    ):
+        if forbidden_positive_alias in normalized_end_to_end:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must not reintroduce the "
+                "misleading positive dispatcher-exec compatibility alias "
+                f"`{forbidden_positive_alias.removeprefix('theorem ').strip()}`; "
+                "use the explicit `_positive_bridge` theorem name"
+            )
+
     for required_reference_oracle_seam in (
         "theorem layer3_contract_preserves_semantics_via_reference_oracle ",
         "theorem simpleStorage_endToEnd_via_reference_oracle ",

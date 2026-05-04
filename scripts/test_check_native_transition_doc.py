@@ -208,6 +208,38 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_theorem_target_guard_rejects_misleading_positive_layer3_alias(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ntheorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive "
+            + ": True := by trivial\n"
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("positive_bridge" in error for error in errors),
+            errors,
+        )
+
+    def test_public_theorem_target_guard_rejects_misleading_positive_layers23_alias(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ntheorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive "
+            + ": True := by trivial\n"
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("positive_bridge" in error for error in errors),
+            errors,
+        )
+
     def test_rejects_verity_default_builtin_backend(self) -> None:
         builtins_text = check.BUILTINS.read_text(encoding="utf-8").replace(
             "abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",
