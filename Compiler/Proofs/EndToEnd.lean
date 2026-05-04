@@ -964,7 +964,7 @@ theorem nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
     (hAgree :
-      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper fuel contract tx state
+      nativeDispatcherExecAgreesWithEvmYulLean fuel contract tx state
         observableSlots nativeContract) :
     nativeDispatcherBlockAgreesWithEvmYulLean fuel contract tx state
       observableSlots nativeContract :=
@@ -998,7 +998,7 @@ theorem nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
     (hAgree :
-      nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper fuel contract tx state
+      nativeDispatcherBlockAgreesWithEvmYulLean fuel contract tx state
         observableSlots nativeContract) :
     nativeCallDispatcherAgreesWithEvmYulLean fuel contract tx state
       observableSlots nativeContract :=
@@ -1048,7 +1048,7 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree
       Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hAgree :
-      nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper fuel contract tx state
+      nativeCallDispatcherAgreesWithEvmYulLean fuel contract tx state
         observableSlots nativeContract) :
     nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx state observableSlots :=
   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree
@@ -1096,7 +1096,7 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_dispatcherExec_positive_a
       Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hAgree :
-      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' contract tx state
+      nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' contract tx state
         observableSlots nativeContract) :
     nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') contract tx state
       observableSlots :=
@@ -1158,7 +1158,7 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_generated_lowered_callDispatcher_
       Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hAgree :
-      nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper fuel contract tx state
+      nativeCallDispatcherAgreesWithEvmYulLean fuel contract tx state
         observableSlots nativeContract) :
     nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx state observableSlots :=
   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_callDispatcher_agree
@@ -1221,7 +1221,7 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_generated_lowered_dispatcherExec_
       Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
         (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hAgree :
-      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' contract tx state
+      nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' contract tx state
         observableSlots nativeContract) :
     nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') contract tx state
       observableSlots :=
@@ -2455,7 +2455,7 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispat
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hAgree :
-      nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' irContract tx
+      nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' irContract tx
         state observableSlots nativeContract) :
     nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') irContract tx state
       observableSlots :=
@@ -2500,7 +2500,7 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispat
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hAgree : nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive fuel' irContract tx state observableSlots nativeContract) :
+    (hAgree : nativeDispatcherExecAgreesWithEvmYulLeanPositive fuel' irContract tx state observableSlots nativeContract) :
     nativeIRRuntimeAgreesWithEvmYulLean (Nat.succ fuel') irContract tx state observableSlots :=
   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
     hCompile hSupported hStaticParams hSafeBodies hLower hEnv hAgree
