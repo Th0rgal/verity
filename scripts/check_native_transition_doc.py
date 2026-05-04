@@ -230,6 +230,32 @@ def check_public_theorem_target(
                 "native bridge is discharged"
             )
 
+    direct_native_wrappers = (
+        "layer3_contract_preserves_semantics_native_of_evmYulLean_bridge",
+        "layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
+    )
+    theorem_pattern = re.compile(
+        r"^\s*theorem\s+([A-Za-z0-9_']+)\b(.*?)(?=\s:=)",
+        re.DOTALL | re.MULTILINE,
+    )
+    theorem_signatures = {
+        match.group(1): normalize_ws(match.group(2))
+        for match in theorem_pattern.finditer(end_to_end_text)
+    }
+    for wrapper in direct_native_wrappers:
+        signature = theorem_signatures.get(wrapper, "")
+        if "nativeIRRuntimeMatchesIR" not in signature:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean non-reference native wrapper "
+                f"`{wrapper}` must consume `nativeIRRuntimeMatchesIR` directly"
+            )
+        if "nativeIRRuntimeAgreesWithEvmYulLean " in signature:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean non-reference native wrapper "
+                f"`{wrapper}` must not consume the fuel-wrapper compatibility "
+                "`nativeIRRuntimeAgreesWithEvmYulLean` obligation"
+            )
+
     for required_reference_oracle_seam in (
         "theorem layer3_contract_preserves_semantics_via_reference_oracle ",
         "theorem simpleStorage_endToEnd_via_reference_oracle ",
