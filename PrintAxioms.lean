@@ -2515,10 +2515,15 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_calldataload_static_scalar_bridged  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_scalar_bridged
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.genScalarLoad_noFuncDefs  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.genStaticTypeLoads_go_noFuncDefs  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.genStaticTypeLoads_noFuncDefs  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.fixedArrayFirstAlias_noFuncDefs  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_scalar_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_scalar_noFuncDefs
-#print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.genSingleParamLoad_static_scalar_noFuncDefs  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_static_scalar_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_binding_leaf_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_binding_leaf_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_binding_leaf_bridged
@@ -4049,4 +4054,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3872 theorems/lemmas (2912 public, 960 private, 0 sorry'd)
+-- Total: 3878 theorems/lemmas (2913 public, 965 private, 0 sorry'd)
