@@ -231,6 +231,7 @@ def check_public_theorem_target(
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match",
         "theorem layer3_contract_preserves_semantics ",
+        "theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match",
         "theorem simpleStorage_endToEnd ",
     ):
         if required_native_seam not in normalized_end_to_end:

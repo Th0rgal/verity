@@ -7648,6 +7648,53 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_brid
       exact nativeDispatcherExecAgreesWithEvmYulLean_of_positive
         hNativeDispatcherExec)
 
+/-- Native SimpleStorage wrapper at the positive dispatcher-exec direct-match
+target.
+
+This is the native source-of-truth counterpart of
+`simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_bridge`:
+callers prove the lowered dispatcher result matches `interpretIR` directly,
+without comparing through the EVMYulLean fuel wrapper. -/
+theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    (hEnv :
+        Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+          (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (YulTransaction.ofIR tx) = .ok ())
+    (hNativeDispatcherExec :
+      nativeDispatcherExecMatchesIRPositive
+        simpleStorageNativeDispatcherFuel simpleStorageIRContract tx initialState
+        observableSlots Compiler.SimpleStorageNativeWitness.nativeContract) :
+    nativeResultsMatchOn observableSlots
+      (interpretIR simpleStorageIRContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
+        simpleStorageIRContract tx initialState observableSlots) := by
+  rw [simpleStorage_runtimeCode_eq_single_dispatcher]
+  exact
+    layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match
+      simpleStorageNativeDispatcherFuel simpleStorageIRContract tx initialState
+      observableSlots Compiler.SimpleStorageNativeWitness.nativeContract
+      (by
+        simp [simpleStorageIRContract,
+          Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique,
+          Compiler.Proofs.YulGeneration.Backends.Native.stringListHasDuplicate])
+      (by
+        intro stmt hmem
+        simp [simpleStorageIRContract] at hmem)
+      (by
+        intro fn hmem
+        simp [simpleStorageIRContract] at hmem ⊢
+        rcases hmem with rfl | rfl <;> rfl)
+      (by
+        intro name params rets body hmem
+        simp [simpleStorageIRContract] at hmem)
+      rfl
+      rfl
+      Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq
+      hEnv
+      hNativeDispatcherExec
+
 /-- Native SimpleStorage end-to-end theorem with the concrete native dispatcher
 bridge fully discharged for retrieve hit, store hit, and selector miss. -/
 theorem simpleStorage_endToEnd_native_evmYulLean

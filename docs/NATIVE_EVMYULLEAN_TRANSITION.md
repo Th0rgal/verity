@@ -897,6 +897,10 @@ scope so the native path does not look more complete than it is:
    `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match`
    and
    `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match`.
+   SimpleStorage also exposes the direct positive-dispatcher seam
+   `simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match`
+   while its concrete per-case dischargers are migrated from the compatibility
+   bridge.
 
 ## Cleanup After the Flip
 
