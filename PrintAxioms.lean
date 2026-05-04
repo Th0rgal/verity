@@ -2568,8 +2568,12 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_nested_body_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_recursive_body_fragment_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_recursive_body_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_external_recursive_body_fragment_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_recursive_body_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_recursive_body_fragment_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_recursive_body_fragment_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_recursive_body_fragment_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_recursive_body_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_memoryWrite_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_memoryWrite_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_forEach_with_bridged_body
@@ -4015,4 +4019,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3839 theorems/lemmas (2881 public, 958 private, 0 sorry'd)
+-- Total: 3843 theorems/lemmas (2885 public, 958 private, 0 sorry'd)

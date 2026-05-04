@@ -3243,6 +3243,89 @@ mutual
 end
 
 mutual
+  theorem compileStmt_external_recursive_body_fragment_noFuncDefs
+      (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+      (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+      (inScopeNames : List String) :
+      ∀ {stmt : Stmt},
+        BridgedSourceExternalRecursiveBodyStmt fields dynamicSource stmt →
+        ∀ {out : List YulStmt},
+          compileStmt fields events errors dynamicSource internalRetNames
+            (isInternal := false) inScopeNames [] stmt = .ok out →
+          Native.yulStmtsContainFuncDef out = false := by
+    intro stmt hStmt out hOk
+    cases hStmt with
+    | base hBase =>
+        exact compileStmt_external_body_fragment_noFuncDefs fields events errors
+          dynamicSource internalRetNames inScopeNames hBase hOk
+    | ite cond thenBranch elseBranch _ hThen hElse =>
+        simp only [compileStmt, bind, Except.bind] at hOk
+        cases hCondExpr : compileExpr fields dynamicSource cond with
+        | error err => simp [hCondExpr] at hOk
+        | ok condExpr =>
+            cases hThenCompile : compileStmtList fields events errors dynamicSource
+                internalRetNames false inScopeNames [] thenBranch with
+            | error err => simp [hCondExpr, hThenCompile] at hOk
+            | ok thenOut =>
+                cases hElseCompile : compileStmtList fields events errors dynamicSource
+                    internalRetNames false inScopeNames [] elseBranch with
+                | error err => simp [hCondExpr, hThenCompile, hElseCompile] at hOk
+                | ok elseOut =>
+                    have hThenNoFunc :=
+                      compileStmtList_external_recursive_body_fragment_noFuncDefs fields
+                        events errors dynamicSource internalRetNames hThen inScopeNames
+                        hThenCompile
+                    have hElseNoFunc :=
+                      compileStmtList_external_recursive_body_fragment_noFuncDefs fields
+                        events errors dynamicSource internalRetNames hElse inScopeNames
+                        hElseCompile
+                    by_cases hEmpty : elseBranch.isEmpty
+                    · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty,
+                        Pure.pure, Except.pure] at hOk
+                      subst out
+                      simp [Native.yulStmtContainsFuncDef, hThenNoFunc]
+                    · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty,
+                        Pure.pure, Except.pure] at hOk
+                      subst out
+                      simp [Native.yulStmtContainsFuncDef, hThenNoFunc, hElseNoFunc]
+
+  theorem compileStmtList_external_recursive_body_fragment_noFuncDefs
+      (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+      (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+      ∀ {stmts : List Stmt},
+        BridgedSourceExternalRecursiveBodyStmts fields dynamicSource stmts →
+        ∀ (inScopeNames : List String) {out : List YulStmt},
+          compileStmtList fields events errors dynamicSource internalRetNames
+            (isInternal := false) inScopeNames [] stmts = .ok out →
+          Native.yulStmtsContainFuncDef out = false := by
+    intro stmts hSource inScopeNames out hOk
+    cases hSource with
+    | nil =>
+        simp [compileStmtList, Pure.pure, Except.pure] at hOk
+        subst out
+        rfl
+    | @cons head tail hHead hTail =>
+        simp only [compileStmtList, bind, Except.bind] at hOk
+        cases hHeadCompile : compileStmt fields events errors dynamicSource
+            internalRetNames false inScopeNames [] head with
+        | error err => simp [hHeadCompile] at hOk
+        | ok headOut =>
+            simp [hHeadCompile] at hOk
+            cases hTailCompile : compileStmtList fields events errors dynamicSource
+                internalRetNames false (collectStmtNames head ++ inScopeNames) [] tail with
+            | error err => simp [hTailCompile] at hOk
+            | ok tailOut =>
+                simp [hTailCompile, Pure.pure, Except.pure] at hOk
+                subst out
+                simp [
+                  compileStmt_external_recursive_body_fragment_noFuncDefs fields events
+                    errors dynamicSource internalRetNames inScopeNames hHead hHeadCompile,
+                  compileStmtList_external_recursive_body_fragment_noFuncDefs fields
+                    events errors dynamicSource internalRetNames hTail
+                    (collectStmtNames head ++ inScopeNames) hTailCompile]
+end
+
+mutual
   theorem compileStmt_internal_recursive_body_fragment_bridged
       (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
       (dynamicSource : DynamicDataSource) (internalRetNames : List String)
@@ -3347,6 +3430,89 @@ mutual
                   (compileStmtList_internal_recursive_body_fragment_bridged fields
                     events errors dynamicSource internalRetNames hTail
                     (collectStmtNames head ++ inScopeNames) hTailCompile)
+end
+
+mutual
+  theorem compileStmt_internal_recursive_body_fragment_noFuncDefs
+      (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+      (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+      (inScopeNames : List String) :
+      ∀ {stmt : Stmt},
+        BridgedSourceInternalRecursiveBodyStmt fields dynamicSource stmt →
+        ∀ {out : List YulStmt},
+          compileStmt fields events errors dynamicSource internalRetNames
+            (isInternal := true) inScopeNames [] stmt = .ok out →
+          Native.yulStmtsContainFuncDef out = false := by
+    intro stmt hStmt out hOk
+    cases hStmt with
+    | base hBase =>
+        exact compileStmt_internal_body_fragment_noFuncDefs fields events errors
+          dynamicSource internalRetNames inScopeNames hBase hOk
+    | ite cond thenBranch elseBranch _ hThen hElse =>
+        simp only [compileStmt, bind, Except.bind] at hOk
+        cases hCondExpr : compileExpr fields dynamicSource cond with
+        | error err => simp [hCondExpr] at hOk
+        | ok condExpr =>
+            cases hThenCompile : compileStmtList fields events errors dynamicSource
+                internalRetNames true inScopeNames [] thenBranch with
+            | error err => simp [hCondExpr, hThenCompile] at hOk
+            | ok thenOut =>
+                cases hElseCompile : compileStmtList fields events errors dynamicSource
+                    internalRetNames true inScopeNames [] elseBranch with
+                | error err => simp [hCondExpr, hThenCompile, hElseCompile] at hOk
+                | ok elseOut =>
+                    have hThenNoFunc :=
+                      compileStmtList_internal_recursive_body_fragment_noFuncDefs fields
+                        events errors dynamicSource internalRetNames hThen inScopeNames
+                        hThenCompile
+                    have hElseNoFunc :=
+                      compileStmtList_internal_recursive_body_fragment_noFuncDefs fields
+                        events errors dynamicSource internalRetNames hElse inScopeNames
+                        hElseCompile
+                    by_cases hEmpty : elseBranch.isEmpty
+                    · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty,
+                        Pure.pure, Except.pure] at hOk
+                      subst out
+                      simp [Native.yulStmtContainsFuncDef, hThenNoFunc]
+                    · simp [hCondExpr, hThenCompile, hElseCompile, hEmpty,
+                        Pure.pure, Except.pure] at hOk
+                      subst out
+                      simp [Native.yulStmtContainsFuncDef, hThenNoFunc, hElseNoFunc]
+
+  theorem compileStmtList_internal_recursive_body_fragment_noFuncDefs
+      (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+      (dynamicSource : DynamicDataSource) (internalRetNames : List String) :
+      ∀ {stmts : List Stmt},
+        BridgedSourceInternalRecursiveBodyStmts fields dynamicSource stmts →
+        ∀ (inScopeNames : List String) {out : List YulStmt},
+          compileStmtList fields events errors dynamicSource internalRetNames
+            (isInternal := true) inScopeNames [] stmts = .ok out →
+          Native.yulStmtsContainFuncDef out = false := by
+    intro stmts hSource inScopeNames out hOk
+    cases hSource with
+    | nil =>
+        simp [compileStmtList, Pure.pure, Except.pure] at hOk
+        subst out
+        rfl
+    | @cons head tail hHead hTail =>
+        simp only [compileStmtList, bind, Except.bind] at hOk
+        cases hHeadCompile : compileStmt fields events errors dynamicSource
+            internalRetNames true inScopeNames [] head with
+        | error err => simp [hHeadCompile] at hOk
+        | ok headOut =>
+            simp [hHeadCompile] at hOk
+            cases hTailCompile : compileStmtList fields events errors dynamicSource
+                internalRetNames true (collectStmtNames head ++ inScopeNames) [] tail with
+            | error err => simp [hTailCompile] at hOk
+            | ok tailOut =>
+                simp [hTailCompile, Pure.pure, Except.pure] at hOk
+                subst out
+                simp [
+                  compileStmt_internal_recursive_body_fragment_noFuncDefs fields events
+                    errors dynamicSource internalRetNames inScopeNames hHead hHeadCompile,
+                  compileStmtList_internal_recursive_body_fragment_noFuncDefs fields
+                    events errors dynamicSource internalRetNames hTail
+                    (collectStmtNames head ++ inScopeNames) hTailCompile]
 end
 
 /-! ## Source statement body closure: direct memory writes (`mstore`/`tstore`)
