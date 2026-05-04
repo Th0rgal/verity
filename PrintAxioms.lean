@@ -778,6 +778,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.yulStateOfIR_eq_initial
 #print axioms Compiler.Proofs.EndToEnd.execYulStmts_paramState_eq_emptyVars
 -- #print axioms Compiler.Proofs.EndToEnd.internalFunctions_bridged_of_contractWF  -- private
+#print axioms Compiler.Proofs.EndToEnd.compileFunctionSpec_noFuncDefs_of_scalar_params_and_body
 #print axioms Compiler.Proofs.EndToEnd.compileFunctionSpec_bridged_of_safe_static_params
 #print axioms Compiler.Proofs.EndToEnd.compiledExternalFunctions_bridged_of_safe_static
 #print axioms Compiler.Proofs.EndToEnd.yulBody_from_state_eq_yulBody
@@ -3978,4 +3979,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3802 theorems/lemmas (2849 public, 953 private, 0 sorry'd)
+-- Total: 3803 theorems/lemmas (2850 public, 953 private, 0 sorry'd)

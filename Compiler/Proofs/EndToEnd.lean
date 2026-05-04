@@ -1218,6 +1218,41 @@ private theorem internalFunctions_bridged_of_contractWF
   exact Compiler.Proofs.YulGeneration.Backends.bridgedStmt_funcDef
     name params rets body
 
+/-- Function-level native-fragment body shape from scalar parameter loads plus
+a body-code shape witness. This isolates the shared append/prologue reasoning
+needed before the public generated-native wrappers can derive their own
+external-body witnesses from compiler output. -/
+theorem compileFunctionSpec_noFuncDefs_of_scalar_params_and_body
+    (fields : List CompilationModel.Field)
+    (events : List CompilationModel.EventDef)
+    (errors : List CompilationModel.ErrorDef)
+    (selector : Nat) (spec : CompilationModel.FunctionSpec)
+    (irFn : IRFunction)
+    (hScalarParams :
+      Compiler.Proofs.YulGeneration.Backends.AllScalarParams spec.params)
+    (hBodyNoFuncDefs :
+      ∀ bodyStmts,
+        CompilationModel.compileStmtList fields events errors .calldata [] false
+          (spec.params.map (·.name)) [] spec.body = Except.ok bodyStmts →
+        Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
+          bodyStmts = false)
+    (hcompile :
+      CompilationModel.compileFunctionSpec fields events errors [] selector spec =
+        Except.ok irFn) :
+    Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
+      irFn.body = false := by
+  rcases Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_components
+      fields events errors selector spec irFn hcompile with
+    ⟨returns, bodyStmts, _hvalidate, _hreturns, hbody, hirFn⟩
+  subst irFn
+  change
+    Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
+      (CompilationModel.genParamLoads spec.params ++ bodyStmts) = false
+  simp [
+    Compiler.Proofs.YulGeneration.Backends.genParamLoads_scalar_noFuncDefs
+      spec.params hScalarParams,
+    hBodyNoFuncDefs bodyStmts hbody]
+
 /-- Convert the new source-level safe-body closure theorem into the low-level
 `BridgedStmts fn.body` witness still consumed by the EVMYulLean runtime
 retargeting theorem. This is the key local bridge from compiler-produced
