@@ -1,9 +1,16 @@
 # IR Storage Refactor — Phase 2 Plan
 
-Phase 2 of [`IR_STORAGE_UINT256_REFACTOR.md`](IR_STORAGE_UINT256_REFACTOR.md):
-discharge `simpleStorageNativeRetrieveHitBridge` once Phase 1 lands the
-`UInt256`-bounded IR storage carrier, then drop the `hRetrieveHit` premise from
-`simpleStorage_endToEnd_native_evmYulLean`.
+Phase 2 of [`IR_STORAGE_UINT256_REFACTOR.md`](IR_STORAGE_UINT256_REFACTOR.md)
+originally tracked discharging the compatibility
+`simpleStorageNativeRetrieveHitBridge` fuel-wrapper path after the
+`UInt256`-bounded IR storage carrier landed.
+
+Status update: this plan has been superseded for the public native path. The
+public `simpleStorage_endToEnd_native_evmYulLean` theorem now consumes the
+direct native-vs-IR `simpleStorageNativeRetrieveHitMatchBridge_proved` proof
+through `simpleStorageNativeCallDispatcherMatchBridge_of_per_case`. The older
+`simpleStorageNativeRetrieveHitBridge_proved` theorem remains only as a
+compatibility proof for the generic fuel-wrapper/reference-oracle family.
 
 This file is the working scaffold for the Phase 2 PR. It is plan-only so the
 PR opens against a green build.
@@ -73,5 +80,7 @@ the carrier flip, to:
 
 ## Status
 
-Plan-only. Implementation depends on Phase 1 (#1754) landing first. The
-`hStoreHit` premise remains and is handled by Phase 3.
+Superseded for the public native SimpleStorage theorem. The direct retrieve-hit
+proof is `simpleStorageNativeRetrieveHitMatchBridge_proved`; the generic
+compatibility cleanup remains tracked in
+[`NATIVE_EVMYULLEAN_TRANSITION.md`](NATIVE_EVMYULLEAN_TRANSITION.md).

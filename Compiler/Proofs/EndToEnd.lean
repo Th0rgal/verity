@@ -6833,17 +6833,13 @@ theorem projectResult_retrieveHit_eq
   simp only [Compiler.Proofs.YulGeneration.Backends.Native.projectResult,
     hReturnValue]
 
-/-- Named SimpleStorage native dispatcher bridge obligation.
+/-- SimpleStorage compatibility dispatcher bridge obligation.
 
-This keeps the remaining native proof seam explicit and sorry-free. The missing
-work is to prove that the lowered native dispatcher block selects and executes
-the three generated bodies (`store(uint256)`, `retrieve()`, and selector-miss
-`revert`) and that the projected native result agrees with the
-EVMYulLean-backed EVMYulLean fuel wrapper on the caller's observable storage
-projection. The generic `callDispatcher` wrapper has already been discharged by
-`nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`, and the
-dispatcher-block result wrapper has already been discharged by
-`nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree`. -/
+This old surface compares the lowered native dispatcher result with the
+EVMYulLean fuel-wrapper compatibility path. The public SimpleStorage native
+theorem now uses `simpleStorageNativeCallDispatcherMatchBridge` instead; this
+definition remains only for compatibility wrappers while the generic
+fuel-wrapper/reference-oracle family is retired. -/
 def simpleStorageNativeCallDispatcherBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
@@ -6854,10 +6850,8 @@ def simpleStorageNativeCallDispatcherBridge
 
 /-- Named SimpleStorage native dispatcher direct-match obligation.
 
-This is the native source-of-truth counterpart to
-`simpleStorageNativeCallDispatcherBridge`: the lowered native dispatcher result
-is compared with `interpretIR` directly instead of with the EVMYulLean fuel
-wrapper. -/
+The lowered native dispatcher result is compared with `interpretIR` directly
+instead of with the EVMYulLean fuel wrapper. -/
 def simpleStorageNativeCallDispatcherMatchBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
@@ -6866,25 +6860,9 @@ def simpleStorageNativeCallDispatcherMatchBridge
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
 
-/-! ### Per-case sub-bridges for the SimpleStorage native dispatcher.
+/-! ### Per-case sub-bridges for the SimpleStorage native dispatcher. -/
 
-The monolithic `simpleStorageNativeCallDispatcherBridge` bundles three
-selector-class obligations: the `retrieve()` hit case, the `store(uint256)`
-hit case, and the selector-miss revert case. Splitting it into three
-per-case sub-bridges, each gated on the relevant selector hypothesis,
-exposes the case structure at the public-theorem boundary so each case
-can be discharged independently as the harness lemmas mature.
-
-Each per-case sub-bridge is *strictly weaker* than the monolithic bridge
-because it adds a precondition fixing the selector class, so a proof of
-the sub-bridge does not need to do the case analysis on the selector that
-a proof of the monolithic bridge would need to do. The combined bridge
-is recovered from the three sub-bridges by the
-`simpleStorageNativeCallDispatcherBridge_of_per_case` discharger below. -/
-
-/-- Per-case sub-bridge: the dispatcher-exec agreement obligation when the
-caller-supplied transaction selector matches `retrieve()` (selector
-`0x2e64cec1`). -/
+/-- Compatibility per-case sub-bridge for the `retrieve()` selector hit. -/
 def simpleStorageNativeRetrieveHitBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
@@ -6904,9 +6882,7 @@ def simpleStorageNativeRetrieveHitMatchBridge
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
 
-/-- Per-case sub-bridge: the dispatcher-exec agreement obligation when the
-caller-supplied transaction selector matches `store(uint256)` (selector
-`0x6057361d`). -/
+/-- Compatibility per-case sub-bridge for the `store(uint256)` selector hit. -/
 def simpleStorageNativeStoreHitBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
@@ -6926,10 +6902,7 @@ def simpleStorageNativeStoreHitMatchBridge
     simpleStorageIRContract tx initialState observableSlots
     Compiler.SimpleStorageNativeWitness.nativeContract
 
-/-- Per-case sub-bridge: the dispatcher-exec agreement obligation when the
-caller-supplied transaction selector matches neither `store(uint256)` nor
-`retrieve()` and the lowered switch falls through to the default
-`revert(0, 0)` arm. -/
+/-- Compatibility per-case sub-bridge for the selector-miss revert arm. -/
 def simpleStorageNativeSelectorMissBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=

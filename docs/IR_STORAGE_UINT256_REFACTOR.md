@@ -1,17 +1,22 @@
 # IR Storage Type Refactor: `Nat → Nat` ⇒ `Nat → UInt256`
 
-Tracking the structural refactor that closes the retrieve-hit and store-hit
-sub-bridges of `simpleStorageNativeCallDispatcherBridge` — and, more
-generally, every per-case native dispatcher bridge that observes a value
-read from storage.
+Tracking the structural refactor that originally targeted the retrieve-hit and
+store-hit compatibility sub-bridges of
+`simpleStorageNativeCallDispatcherBridge`. The public native SimpleStorage path
+has since moved to the direct native-vs-IR
+`simpleStorageNativeCallDispatcherMatchBridge_of_per_case` splitter, with
+`simpleStorageNativeRetrieveHitMatchBridge_proved` and
+`simpleStorageNativeStoreHitMatchBridge_proved` discharging those cases.
 
 ## Why this exists
 
-The first executable instantiation of the native dispatcher bridge
-discharges `simpleStorageNativeSelectorMissBridge` but leaves
+The first executable instantiation of the native dispatcher bridge discharged
+`simpleStorageNativeSelectorMissBridge` but left
 `simpleStorageNativeRetrieveHitBridge` and
 `simpleStorageNativeStoreHitBridge` as explicit hypotheses on the public
-theorem `simpleStorage_endToEnd_native_evmYulLean`.
+theorem `simpleStorage_endToEnd_native_evmYulLean`. That historical
+fuel-wrapper route is now compatibility-only: the public native theorem
+consumes direct match proofs for selector miss, retrieve hit, and store hit.
 
 Those two cases cannot be discharged inside the current public theorem
 signature because of a type-level mismatch:
@@ -114,7 +119,7 @@ Deliverables:
 Exit criteria: `lake build` clean; every existing per-contract spec
 proof in `Contracts/<Name>/Proofs/` still passes (no spec regressions).
 
-### Phase 2 — discharge `simpleStorageNativeRetrieveHitBridge`
+### Phase 2 — discharge retrieve hit
 
 With storage values bounded by construction on the IR side, the native
 projection's `% UInt256.size` truncation becomes the identity on the
@@ -122,15 +127,17 @@ relevant slot. The retrieve-hit return-value chain reduces because the
 `mstore`'d native bytes and the IR-oracle return word agree.
 
 Deliverables:
-- A proved `simpleStorageNativeRetrieveHitBridge_proved` lemma analogous
-  to `simpleStorageNativeSelectorMissBridge_proved`.
-- Drop the `hRetrieveHit` premise from
-  `simpleStorage_endToEnd_native_evmYulLean`.
+- Historical compatibility proof:
+  `simpleStorageNativeRetrieveHitBridge_proved`.
+- Public native direct proof:
+  `simpleStorageNativeRetrieveHitMatchBridge_proved`.
+- `simpleStorage_endToEnd_native_evmYulLean` consumes the direct per-case
+  splitter without a retrieve-hit premise.
 
-Exit criteria: `PrintAxioms` for the public theorem no longer lists the
-retrieve-hit bridge; `lake build` clean; `make check` clean.
+Status: complete for the public native theorem. The compatibility proof remains
+only for the generic fuel-wrapper/reference-oracle cleanup.
 
-### Phase 3 — discharge `simpleStorageNativeStoreHitBridge`
+### Phase 3 — discharge store hit
 
 Same argument as Phase 2 for the store-hit case: the written value
 flows through bounded storage and the re-read of any other materialized
@@ -138,20 +145,23 @@ observable slot agrees. The calldata round-trip was already 32-byte
 bounded, so the writeback case becomes mechanical.
 
 Deliverables:
-- A proved `simpleStorageNativeStoreHitBridge_proved` lemma.
-- Drop the `hStoreHit` premise from
-  `simpleStorage_endToEnd_native_evmYulLean`.
+- Historical compatibility proof:
+  `simpleStorageNativeStoreHitBridge_proved`.
+- Public native direct proof:
+  `simpleStorageNativeStoreHitMatchBridge_proved`.
+- `simpleStorage_endToEnd_native_evmYulLean` consumes the direct per-case
+  splitter without a store-hit premise.
 
-Exit criteria: the public SimpleStorage native theorem has zero
-remaining bridge premises beyond what the selector dispatcher already
-discharges; `simpleStorageNativeCallDispatcherBridge_of_per_case` is
-the only remaining surface and it is fully closed.
+Status: complete for the public native theorem. The compatibility proof remains
+only for the generic fuel-wrapper/reference-oracle cleanup.
 
 ### Phase 4 — generalize and retire the per-case bridge surface
 
-Replace the per-contract `simpleStorageNative*Bridge` family with a
-generic, dispatcher-shape-driven bridge so future contracts inherit
-discharge automatically.
+Replace the per-contract SimpleStorage direct-match family with a generic,
+dispatcher-shape-driven bridge so future contracts inherit discharge
+automatically. The older non-`Match` SimpleStorage bridge family is
+compatibility-only and should disappear with the generic
+fuel-wrapper/reference-oracle cleanup.
 
 Deliverables:
 - Generic `nativeCallDispatcherBridge_of_typed_storage` lemma over the
@@ -163,10 +173,11 @@ Deliverables:
 ## Acceptance signals
 
 - `simpleStorage_endToEnd_native_evmYulLean` has no `hRetrieveHit` or
-  `hStoreHit` premise.
-- `PrintAxioms` for the public theorem reports no bridge axioms beyond
-  the trusted `EvmYulLean` builtin axioms inherited from the existing
-  bridge-lemma set.
+  `hStoreHit` premise and consumes
+  `simpleStorageNativeCallDispatcherMatchBridge_of_per_case`.
+- `PrintAxioms` includes the direct match proofs for the public native theorem;
+  compatibility bridge proofs may remain only while the generic
+  fuel-wrapper/reference-oracle family remains.
 - `Contracts/SimpleStorage/Proofs/` spec theorems are unchanged.
 - A second contract (e.g. Counter) lifts to the native theorem under the
   generic Phase-4 surface without contract-specific bridge code.
