@@ -624,6 +624,42 @@ def check_reference_oracle_names(
     return errors
 
 
+def check_native_alias_signatures(end_to_end_text: str) -> list[str]:
+    """Keep public native compatibility wrappers on the public alias surface.
+
+    The explicitly named `...FuelWrapper...` declarations are allowed to expose
+    the current fuel-wrapper bridge obligation. The compatibility declarations
+    whose theorem names omit `FuelWrapper` should consume and return the
+    corresponding public aliases instead of reintroducing raw
+    `native...FuelWrapper...` proposition names in their signatures.
+    """
+
+    errors: list[str] = []
+    theorem_pattern = re.compile(
+        r"\btheorem\s+([A-Za-z0-9_']+)\b(.*?)(?=\s:=)",
+        re.DOTALL,
+    )
+    raw_native_fuel_wrapper = re.compile(
+        r"\bnative[A-Za-z0-9_']*FuelWrapper[A-Za-z0-9_']*\b"
+    )
+
+    for match in theorem_pattern.finditer(end_to_end_text):
+        name = match.group(1)
+        signature = match.group(2)
+        if "EvmYulLean" not in name or "FuelWrapper" in name:
+            continue
+        raw_matches = sorted(set(raw_native_fuel_wrapper.findall(signature)))
+        if raw_matches:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean compatibility theorem "
+                f"`{name}` must expose public native aliases in its signature, "
+                "not raw fuel-wrapper bridge predicates: "
+                + ", ".join(f"`{raw}`" for raw in raw_matches)
+            )
+
+    return errors
+
+
 def check_unbridged_environment_boundary(native_harness_text: str, native_smoke_text: str) -> list[str]:
     """Keep the native environment-read limitation explicit and tested.
 
@@ -717,6 +753,9 @@ def main() -> int:
             RETARGET.read_text(encoding="utf-8"),
             PRESERVATION.read_text(encoding="utf-8"),
         )
+    )
+    errors.extend(
+        check_native_alias_signatures(END_TO_END.read_text(encoding="utf-8"))
     )
     errors.extend(
         check_unbridged_environment_boundary(
