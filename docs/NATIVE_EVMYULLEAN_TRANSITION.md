@@ -59,8 +59,10 @@ materializes pre-state storage for those slots.
   full-storage-projection and fuel-parametric-preservation gap, not a completed
   public flip.
 - The same module also exposes
+  `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper`,
   `nativeCallDispatcherAgreesWithEvmYulLean`,
   `nativeDispatcherBlockAgreesWithEvmYulLean`,
+  `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`,
   `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`,
   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree`,
   `nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree`,
@@ -221,9 +223,12 @@ scope so the native path does not look more complete than it is:
    `nativeDispatcherBlockAgreesWithEvmYulLean` plus
    `nativeDispatcherExecAgreesWithEvmYulLean`,
    `nativeDispatcherBlockAgreesWithEvmYulLean_of_exec_agree`, and
-   `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree`. The
-   remaining bridge is therefore direct native `EvmYul.Yul.exec` execution of
-   the lowered contract dispatcher block against the EVMYulLean fuel wrapper.
+   `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`.
+   The compatibility theorem
+   `nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree` delegates
+   to that explicit fuel-wrapper lift. The remaining bridge is therefore direct
+   native `EvmYul.Yul.exec` execution of the lowered contract dispatcher block
+   against the EVMYulLean fuel wrapper.
 
    Statement-level native lowering through
    `lowerStmtsNativeWithSwitchIds`/`lowerStmtGroupNativeWithSwitchIds` is now
