@@ -8404,6 +8404,33 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_
   exact NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "mstore" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, value, hEval⟩
+      exact ⟨argState, offset, value, hEval,
+        hArgs fuel state argState [value, offset] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -8464,6 +8491,33 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_evalArgs
     EvmYul.Operation.MSTORE8 (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "mstore8" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, value, hEval⟩
+      exact ⟨argState, offset, value, hEval,
+        hArgs fuel state argState [value, offset] hLookup hEval⟩)
 
 theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
     (name : EvmYul.Identifier)
@@ -8530,6 +8584,33 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_
   exact NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, slot])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "sstore" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, slot, value, hEval⟩
+      exact ⟨argState, slot, value, hEval,
+        hArgs fuel state argState [value, slot] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -8594,6 +8675,33 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_evalArgs_
     EvmYul.Operation.TSTORE (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, slot])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "tstore" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, slot, value, hEval⟩
+      exact ⟨argState, slot, value, hEval,
+        hArgs fuel state argState [value, slot] hLookup hEval⟩)
 
 theorem NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
     (name : EvmYul.Identifier)
