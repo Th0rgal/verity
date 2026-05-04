@@ -14393,6 +14393,44 @@ theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_err
   exact ⟨exec_block_cons_error (fuel + cases.length + 12) _ [] _ _ err hEndpoint,
     hProject'⟩
 
+/-- Selector-hit success projection for lowered native switches entered from
+    the standard empty-store switch state. This is the normal-result companion
+    to `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq`. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat)) (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hFresh : Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract) (nativeSwitchMarkedPrefixStateForId contract tx
+          storage observableSlots switchId) = .ok final)
+    (hStmtPreserves : ∀ stmt, stmt ∈ body →
+      Backends.nativeSwitchMatchedTempName switchId ∉ Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+          (EvmYul.UInt256.ofNat 1) stmt (some contract))
+    (hProject : projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .ok final ∧
+    projectResult tx storage initialEvents (.ok (final, [])) = nativeYul := by
+  refine ⟨?_, hProject⟩
+  exact exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel
+    fuel selector switchId cases defaultBody tag body contract tx storage
+    observableSlots final hSelector hFind hSelectorRange hTagsRange hFresh
+    hBody hStmtPreserves
+
 /-- Store-parametric selector-hit success projection for lowered native
     switches. The selected body may finish normally; callers provide the exact
     projection of that final state at the native result boundary. -/

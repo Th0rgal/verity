@@ -790,6 +790,7 @@ scope so the native path does not look more complete than it is:
    matching block-level package
    `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq`.
    Selector-hit normal-success projection is carried by
+   `exec_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq`,
    `exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq`
    and
    `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq`.
