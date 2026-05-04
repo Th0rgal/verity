@@ -1891,7 +1891,7 @@ theorem layer3_contract_preserves_semantics_native_of_generated_lowered_callDisp
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
     hNoReceive hFunctions hFuel
-    (nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_callDispatcher_agree
+    (nativeIRRuntimeAgreesWithEvmYulLean_of_generated_lowered_callDispatcher_agree
       hPrefixUnique hWF hExternalBodies hInternalBodies hNoFallback hNoReceive
       hLower hEnv hNativeCallDispatcher)
 
@@ -1941,7 +1941,7 @@ theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherBlock_
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
     hNoReceive hFunctions hFuel hPrefixUnique hExternalBodies hInternalBodies
     hLower hEnv
-    (nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree
+    (nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree
       hNativeDispatcherBlock)
 
 /-- Native Layer 3 generated-shape variant at raw lowered-dispatcher exec. -/
@@ -2033,7 +2033,7 @@ theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_p
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
     hNoReceive hFunctions (by simp [hFuel, Nat.succ_eq_add_one])
-    (nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree
+    (nativeIRRuntimeAgreesWithEvmYulLean_of_generated_lowered_dispatcherExec_positive_agree
       hPrefixUnique hWF hExternalBodies hInternalBodies hNoFallback
       hNoReceive hLower hEnv hNativeDispatcherExec)
 
@@ -2724,7 +2724,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherBlock_body
     hselector hNoWrap hvars hmemory htransient hreturn hparamErase
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hWF hNoFallback
     hNoReceive hFuel hLower hEnv
-    (nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree
+    (nativeCallDispatcherAgreesWithEvmYulLean_of_dispatcherBlock_agree
       hNativeDispatcherBlock)
 
 theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_body_closure
