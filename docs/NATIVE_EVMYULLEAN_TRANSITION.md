@@ -88,6 +88,11 @@ materializes pre-state storage for those slots.
   `selectedSwitchBody_hit`, and `selectedSwitchBody_miss`.
 - The native harness remains separate from the existing retargeting theorem, so
   the proof tree does not claim a theorem that is not yet proved.
+- The current `yulCodegen_preserves_semantics_evmYulLean` theorem still
+  composes through `yulCodegen_preserves_semantics_via_reference_oracle` before
+  rewriting the emitted runtime to the EVMYulLean backend executor. That theorem
+  gives an EVMYulLean-backed Yul target, but it is not yet a native
+  source-of-truth Layer 3 proof.
 
 ## Clean Target Architecture
 

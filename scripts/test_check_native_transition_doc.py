@@ -60,6 +60,17 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         errors = check.check_doc(text)
         self.assertTrue(any("overstates" in error for error in errors), errors)
 
+    def test_rejects_missing_reference_oracle_retarget_caveat(self) -> None:
+        text = check.DOC.read_text(encoding="utf-8").replace(
+            "`yulCodegen_preserves_semantics_via_reference_oracle`",
+            "`native_yulCodegen_preserves_semantics`",
+        )
+        errors = check.check_doc(text)
+        self.assertTrue(
+            any("yulCodegen_preserves_semantics_via_reference_oracle" in error for error in errors),
+            errors,
+        )
+
     def test_public_theorem_target_guard_accepts_current_transition_shape(self) -> None:
         errors = check.check_public_theorem_target(
             check.END_TO_END.read_text(encoding="utf-8"),
