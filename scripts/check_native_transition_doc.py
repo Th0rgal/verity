@@ -67,25 +67,20 @@ REQUIRED_SNIPPETS = (
     "EvmYul.Yul.callDispatcher",
     "observable storage slot set explicitly",
     "only materializes pre-state storage for those slots",
-    "layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge",
     "interpretYulRuntimeEvmYulLeanFuelWrapper",
     "interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel",
-    "interpretYulRuntimeWithBackendFuel",
     "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",
     "nativeResultsMatchOn",
     "nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper",
     "nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper",
     "nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper",
     "nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapperPositive",
-    "layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_bridge",
     "explicitly observable final-storage slots",
-    "full-storage-projection",
     "same explicit fuel",
     "default runtime fuel",
     "native public theorem pending",
     "not yet proved",
     "`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`",
-    "compatibility theorem",
     "`yulCodegen_preserves_semantics_via_reference_oracle`",
     "not yet a native source-of-truth Layer 3 proof",
     "#1741",
@@ -198,13 +193,9 @@ def check_public_theorem_target(
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match",
         "interpretYulRuntimeEvmYulLeanFuelWrapper fuel",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
-        "theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge",
         "theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge",
-        "theorem layer3_contract_preserves_semantics_native_of_generated_lowered_callDispatcher_bridge",
         "theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match",
-        "theorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
-        "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match",
         "theorem layer3_contract_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel ",
         "theorem layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel ",
@@ -300,7 +291,7 @@ def check_public_theorem_target(
                 "Compiler/Proofs/EndToEnd.lean must not reintroduce the "
                 "misleading positive dispatcher-exec compatibility alias "
                 f"`{forbidden_positive_alias.removeprefix('theorem ').strip()}`; "
-                "use the explicit `_positive_bridge` theorem name"
+                "use the explicit `_positive_match` theorem name"
             )
 
     for forbidden_simple_storage_bridge_surface in (
@@ -743,19 +734,16 @@ def check_reference_oracle_names(
             "`yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle`"
         )
 
-    if "theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge" not in normalized_end_to_end:
-        errors.append(
-            "Compiler/Proofs/EndToEnd.lean must name the current generic native "
-            "Layer-3 seam as "
-            "`layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge`"
-        )
-
-    if "theorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge" not in normalized_end_to_end:
-        errors.append(
-            "Compiler/Proofs/EndToEnd.lean must name the current supported "
-            "native EndToEnd seam as "
-            "`layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge`"
-        )
+    for removed_native_reference_alias in (
+        "theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge",
+        "theorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge",
+    ):
+        if removed_native_reference_alias in normalized_end_to_end:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must not reintroduce the removed "
+                "generic native reference-oracle/fuel-wrapper seam "
+                f"`{removed_native_reference_alias.removeprefix('theorem ')}`"
+            )
 
     return errors
 

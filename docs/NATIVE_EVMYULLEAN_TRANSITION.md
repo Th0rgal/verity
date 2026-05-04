@@ -42,21 +42,15 @@ materializes pre-state storage for those slots.
   native EVMYulLean logs, matching the observable shape expected by the current
   proof-side `YulResult`.
 - The EndToEnd layer now exposes the native-facing theorem seam
-  `layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge`.
+  `layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge`.
   Its conclusion targets `Native.interpretIRRuntimeNative` through
   `nativeResultsMatchOn`, comparing success, return value, events, and the
-  explicitly observable final-storage slots, but it still requires the explicit
-  `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper` obligation for the generated
-  runtime. That obligation is observable-slot and fuel-aligned with the native
-  run through `interpretYulRuntimeEvmYulLeanFuelWrapper` (the `.evmYulLean`
-  specialization of `interpretYulRuntimeWithBackendFuel`), and the theorem seam
-  currently requires that fuel to equal the interpreter proof stack's default
-  runtime fuel `sizeOf (Compiler.emitYul contract).runtimeCode + 1`, and
-  `layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge` delegates to
-  the explicit `_via_reference_oracle` theorem. This is the exact
-  remaining native-vs-interpreter equivalence theorem plus a named
-  full-storage-projection and fuel-parametric-preservation gap, not a completed
-  public flip.
+  explicitly observable final-storage slots, and it now consumes the direct
+  `nativeIRRuntimeMatchesIR` target instead of the older
+  reference-oracle/fuel-wrapper wrapper alias. This is still not a completed
+  public flip: the safe-body public Yul target remains the EVMYulLean fuel
+  wrapper, and the generated native fragment still needs the direct match proof
+  to become the public source-of-truth theorem.
 - The same module also exposes
   `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper`,
   `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper`,
@@ -66,17 +60,13 @@ materializes pre-state storage for those slots.
   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper_of_positive`,
   `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree`,
   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree`,
-  `layer3_contract_preserves_semantics_native_of_generated_lowered_callDispatcher_bridge`,
-  `layer3_contract_preserves_semantics_native_of_generated_dispatcherBlock_bridge`,
-  `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_bridge`,
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_bridge`,
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherBlock_bridge`, and
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_bridge`.
-  These derive the executable generated-fragment check from generated-code
-  shape facts and move the remaining proof obligation down to concrete native
-  lowering, selected-path environment validation, and projected native
-  dispatcher-block execution agreement with the fuel-aligned EVMYulLean fuel
-  wrapper.
+  `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`,
+  `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match`, and
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match`.
+  These direct match seams keep the remaining proof obligation at concrete
+  native lowering, selected-path environment validation, and raw positive
+  dispatcher-exec matching against IR execution.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with
@@ -108,13 +98,10 @@ materializes pre-state storage for those slots.
   `yulCodegen_preserves_semantics_evmYulLeanFuelWrapperDefaultFuel_via_reference_oracle` theorem
   gives an EVMYulLean-backed Yul target, but it is not yet a native
   source-of-truth Layer 3 proof.
-- The current generic native Layer 3 seam
-  `layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge`
-  and supported EndToEnd seam
-  `layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge`
-  are named to make that temporary dependency visible. Their compatibility
-  theorems delegate to the explicit names until the generic native proof no
-  longer goes through the reference-oracle retarget plus EVMYulLean fuel wrapper.
+- The older generic native reference-oracle/fuel-wrapper aliases have been
+  removed. The remaining native Layer 3 and supported EndToEnd seams consume
+  `nativeIRRuntimeMatchesIR` directly, making the generated native fragment's
+  direct match proof the visible blocker.
 
 ## Clean Target Architecture
 
@@ -766,51 +753,33 @@ scope so the native path does not look more complete than it is:
    The EndToEnd module now has a named native theorem seam:
 
    ```lean
-   layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge
+   layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
    ```
 
    It targets `Native.interpretIRRuntimeNative` directly, but only under:
 
    ```lean
-   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper fuel irContract tx initialState
+   nativeIRRuntimeMatchesIR fuel irContract tx initialState
      observableSlots
    ```
 
    The next theorem in that chain is:
 
    ```lean
-   layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_bridge
+   layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match
    ```
 
    It replaces the opaque bridge hypothesis with successful
    `lowerRuntimeContractNative`, successful
    `validateNativeRuntimeEnvironment`, and
-   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper` for the lowered native
-   contract, plus generated-code shape facts that discharge the executable
-   generated-fragment check. The higher
-   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherBlock_bridge`
-   and
-   `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_bridge`
-   wrappers remain available when callers have already proved the block-level
-   or `callDispatcher`-level obligation instead.
-   `nativeDispatcherBlockAgreesWithEvmYulLeanFuelWrapper` compares projected
-   `contractDispatcherBlockResult` execution with the EVMYulLean fuel wrapper;
-   it can in turn be discharged from
-   `nativeDispatcherExecAgreesWithEvmYulLeanFuelWrapper`, which targets raw
-   `contractDispatcherExecResult`. Positive-fuel generated dispatcher proofs
-   can also lift directly to `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper` through
-   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_generated_lowered_dispatcherExec_positive_agree`,
-   avoiding the older block and `callDispatcher` wrapper path.
-   The compiled supported path additionally has source-body-closure wrappers:
-   `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`,
-   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure`,
-   `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_body_closure`,
-   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherBlock_body_closure`,
-   and
-   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_body_closure`.
-   These variants derive the external no-`funcDef` generated-fragment witness
+   `nativeDispatcherExecMatchesIRPositive` for the lowered native contract, plus
+   generated-code shape facts that discharge the executable generated-fragment
+   check.
+   The compiled supported path has a direct source-body-closure wrapper:
+   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`.
+   This variant derives the external no-`funcDef` generated-fragment witness
    from source-level static-scalar parameter witnesses plus compiled statement-list
-   no-`funcDef` closure, leaving the native dispatcher agreement itself as the
+   no-`funcDef` closure, leaving the native dispatcher match itself as the
    remaining proof obligation.
    The concrete `simpleStorage_endToEnd_native_evmYulLean` theorem now uses the
    direct positive dispatcher-exec match wrapper, after its retrieve-hit,

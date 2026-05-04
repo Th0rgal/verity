@@ -235,7 +235,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("positive_bridge" in error for error in errors),
+            any("positive_match" in error for error in errors),
             errors,
         )
 
@@ -251,7 +251,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("positive_bridge" in error for error in errors),
+            any("positive_match" in error for error in errors),
             errors,
         )
 
@@ -474,10 +474,11 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_reference_oracle_names_guard_rejects_missing_explicit_native_layer3_seam(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge",
-            "theorem layer3_contract_preserves_semantics_native_reference_hidden",
+    def test_reference_oracle_names_guard_rejects_reintroduced_native_layer3_oracle_seam(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ntheorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge "
+            + ": True := by trivial\n"
         )
         errors = check.check_reference_oracle_names(
             end_to_end_text,
@@ -489,10 +490,11 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_reference_oracle_names_guard_rejects_missing_explicit_native_end_to_end_seam(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "theorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge",
-            "theorem layers2_3_ir_matches_native_evmYulLean_reference_hidden",
+    def test_reference_oracle_names_guard_rejects_reintroduced_native_end_to_end_oracle_seam(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ntheorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge "
+            + ": True := by trivial\n"
         )
         errors = check.check_reference_oracle_names(
             end_to_end_text,
