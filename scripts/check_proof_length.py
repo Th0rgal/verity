@@ -309,6 +309,12 @@ ALLOWLIST: set[str] = {
     # Thin EVMYulLean EndToEnd wrapper; signature carries explicit body-closure
     # witnesses and the proof mostly forwards existing Layer-3 hypotheses.
     "layer3_contract_preserves_semantics_evmYulLean",
+    # Native generated-fragment wrappers mirror the public native boundary
+    # surface; the long spans are explicit shape/lowering/agreement hypotheses,
+    # while the bodies delegate to smaller generated-fragment lemmas.
+    "layer3_contract_preserves_semantics_native_of_generated_lowered_callDispatcher_bridge",
+    "layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_bridge",
+    "layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_callDispatcher_bridge",
     # --- End-to-end proofs ---
     "simpleStorage_endToEnd",
     # Thin public wrapper; the scanner counts the trailing Phase 4 summary
