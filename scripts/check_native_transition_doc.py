@@ -320,14 +320,17 @@ def check_public_theorem_target(
                 f"`{forbidden_simple_storage_bridge_surface.strip()}`"
             )
 
-    for required_reference_oracle_seam in (
+    for forbidden_reference_oracle_seam in (
         "theorem layer3_contract_preserves_semantics_via_reference_oracle ",
+        "theorem layer3_contract_preserves_semantics_via_reference_oracle_with_function_bridge ",
+        "theorem layers2_3_ir_matches_yul_via_reference_oracle ",
         "theorem simpleStorage_endToEnd_via_reference_oracle ",
     ):
-        if required_reference_oracle_seam not in normalized_end_to_end:
+        if forbidden_reference_oracle_seam in normalized_end_to_end:
             errors.append(
-                "Compiler/Proofs/EndToEnd.lean must keep legacy Verity-backed "
-                f"entry points explicitly named `{required_reference_oracle_seam.strip()}`"
+                "Compiler/Proofs/EndToEnd.lean must not reintroduce the "
+                "legacy Verity-backed public entry point "
+                f"`{forbidden_reference_oracle_seam.strip()}`"
             )
 
     for forbidden_public_alias in (
@@ -697,12 +700,6 @@ def check_reference_oracle_names(
             "Compiler/Proofs/YulGeneration/Preservation.lean must keep the legacy "
             "Layer-3 oracle theorem explicitly named "
             "`yulCodegen_preserves_semantics_via_reference_oracle`"
-        )
-
-    if "yulCodegen_preserves_semantics_via_reference_oracle" not in normalized_end_to_end:
-        errors.append(
-            "Compiler/Proofs/EndToEnd.lean must call the legacy Layer-3 oracle "
-            "through `yulCodegen_preserves_semantics_via_reference_oracle`"
         )
 
     if "yulCodegen_preserves_semantics_via_reference_oracle" not in normalized_retarget:

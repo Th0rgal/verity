@@ -395,6 +395,21 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertEqual(errors, [])
 
+    def test_public_surface_guard_rejects_legacy_reference_oracle_end_to_end_wrapper(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ntheorem layer3_contract_preserves_semantics_via_reference_oracle : True := by trivial\n"
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("layer3_contract_preserves_semantics_via_reference_oracle" in error for error in errors),
+            errors,
+        )
+
     def test_reference_oracle_names_guard_rejects_bare_legacy_theorem_name(self) -> None:
         preservation_text = check.PRESERVATION.read_text(encoding="utf-8").replace(
             "theorem yulCodegen_preserves_semantics_via_reference_oracle",

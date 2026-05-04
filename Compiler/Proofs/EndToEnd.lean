@@ -707,72 +707,6 @@ theorem yulBody_from_state_eq_yulBody
   exact (interpretYulRuntime_eq_yulResultOfExec fn.body
     (YulTransaction.ofIR tx) state.storage state.events).symm
 
-/-! ## Layer 3 Contract-Level: IR → Yul (via runtime dispatch) -/
-
-/-- Reference-oracle Layer 3 contract-level preservation: an IR contract
-execution produces equivalent results under the historical Verity-backed Yul
-runtime dispatch. -/
-theorem layer3_contract_preserves_semantics_via_reference_oracle
-    (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
-    (hselector : tx.functionSelector < selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (hvars : initialState.vars = [])
-    (hmemory : initialState.memory = fun _ => 0)
-    (htransient : initialState.transientStorage = fun _ => 0)
-    (hreturn : initialState.returnValue = none)
-    (hparamErase : ∀ fn, fn ∈ contract.functions → paramLoadErasure fn tx (initialState.withTx tx))
-    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions → DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ contract.functions → yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions → HasSelectorDeadBridge fn.body)
-    (hLoopFree : ∀ fn, fn ∈ contract.functions →
-      yulStmtsLoopFree fn.body = true)
-    (hWF : ContractWF contract)
-    (hNoFallback : contract.fallbackEntrypoint = none)
-    (hNoReceive : contract.receiveEntrypoint = none) :
-    Compiler.Proofs.YulGeneration.resultsMatch
-      (interpretIR contract tx initialState)
-      (interpretYulFromIR contract tx initialState) := by
-  apply yulCodegen_preserves_semantics_via_reference_oracle contract tx initialState
-    hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector hHasSelectorDead
-    hLoopFree
-  · intro fn hmem
-    exact (yulBody_from_state_eq_yulBody fn tx (initialState.withTx tx)
-      rfl rfl rfl rfl rfl rfl rfl rfl rfl
-      (by simpa using hreturn)
-      (by simpa using hmemory)
-      (by simpa using htransient)
-      (by simpa using hvars)
-      (hparamErase fn hmem))
-
-/-- Reference-oracle version with the function-body simulation supplied
-explicitly: delegates directly to the historical `legacyExecYulFuel`-backed
-`yulCodegen_preserves_semantics_via_reference_oracle` theorem. -/
-theorem layer3_contract_preserves_semantics_via_reference_oracle_with_function_bridge
-    (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
-    (hselector : tx.functionSelector < selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (hWF : ContractWF contract)
-    (hNoFallback : contract.fallbackEntrypoint = none)
-    (hNoReceive : contract.receiveEntrypoint = none)
-    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
-      DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
-      yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
-      HasSelectorDeadBridge fn.body)
-    (hLoopFree : ∀ fn, fn ∈ contract.functions →
-      yulStmtsLoopFree fn.body = true)
-    (hbody : ∀ fn, fn ∈ contract.functions →
-      Compiler.Proofs.YulGeneration.resultsMatch
-        (execIRFunction fn tx.args (initialState.withTx tx))
-        (interpretYulBody fn tx (initialState.withTx tx))) :
-    Compiler.Proofs.YulGeneration.resultsMatch
-      (interpretIR contract tx initialState)
-      (interpretYulFromIR contract tx initialState) :=
-  yulCodegen_preserves_semantics_via_reference_oracle contract tx initialState
-    hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe hNoHasSelector hHasSelectorDead
-    hLoopFree hbody
-
 /-! ## Layer 3 Contract-Level: IR → EVMYulLean-backed Yul -/
 
 /-- Lower-level Layer 3 contract-level preservation targeting the
@@ -915,40 +849,6 @@ theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_p
     hNoReceive hLower hEnv hNativeDispatcherExec
 
 /-! ## Layers 2+3 Composition -/
-
-/-- Reference-oracle end-to-end wrapper: given a successfully compiled
-contract, IR execution matches the historical Verity-backed Yul execution
-target. The EVMYulLean-backed theorem below is the authoritative safe-body
-target after the Phase 4 retarget. -/
-theorem layers2_3_ir_matches_yul_via_reference_oracle
-    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
-    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
-    (_hCompile : CompilationModel.compile spec selectors = .ok irContract)
-    (hselector : tx.functionSelector < selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (hvars : initialState.vars = [])
-    (hmemory : initialState.memory = fun _ => 0)
-    (htransient : initialState.transientStorage = fun _ => 0)
-    (hreturn : initialState.returnValue = none)
-    (hparamErase : ∀ fn, fn ∈ irContract.functions →
-      paramLoadErasure fn tx (initialState.withTx tx))
-    (hdispatchGuardSafe : ∀ fn, fn ∈ irContract.functions →
-      DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ irContract.functions →
-      yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ irContract.functions →
-      HasSelectorDeadBridge fn.body)
-    (hLoopFree : ∀ fn, fn ∈ irContract.functions →
-      yulStmtsLoopFree fn.body = true)
-    (hWF : ContractWF irContract)
-    (hNoFallback : irContract.fallbackEntrypoint = none)
-    (hNoReceive : irContract.receiveEntrypoint = none) :
-    Compiler.Proofs.YulGeneration.resultsMatch
-      (interpretIR irContract tx initialState)
-      (interpretYulFromIR irContract tx initialState) :=
-  layer3_contract_preserves_semantics_via_reference_oracle irContract tx initialState
-    hselector hNoWrap hvars hmemory htransient hreturn hparamErase hdispatchGuardSafe hNoHasSelector
-    hHasSelectorDead hLoopFree hWF hNoFallback hNoReceive
 
 /-- End-to-end bridge-witness variant: given a successfully compiled contract,
 IR execution matches EVMYulLean-backed Yul execution under explicit
@@ -1264,33 +1164,6 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
     hCompile hSupported hStaticParams hSafeBodies hLower hEnv hNativeDispatcherExec
 
 /-! ## Concrete Instantiation: SimpleStorage -/
-
-/-- Reference-oracle SimpleStorage end-to-end theorem: compile → IR →
-historical Verity-backed Yul preserves semantics. -/
-theorem simpleStorage_endToEnd_via_reference_oracle
-    (tx : IRTransaction) (initialState : IRState)
-    (hselector : tx.functionSelector < selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (hvars : initialState.vars = [])
-    (hmemory : initialState.memory = fun _ => 0)
-    (htransient : initialState.transientStorage = fun _ => 0)
-    (hreturn : initialState.returnValue = none)
-    (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
-      DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ simpleStorageIRContract.functions →
-      yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
-      HasSelectorDeadBridge fn.body)
-    (hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
-      paramLoadErasure fn tx (initialState.withTx tx)) :
-    Compiler.Proofs.YulGeneration.resultsMatch
-      (interpretIR simpleStorageIRContract tx initialState)
-      (interpretYulFromIR simpleStorageIRContract tx initialState) :=
-  layer3_contract_preserves_semantics_via_reference_oracle simpleStorageIRContract tx initialState
-    hselector hNoWrap hvars hmemory htransient hreturn hparamErase hdispatchGuardSafe hNoHasSelector
-    hHasSelectorDead
-    (by intro fn hmem; simp [simpleStorageIRContract] at hmem ⊢; rcases hmem with rfl | rfl <;> rfl)
-    (by intro s hs; simp [simpleStorageIRContract] at hs) rfl rfl
 
 /-- The concrete SimpleStorage IR fixture uses only EVMYulLean-bridged Yul
 shapes: calldata parameter loading, one literal-slot storage write, one memory
@@ -5345,9 +5218,8 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   derives its raw body witnesses from supported source bodies.
 - This public EndToEnd module now has a safe-body wrapper targeting
   `interpretYulRuntimeEvmYulLeanFuelWrapperDefaultFuel` without raw `BridgedStmts`
-  body hypotheses; the historical
-  `layers2_3_ir_matches_yul_via_reference_oracle` wrapper remains available
-  for the Verity-backed `interpretYulFromIR` target.
+  body hypotheses; the historical Verity-backed public `via_reference_oracle`
+  EndToEnd wrappers have been removed.
 - Scalar and static-scalar calldata parameter-loading prologues are now known
   to satisfy `BridgedStmts`.
 - Scalar source expression leaves and the pure arithmetic/comparison/bit-operation
