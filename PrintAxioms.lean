@@ -2506,11 +2506,16 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storage_fragment_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storage_fragment_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_storage_fragment_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_noFuncDefs_of_forall  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_storage_fragment_noFuncDefs
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_stop_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_stop_noFuncDefs  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_return_external_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_return_external_noFuncDefs  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_terminator_external_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_terminator_external_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_terminator_external_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_terminator_external_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_return_internal_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_return_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_return_bridged
@@ -3987,4 +3992,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3811 theorems/lemmas (2858 public, 953 private, 0 sorry'd)
+-- Total: 3816 theorems/lemmas (2860 public, 956 private, 0 sorry'd)
