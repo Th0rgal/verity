@@ -7442,6 +7442,32 @@ theorem NativeStmtPreservesWord_switch_of_cond_preserves
                       hDefaultExec)
                     hExec
 
+theorem NativeStmtPreservesWord_switch_of_cond_preserves_and_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier) (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (cases : List (EvmYul.Literal × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond : NativeExprPreservesWord name value cond codeOverride)
+    (hCasesFresh : ∀ tag body, (tag, body) ∈ cases →
+      name ∉ Backends.nativeStmtsWriteNames body)
+    (hDefaultFresh : name ∉ Backends.nativeStmtsWriteNames defaultBody)
+    (hPreserves :
+      ∀ stmt, name ∉ Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeStmtPreservesWord name value (.Switch cond cases defaultBody)
+      codeOverride :=
+  NativeStmtPreservesWord_switch_of_cond_preserves name value cond cases
+    defaultBody codeOverride hCond
+    (by
+      intro tag body hMem
+      exact NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+        name value body codeOverride (hCasesFresh tag body hMem)
+        (by intro stmt _ hFresh; exact hPreserves stmt hFresh))
+    (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+      name value defaultBody codeOverride hDefaultFresh
+      (by intro stmt _ hFresh; exact hPreserves stmt hFresh))
+
 theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
     (name target : EvmYul.Identifier)
     (expected : EvmYul.Literal)
