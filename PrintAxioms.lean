@@ -783,9 +783,11 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.execYulStmts_paramState_eq_emptyVars
 -- #print axioms Compiler.Proofs.EndToEnd.internalFunctions_bridged_of_contractWF  -- private
 #print axioms Compiler.Proofs.EndToEnd.compileFunctionSpec_noFuncDefs_of_static_params_and_body
+#print axioms Compiler.Proofs.EndToEnd.compileFunctionSpec_noFuncDefs_of_safe_static_params
 #print axioms Compiler.Proofs.EndToEnd.compileFunctionSpec_bridged_of_safe_static_params
 #print axioms Compiler.Proofs.EndToEnd.compiledExternalFunctions_bridged_of_safe_static
 #print axioms Compiler.Proofs.EndToEnd.compiledExternalFunctions_noFuncDefs_of_static_params_and_body
+#print axioms Compiler.Proofs.EndToEnd.compiledExternalFunctions_noFuncDefs_of_safe_static
 #print axioms Compiler.Proofs.EndToEnd.yulBody_from_state_eq_yulBody
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_via_reference_oracle
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_via_reference_oracle_with_function_bridge
@@ -808,6 +810,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported
 #print axioms Compiler.Proofs.EndToEnd.generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
 #print axioms Compiler.Proofs.EndToEnd.generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+#print axioms Compiler.Proofs.EndToEnd.generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
 #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithEvmYulLean_of_compiled_generated_lowered_dispatcherExec_positive_agree
 #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
@@ -4167,4 +4170,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 3991 theorems/lemmas (3003 public, 988 private, 0 sorry'd)
+-- Total: 3994 theorems/lemmas (3006 public, 988 private, 0 sorry'd)

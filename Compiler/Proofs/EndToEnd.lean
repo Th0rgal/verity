@@ -1366,6 +1366,36 @@ theorem compileFunctionSpec_noFuncDefs_of_static_params_and_body
       spec.params hStaticParams,
     hBodyNoFuncDefs bodyStmts hbody]
 
+theorem compileFunctionSpec_noFuncDefs_of_safe_static_params
+    (fields : List CompilationModel.Field)
+    (events : List CompilationModel.EventDef)
+    (errors : List CompilationModel.ErrorDef)
+    (selector : Nat) (spec : CompilationModel.FunctionSpec)
+    (irFn : IRFunction)
+    (hStaticParams :
+      Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams spec.params)
+    (hSafeBody :
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        fields errors .calldata [] false spec.body)
+    (hcompile :
+      CompilationModel.compileFunctionSpec fields events errors [] selector spec =
+        Except.ok irFn) :
+    Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
+      irFn.body = false := by
+  rcases Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_components
+      fields events errors selector spec irFn hcompile with
+    ⟨returns, bodyStmts, _hvalidate, _hreturns, hbody, hirFn⟩
+  subst irFn
+  change
+    Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
+      (CompilationModel.genParamLoads spec.params ++ bodyStmts) = false
+  simp [
+    Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_noFuncDefs
+      spec.params hStaticParams,
+    Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_noFuncDefs
+      fields events errors .calldata [] false spec.body
+      (spec.params.map (·.name)) hSafeBody hbody]
+
 /-- Convert the new source-level safe-body closure theorem into the low-level
 `BridgedStmts fn.body` witness still consumed by the EVMYulLean runtime
 retargeting theorem. This is the key local bridge from compiler-produced
@@ -1488,6 +1518,45 @@ theorem compiledExternalFunctions_noFuncDefs_of_static_params_and_body
       · exact ih
           (fun next hnext => hStatic next (by simp [hnext]))
           (fun next hnext => hBody next (by simp [hnext]))
+          target hmemTail
+
+theorem compiledExternalFunctions_noFuncDefs_of_safe_static
+    (fields : List CompilationModel.Field)
+    (events : List CompilationModel.EventDef)
+    (errors : List CompilationModel.ErrorDef) :
+    ∀ {entries : List (CompilationModel.FunctionSpec × Nat)}
+      {irFns : List IRFunction},
+      List.Forall₂
+        (fun entry irFn =>
+          CompilationModel.compileFunctionSpec fields events errors
+            [] entry.2 entry.1 = Except.ok irFn)
+        entries irFns →
+      (∀ entry, entry ∈ entries →
+        Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams
+          entry.1.params) →
+      (∀ entry, entry ∈ entries →
+        Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+          fields errors .calldata [] false entry.1.body) →
+      ∀ irFn, irFn ∈ irFns →
+        Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
+          irFn.body = false := by
+  intro entries irFns hcompiled hStatic hSafe
+  induction hcompiled with
+  | nil =>
+      intro irFn hmem
+      cases hmem
+  | @cons entry irFn entries irFns hhead htail ih =>
+      intro target hmem
+      simp only [List.mem_cons] at hmem
+      rcases hmem with rfl | hmemTail
+      · exact compileFunctionSpec_noFuncDefs_of_safe_static_params
+          fields events errors entry.2 entry.1 target
+          (hStatic entry (by simp))
+          (hSafe entry (by simp))
+          hhead
+      · exact ih
+          (fun next hnext => hStatic next (by simp [hnext]))
+          (fun next hnext => hSafe next (by simp [hnext]))
           target hmemTail
 
 /-- Bridging: the two Yul execution entry points produce the same result
@@ -2318,6 +2387,25 @@ theorem generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_supported
     (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
       spec selectors hSupported irContract hCompile)
     hStaticParams hBodyNoFuncDefs
+
+theorem generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body) :
+    ∀ fn, fn ∈ irContract.functions →
+      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
+        fn.body = false :=
+  compiledExternalFunctions_noFuncDefs_of_safe_static
+    spec.fields spec.events spec.errors
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
+      spec selectors hSupported irContract hCompile)
+    hStaticParams hSafeBodies
 
 /-- Supported compiler-produced positive-fuel bridge at raw lowered-dispatcher
 exec. Generated-runtime shape facts discharge the native fragment predicate. -/
