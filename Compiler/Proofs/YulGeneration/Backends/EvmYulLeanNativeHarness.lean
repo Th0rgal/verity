@@ -1,5 +1,6 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
+import Compiler.Proofs.YulGeneration.Codegen
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 import Compiler.Codegen
 import EvmYul.Yul.Interpreter
@@ -433,6 +434,54 @@ theorem buildSwitch_noFuncDefs_noFallback_noReceive
     Compiler.CodegenCommon.callvalueGuard, yulStmtContainsFuncDef,
     yulStmtsContainFuncDef, yulSwitchCasesContainFuncDef] using hCases
 
+/-- Generated-dispatcher selector hit specialized to `IRFunction` lookup.
+
+This composes the source `buildSwitch` case lookup theorem with native switch
+case lowering, yielding the lowered native body selected by the same function
+selector that `interpretIR` found. -/
+theorem lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function
+    (reservedNames : List String) (nextSwitchId final selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId
+      (switchCases funcs) = .ok (cases', final))
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn) :
+    ∃ body' bodyStart bodyEnd,
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) := by
+  have hCase :
+      (switchCases funcs).find? (fun entry => entry.1 == selector) =
+        some (selector, switchCaseBody fn) := by
+    simpa using
+      (Compiler.Proofs.YulGeneration.find_switch_case_of_find_function_eq_selector
+        funcs selector fn hFind)
+  exact Backends.lowerSwitchCasesNativeWithSwitchIds_find?_some
+    reservedNames nextSwitchId final selector selector (switchCaseBody fn)
+    (switchCases funcs) cases' hLower hCase
+
+/-- Generated-dispatcher selector miss specialized to `IRFunction` lookup.
+
+If `interpretIR` finds no function for the selector, native lowering preserves
+that miss on the generated `buildSwitch` case list. -/
+theorem lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function
+    (reservedNames : List String) (nextSwitchId final selector : Nat)
+    (funcs : List IRFunction)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId
+      (switchCases funcs) = .ok (cases', final))
+    (hFind : funcs.find? (fun f => f.selector == selector) = none) :
+    cases'.find? (fun entry => entry.1 == selector) = none := by
+  have hCase :
+      (switchCases funcs).find? (fun entry => entry.1 == selector) = none := by
+    simpa using
+      (Compiler.Proofs.YulGeneration.find_switch_case_of_find_function_none
+        funcs selector hFind)
+  exact Backends.lowerSwitchCasesNativeWithSwitchIds_find?_none
+    reservedNames nextSwitchId final selector (switchCases funcs) cases'
+    hLower hCase
+
 theorem generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
     (funcs : List IRFunction)
     (hBodies : ∀ fn, fn ∈ funcs → yulStmtsContainFuncDef fn.body = false) :
@@ -692,12 +741,23 @@ theorem generatedRuntimeNativeFragment_emitYul_runtimeCode_noFallback_noReceive
     (hNoFallback : contract.fallbackEntrypoint = none)
     (hNoReceive : contract.receiveEntrypoint = none) :
     generatedRuntimeNativeFragment (Compiler.emitYul contract).runtimeCode = true := by
-  simp [generatedRuntimeNativeFragment,
-    generatedRuntimeFunctionNamesUnique_emitYul_runtimeCode contract hPrefixUnique,
+  have hNames := generatedRuntimeFunctionNamesUnique_emitYul_runtimeCode
+    contract hPrefixUnique
+  have hDispatcher :=
     generatedRuntimeDispatcherHasNoFuncDefs_emitYul_runtimeCode_noFallback_noReceive
-      contract hInternals hExternalBodies hNoFallback hNoReceive,
-    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_emitYul_runtimeCode
-      contract hInternalBodies]
+      contract hInternals hExternalBodies hNoFallback hNoReceive
+  have hBodies := generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_emitYul_runtimeCode
+    contract hInternalBodies
+  have hNames' :
+      generatedRuntimeFunctionNamesUnique (Compiler.runtimeCode contract) = true := by
+    simpa using hNames
+  have hDispatcher' :
+      generatedRuntimeDispatcherHasNoFuncDefs (Compiler.runtimeCode contract) = true := by
+    simpa using hDispatcher
+  have hBodies' :
+      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs (Compiler.runtimeCode contract) = true := by
+    simpa using hBodies
+  simp [generatedRuntimeNativeFragment, hNames', hDispatcher', hBodies']
 
 def unsupportedGeneratedRuntimeNativeFragmentError : AdapterError :=
   "native EVMYulLean generated runtime fragment check failed"

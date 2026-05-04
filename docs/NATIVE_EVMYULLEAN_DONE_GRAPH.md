@@ -58,7 +58,11 @@ N8 public Layer 3 theorem flip
 - **Urgency**: P0
 - **Depends on**: none
 - **Blocks**: N1, N3, N4, N5, N6
-- **Status**: partially implicit in existing lowering/proof modules.
+- **Status**: partially implicit in existing lowering/proof modules. Generated
+  dispatcher selector lookup now has native-lowering specializations
+  `lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function` and
+  `lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function`, bridging
+  `IRFunction` selector hits and misses to lowered native case lookup facts.
 - **Definition of done**:
   - The compiler-emitted runtime Yul fragment is explicitly characterized.
   - Allowed statements, expressions, builtins, helper functions, dispatcher

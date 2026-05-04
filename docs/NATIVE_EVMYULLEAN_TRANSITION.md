@@ -315,7 +315,12 @@ scope so the native path does not look more complete than it is:
   `lowerSwitchCasesNativeWithSwitchIds_find?_some` and
   `lowerSwitchCasesNativeWithSwitchIds_find?_none`, proving that native case
   lowering preserves the source switch selector lookup result while exposing
-  the switch-temp counter interval for the selected lowered body. The
+  the switch-temp counter interval for the selected lowered body. The native
+  harness lifts those generic lookup facts to generated dispatcher function
+  lookup with `lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function`
+  and `lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function`, so an
+  `IRFunction` selector hit or miss now produces the corresponding lowered
+  native case lookup fact directly. The
   remaining native dispatcher proof starts after that complete lazy-switch
   bridge, at proving `NativeBlockPreservesWord` for selected/default lowered
   bodies and threading the initialized prefix state plus the lowering lookup
@@ -680,6 +685,10 @@ scope so the native path does not look more complete than it is:
    `exec_nativeSwitchCaseIfs_find_hit_fuel`, and
    `exec_nativeSwitchCaseIfs_find_none_fuel` for selector-lookup-driven case
    chain execution,
+   `lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function` and
+   `lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function` for
+   generated dispatcher function-lookup facts lifted through native case
+   lowering,
    `exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel` and
    `exec_nativeSwitchDefaultIf_matched_fuel` for optional generated defaults,
    `exec_block_append_ok`,
