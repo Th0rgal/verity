@@ -207,6 +207,31 @@ theorem nativeIRRuntimeAgreesWithEvmYulLean_of_ok_agree
     nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx state observableSlots :=
   nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_ok_agree hNative hAgree
 
+/-- Intro form for the native/EVMYulLean bridge from a native-vs-IR observable
+preservation fact.
+
+This packages the next proof direction: if native execution succeeds, the
+current EVMYulLean fuel-wrapper theorem still matches IR, and native execution
+matches IR on the observable result surface, then the native bridge obligation
+follows. -/
+theorem nativeIRRuntimeAgreesWithEvmYulLean_of_ok_nativeResultsMatchOn
+    {fuel : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat} {native : YulResult}
+    (hNative :
+      Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel contract tx state observableSlots = .ok native)
+    (hOracle :
+      Compiler.Proofs.YulGeneration.resultsMatch
+        (interpretIR contract tx state)
+        (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeEvmYulLeanFuelWrapper fuel
+          (Compiler.emitYul contract).runtimeCode
+          (YulTransaction.ofIR tx) state.storage state.events))
+    (hNativeMatch :
+      nativeResultsMatchOn observableSlots (interpretIR contract tx state) (.ok native)) :
+    nativeIRRuntimeAgreesWithEvmYulLean fuel contract tx state observableSlots :=
+  nativeIRRuntimeAgreesWithEvmYulLean_of_ok_agree hNative
+    (yulResultsAgreeOn_of_resultsMatch_of_nativeResultsMatchOn hOracle hNativeMatch)
+
 /-- Concrete native execution agreement target after Verity runtime Yul has
 successfully lowered to an EVMYulLean contract.
 

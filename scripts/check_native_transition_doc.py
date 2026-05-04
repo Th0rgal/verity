@@ -209,6 +209,7 @@ def check_public_theorem_target(
         "theorem nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper_of_dispatcherBlock_agree",
         "theorem nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper_of_lowered_callDispatcher_agree",
         "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_lowered_callDispatcher_agree",
+        "theorem nativeIRRuntimeAgreesWithEvmYulLean_of_ok_nativeResultsMatchOn",
         "interpretYulRuntimeEvmYulLeanFuelWrapper fuel",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
         "theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge",
