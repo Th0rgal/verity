@@ -905,7 +905,9 @@ scope so the native path does not look more complete than it is:
    The selector-miss revert arm has been moved first through
    `simpleStorageNativeSelectorMissMatchBridge_proved`, and the retrieve-hit
    arm now has the direct native-vs-IR proof
-   `simpleStorageNativeRetrieveHitMatchBridge_proved`.
+   `simpleStorageNativeRetrieveHitMatchBridge_proved`. The store-hit arm is
+   closed by `simpleStorageNativeStoreHitMatchBridge_proved`, which covers both
+   the short-calldata revert and argument-present storage update paths.
 
 ## Cleanup After the Flip
 

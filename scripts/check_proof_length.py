@@ -365,6 +365,11 @@ ALLOWLIST: set[str] = {
     # EVMYulLean fuel-wrapper agreement. Keeping it explicit makes the
     # compatibility dependency visible until the old bridge is deleted.
     "simpleStorageNativeRetrieveHitMatchBridge_proved",
+    # Direct native-vs-IR store-hit closure: it intentionally keeps the
+    # short-calldata revert and argument-present storage-update branches in one
+    # proof so the direct case split mirrors `simpleStorageNativeStoreHitBridge_proved`
+    # until the compatibility bridge is removed.
+    "simpleStorageNativeStoreHitMatchBridge_proved",
     # Phase 3 selector-miss bridge closure: composes the closed-form
     # selector-miss IR result, native revert endpoint, and Layer-3 agreement
     # under the public theorem hypotheses. Splitting would create single-use

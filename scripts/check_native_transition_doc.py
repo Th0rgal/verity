@@ -234,6 +234,7 @@ def check_public_theorem_target(
         "theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match",
         "theorem simpleStorageNativeCallDispatcherMatchBridge_of_per_case",
         "theorem simpleStorageNativeRetrieveHitMatchBridge_proved",
+        "theorem simpleStorageNativeStoreHitMatchBridge_proved",
         "theorem simpleStorageNativeSelectorMissMatchBridge_proved",
         "theorem simpleStorage_endToEnd ",
     ):
