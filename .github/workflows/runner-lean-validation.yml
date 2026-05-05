@@ -173,9 +173,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang lld ccache libc++-dev libc++abi-dev libgmp-dev libuv1-dev
 
-      - name: Setup x64 solc
+      - name: Setup x64 solc for validation
         if: inputs.include_compiler_core && runner.arch == 'X64'
-        uses: ./.github/actions/setup-solc
+        shell: bash
+        run: |
+          if command -v solc >/dev/null 2>&1; then
+            solc --version
+            exit 0
+          fi
+          tmp_solc="${RUNNER_TEMP}/solc-${SOLC_VERSION}"
+          curl -sSfL "$SOLC_URL" -o "$tmp_solc"
+          echo "${SOLC_SHA256}  ${tmp_solc}" | sha256sum -c -
+          sudo install -m 0755 "$tmp_solc" /usr/local/bin/solc
+          solc --version
 
       - name: Run compiler-core CI subset
         if: inputs.include_compiler_core
