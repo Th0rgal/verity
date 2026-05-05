@@ -13,8 +13,9 @@ Proves that each IR statement type executes equivalently in Yul when states
 are aligned. Uses `mutual` recursion between `conditional_equiv` and
 `all_stmts_equiv` to handle the circular dependency.
 
-Individual statement proofs compose via `execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv`
-(Equivalence.lean) to complete the `hbody` hypothesis in `Preservation.lean`.
+Individual statement proofs feed the file-local sequence/function lifting
+helpers in `Equivalence.lean`; the exported result here remains the
+statement-level legacy equivalence theorem `all_stmts_equiv`.
 -/
 
 /-! ### Expression Equivalence

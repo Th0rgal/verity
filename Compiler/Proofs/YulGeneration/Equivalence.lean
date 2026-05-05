@@ -135,7 +135,7 @@ noncomputable def interpretYulBodyFromState
   let yulRollback := yulStateOfIR selector rollback
   yulResultOfExecWithRollback yulRollback (execYulStmts yulState fn.body)
 
-theorem resultsMatch_of_execResultsAligned
+private theorem resultsMatch_of_execResultsAligned
     (selector : Nat) (rollbackIR : IRState) (rollbackYul : YulState)
     (hAligned : statesAligned selector rollbackIR rollbackYul) :
     ∀ irExec yulExec,
@@ -194,7 +194,7 @@ bodies. They do not assume any specific instruction equivalence proof;
 instead, they require it as a parameter and then compose it.
 -/
 
-theorem statesAligned_refl (selector : Nat) (state : IRState) :
+private theorem statesAligned_refl (selector : Nat) (state : IRState) :
     statesAligned selector state (yulStateOfIR selector state) := by
   rfl
 
@@ -262,7 +262,7 @@ private theorem stmt_align_contra
   apply hImpossible
   simpa [hIR, hYul] using hStmt
 
-def ir_yul_function_equiv_fuel_goal
+private def ir_yul_function_equiv_fuel_goal
     (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState) : Prop :=
   resultsMatch
     (execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState)
@@ -281,7 +281,7 @@ later proofs can specialize to the compiler-chosen fuel without re-proving the
 composition logic.
 -/
 
-theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
+private theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
         execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
@@ -347,7 +347,7 @@ theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
               | «stop» y' =>
                   exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
 
-theorem execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv
+private theorem execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
         execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
@@ -362,7 +362,7 @@ theorem execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv
       selector (sizeOf stmts + 1) stmts irState yulState hAligned
   simpa [execYulStmts] using hFuel
 
-theorem execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv
+private theorem execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
         execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
@@ -390,7 +390,7 @@ theorem execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv
     (resultsMatch_of_execResultsAligned selector initialState
       (yulStateOfIR selector initialState) hRollback _ _ hExec)
 
-theorem ir_yul_function_equiv_fuel_goal_of_stmt_equiv
+private theorem ir_yul_function_equiv_fuel_goal_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
         execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
@@ -401,7 +401,7 @@ theorem ir_yul_function_equiv_fuel_goal_of_stmt_equiv
     (execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv stmt_equiv
       selector fn args initialState)
 
-theorem ir_yul_function_equiv_from_state_of_fuel_goal
+private theorem ir_yul_function_equiv_from_state_of_fuel_goal
     (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState)
     (hFuel :
       execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState =
@@ -416,7 +416,7 @@ theorem ir_yul_function_equiv_from_state_of_fuel_goal
         initialState) := by
   simpa [ir_yul_function_equiv_fuel_goal, hFuel] using hFuelGoal
 
-theorem ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
+private theorem ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
     (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState)
     (hAdequacy : execIRFunctionFuel_adequate_goal fn args initialState)
     (hFuelGoal : ir_yul_function_equiv_fuel_goal fn selector args initialState) :
@@ -431,7 +431,7 @@ theorem ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
   · simpa [execIRFunctionFuel_adequate_goal] using hAdequacy
   · exact hFuelGoal
 
-theorem ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
+private theorem ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
         execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState)
@@ -457,7 +457,7 @@ Since `execIRFunctionFuel` and `execIRFunction` are definitionally equal
 (fuel adequacy is `rfl`), the adequacy hypothesis is always trivially
 dischargeable. This theorem composes `stmt_equiv` with the internal
 adequacy proof, eliminating the need for callers to supply it. -/
-theorem ir_yul_function_equiv_from_state_of_stmt_equiv
+private theorem ir_yul_function_equiv_from_state_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
         execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState)
