@@ -224,6 +224,8 @@ def check_public_theorem_target(
         "theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match",
         "def nativeIRRuntimeMatchesIR",
         "theorem nativeDispatcherExecMatchesIRPositive_of_project_eq_match",
+        "theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match",
+        "theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match",

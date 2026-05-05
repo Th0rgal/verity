@@ -149,7 +149,10 @@ N8 public Layer 3 theorem flip
   The final direct dispatcher-match surface also has the endpoint-agnostic
   `nativeDispatcherExecMatchesIRPositive_of_project_eq_match`, which lets a
   generated runtime proof discharge the positive native-vs-IR target from one
-  projected native `YulResult` equality plus the observable IR match.
+  projected native `YulResult` equality plus the observable IR match. The
+  corresponding runtime lifts are named by
+  `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match` and
+  `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match`.
 - **Definition of done**:
   - Projection lemmas cover every native halt/error/result used by generated
     runtime execution.

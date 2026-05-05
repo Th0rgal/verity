@@ -105,6 +105,9 @@ materializes pre-state storage for those slots.
   remaining generated-dispatch proof a single projected-result introduction
   form, so endpoint-specific native success/halt/error splits are only needed
   when a proof needs endpoint-specific facts.
+- `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match` and
+  `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match`
+  lift that projected-result package through the native runtime harness.
 
 ## Clean Target Architecture
 

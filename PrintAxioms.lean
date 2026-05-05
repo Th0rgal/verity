@@ -3889,6 +3889,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive_of_exec_ok_match
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_match
@@ -4188,4 +4190,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4012 theorems/lemmas (3024 public, 988 private, 0 sorry'd)
+-- Total: 4014 theorems/lemmas (3026 public, 988 private, 0 sorry'd)
