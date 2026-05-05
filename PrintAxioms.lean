@@ -4409,9 +4409,9 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/Equivalence.lean
 -- #print axioms Compiler.Proofs.YulGeneration.resultsMatch_of_execResultsAligned  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.statesAligned_refl  -- private
-#print axioms Compiler.Proofs.YulGeneration.execYulStmtsFuel_nil
-#print axioms Compiler.Proofs.YulGeneration.execYulStmtsFuel_cons
-#print axioms Compiler.Proofs.YulGeneration.execYulStmtFuel_for
+-- #print axioms Compiler.Proofs.YulGeneration.execYulStmtsFuel_nil  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.execYulStmtsFuel_cons  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.execYulStmtFuel_for  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.stmt_align_contra  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv  -- private
@@ -4447,4 +4447,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4253 theorems/lemmas (2872 public, 1381 private, 0 sorry'd)
+-- Total: 4253 theorems/lemmas (2869 public, 1384 private, 0 sorry'd)

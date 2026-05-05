@@ -18,6 +18,35 @@ helpers in `Equivalence.lean`; the statement-level legacy equivalence theorem
 `all_stmts_equiv` remains file-local transition evidence.
 -/
 
+private theorem execYulStmtsFuel_cons
+    (fuel : Nat) (state : YulState) (stmt : YulStmt) (rest : List YulStmt) :
+    execYulStmtsFuel (Nat.succ fuel) state (stmt :: rest) =
+      match execYulStmtFuel fuel state stmt with
+      | .continue s' => execYulStmtsFuel fuel s' rest
+      | .return v s => .return v s
+      | .stop s => .stop s
+      | .revert s => .revert s := by
+  rfl
+
+private theorem execYulStmtFuel_for
+    (fuel : Nat) (state : YulState) (init : List YulStmt) (cond : YulExpr) (post body : List YulStmt) :
+    execYulStmtFuel (Nat.succ fuel) state (YulStmt.for_ init cond post body) =
+      match execYulStmtsFuel fuel state init with
+      | .continue s' =>
+          match evalYulExpr s' cond with
+          | some v =>
+              if v = 0 then .continue s'
+              else
+                match execYulStmtsFuel fuel s' body with
+                | .continue s'' =>
+                    match execYulStmtsFuel fuel s'' post with
+                    | .continue s''' => execYulStmtFuel fuel s''' (.for_ [] cond post body)
+                    | other => other
+                | other => other
+          | none => .revert s'
+      | other => other := by
+  rfl
+
 /-! ### Expression Equivalence
 
 IR and Yul expression evaluators are total and structurally identical,

@@ -156,11 +156,11 @@ fuel before executing the first statement. They are intended as building
 blocks for the generic sequence equivalence proof.
 -/
 
-theorem execYulStmtsFuel_nil (fuel : Nat) (state : YulState) :
+private theorem execYulStmtsFuel_nil (fuel : Nat) (state : YulState) :
     execYulStmtsFuel fuel state [] = .continue state := by
   cases fuel <;> rfl
 
-theorem execYulStmtsFuel_cons
+private theorem execYulStmtsFuel_cons
     (fuel : Nat) (state : YulState) (stmt : YulStmt) (rest : List YulStmt) :
     execYulStmtsFuel (Nat.succ fuel) state (stmt :: rest) =
       match execYulStmtFuel fuel state stmt with
@@ -170,7 +170,7 @@ theorem execYulStmtsFuel_cons
       | .revert s => .revert s := by
   rfl
 
-theorem execYulStmtFuel_for
+private theorem execYulStmtFuel_for
     (fuel : Nat) (state : YulState) (init : List YulStmt) (cond : YulExpr) (post body : List YulStmt) :
     execYulStmtFuel (Nat.succ fuel) state (YulStmt.for_ init cond post body) =
       match execYulStmtsFuel fuel state init with
