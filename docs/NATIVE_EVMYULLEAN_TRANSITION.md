@@ -41,17 +41,16 @@ materializes pre-state storage for those slots.
 - Native result projection preserves pre-existing event history and appends
   native EVMYulLean logs, matching the observable shape expected by the current
   proof-side `YulResult`.
-- The EndToEnd layer now exposes generated native-facing theorem seams such as
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match`;
-  the opaque arbitrary-fuel `layers2_3_ir_matches_native_evmYulLean` identity
-  seam is private, and the older proof-interpreter bridge signature has been
-  removed from EndToEnd. The public generated seams target
+- The EndToEnd layer now exposes a small native result surface:
+  `nativeResultsMatchOn`, `sourceResultMatchesNativeOn`, the source/native
+  composition theorem over that result surface, and the concrete SimpleStorage
+  native theorem. The opaque arbitrary-fuel identity seams, generated
+  dispatcher-exec lift facts, and fuel-indexed `nativeIRRuntimeMatchesIR`
+  targets are file-local, and the older proof-interpreter bridge signature has
+  been removed from EndToEnd. The public generated target is native
   `Native.interpretIRRuntimeNative` through `nativeResultsMatchOn`, comparing
   success, return value, events, and the explicitly observable final-storage
-  slots. The result-surface definitions and positive dispatcher-exec intro/lift
-  facts now live in the native harness, and EndToEnd consumes the direct
-  `nativeIRRuntimeMatchesIR` target instead of the older reference-oracle/fuel-
-  wrapper alias. The backend-parameterized safe-body Yul target is now isolated
+  slots. The backend-parameterized safe-body Yul target is now isolated
   lower-level transition evidence; the generated native fragment still needs
   broader direct match proofs before that transition plumbing can be removed
   completely.
@@ -985,7 +984,7 @@ scope so the native path does not look more complete than it is:
 5. Introduce the public generated native preservation theorem.
 
    The EndToEnd module keeps the arbitrary-fuel identity seam private. The
-   public generated native theorem chain starts at:
+   file-local generated native theorem chain starts at:
 
    ```lean
    layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match
