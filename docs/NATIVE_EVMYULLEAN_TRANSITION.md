@@ -45,8 +45,9 @@ materializes pre-state storage for those slots.
   `layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge`.
   Its conclusion targets `Native.interpretIRRuntimeNative` through
   `nativeResultsMatchOn`, comparing success, return value, events, and the
-  explicitly observable final-storage slots, and it now consumes the direct
-  `nativeIRRuntimeMatchesIR` target instead of the older
+  explicitly observable final-storage slots. The result-surface definitions and
+  positive dispatcher-exec intro/lift facts now live in the native harness, and
+  EndToEnd consumes the direct `nativeIRRuntimeMatchesIR` target instead of the older
   reference-oracle/fuel-wrapper wrapper alias. This is still not a completed
   public flip: the safe-body public Yul target remains the EVMYulLean fuel
   wrapper, and the generated native fragment still needs the direct match proof
@@ -935,8 +936,8 @@ scope so the native path does not look more complete than it is:
    `nativeDispatcherExecMatchesIRPositive` and
    `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match` expose the
    same direct native-vs-IR target for positive-fuel generated dispatcher
-   proofs. Concrete case proofs can now package normal, projected halt, and
-   projected error runs with
+   proofs from the native harness. Concrete case proofs can now package normal,
+   projected halt, and projected error runs with
    `nativeDispatcherExecMatchesIRPositive_of_exec_ok_match`,
    `nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match`,
    `nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match`, and

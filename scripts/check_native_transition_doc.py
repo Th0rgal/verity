@@ -215,19 +215,29 @@ def check_public_theorem_target(
             "until the native preservation theorem is proved and this guard is updated"
         )
 
-    for required_native_seam in (
+    for required_native_surface in (
         "def nativeResultsMatch",
         "def nativeResultsMatchOn",
         "def nativeDispatcherExecMatchesIRPositive",
         "theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match",
         "theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match",
-        "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match",
-        "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure",
         "def nativeIRRuntimeMatchesIR",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match",
+    ):
+        if required_native_surface not in normalized_native_harness:
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean "
+                "must own the native theorem/result surface "
+                f"`{required_native_surface}` until the generated-fragment "
+                "native bridge is discharged"
+            )
+
+    for required_native_seam in (
+        "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match",
+        "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
         "theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge",
         "theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match",
