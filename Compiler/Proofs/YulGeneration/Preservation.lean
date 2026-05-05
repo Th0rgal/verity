@@ -1202,7 +1202,7 @@ The `hWF` hypothesis requires that `contract.internalFunctions` are all
 `receiveEntrypoint = none` because `interpretIR` returns failure when no
 function selector matches, which is only consistent with a revert-only
 default case. Extending to fallback/receive requires extending `interpretIR`. -/
-theorem yulCodegen_preserves_semantics_via_reference_oracle
+private theorem yulCodegen_preserves_semantics_via_reference_oracle
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)

@@ -1,11 +1,12 @@
 /-
-  Compiler.Proofs.EndToEnd: Composed Layers 2+3 End-to-End Theorem
+  Compiler.Proofs.EndToEnd: Composed Layers 2+3 Native End-to-End Theorem
 
-  Composes the existing Layer 2 (CompilationModel → IR) and Layer 3 (IR → Yul)
+  Composes the existing Layer 2 (CompilationModel -> IR) and native Layer 3
   preservation theorems into a single end-to-end result:
 
-    For any CompilationModel, evaluating the compiled Yul via the proof semantics
-    produces the same result as the IR semantics.
+    For supported compiler output, native EVMYulLean runtime execution through
+    `EvmYul.Yul.callDispatcher` matches the IR semantics on the observable
+    result surface.
 
   This is the first step toward eliminating `interpretSpec` from the TCB
   (Issue #998). Once primitive-level EDSL ≡ compiled-Yul lemmas are proven,
@@ -15,8 +16,9 @@
   - Layer 2: `compile spec selectors = .ok irContract`
              `interpretIR irContract tx irState ≡ interpretSpec spec ...`
              (proven per-contract in Compiler/Proofs/IRGeneration/Expr.lean)
-  - Layer 3: `interpretIR irContract tx irState ≡ interpretYulFromIR irContract tx irState`
-             (proven generically in Compiler/Proofs/YulGeneration/Preservation.lean)
+  - Native Layer 3: `interpretIR irContract tx irState` matches
+             `interpretIRRuntimeNative fuel irContract tx irState observableSlots`
+             through the native harness over `EvmYul.Yul.callDispatcher`.
   - This file: compose them into a single theorem statement.
 
   **EVMYulLean note (native transition)**: the active public native surface in
@@ -33,7 +35,6 @@
   Run: lake build Compiler.Proofs.EndToEnd
 -/
 
-import Compiler.Proofs.YulGeneration.Preservation
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.IRGeneration.Contract
@@ -9606,11 +9607,9 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   `emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`, the corresponding
   emitted-runtime equality between Verity `legacyExecYulFuel` and the EVMYulLean
   backend executor under those body witnesses. These theorems compose the
-  fully proven builtin bridge equivalences. It also proves
-  `yulCodegen_preserves_semantics_evmYulLeanBackend`, the
-  lower-level Layer-3 theorem whose Yul side is the EVMYulLean backend runtime.
-  This file intentionally does not define EndToEnd wrappers over that target;
-  the public EndToEnd theorem family targets native dispatcher execution through
+  fully proven builtin bridge equivalences. This file intentionally does not
+  define EndToEnd wrappers over that proof-interpreter backend target; the
+  public EndToEnd theorem family targets native dispatcher execution through
   `interpretIRRuntimeNative`.
   The body-closure increments prove that generated external function bodies can
   discharge raw `BridgedStmts` witnesses from `SupportedSpec`, static-parameter
@@ -9633,7 +9632,7 @@ on bridged IR function, entrypoint, and internal helper bodies, and
 - Layer 3 no longer keeps EndToEnd compatibility lemmas targeting the
   proof-interpreter EVMYulLean backend; the public EndToEnd theorem family
   targets native dispatcher execution through `interpretIRRuntimeNative`.
-- The historical Verity-backed public `via_reference_oracle` EndToEnd wrappers
+- The historical Verity-backed public oracle-routed EndToEnd wrappers
   have been removed.
 - Scalar and static-scalar calldata parameter-loading prologues are now known
   to satisfy `BridgedStmts`.

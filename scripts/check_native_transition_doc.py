@@ -1036,32 +1036,29 @@ def check_reference_oracle_names(
             "use `yulCodegen_preserves_semantics_via_reference_oracle`"
         )
 
-    if "theorem yulCodegen_preserves_semantics_via_reference_oracle" not in normalized_preservation:
+    if "private theorem yulCodegen_preserves_semantics_via_reference_oracle" not in normalized_preservation:
         errors.append(
             "Compiler/Proofs/YulGeneration/Preservation.lean must keep the legacy "
-            "Layer-3 oracle theorem explicitly named "
+            "Layer-3 oracle theorem explicitly named but private "
             "`yulCodegen_preserves_semantics_via_reference_oracle`"
         )
 
-    if "yulCodegen_preserves_semantics_via_reference_oracle" not in normalized_retarget:
+    if re.search(
+        r"^\s*theorem\s+yulCodegen_preserves_semantics_via_reference_oracle\b",
+        preservation_text,
+        re.MULTILINE,
+    ):
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Preservation.lean must not expose "
+            "`yulCodegen_preserves_semantics_via_reference_oracle` as public "
+            "proof authority"
+        )
+
+    if "yulCodegen_preserves_semantics_via_reference_oracle" in normalized_retarget:
         errors.append(
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
-            "make the temporary legacy Layer-3 dependency explicit by invoking "
+            "not invoke the private legacy Layer-3 oracle theorem "
             "`yulCodegen_preserves_semantics_via_reference_oracle`"
-        )
-
-    if "private theorem yulCodegen_preserves_semantics_evmYulLeanBackend" not in normalized_retarget:
-        errors.append(
-            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
-            "keep the transition-only EVMYulLean Layer-3 retarget private as "
-            "`yulCodegen_preserves_semantics_evmYulLeanBackend`"
-        )
-
-    if "private theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle" not in normalized_retarget:
-        errors.append(
-            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
-            "keep the legacy compatibility alias explicitly named but private "
-            "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`"
         )
 
     for public_legacy_retarget in (
@@ -1069,14 +1066,16 @@ def check_reference_oracle_names(
         "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle",
     ):
         if re.search(
-            r"^\s*theorem\s+" + re.escape(public_legacy_retarget) + r"\b",
+            r"^\s*(?:private\s+)?theorem\s+"
+            + re.escape(public_legacy_retarget)
+            + r"\b",
             retarget_text,
             re.MULTILINE,
         ):
             errors.append(
                 "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean "
-                "must not expose transition-only legacy retarget theorem "
-                f"`{public_legacy_retarget}` as public proof authority"
+                "must not retain transition-only legacy Layer-3 retarget theorem "
+                f"`{public_legacy_retarget}`"
             )
 
     if "theorem yulCodegen_preserves_semantics_evmYulLean " in normalized_retarget:
