@@ -202,7 +202,27 @@ jobs:
 
           "$RUNNER_TEMP/time-step" "static gas report" lake exe gas-report --manifest packages/verity-examples/contracts.manifest
           "$RUNNER_TEMP/time-step" "patched static gas report" lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2
-          "$RUNNER_TEMP/time-step" "check generated Yul" python3 scripts/check_yul.py --dir compiler/yul --dir compiler/yul-patched --require-same-files compiler/yul compiler/yul-patched
+          if command -v solc >/dev/null 2>&1; then
+            "$RUNNER_TEMP/time-step" "check generated Yul" python3 scripts/check_yul.py --dir compiler/yul --dir compiler/yul-patched --require-same-files compiler/yul compiler/yul-patched
+          else
+            "$RUNNER_TEMP/time-step" "check generated Yul filenames" python3 scripts/check_yul.py --builtin-boundary-only --require-same-files compiler/yul compiler/yul-patched
+            python3 - <<'PY'
+          from pathlib import Path
+
+          left = {p.name for p in Path("compiler/yul").glob("*.yul")}
+          right = {p.name for p in Path("compiler/yul-patched").glob("*.yul")}
+          if not left:
+              raise SystemExit("compiler/yul contains no generated Yul files")
+          if not right:
+              raise SystemExit("compiler/yul-patched contains no generated Yul files")
+          if left != right:
+              raise SystemExit(
+                  "generated Yul filename sets differ: "
+                  f"only baseline={sorted(left - right)} only patched={sorted(right - left)}"
+              )
+          print(f"Generated Yul filename parity passed ({len(left)} files).")
+          PY
+          fi
           ccache -s || true
 
       - name: Publish validation summary
