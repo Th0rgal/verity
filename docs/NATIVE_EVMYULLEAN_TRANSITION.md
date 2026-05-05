@@ -123,7 +123,10 @@ materializes pre-state storage for those slots.
   families. The `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
   wrappers now compose successful full runtime lowering with those dispatcher
   statement surfaces, so callers can remain at the emitted-runtime lowering
-  boundary while proving the exact extracted dispatcher match.
+  boundary while proving the exact extracted dispatcher match. The same
+  full-runtime boundary is lifted to Layer 3 by the
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
+  wrapper family.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with
