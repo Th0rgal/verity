@@ -73,7 +73,11 @@ N8 public Layer 3 theorem flip
   Helper-free emitted runtime lowering is packaged by
   `lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive`,
   with the compiled supported no-mapping wrapper
-  `lowerRuntimeContractNative_of_compile_ok_supported_noMapping`. EndToEnd also
+  `lowerRuntimeContractNative_of_compile_ok_supported_noMapping`. The generated
+  mapping-helper lowering is named by `nativeMappingSlotFunctionDefinition` and
+  `lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero`, pinning
+  the concrete native EVMYulLean function body for `mappingSlot` at scratch
+  base zero. EndToEnd also
   names the positive/projected no-mapping dispatcher-statement wrappers
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping`
   and

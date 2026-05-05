@@ -233,6 +233,8 @@ def check_public_theorem_target(
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match",
+        "def nativeMappingSlotFunctionDefinition",
+        "theorem lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero",
     ):
         if required_native_surface not in normalized_native_harness:
             errors.append(

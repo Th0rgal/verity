@@ -3218,6 +3218,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_runtimeCode
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_emitYul_runtimeCode
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.mappingSlotFuncAt_body_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_internalFunctions
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_buildSwitch
@@ -4227,4 +4228,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4051 theorems/lemmas (3063 public, 988 private, 0 sorry'd)
+-- Total: 4052 theorems/lemmas (3064 public, 988 private, 0 sorry'd)

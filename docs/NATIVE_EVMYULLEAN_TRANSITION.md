@@ -90,7 +90,11 @@ materializes pre-state storage for those slots.
   in the native harness and by
   `lowerRuntimeContractNative_of_compile_ok_supported_noMapping` for compiled
   supported contracts, reducing no-mapping runtimes to the single generated
-  dispatcher shell. The no-mapping positive/projected native wrappers
+  dispatcher shell. The mapping-helper side of the same boundary is now named
+  by `nativeMappingSlotFunctionDefinition` and
+  `lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero`, which
+  package the concrete native lowering of the generated `mappingSlot` helper at
+  scratch base zero. The no-mapping positive/projected native wrappers
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping`
   and
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping`

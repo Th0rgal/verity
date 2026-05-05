@@ -1134,6 +1134,35 @@ theorem mappingSlotFuncAt_body_noFuncDefs (scratchBase : Nat) :
   simp [Compiler.mappingSlotFuncAt, Compiler.CodegenCommon.mappingSlotFuncAt,
     yulStmtContainsFuncDef, yulStmtsContainFuncDef]
 
+/-- Native EVMYulLean definition produced by lowering the generated
+`mappingSlot` helper at scratch base zero. -/
+def nativeMappingSlotFunctionDefinition : EvmYul.Yul.Ast.FunctionDefinition :=
+  EvmYul.Yul.Ast.FunctionDefinition.Def ["baseSlot", "key"] ["slot"]
+    [ .ExprStmtCall (.Call (.inl EvmYul.Operation.MSTORE)
+        [.Lit (EvmYul.UInt256.ofNat 0), .Var "key"])
+    , .ExprStmtCall (.Call (.inl EvmYul.Operation.MSTORE)
+        [.Lit (EvmYul.UInt256.ofNat 32), .Var "baseSlot"])
+    , .Let ["slot"] (some (.Call (.inl EvmYul.Operation.KECCAK256)
+        [.Lit (EvmYul.UInt256.ofNat 0), .Lit (EvmYul.UInt256.ofNat 64)]))
+    ]
+
+/-- The generated `mappingSlot` helper at scratch base zero lowers to the
+corresponding native EVMYulLean helper function definition for any ambient
+reserved-name set. -/
+theorem lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero
+    (globalReservedNames : List String) :
+    Backends.lowerFunctionDefinitionNativeWithReserved
+      globalReservedNames ["baseSlot", "key"] ["slot"]
+      (match Compiler.mappingSlotFuncAt 0 with
+      | YulStmt.funcDef _ _ _ body => body
+      | _ => []) = .ok nativeMappingSlotFunctionDefinition := by
+  simp [Backends.lowerFunctionDefinitionNativeWithReserved,
+    Compiler.mappingSlotFuncAt, Compiler.CodegenCommon.mappingSlotFuncAt,
+    Backends.lowerStmtsNativeWithSwitchIds, Backends.lowerExprNative,
+    Backends.lowerAssignNative, Backends.lookupRuntimePrimOp,
+    nativeMappingSlotFunctionDefinition, Bind.bind, Except.bind, Pure.pure,
+    Except.pure]
+
 theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
     (left right : List YulStmt)
     (hLeft : generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs left = true)
