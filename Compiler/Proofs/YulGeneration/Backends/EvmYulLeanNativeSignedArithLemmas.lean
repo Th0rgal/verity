@@ -1,5 +1,6 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
+import Mathlib.Data.Nat.Bitwise
 import Verity.Core.Int256
 import Verity.Core.Uint256
 
@@ -1042,4 +1043,276 @@ theorem int256_sar_toUint256_val_eq_uint256_sar (shift value : Nat)
                                                ⟨⟨value, by rw [EvmYul.UInt256.size]; exact hv⟩⟩) := by
   rw [uint256_sar_toNat_eq_sarSpec]
   exact int256_sar_toUint256_val_eq_sarSpec shift value hs hv
+private theorem se_uint256_eq_of_val (a b : EvmYul.UInt256) (h : a.val.val = b.val.val) :
+    a = b := by cases a; cases b; congr 1; ext; exact h
+
+private theorem se_lor_val (a b : EvmYul.UInt256) :
+    (EvmYul.UInt256.lor a b).val.val = (a.val.val ||| b.val.val) % EvmYul.UInt256.size := by
+  unfold EvmYul.UInt256.lor; simp only [Fin.lor]; rfl
+
+private theorem se_land_val (a b : EvmYul.UInt256) :
+    (EvmYul.UInt256.land a b).val.val = (a.val.val &&& b.val.val) % EvmYul.UInt256.size := by
+  unfold EvmYul.UInt256.land; simp only [Fin.land]; rfl
+
+private theorem se_sub_val (a b : EvmYul.UInt256) :
+    (EvmYul.UInt256.sub a b).val.val =
+      (EvmYul.UInt256.size - b.val.val + a.val.val) % EvmYul.UInt256.size := by
+  unfold EvmYul.UInt256.sub; simp only [Fin.sub_def]
+
+private theorem se_tb_pow_sub_pow {n k : Nat} (hkn : k ≤ n) (i : Nat) :
+    (2^n - 2^k).testBit i = (decide (k ≤ i) && decide (i < n)) := by
+  have := Nat.one_le_pow k 2 (by omega)
+  have := Nat.pow_le_pow_right (show 0 < 2 from by omega) hkn
+  rw [show 2^k = (2^k - 1) + 1 from by omega,
+      Nat.testBit_two_pow_sub_succ (by omega),
+      Nat.testBit_two_pow_sub_one]
+  by_cases h1 : i < k <;> by_cases h2 : i < n <;> simp_all
+
+private theorem se_tb_ne_zero {v k : Nat} (h : v &&& 2^k ≠ 0) : v.testBit k = true := by
+  by_contra hf; simp only [Bool.not_eq_true] at hf
+  apply h; apply Nat.eq_of_testBit_eq; intro i
+  simp only [Nat.testBit_and, Nat.testBit_two_pow, Nat.zero_testBit]
+  by_cases hik : k = i
+  · subst hik; simp [hf]
+  · simp [hik]
+
+private theorem se_tb_eq_zero {v k : Nat} (h : v &&& 2^k = 0) : v.testBit k = false := by
+  by_contra hf; simp only [Bool.not_eq_false] at hf
+  have : (v &&& 2^k).testBit k = true := by simp [Nat.testBit_and, hf]
+  rw [h] at this; simp at this
+
+private theorem se_set_eq {v n k : Nat} (hk1n : k + 1 ≤ n) (hsign : v &&& 2^k ≠ 0) :
+    v ||| (2^n - 2^(k+1)) = v ||| (2^n - 2^k) := by
+  have hbit := se_tb_ne_zero hsign
+  apply Nat.eq_of_testBit_eq; intro i
+  simp only [Nat.testBit_or, se_tb_pow_sub_pow (by omega : k + 1 ≤ n),
+             se_tb_pow_sub_pow (by omega : k ≤ n)]
+  by_cases hik : i = k
+  · subst hik; simp [hbit]
+  · congr 1
+    by_cases hi : i < k
+    · simp [show ¬(k ≤ i) from by omega, show ¬(k+1 ≤ i) from by omega]
+    · simp [show k ≤ i from by omega, show k+1 ≤ i from by omega]
+
+private theorem se_clear_eq {v k : Nat} (hsign : v &&& 2^k = 0) :
+    v &&& (2^(k+1) - 1) = v &&& (2^k - 1) := by
+  have hbit := se_tb_eq_zero hsign
+  apply Nat.eq_of_testBit_eq; intro i
+  simp only [Nat.testBit_and, Nat.testBit_two_pow_sub_one]
+  by_cases hik : i = k
+  · subst hik; simp [hbit, show i < i + 1 from by omega]
+  · congr 1; congr 1
+    by_cases hi : i < k
+    · simp [hi, show i < k + 1 from by omega]
+    · simp [show ¬(i < k) from hi, show ¬(i < k + 1) from by omega]
+
+set_option maxHeartbeats 4000000 in
+private theorem se_tb_val (byteIdx : Nat) (hb : byteIdx < EvmYul.UInt256.size)
+    (hle : byteIdx ≤ 31) :
+    (({ val := ⟨byteIdx, hb⟩ } : EvmYul.UInt256) * { val := 8 } + { val := 7 }).val.val =
+    byteIdx * 8 + 7 := by
+  show ((EvmYul.UInt256.add (EvmYul.UInt256.mul ⟨⟨byteIdx, hb⟩⟩ ⟨8⟩) ⟨7⟩)).val.val = _
+  unfold EvmYul.UInt256.add EvmYul.UInt256.mul
+  simp only [Fin.mul_def, Fin.add_def]
+  have h8 : (8 : Fin EvmYul.UInt256.size).val = 8 := by simp [EvmYul.UInt256.size]
+  have h7 : (7 : Fin EvmYul.UInt256.size).val = 7 := by simp [EvmYul.UInt256.size]
+  rw [h8, h7, Nat.mod_eq_of_lt (by rw [EvmYul.UInt256.size]; omega),
+      Nat.mod_eq_of_lt (by rw [EvmYul.UInt256.size]; omega)]
+
+private theorem se_shiftLeft_one_val (bitPos : Nat) (hbp : bitPos ≤ 255) :
+    (EvmYul.UInt256.shiftLeft ⟨⟨1, by rw [EvmYul.UInt256.size]; omega⟩⟩
+      ⟨⟨bitPos, by rw [EvmYul.UInt256.size]; omega⟩⟩).val.val = 2^bitPos := by
+  unfold EvmYul.UInt256.shiftLeft; split
+  · rename_i h; exact absurd (show bitPos ≥ 256 from h) (by omega)
+  · change (1 <<< bitPos) % EvmYul.UInt256.size = 2^bitPos
+    simp only [Nat.shiftLeft_eq, Nat.one_mul]
+    have : 2^bitPos < 2^256 := Nat.pow_lt_pow_right (by omega) (by omega)
+    rw [EvmYul.UInt256.size]; exact Nat.mod_eq_of_lt this
+
+private theorem se_val_val_of_eq (a b : EvmYul.UInt256) (h : a = b) :
+    a.val.val = b.val.val := by subst h; rfl
+
+private theorem se_sign_set (value : Nat) (hvS : value < EvmYul.UInt256.size)
+    (sb : EvmYul.UInt256) (bp : Nat) (hsb : sb.val.val = 2^bp)
+    (h : EvmYul.UInt256.land ⟨⟨value, hvS⟩⟩ sb ≠
+      ⟨⟨0, by rw [EvmYul.UInt256.size]; omega⟩⟩) :
+    value &&& 2^bp ≠ 0 := by
+  intro heq; apply h; apply se_uint256_eq_of_val
+  rw [se_land_val, hsb, heq]; simp [EvmYul.UInt256.size]
+
+private theorem se_sign_clear (value : Nat) (hvS : value < EvmYul.UInt256.size)
+    (sb : EvmYul.UInt256) (bp : Nat) (hsb : sb.val.val = 2^bp)
+    (h : ¬(EvmYul.UInt256.land ⟨⟨value, hvS⟩⟩ sb ≠
+      ⟨⟨0, by rw [EvmYul.UInt256.size]; omega⟩⟩)) :
+    value &&& 2^bp = 0 := by
+  push_neg at h
+  have h1 := se_val_val_of_eq _ _ h
+  rw [se_land_val, hsb] at h1
+  rwa [Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt Nat.and_le_left hvS)] at h1
+
+private theorem se_nat_to_sign (value : Nat) (hvS : value < EvmYul.UInt256.size)
+    (sb : EvmYul.UInt256) (bp : Nat) (hsb : sb.val.val = 2^bp)
+    (h : value &&& 2^bp ≠ 0) :
+    EvmYul.UInt256.land ⟨⟨value, hvS⟩⟩ sb ≠
+      ⟨⟨0, by rw [EvmYul.UInt256.size]; omega⟩⟩ := by
+  intro heq; apply h
+  have h1 := se_val_val_of_eq _ _ heq
+  rw [se_land_val, hsb] at h1
+  rwa [Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt Nat.and_le_left hvS)] at h1
+
+private theorem se_verity_ofNat (n : Nat) :
+    (Verity.Core.Uint256.ofNat n).val = n % Compiler.Constants.evmModulus := by
+  unfold Verity.Core.Uint256.ofNat Verity.Core.Uint256.modulus
+    Verity.Core.UINT256_MODULUS Compiler.Constants.evmModulus
+  simp
+
+private theorem se_size_to_uint256_val :
+    (EvmYul.UInt256.size.toUInt256 : EvmYul.UInt256).val.val = 0 := by
+  simp [Nat.toUInt256, EvmYul.UInt256.ofNat, Id.run, EvmYul.UInt256.size]
+
+set_option maxHeartbeats 16000000 in
+/-- Core signextend equivalence: Verity's `Uint256.signextend` agrees with
+EVMYulLean's `UInt256.signextend`.
+
+Both implement EVM SIGNEXTEND using the same bit-level algorithm:
+1. Compute sign bit position = byteIdx * 8 + 7
+2. Test the sign bit
+3. If set: fill high bits (OR with complement mask)
+4. If clear: clear high bits (AND with mask)
+5. If byteIdx ≥ 31: return value unchanged -/
+theorem uint256_signextend_val_eq_uint256_signextend (byteIdx value : Nat)
+    (hb : byteIdx < Compiler.Constants.evmModulus) (hv : value < Compiler.Constants.evmModulus) :
+    (Verity.Core.Uint256.signextend ⟨byteIdx, hb⟩ ⟨value, hv⟩).val =
+    EvmYul.UInt256.toNat (EvmYul.UInt256.signextend
+      ⟨⟨byteIdx, by rw [EvmYul.UInt256.size]; exact hb⟩⟩
+      ⟨⟨value, by rw [EvmYul.UInt256.size]; exact hv⟩⟩) := by
+  have hvS : value < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hv
+  have hbS : byteIdx < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; exact hb
+  have hv256 : value < 2^256 := by rw [show (2:Nat)^256 = Compiler.Constants.evmModulus from rfl]; exact hv
+  unfold Verity.Core.Uint256.signextend EvmYul.UInt256.signextend
+  simp only [EvmYul.UInt256.toNat]
+  by_cases hle31 : byteIdx ≤ 31
+  · -- byteIdx ≤ 31: EVMYulLean does signextend
+    simp only [hle31, ite_true]
+    set bitPos := byteIdx * 8 + 7
+    have hbp : bitPos ≤ 255 := by omega
+    have hbpS : bitPos < EvmYul.UInt256.size := by rw [EvmYul.UInt256.size]; omega
+    have hpow_pos := Nat.one_le_pow bitPos 2 (by omega)
+    have hpow_lt := Nat.pow_lt_pow_right (show 1 < 2 from by omega)
+      (show bitPos < 256 from by omega)
+    have htb_val := se_tb_val byteIdx hbS hle31
+    set tb := ({ val := ⟨byteIdx, hbS⟩ } : EvmYul.UInt256) * { val := 8 } + { val := 7 }
+    have htbvv : tb.val.val = bitPos := htb_val
+    have htb_eq : tb = ⟨⟨bitPos, hbpS⟩⟩ := se_uint256_eq_of_val _ _ htbvv
+    set sb := EvmYul.UInt256.shiftLeft ⟨⟨1, by rw [EvmYul.UInt256.size]; omega⟩⟩ tb
+    have hsb_val : sb.val.val = 2^bitPos := by
+      show (EvmYul.UInt256.shiftLeft ⟨⟨1, _⟩⟩ tb).val.val = 2^bitPos
+      rw [htb_eq]; exact se_shiftLeft_one_val bitPos hbp
+    have hmod_sub : (2^256 - 2^bitPos) % 2^256 = 2^256 - 2^bitPos :=
+      Nat.mod_eq_of_lt (by omega)
+    have hmod_mask : (2^bitPos - 1) % 2^256 = 2^bitPos - 1 :=
+      Nat.mod_eq_of_lt (by omega)
+    by_cases hge31 : byteIdx ≥ 31
+    · -- byteIdx = 31: Verity identity, EVMYulLean signextend at bitPos=255
+      have hb31 : byteIdx = 31 := by omega
+      simp only [hb31, show (31 : Nat) ≥ 31 from le_refl _, ite_true]
+      have hbp255 : bitPos = 255 := by omega
+      split
+      · -- sign set
+        rename_i hsign
+        change value = (EvmYul.UInt256.lor ⟨⟨value, hvS⟩⟩
+          (EvmYul.UInt256.sub EvmYul.UInt256.size.toUInt256 sb)).val.val
+        rw [se_lor_val, se_sub_val, se_size_to_uint256_val, hsb_val]
+        simp only [show EvmYul.UInt256.size = 2^256 from rfl]
+        simp only [Nat.add_zero, hmod_sub]
+        have hsign_nat := se_sign_set value hvS sb bitPos hsb_val hsign
+        rw [hbp255] at hsign_nat ⊢
+        rw [show (2:Nat)^256 - 2^255 = 2^255 from by omega]
+        have hbit := se_tb_ne_zero hsign_nat
+        have hor : value ||| 2^255 = value := by
+          apply Nat.eq_of_testBit_eq; intro i
+          simp only [Nat.testBit_or, Nat.testBit_two_pow]
+          by_cases hik : 255 = i
+          · subst hik; simp [hbit]
+          · simp [hik]
+        rw [hor, Nat.mod_eq_of_lt hv256]
+      · -- sign clear
+        rename_i hsign
+        change value = (EvmYul.UInt256.land ⟨⟨value, hvS⟩⟩
+          (EvmYul.UInt256.sub sb ⟨⟨1, by rw [EvmYul.UInt256.size]; omega⟩⟩)).val.val
+        rw [se_land_val, se_sub_val, hsb_val]
+        simp only [show EvmYul.UInt256.size = 2^256 from rfl]
+        rw [show (2:Nat)^256 - 1 + 2^bitPos = (2^bitPos - 1) + 1 * 2^256 from by omega,
+            Nat.add_mul_mod_self_right, hmod_mask]
+        have hsign_nat := se_sign_clear value hvS sb bitPos hsb_val hsign
+        rw [hbp255] at hsign_nat ⊢
+        have htb_false := se_tb_eq_zero hsign_nat
+        have hv255 : value < 2^255 := by
+          apply Nat.lt_of_testBit 255 htb_false
+          · rw [Nat.testBit_two_pow]; simp
+          · intro j hj
+            have hj256 : 256 ≤ j := by omega
+            have hvj : value < 2^j :=
+              lt_of_lt_of_le hv256 (Nat.pow_le_pow_right (by omega) hj256)
+            rw [Nat.testBit_lt_two_pow hvj, Nat.testBit_two_pow_of_ne (by omega)]
+        have hmask : value &&& (2^255 - 1) = value := by
+          apply Nat.eq_of_testBit_eq; intro i
+          simp only [Nat.testBit_and, Nat.testBit_two_pow_sub_one]
+          by_cases hi : i < 255
+          · simp [hi]
+          · have hi255 : 255 ≤ i := by omega
+            have hvi : value < 2^i :=
+              lt_of_lt_of_le hv255 (Nat.pow_le_pow_right (by omega) hi255)
+            simp [show ¬(i < 255) from hi, Nat.testBit_lt_two_pow hvi]
+        rw [hmask, Nat.mod_eq_of_lt hv256]
+    · -- byteIdx ≤ 30: both do signextend
+      simp only [show ¬(byteIdx ≥ 31) from hge31, ite_false]
+      have hle30 : byteIdx ≤ 30 := by omega
+      have hbp254 : bitPos ≤ 254 := by omega
+      split
+      · -- Verity set
+        rename_i hsign_nat
+        rw [se_verity_ofNat]
+        unfold Verity.Core.Uint256.modulus Verity.Core.UINT256_MODULUS
+        rw [show 2^256 - 1 - (2 ^ (bitPos + 1) - 1) = 2^256 - 2^(bitPos+1) from by
+          have := Nat.one_le_pow (bitPos + 1) 2 (by omega)
+          have := Nat.pow_lt_pow_right (show 1 < 2 from by omega)
+            (show bitPos + 1 < 256 from by omega)
+          omega]
+        split
+        · -- EVMYulLean set → prove equality
+          rename_i hsign_evm
+          change _ = (EvmYul.UInt256.lor ⟨⟨value, hvS⟩⟩
+            (EvmYul.UInt256.sub EvmYul.UInt256.size.toUInt256 sb)).val.val
+          rw [se_lor_val, se_sub_val, se_size_to_uint256_val, hsb_val]
+          simp only [show EvmYul.UInt256.size = 2^256 from rfl]
+          simp only [Nat.add_zero, hmod_sub]
+          unfold Compiler.Constants.evmModulus
+          rw [se_set_eq (by omega) hsign_nat]
+        · -- EVMYulLean clear → contradiction
+          rename_i hsign_evm
+          exfalso; exact hsign_evm (se_nat_to_sign value hvS sb bitPos hsb_val hsign_nat)
+      · -- Verity clear
+        rename_i hsign
+        have hsign_nat : value &&& 2^bitPos = 0 := not_not.mp hsign
+        rw [se_verity_ofNat]
+        split
+        · -- EVMYulLean set → contradiction
+          rename_i hsign_evm
+          exfalso
+          have := se_sign_set value hvS sb bitPos hsb_val hsign_evm
+          exact hsign this
+        · -- EVMYulLean clear → prove equality
+          rename_i hsign_evm
+          change _ = (EvmYul.UInt256.land ⟨⟨value, hvS⟩⟩
+            (EvmYul.UInt256.sub sb ⟨⟨1, by rw [EvmYul.UInt256.size]; omega⟩⟩)).val.val
+          rw [se_land_val, se_sub_val, hsb_val]
+          simp only [show EvmYul.UInt256.size = 2^256 from rfl]
+          rw [show (2:Nat)^256 - 1 + 2^bitPos = (2^bitPos - 1) + 1 * 2^256 from by omega,
+              Nat.add_mul_mod_self_right, hmod_mask]
+          unfold Compiler.Constants.evmModulus
+          rw [se_clear_eq hsign_nat]
+  · -- byteIdx > 31: identity for both
+    simp only [show ¬(byteIdx ≤ 31) from hle31, ite_false]
+    simp only [show byteIdx ≥ 31 from by omega, ite_true]
 end Compiler.Proofs.YulGeneration.Backends

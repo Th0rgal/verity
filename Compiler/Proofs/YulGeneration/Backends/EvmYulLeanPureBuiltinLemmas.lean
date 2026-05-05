@@ -358,6 +358,41 @@ private theorem sgt_int256_eq_sgtBool (a b : Nat)
   exact (int256_sar_toUint256_val_eq_uint256_sar
     (shift % Compiler.Constants.evmModulus) (value % Compiler.Constants.evmModulus) hs hv).symm
 
+@[simp] theorem evalPureBuiltinViaEvmYulLean_signextend_native (byteIdx value : Nat) :
+    evalPureBuiltinViaEvmYulLean "signextend" [byteIdx, value] =
+      some (Verity.Core.Uint256.signextend
+        (Verity.Core.Uint256.ofNat (byteIdx % Compiler.Constants.evmModulus))
+        (Verity.Core.Uint256.ofNat (value % Compiler.Constants.evmModulus))).val := by
+  have hb : byteIdx % Compiler.Constants.evmModulus < Compiler.Constants.evmModulus :=
+    Nat.mod_lt byteIdx (by unfold Compiler.Constants.evmModulus; omega)
+  have hv : value % Compiler.Constants.evmModulus < Compiler.Constants.evmModulus :=
+    Nat.mod_lt value (by unfold Compiler.Constants.evmModulus; omega)
+  change some (EvmYul.UInt256.toNat
+      (EvmYul.UInt256.signextend (EvmYul.UInt256.ofNat byteIdx) (EvmYul.UInt256.ofNat value))) =
+    some (Verity.Core.Uint256.signextend
+      (Verity.Core.Uint256.ofNat (byteIdx % Compiler.Constants.evmModulus))
+      (Verity.Core.Uint256.ofNat (value % Compiler.Constants.evmModulus))).val
+  congr 1
+  rw [show EvmYul.UInt256.ofNat byteIdx =
+      (⟨⟨byteIdx % Compiler.Constants.evmModulus, by
+        simpa [uint256_size_eq_evmModulus] using hb⟩⟩ : EvmYul.UInt256) by
+        simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  rw [show EvmYul.UInt256.ofNat value =
+      (⟨⟨value % Compiler.Constants.evmModulus, by
+        simpa [uint256_size_eq_evmModulus] using hv⟩⟩ : EvmYul.UInt256) by
+        simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  have hmod_b :
+      (byteIdx % Compiler.Constants.evmModulus) % Verity.Core.UINT256_MODULUS =
+        byteIdx % Compiler.Constants.evmModulus := by
+    exact Nat.mod_eq_of_lt (by simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using hb)
+  have hmod_v :
+      (value % Compiler.Constants.evmModulus) % Verity.Core.UINT256_MODULUS =
+        value % Compiler.Constants.evmModulus := by
+    exact Nat.mod_eq_of_lt (by simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using hv)
+  simp only [Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus, hmod_b, hmod_v]
+  exact (uint256_signextend_val_eq_uint256_signextend
+    (byteIdx % Compiler.Constants.evmModulus) (value % Compiler.Constants.evmModulus) hb hv).symm
+
 @[simp] theorem evalPureBuiltinViaEvmYulLean_and_native (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "and" [a, b] =
       some ((a % Compiler.Constants.evmModulus) &&& (b % Compiler.Constants.evmModulus)) := by

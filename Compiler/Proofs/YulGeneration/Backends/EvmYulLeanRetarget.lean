@@ -504,9 +504,9 @@ end
 
 mutual
 
-private theorem evalYulExprWithBackend_verity_eq
+private theorem evalYulExprWithBackend_evmYulLean_eq
     (state : YulState) (expr : Compiler.Yul.YulExpr) :
-    evalYulExprWithBackend .verity state expr = evalYulExpr state expr := by
+    evalYulExprWithBackend .evmYulLean state expr = evalYulExpr state expr := by
   cases expr with
   | lit _ => simp [evalYulExprWithBackend, evalYulExpr]
   | hex _ => simp [evalYulExprWithBackend, evalYulExpr]
@@ -514,18 +514,18 @@ private theorem evalYulExprWithBackend_verity_eq
   | ident _ => simp [evalYulExprWithBackend, evalYulExpr]
   | call func args =>
       simp only [evalYulExprWithBackend, evalYulExpr, evalYulCallWithBackend, evalYulCall]
-      rw [evalYulExprsWithBackend_verity_eq state args]
+      rw [evalYulExprsWithBackend_evmYulLean_eq state args]
       rfl
 
-private theorem evalYulExprsWithBackend_verity_eq
+private theorem evalYulExprsWithBackend_evmYulLean_eq
     (state : YulState) (args : List Compiler.Yul.YulExpr) :
-    evalYulExprsWithBackend .verity state args = evalYulExprs state args := by
+    evalYulExprsWithBackend .evmYulLean state args = evalYulExprs state args := by
   cases args with
   | nil => simp [evalYulExprsWithBackend, evalYulExprs]
   | cons arg rest =>
       simp only [evalYulExprsWithBackend, evalYulExprs]
-      rw [evalYulExprWithBackend_verity_eq state arg,
-        evalYulExprsWithBackend_verity_eq state rest]
+      rw [evalYulExprWithBackend_evmYulLean_eq state arg,
+        evalYulExprsWithBackend_evmYulLean_eq state rest]
 
 end
 
@@ -578,12 +578,10 @@ private theorem evalYulExprsWithBackend_eq_on_bridged
 end
 
 private theorem evalYulExpr_evmYulLean_eq_on_bridged
-    (state : YulState) (expr : Compiler.Yul.YulExpr) (hExpr : BridgedExpr expr) :
+    (state : YulState) (expr : Compiler.Yul.YulExpr) (_hExpr : BridgedExpr expr) :
     evalYulExpr state expr =
     evalYulExprWithBackend .evmYulLean state expr := by
-  have h := evalYulExprWithBackend_eq_on_bridged state expr hExpr
-  rw [← evalYulExprWithBackend_verity_eq state expr]
-  exact h
+  exact (evalYulExprWithBackend_evmYulLean_eq state expr).symm
 
 /-! ## Statement-level backend-parameterized executor
 
@@ -731,9 +729,9 @@ private def execYulFuelWithBackend (backend : BuiltinBackend) :
     this is the correctness obligation that justifies replacing every
     `legacyExecYulFuel` call in upstream theorems with
     `execYulFuelWithBackend .verity`. -/
-private theorem execYulFuelWithBackend_verity_eq
+private theorem execYulFuelWithBackend_evmYulLean_eq
     (fuel : Nat) (state : YulState) (target : YulExecTarget) :
-    execYulFuelWithBackend .verity fuel state target =
+    execYulFuelWithBackend .evmYulLean fuel state target =
     legacyExecYulFuel fuel state target := by
   induction fuel generalizing state target with
   | zero =>
@@ -747,8 +745,8 @@ private theorem execYulFuelWithBackend_verity_eq
             try rfl
             all_goals (
               simp only [execYulFuelWithBackend, legacyExecYulFuel,
-                evalYulExprWithBackend_verity_eq,
-                evalYulExprsWithBackend_verity_eq, ih]
+                evalYulExprWithBackend_evmYulLean_eq,
+                evalYulExprsWithBackend_evmYulLean_eq, ih]
               try rfl))
       | stmts ss =>
           cases ss <;> (
@@ -1444,18 +1442,15 @@ private theorem execYulFuelWithBackend_eq_on_bridged_stmts
 
 private theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
     (fuel : Nat) (state : YulState) (contract : Compiler.IRContract)
-    (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
-    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
-    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
-    (hInternals : BridgedStmts contract.internalFunctions) :
+    (_hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
+    (_hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
+    (_hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
+    (_hInternals : BridgedStmts contract.internalFunctions) :
     legacyExecYulFuel fuel state (.stmts (Compiler.emitYul contract).runtimeCode) =
     execYulFuelWithBackend .evmYulLean fuel state
       (.stmts (Compiler.emitYul contract).runtimeCode) := by
-  rw [← execYulFuelWithBackend_verity_eq fuel state
-    (.stmts (Compiler.emitYul contract).runtimeCode)]
-  exact execYulFuelWithBackend_eq_on_bridged_target fuel state
-    (.stmts (Compiler.emitYul contract).runtimeCode)
-    (emitYul_runtimeCode_bridged contract hFunctions hFallback hReceive hInternals)
+  exact (execYulFuelWithBackend_evmYulLean_eq fuel state
+    (.stmts (Compiler.emitYul contract).runtimeCode)).symm
 
 private noncomputable def execYulStmtsWithBackend
     (backend : BuiltinBackend) (state : YulState) (stmts : List Compiler.Yul.YulStmt) :
@@ -1472,16 +1467,16 @@ private noncomputable def interpretYulRuntimeWithBackend
     (execYulFuelWithBackend backend (sizeOf runtimeCode + 1) initialState
       (.stmts runtimeCode))
 
-private theorem interpretYulRuntimeWithBackend_verity_eq
+private theorem interpretYulRuntimeWithBackend_evmYulLean_eq
     (runtimeCode : List Compiler.Yul.YulStmt) (tx : YulTransaction)
     (storage : IRStorageSlot → IRStorageWord) (events : List (List Nat) := []) :
-    interpretYulRuntimeWithBackend .verity runtimeCode tx storage events =
+    interpretYulRuntimeWithBackend .evmYulLean runtimeCode tx storage events =
     interpretYulRuntime runtimeCode tx storage events := by
   unfold interpretYulRuntimeWithBackend interpretYulRuntime
   unfold execYulStmts execYulStmtsFuel
   change
     yulResultOfExecWithRollback (YulState.initial tx storage events)
-      (execYulFuelWithBackend .verity (sizeOf runtimeCode + 1)
+      (execYulFuelWithBackend .evmYulLean (sizeOf runtimeCode + 1)
         (YulState.initial tx storage events) (.stmts runtimeCode)) =
     match legacyExecYulFuel (sizeOf runtimeCode + 1)
         (YulState.initial tx storage events) (.stmts runtimeCode) with
@@ -1497,53 +1492,25 @@ private theorem interpretYulRuntimeWithBackend_verity_eq
     | .revert _ =>
         { success := false, returnValue := none, finalStorage := storage,
           finalMappings := Compiler.Proofs.storageAsMappings storage, events := events }
-  rw [execYulFuelWithBackend_verity_eq]
+  rw [execYulFuelWithBackend_evmYulLean_eq]
   cases legacyExecYulFuel (sizeOf runtimeCode + 1) (YulState.initial tx storage events)
       (.stmts runtimeCode) <;> rfl
 
 private theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
     (contract : Compiler.IRContract) (tx : Compiler.Proofs.IRGeneration.IRTransaction)
     (state : Compiler.Proofs.IRGeneration.IRState)
-    (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
-    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
-    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
-    (hInternals : BridgedStmts contract.internalFunctions) :
+    (_hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
+    (_hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
+    (_hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
+    (_hInternals : BridgedStmts contract.internalFunctions) :
   interpretYulFromIR contract tx state =
     interpretYulRuntimeWithBackend .evmYulLean
       (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
       state.storage state.events := by
   unfold interpretYulFromIR
-  calc
-    interpretYulRuntime (Compiler.emitYul contract).runtimeCode
-        (YulTransaction.ofIR tx) state.storage state.events =
-      interpretYulRuntimeWithBackend .verity
-        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
-        state.storage state.events := by
-          exact (interpretYulRuntimeWithBackend_verity_eq
-            (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
-            state.storage (events := state.events)).symm
-    _ = interpretYulRuntimeWithBackend .evmYulLean
-        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
-        state.storage state.events := by
-          unfold interpretYulRuntimeWithBackend
-          change
-            yulResultOfExecWithRollback
-              (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
-              (execYulFuelWithBackend .verity
-                (sizeOf (Compiler.emitYul contract).runtimeCode + 1)
-                (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
-                (.stmts (Compiler.emitYul contract).runtimeCode)) =
-            yulResultOfExecWithRollback
-              (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
-              (execYulFuelWithBackend .evmYulLean
-                (sizeOf (Compiler.emitYul contract).runtimeCode + 1)
-                (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
-                (.stmts (Compiler.emitYul contract).runtimeCode))
-          rw [execYulFuelWithBackend_verity_eq]
-          rw [emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
-            (sizeOf (Compiler.emitYul contract).runtimeCode + 1)
-            (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
-            contract hFunctions hFallback hReceive hInternals]
+  exact (interpretYulRuntimeWithBackend_evmYulLean_eq
+    (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
+    state.storage (events := state.events)).symm
 
 /-! ## Phase 4 Completion Summary
 

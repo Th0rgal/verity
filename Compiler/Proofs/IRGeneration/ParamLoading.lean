@@ -117,7 +117,7 @@ theorem exec_genScalarLoad_supported
     cases hvalue
     simp [genScalarLoad, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-      Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext, calldataloadWord_aligned]
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned]
   case uint8 =>
     simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize,
       SourceSemantics.uint8Modulus] at hdecode
@@ -126,7 +126,7 @@ theorem exec_genScalarLoad_supported
       norm_num [Compiler.Constants.evmModulus]
     simp [genScalarLoad, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-      Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext, calldataloadWord_aligned, h255]
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned, h255]
   case address =>
     simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize] at hdecode
     subst value
@@ -138,14 +138,14 @@ theorem exec_genScalarLoad_supported
       exact Nat.mod_eq_of_lt hlt
     simp [genScalarLoad, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-      Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext, calldataloadWord_aligned, hmask]
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned, hmask]
   case bool =>
     simp only [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize,
       Option.some.injEq] at hdecode
     subst value
     simp [genScalarLoad, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-      Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext, calldataloadWord_aligned]
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned]
     split <;> simp_all
 
 private theorem getD_eq_of_drop_eq_cons
@@ -207,7 +207,7 @@ private theorem exec_genScalarLoad_supported_then_word_passthrough
         cases hvalue
         simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
           Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-          Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext, calldataloadWord_aligned]
+          Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned]
     simpa [genScalarLoad, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
       execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state (state.setVar name value)
         (YulStmt.let_ name (YulExpr.call "calldataload" [YulExpr.lit (4 + 32 * idx)])) rest hstmt
@@ -233,7 +233,7 @@ private theorem exec_genScalarLoad_supported_then_uint8
         norm_num [Compiler.Constants.evmModulus]
       simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
         Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-        Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext, calldataloadWord_aligned, h255]
+        Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned, h255]
   simpa [genScalarLoad, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
     execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state (state.setVar name value)
       (YulStmt.let_ name
@@ -263,7 +263,7 @@ private theorem exec_genScalarLoad_supported_then_address
         exact Nat.mod_eq_of_lt hlt
       simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
         Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-        Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext, calldataloadWord_aligned, hmask]
+        Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned, hmask]
   simpa [genScalarLoad, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
     execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state (state.setVar name value)
       (YulStmt.let_ name
@@ -289,7 +289,7 @@ private theorem exec_genScalarLoad_supported_then_bool
       subst value
       simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
         Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-        Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext, calldataloadWord_aligned]
+        Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned]
       split <;> simp_all
   simpa [genScalarLoad, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
     execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state (state.setVar name value)
@@ -364,7 +364,7 @@ private theorem exec_minInputSizeCheck_supported_noop
     omega
   simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-    Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
     Nat.mod_eq_of_lt hcalldataSizeFits, Nat.mod_eq_of_lt hrhs_lt_modulus, hnotlt]
 
 theorem exec_genParamLoadBodyFrom_supported_then
