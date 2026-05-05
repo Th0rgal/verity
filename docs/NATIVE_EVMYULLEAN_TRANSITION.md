@@ -90,7 +90,11 @@ materializes pre-state storage for those slots.
   in the native harness and by
   `lowerRuntimeContractNative_of_compile_ok_supported_noMapping` for compiled
   supported contracts, reducing no-mapping runtimes to the single generated
-  dispatcher shell.
+  dispatcher shell. The no-mapping positive/projected native wrappers
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping`
+  and
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping`
+  now consume the narrower dispatcher-statement lowering equality directly.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with

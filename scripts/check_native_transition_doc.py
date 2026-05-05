@@ -254,6 +254,8 @@ def check_public_theorem_target(
         "theorem generatedRuntimeNativeFragment_of_compile_ok_supported_safe",
         "theorem validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe",
         "theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping",
+        "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping",
+        "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
         "theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge",
         "theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match",
