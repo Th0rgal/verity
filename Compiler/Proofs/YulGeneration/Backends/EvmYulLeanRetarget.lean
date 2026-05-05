@@ -27,9 +27,11 @@
   Run: lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 -/
 
+import Compiler.Codegen
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
-import Compiler.Proofs.YulGeneration.Lemmas
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 
 namespace Compiler.Proofs.YulGeneration.Backends
 
@@ -1107,6 +1109,43 @@ the historical Verity interpreter. -/
 private theorem bridgedExpr_selectorExpr :
     BridgedExpr Compiler.Proofs.YulGeneration.selectorExpr := by
   simpa [Compiler.Proofs.YulGeneration.selectorExpr] using bridgedExpr_selector
+
+set_option maxHeartbeats 1000000 in
+@[simp] private theorem evalYulExpr_selectorExpr_semantics :
+    ∀ state : YulState,
+      evalYulExpr state Compiler.Proofs.YulGeneration.selectorExpr =
+        some (state.selector % selectorModulus) := by
+  intro state
+  have hShiftModEq : selectorShift % evmModulus = selectorShift := by
+    have hShiftLtModulus : selectorShift < evmModulus := by
+      norm_num [selectorShift, evmModulus]
+    exact Nat.mod_eq_of_lt hShiftLtModulus
+  have hSelectorShiftLt256 : selectorShift < 256 := by
+    norm_num [selectorShift]
+  have hSelectorShiftNotGe256 : ¬ 256 ≤ selectorShift := Nat.not_le_of_lt hSelectorShiftLt256
+  have hSelectorWordLt :
+      (state.selector % selectorModulus) * 2 ^ selectorShift < evmModulus := by
+    have hModLt : state.selector % selectorModulus < selectorModulus := by
+      exact Nat.mod_lt _ (by decide)
+    have hPowPos : 0 < 2 ^ selectorShift := by
+      exact Nat.pow_pos (a := 2) (n := selectorShift) (by decide)
+    have hMulLt :
+        (state.selector % selectorModulus) * 2 ^ selectorShift <
+          selectorModulus * 2 ^ selectorShift := by
+      exact Nat.mul_lt_mul_of_pos_right hModLt hPowPos
+    have hModulusSplit : selectorModulus * 2 ^ selectorShift = evmModulus := by
+      norm_num [selectorModulus, selectorShift, evmModulus, Nat.pow_add, Nat.mul_comm,
+        Nat.mul_left_comm, Nat.mul_assoc]
+    simpa [hModulusSplit] using hMulLt
+  have hSelectorWordMod :
+      ((state.selector % selectorModulus) * 2 ^ selectorShift) % evmModulus =
+        (state.selector % selectorModulus) * 2 ^ selectorShift := by
+    exact Nat.mod_eq_of_lt hSelectorWordLt
+  simp [Compiler.Proofs.YulGeneration.selectorExpr, evalYulExpr, evalYulCall, evalYulExprs,
+    evalBuiltinCallWithBackendContext, Backends.evalBuiltinCallWithEvmYulLeanContext,
+    Backends.evalBuiltinCallViaEvmYulLean,
+    calldataloadWord, selectorWord,
+    hShiftModEq, hSelectorWordMod, hSelectorShiftNotGe256]
 
 /-- The EVMYulLean fuel wrapper selects the same 4-byte dispatcher
 selector as the generated Verity selector expression.

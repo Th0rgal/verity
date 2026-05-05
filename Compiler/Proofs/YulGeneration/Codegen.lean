@@ -1,6 +1,7 @@
 import Compiler.Codegen
 import Compiler.Proofs.IRGeneration.IRInterpreter
-import Compiler.Proofs.YulGeneration.Lemmas
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 
 namespace Compiler.Proofs.YulGeneration
 
@@ -25,7 +26,36 @@ theorem emitYul_runtimeCode_eq (contract : IRContract) :
 theorem evalYulExpr_selectorExpr (state : YulState) :
     evalYulExpr state selectorExpr = some (state.selector % selectorModulus) :=
 by
-  exact Compiler.Proofs.YulGeneration.evalYulExpr_selectorExpr_semantics state
+  have hShiftModEq : selectorShift % evmModulus = selectorShift := by
+    have hShiftLtModulus : selectorShift < evmModulus := by
+      norm_num [selectorShift, evmModulus]
+    exact Nat.mod_eq_of_lt hShiftLtModulus
+  have hSelectorShiftLt256 : selectorShift < 256 := by
+    norm_num [selectorShift]
+  have hSelectorShiftNotGe256 : ¬ 256 ≤ selectorShift := Nat.not_le_of_lt hSelectorShiftLt256
+  have hSelectorWordLt :
+      (state.selector % selectorModulus) * 2 ^ selectorShift < evmModulus := by
+    have hModLt : state.selector % selectorModulus < selectorModulus := by
+      exact Nat.mod_lt _ (by decide)
+    have hPowPos : 0 < 2 ^ selectorShift := by
+      exact Nat.pow_pos (a := 2) (n := selectorShift) (by decide)
+    have hMulLt :
+        (state.selector % selectorModulus) * 2 ^ selectorShift <
+          selectorModulus * 2 ^ selectorShift := by
+      exact Nat.mul_lt_mul_of_pos_right hModLt hPowPos
+    have hModulusSplit : selectorModulus * 2 ^ selectorShift = evmModulus := by
+      norm_num [selectorModulus, selectorShift, evmModulus, Nat.pow_add, Nat.mul_comm,
+        Nat.mul_left_comm, Nat.mul_assoc]
+    simpa [hModulusSplit] using hMulLt
+  have hSelectorWordMod :
+      ((state.selector % selectorModulus) * 2 ^ selectorShift) % evmModulus =
+        (state.selector % selectorModulus) * 2 ^ selectorShift := by
+    exact Nat.mod_eq_of_lt hSelectorWordLt
+  simp [selectorExpr, evalYulExpr, evalYulCall, evalYulExprs,
+    evalBuiltinCallWithBackendContext, Backends.evalBuiltinCallWithEvmYulLeanContext,
+    Backends.evalBuiltinCallViaEvmYulLean,
+    calldataloadWord, selectorWord,
+    hShiftModEq, hSelectorWordMod, hSelectorShiftNotGe256]
 
 /-- Selector extraction yields the raw selector when it fits in 4 bytes. -/
 @[simp]
@@ -82,11 +112,11 @@ theorem execYulStmtFuel_switch_match
     (hFind : List.find? (fun (c, _) => c = v) cases' = some (v, body)) :
     execYulStmtFuel (Nat.succ fuel) state (YulStmt.switch expr cases' defaultCase) =
       execYulStmtsFuel fuel state body := by
-  have hFind' :
-      List.find? (fun x : Prod Nat (List YulStmt) => decide (x.1 = v)) cases' = some (v, body) := by
-    simpa using hFind
-  simpa using (Compiler.Proofs.YulGeneration.execYulStmtFuel_switch_match_semantics
-    state expr cases' defaultCase fuel v body hEval hFind')
+  cases fuel with
+  | zero =>
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
+  | succ fuel =>
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
 
 /-- If no selector case matches, the switch executes the default (or continues). -/
 def execYulStmtFuel_switch_miss_result (state : YulState) (fuel : Nat)
@@ -102,13 +132,15 @@ theorem execYulStmtFuel_switch_miss
     (hFind : List.find? (fun (c, _) => c = v) cases' = none) :
     execYulStmtFuel (Nat.succ fuel) state (YulStmt.switch expr cases' defaultCase) =
       execYulStmtFuel_switch_miss_result state fuel defaultCase := by
-  have hFind' :
-      List.find? (fun x : Prod Nat (List YulStmt) => decide (x.1 = v)) cases' = none := by
-    simpa using hFind
-  have h :=
-    Compiler.Proofs.YulGeneration.execYulStmtFuel_switch_miss_semantics
-      state expr cases' defaultCase fuel v hEval hFind'
-  simpa [execYulStmtFuel_switch_miss_result] using h
+  cases fuel with
+  | zero =>
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind,
+        execYulStmtFuel_switch_miss_result]
+      rfl
+  | succ fuel =>
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind,
+        execYulStmtFuel_switch_miss_result]
+      rfl
 
 /- Bridge lemmas for switch-case lookup. -/
 theorem find_switch_case_of_find_function

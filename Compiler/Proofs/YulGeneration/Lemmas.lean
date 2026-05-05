@@ -13,7 +13,7 @@ These lemmas connect the runtime codegen structure with the Yul semantics.
 -/
 
 set_option maxHeartbeats 1000000 in
-@[simp] theorem evalYulExpr_selectorExpr_semantics :
+@[simp] private theorem evalYulExpr_selectorExpr_semantics :
     ∀ state : YulState, evalYulExpr state selectorExpr = some (state.selector % selectorModulus) := by
   intro state
   have hShiftModEq : selectorShift % evmModulus = selectorShift := by
@@ -48,7 +48,7 @@ set_option maxHeartbeats 1000000 in
     hShiftModEq, hSelectorWordMod, hSelectorShiftNotGe256]
 
 @[simp]
-theorem execYulStmtFuel_switch_match_semantics
+private theorem execYulStmtFuel_switch_match_semantics
     (state : YulState) (expr : YulExpr) (cases' : List (Nat × List YulStmt))
     (defaultCase : Option (List YulStmt)) (fuel v : Nat) (body : List YulStmt)
     (hEval : evalYulExpr state expr = some v)
@@ -62,7 +62,7 @@ theorem execYulStmtFuel_switch_match_semantics
       simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
 
 @[simp]
-theorem execYulStmtFuel_switch_miss_semantics
+private theorem execYulStmtFuel_switch_miss_semantics
     (state : YulState) (expr : YulExpr) (cases' : List (Nat × List YulStmt))
     (defaultCase : Option (List YulStmt)) (fuel v : Nat)
     (hEval : evalYulExpr state expr = some v)
