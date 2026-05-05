@@ -913,6 +913,30 @@ theorem nativeAliasSurfaceForTestEvmYulLeanMatch
         errors = check.check_native_alias_signatures(end_to_end_text)
         self.assertEqual(errors, [])
 
+    def test_public_end_to_end_theorem_signature_guard_accepts_current_shape(self) -> None:
+        errors = check.check_public_end_to_end_theorem_signatures(
+            check.END_TO_END.read_text(encoding="utf-8"),
+        )
+        self.assertEqual(errors, [])
+
+    def test_public_end_to_end_theorem_signature_guard_rejects_legacy_terms(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + """
+theorem legacySignatureSurfaceForTest
+    (h :
+      Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics.execYulFuelWithBackend
+        .verity fuel stmts tx state = .ok result) :
+    True := by
+  trivial
+"""
+        )
+        errors = check.check_public_end_to_end_theorem_signatures(end_to_end_text)
+        self.assertTrue(
+            any(".verity" in error and "execYulFuel" in error for error in errors),
+            errors,
+        )
+
     def test_unbridged_environment_boundary_accepts_current_shape(self) -> None:
         errors = check.check_unbridged_environment_boundary(
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),

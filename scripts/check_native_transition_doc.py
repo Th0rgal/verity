@@ -1281,6 +1281,43 @@ def check_native_alias_signatures(end_to_end_text: str) -> list[str]:
     return errors
 
 
+def check_public_end_to_end_theorem_signatures(end_to_end_text: str) -> list[str]:
+    """Reject legacy oracle/interpreter terms in public EndToEnd theorem APIs."""
+
+    errors: list[str] = []
+    theorem_pattern = re.compile(
+        r"^\s*theorem\s+([A-Za-z0-9_']+)\b(.*?)(?=\s:=)",
+        re.DOTALL | re.MULTILINE,
+    )
+    forbidden_signature_terms = (
+        "ReferenceOracle",
+        "execYulFuel",
+        "execYulFuelWithBackend",
+        "interpretYulRuntimeWithBackend",
+        ".verity",
+        "defaultBuiltinBackend",
+        "legacyBuiltinBackend",
+        "evalBuiltinCallWithContext",
+        "nativeIRRuntimeAgreesWithInterpreter",
+    )
+
+    for match in theorem_pattern.finditer(end_to_end_text):
+        name = match.group(1)
+        signature = match.group(2)
+        leaked_terms = sorted(
+            term for term in forbidden_signature_terms if term in signature
+        )
+        if leaked_terms:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean theorem "
+                f"`{name}` must expose native EVMYulLean theorem parameters "
+                "rather than legacy oracle/interpreter terms: "
+                + ", ".join(f"`{term}`" for term in leaked_terms)
+            )
+
+    return errors
+
+
 def check_unbridged_environment_boundary(native_harness_text: str, native_smoke_text: str) -> list[str]:
     """Keep the native environment-read limitation explicit and tested.
 
@@ -1423,6 +1460,11 @@ def main() -> int:
     )
     errors.extend(
         check_native_alias_signatures(END_TO_END.read_text(encoding="utf-8"))
+    )
+    errors.extend(
+        check_public_end_to_end_theorem_signatures(
+            END_TO_END.read_text(encoding="utf-8")
+        )
     )
     errors.extend(
         check_unbridged_environment_boundary(
