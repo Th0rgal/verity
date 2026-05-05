@@ -17547,7 +17547,7 @@ def interpretIRRuntimeNative
 The native harness can still fail closed during Verity-Yul-to-EVMYulLean
 lowering, so native-facing theorem statements record both that native execution
 returns a `YulResult` and that this result matches IR execution. -/
-def nativeResultsMatch
+private def nativeResultsMatch
     (ir : IRResult)
     (native : Except AdapterError YulResult) :
     Prop :=

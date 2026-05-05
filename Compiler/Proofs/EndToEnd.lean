@@ -51,10 +51,6 @@ open Compiler.Proofs.YulGeneration
 
 /-! ## Native Runtime Result Surface -/
 
-/-- Result comparison surface for the native EVMYulLean harness. -/
-abbrev nativeResultsMatch :=
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatch
-
 /-- Observable result comparison surface for native EVMYulLean execution. -/
 abbrev nativeResultsMatchOn :=
   Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn
