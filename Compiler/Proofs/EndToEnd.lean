@@ -309,7 +309,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_m
   simpa [Compiler.Proofs.YulGeneration.Backends.Native.projectResult] using hMatch
 
 /-- Native contract value produced by helper-free dispatcher-only lowering. -/
-abbrev nativeContractOfDispatcher
+private abbrev nativeContractOfDispatcher
     (dispatcher : List EvmYul.Yul.Ast.Stmt) :
     EvmYul.Yul.Ast.YulContract :=
   { dispatcher := .Block dispatcher
@@ -318,7 +318,7 @@ abbrev nativeContractOfDispatcher
 
 /-- Native contract value produced by dispatcher lowering when the generated
 runtime also includes the native `mappingSlot` helper. -/
-abbrev nativeContractOfDispatcherWithMapping
+private abbrev nativeContractOfDispatcherWithMapping
     (dispatcher : List EvmYul.Yul.Ast.Stmt) :
     EvmYul.Yul.Ast.YulContract :=
   { dispatcher := .Block dispatcher
@@ -331,7 +331,7 @@ abbrev nativeContractOfDispatcherWithMapping
 a body-code shape witness. This isolates the shared append/prologue reasoning
 needed before the public generated-native wrappers can derive their own
 external-body witnesses from compiler output. -/
-theorem compileFunctionSpec_noFuncDefs_of_static_params_and_body
+private theorem compileFunctionSpec_noFuncDefs_of_static_params_and_body
     (fields : List CompilationModel.Field)
     (events : List CompilationModel.EventDef)
     (errors : List CompilationModel.ErrorDef)
@@ -362,7 +362,7 @@ theorem compileFunctionSpec_noFuncDefs_of_static_params_and_body
       spec.params hStaticParams,
     hBodyNoFuncDefs bodyStmts hbody]
 
-theorem compileFunctionSpec_noFuncDefs_of_safe_static_params
+private theorem compileFunctionSpec_noFuncDefs_of_safe_static_params
     (fields : List CompilationModel.Field)
     (events : List CompilationModel.EventDef)
     (errors : List CompilationModel.ErrorDef)
@@ -398,7 +398,7 @@ retargeting theorem. This is the key local bridge from compiler-produced
 `FunctionSpec` bodies to emitted IR function bodies: static scalar parameter
 loads are bridged by the prologue theorem, and the compiled source body is
 bridged by `compileStmtList_always_bridged`. -/
-theorem compileFunctionSpec_bridged_of_safe_static_params
+private theorem compileFunctionSpec_bridged_of_safe_static_params
     (fields : List CompilationModel.Field)
     (events : List CompilationModel.EventDef)
     (errors : List CompilationModel.ErrorDef)
@@ -431,7 +431,7 @@ theorem compileFunctionSpec_bridged_of_safe_static_params
 function table. This keeps the public EndToEnd theorem from exposing raw
 `BridgedStmts fn.body` obligations when callers already have source-level
 safe-body/static-param witnesses for every selector-dispatched function. -/
-theorem compiledExternalFunctions_bridged_of_safe_static
+private theorem compiledExternalFunctions_bridged_of_safe_static
     (fields : List CompilationModel.Field)
     (events : List CompilationModel.EventDef)
     (errors : List CompilationModel.ErrorDef) :
@@ -473,7 +473,7 @@ theorem compiledExternalFunctions_bridged_of_safe_static
 function table. This is the no-`funcDef` analogue of
 `compiledExternalFunctions_bridged_of_safe_static`, staged separately because
 the body-shape source predicate is still being proved fragment by fragment. -/
-theorem compiledExternalFunctions_noFuncDefs_of_static_params_and_body
+private theorem compiledExternalFunctions_noFuncDefs_of_static_params_and_body
     (fields : List CompilationModel.Field)
     (events : List CompilationModel.EventDef)
     (errors : List CompilationModel.ErrorDef) :
@@ -516,7 +516,7 @@ theorem compiledExternalFunctions_noFuncDefs_of_static_params_and_body
           (fun next hnext => hBody next (by simp [hnext]))
           target hmemTail
 
-theorem compiledExternalFunctions_noFuncDefs_of_safe_static
+private theorem compiledExternalFunctions_noFuncDefs_of_safe_static
     (fields : List CompilationModel.Field)
     (events : List CompilationModel.EventDef)
     (errors : List CompilationModel.ErrorDef) :
@@ -656,7 +656,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean
 
 `SupportedSpec` rules out emitted internal helper definitions, leaving only the
 optional mapping-slot helper in the generated runtime prefix. -/
-theorem generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
+private theorem generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -680,7 +680,7 @@ theorem generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
 
 /-- Supported compiler output has no emitted internal helper statements. This
 discharges the generated-runtime fragment's internal-function-shape witness. -/
-theorem generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported
+private theorem generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -697,7 +697,7 @@ theorem generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported
 
 /-- Supported compiler output has no internal helper bodies that can contain
 nested function definitions. -/
-theorem generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+private theorem generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -715,7 +715,7 @@ theorem generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
 
 /-- Source-level body closure discharges the generated runtime fragment's
 external-function-body shape witness for supported compiler output. -/
-theorem generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+private theorem generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_supported
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -739,7 +739,7 @@ theorem generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_supported
       spec selectors hSupported irContract hCompile)
     hStaticParams hBodyNoFuncDefs
 
-theorem generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
+private theorem generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -760,7 +760,7 @@ theorem generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
 
 /-- Supported compiler output satisfies the native generated-runtime fragment
 validator's executable predicate. -/
-theorem generatedRuntimeNativeFragment_of_compile_ok_supported_safe
+private theorem generatedRuntimeNativeFragment_of_compile_ok_supported_safe
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -788,7 +788,7 @@ theorem generatedRuntimeNativeFragment_of_compile_ok_supported_safe
 
 /-- Supported compiler output passes the native generated-runtime fragment
 validator. -/
-theorem validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe
+private theorem validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -806,7 +806,7 @@ theorem validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe
 
 /-- Supported compiler output with no mapping helper reduces native runtime
 lowering to the single generated dispatcher shell. -/
-theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping
+private theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -834,7 +834,7 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping
 
 /-- Successful no-mapping native lowering for supported compiler output exposes
 the concrete generated dispatcher lowering and produced native contract. -/
-theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
+private theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -864,7 +864,7 @@ lowering to the generated dispatcher shell plus the lowered native
 `mappingSlot` helper. The dispatcher is lowered under the same reserved-name
 context as the full emitted runtime, because native switch lowering allocates
 fresh temporaries from that context. -/
-theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
+private theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -896,7 +896,7 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
 /-- Successful mapping-helper native lowering for supported compiler output
 exposes the concrete generated dispatcher lowering, threaded switch counter,
 and produced native contract. -/
-theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved
+private theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
