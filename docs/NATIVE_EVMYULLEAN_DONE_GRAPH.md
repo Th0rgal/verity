@@ -77,7 +77,10 @@ N8 public Layer 3 theorem flip
   names the positive/projected no-mapping dispatcher-statement wrappers
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping`
   and
-  `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping`.
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping`,
+  plus their `_ofIR_environment` and `_ofIR_globalDefaults` variants and the
+  corresponding direct `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
+  wrappers.
   Generic `.block` lowering shape also lives in the native harness via
   `lowerStmtsNative_single_block_ok_singleton` and
   `lowerStmtsNative_block_stmts_eq`; let/if/switch dispatcher statement peels

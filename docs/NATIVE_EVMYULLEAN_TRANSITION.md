@@ -94,7 +94,11 @@ materializes pre-state storage for those slots.
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping`
   and
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping`
-  now consume the narrower dispatcher-statement lowering equality directly.
+  now consume the narrower dispatcher-statement lowering equality directly. The
+  `_ofIR_environment` and `_ofIR_globalDefaults` variants discharge the native
+  environment side condition for the same no-mapping dispatcher-statement shell,
+  and the matching `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
+  wrappers expose the direct native-vs-IR result surface.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with
