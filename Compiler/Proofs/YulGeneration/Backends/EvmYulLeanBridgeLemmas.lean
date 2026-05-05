@@ -1,6 +1,7 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
 import Mathlib.Data.Nat.Bitwise
 
