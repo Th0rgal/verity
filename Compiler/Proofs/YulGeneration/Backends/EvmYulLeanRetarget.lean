@@ -30,7 +30,8 @@
 
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
-import Compiler.Proofs.YulGeneration.Preservation
+import Compiler.Proofs.YulGeneration.Equivalence
+import Compiler.Proofs.YulGeneration.Lemmas
 
 namespace Compiler.Proofs.YulGeneration.Backends
 
