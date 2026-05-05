@@ -17592,7 +17592,7 @@ def nativeIRRuntimeMatchesIR
 
 This compares the projected lowered-dispatcher execution result with
 `interpretIR`. -/
-def nativeDispatcherExecMatchesIRPositive
+private def nativeDispatcherExecMatchesIRPositive
     (fuel' : Nat)
     (contract : IRContract)
     (tx : IRTransaction)

@@ -65,8 +65,31 @@ abbrev nativeIRRuntimeMatchesIR :=
   Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR
 
 /-- Positive-fuel raw native dispatcher-exec target against IR directly. -/
-private abbrev nativeDispatcherExecMatchesIRPositive :=
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive
+private def nativeDispatcherExecMatchesIRPositive
+    (fuel' : Nat)
+    (contract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract) :
+    Prop :=
+  let initial :=
+    Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+      (YulTransaction.ofIR tx) state.storage
+      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode contract) observableSlots)
+  let nativeResult :=
+    match
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial with
+    | .error err => .error err
+    | .ok finalState =>
+        let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+        .ok (restored, [])
+  nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+    (.ok
+      (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+        (YulTransaction.ofIR tx) state.storage state.events nativeResult))
 
 /-- Canonical native dispatcher fuel for the generated runtime surface. -/
 noncomputable abbrev nativeRuntimeDispatcherFuel (contract : IRContract) : Nat :=
@@ -175,7 +198,6 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_project_eq_match
         nativeYul := by
     simpa [nativeProjectedDispatcherResultEq] using hProject
   unfold nativeDispatcherExecMatchesIRPositive
-  unfold Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive
   change
     let initial :=
       Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
@@ -258,7 +280,6 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq
     nativeDispatcherExecMatchesIRPositive fuel' contract tx state
       observableSlots nativeContract := by
   unfold nativeDispatcherExecMatchesIRPositive
-  unfold Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive
   simp [hExec]
   rw [← hProject] at hMatch
   simpa [Compiler.Proofs.YulGeneration.Backends.Native.projectResult] using hMatch
@@ -287,7 +308,6 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_m
     nativeDispatcherExecMatchesIRPositive fuel' contract tx state
       observableSlots nativeContract := by
   unfold nativeDispatcherExecMatchesIRPositive
-  unfold Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive
   simp [hExec]
   rw [← hProject] at hMatch
   simpa [Compiler.Proofs.YulGeneration.Backends.Native.projectResult] using hMatch
