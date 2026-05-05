@@ -79,7 +79,9 @@ N8 public Layer 3 theorem flip
   and
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping`,
   plus their `_ofIR_environment` and `_ofIR_globalDefaults` variants and the
-  corresponding direct `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
+  corresponding direct
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_*`
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
   wrappers.
   Generic `.block` lowering shape also lives in the native harness via
   `lowerStmtsNative_single_block_ok_singleton` and
