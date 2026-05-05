@@ -4138,18 +4138,18 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.simpleStorageSelectors_tagsRange  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult_eq
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_revert_default_projectResult_eq
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_default_projectResult_eq
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_default_projectResult_eq
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store_fuel
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResult_eq
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResult_eq
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fuel
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectResult_eq
-#print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectResult_eq
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_revert_default_projectResult_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_default_projectResult_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_default_projectResult_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store_fuel  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResult_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResult_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fuel  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectResult_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectResult_eq  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.projectResult_finalMappings
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_loweringError
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_generatedFragmentError
@@ -4446,4 +4446,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4252 theorems/lemmas (2899 public, 1353 private, 0 sorry'd)
+-- Total: 4252 theorems/lemmas (2887 public, 1365 private, 0 sorry'd)

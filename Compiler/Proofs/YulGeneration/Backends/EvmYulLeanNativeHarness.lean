@@ -16639,7 +16639,7 @@ private theorem simpleStorageSelectors_tagsRange
     selector set. This specializes the generic lowered-switch miss theorem to
     the two generated SimpleStorage selectors, discharging the selector tag
     word-range premise by computation. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult
     (fuel selector switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -16686,7 +16686,7 @@ This packages the `revert(0, 0)` default branch in the shape needed by the
     dispatcher bridge: native execution reaches EVMYulLean's `Revert`
     exception, and Verity's projection rolls the call back to failed success,
     no return value, unchanged storage/mappings, and unchanged events. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult_eq
     (fuel selector switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -16725,7 +16725,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert
       hSelector hFind hSelectorRange
       (simpleStorageSelectors_tagsRange storeBody retrieveBody)
 
-def simpleStorageRevertProjectedResult
+private def simpleStorageRevertProjectedResult
     (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat)) : YulResult :=
   { success := false
@@ -16738,7 +16738,7 @@ def simpleStorageRevertProjectedResult
     `store(uint256)` selector arm. Naming this body lets later dispatcher
     bridge lemmas specialize the selector-switch theorem without carrying
     arbitrary body parameters. -/
-def simpleStorageNativeStoreBody : List EvmYul.Yul.Ast.Stmt :=
+private def simpleStorageNativeStoreBody : List EvmYul.Yul.Ast.Stmt :=
   [ .If (lowerExprNative (.call "callvalue" [])) [nativeRevertZeroZeroStmt],
     .If (lowerExprNative (.call "lt" [.call "calldatasize" [], .lit 36]))
       [nativeRevertZeroZeroStmt],
@@ -16748,7 +16748,7 @@ def simpleStorageNativeStoreBody : List EvmYul.Yul.Ast.Stmt :=
 
 /-- Concrete lowered native body for the generated SimpleStorage `retrieve()`
     selector arm. -/
-def simpleStorageNativeRetrieveBody : List EvmYul.Yul.Ast.Stmt :=
+private def simpleStorageNativeRetrieveBody : List EvmYul.Yul.Ast.Stmt :=
   [ .If (lowerExprNative (.call "callvalue" [])) [nativeRevertZeroZeroStmt],
     .If (lowerExprNative (.call "lt" [.call "calldatasize" [], .lit 4]))
       [nativeRevertZeroZeroStmt],
@@ -16757,7 +16757,7 @@ def simpleStorageNativeRetrieveBody : List EvmYul.Yul.Ast.Stmt :=
         (.call "mstore" [.lit 0, .call "sload" [.lit 0]])),
     .ExprStmtCall (lowerExprNative (.call "return" [.lit 0, .lit 32])) ]
 
-def simpleStorageNativeSelectorCases :
+private def simpleStorageNativeSelectorCases :
     List (Nat × List EvmYul.Yul.Ast.Stmt) :=
   [(0x6057361d, simpleStorageNativeStoreBody),
     (0x2e64cec1, simpleStorageNativeRetrieveBody)]
@@ -16769,7 +16769,7 @@ This removes two bookkeeping premises from the default-branch bridge case:
 callers no longer have to introduce a separate selector witness or prove that
 the 4-byte selector fits in an EVM word. Both facts follow from the transaction
 selector modulus bound used by the public end-to-end theorem. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_revert_default_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_revert_default_projectResult_eq
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -16817,7 +16817,7 @@ This is the branch shape needed by the dispatcher bridge case split: once the
 transaction selector is known to be neither generated selector, the concrete
 `find? = none` premise is discharged internally before executing the actual
 native lowered switch relation. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_default_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_default_projectResult_eq
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -16857,7 +16857,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_d
     selector switch, with both generated selector bodies fixed to their native
     lowered shapes. This is the default branch theorem needed by the bridge
     once the outer dispatcher has exposed the inner selector switch. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_default_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_default_projectResult_eq
     (fuel switchId : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
@@ -16892,7 +16892,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_de
     selector set. This specializes the generic lowered-switch hit theorem to
     `store(uint256)`, discharging the computed selector lookup and selector tag
     word-range premises. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -16936,7 +16936,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
     lifting the SimpleStorage store-hit selector specialization to states
     already carrying additional bindings (e.g. the dispatcher's
     `__has_selector := 1`). -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store_fuel
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store_fuel
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -16981,7 +16981,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store
       (simpleStorageSelectors_tagsRange storeBody retrieveBody)
       hBody
 
-def simpleStorageStoreHaltProjectedResult
+private def simpleStorageStoreHaltProjectedResult
     (tx : YulTransaction)
     (initialEvents : List (List Nat))
     (haltState : EvmYul.Yul.State) : YulResult :=
@@ -16998,7 +16998,7 @@ def simpleStorageStoreHaltProjectedResult
 This removes the switch-case wrapper from later bridge obligations: callers can
 prove the selected body once for every possible decomposition, then consume one
 exact native `YulResult` equality at the full lowered-switch boundary. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResult_eq
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -17047,7 +17047,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResu
       hBody hProject
 
 /-- Concrete SimpleStorage store-selector hit execution. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResult_eq
     (fuel switchId : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
@@ -17093,7 +17093,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResul
       (by simpa [simpleStorageNativeSelectorCases] using hBody) hProject
 
 /-- Retrieve-selector hit execution for the concrete SimpleStorage dispatcher. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fuel
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fuel
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -17134,7 +17134,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fu
       (simpleStorageSelectors_tagsRange storeBody retrieveBody)
       hBody
 
-def simpleStorageRetrieveHaltProjectedResult
+private def simpleStorageRetrieveHaltProjectedResult
     (tx : YulTransaction)
     (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
@@ -17153,7 +17153,7 @@ def simpleStorageRetrieveHaltProjectedResult
 
 /-- Retrieve-selector hit execution for the concrete SimpleStorage dispatcher,
     packaged with the exact projected result of the selected getter body. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectResult_eq
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
@@ -17202,7 +17202,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectR
       hBody hProject
 
 /-- Concrete SimpleStorage retrieve-selector hit execution. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectResult_eq
     (fuel switchId : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
