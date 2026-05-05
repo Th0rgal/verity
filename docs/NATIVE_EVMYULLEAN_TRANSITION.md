@@ -1060,8 +1060,9 @@ scope so the native path does not look more complete than it is:
 
    Documentation should say EVMYulLean is the authoritative public semantic
    target, while making clear that retargeting evidence remains isolated in
-   `EvmYulLeanRetarget.lean` and still routes through `execYulFuelWithBackend`
-   until the generic native proof stack replaces it.
+   `EvmYulLeanRetarget.lean` and still routes through the private
+   `execYulFuelWithBackend` transition executor until the generic native proof
+   stack replaces it.
 
    The direct native target is now named `nativeIRRuntimeMatchesIR`: it compares
    `Native.interpretIRRuntimeNative` against `interpretIR` on the observable
@@ -1122,8 +1123,8 @@ scope so the native path does not look more complete than it is:
 
 ## Cleanup After the Flip
 
-- Keep `legacyExecYulFuel` and `execYulFuelWithBackend` in reference-oracle or
-  isolated lower-level transition status.
+- Keep `legacyExecYulFuel` and the private `execYulFuelWithBackend` wrapper in
+  reference-oracle or isolated lower-level transition status.
 - Remove bridge-only docs that describe the custom interpreter as the active
   semantic target.
 - Keep cross-check tests between the old oracle and native EVMYulLean for one

@@ -4085,9 +4085,9 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_eq_on_bridged
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprsWithBackend_eq_on_bridged  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExpr_evmYulLean_eq_on_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_verity_eq
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_let_eq_on_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_assign_eq_on_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_verity_eq  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_let_eq_on_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_assign_eq_on_bridged  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_cons
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_append
@@ -4096,11 +4096,11 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_map_mstore
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_map_tstore
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmt  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_if_eq_on_bridged_body
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_switch_eq_on_bridged_cases
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_for_eq_on_bridged_parts
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmts  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_block_eq_on_bridged_straight_stmts  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_if_eq_on_bridged_body  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_switch_eq_on_bridged_cases  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_for_eq_on_bridged_parts  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons
 #print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append
@@ -4210,10 +4210,10 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.mappingSlotFuncAt_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.runtimeCode_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.emitYul_runtimeCode_bridged
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_target
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmt
-#print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_target  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmt  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmts  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend_verity_eq  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.interpretYulFromIR_evmYulLean_eq_on_bridged_bodies  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLeanBackend  -- private
@@ -4334,4 +4334,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4158 theorems/lemmas (3165 public, 993 private, 0 sorry'd)
+-- Total: 4158 theorems/lemmas (3153 public, 1005 private, 0 sorry'd)

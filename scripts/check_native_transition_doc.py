@@ -617,6 +617,7 @@ def check_public_theorem_target(
                 )
 
     for required_fuel_surface in (
+        "private def execYulFuelWithBackend",
         "private noncomputable def interpretYulRuntimeWithBackend",
     ):
         if required_fuel_surface not in normalized_retarget:
@@ -628,6 +629,19 @@ def check_public_theorem_target(
             )
 
     for public_fuel_surface in (
+        "execYulFuelWithBackend",
+        "execYulFuelWithBackend_verity_eq",
+        "execYulFuelWithBackend_let_eq_on_bridged",
+        "execYulFuelWithBackend_assign_eq_on_bridged",
+        "execYulFuelWithBackend_eq_on_bridged_straight_stmts",
+        "execYulFuelWithBackend_block_eq_on_bridged_straight_stmts",
+        "execYulFuelWithBackend_if_eq_on_bridged_body",
+        "execYulFuelWithBackend_switch_eq_on_bridged_cases",
+        "execYulFuelWithBackend_for_eq_on_bridged_parts",
+        "execYulFuelWithBackend_eq_on_bridged_target",
+        "execYulFuelWithBackend_eq_on_bridged_stmt",
+        "execYulFuelWithBackend_eq_on_bridged_stmts",
+        "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies",
         "execYulStmtsWithBackend",
         "interpretYulRuntimeWithBackend",
         "interpretYulRuntimeWithBackend_verity_eq",

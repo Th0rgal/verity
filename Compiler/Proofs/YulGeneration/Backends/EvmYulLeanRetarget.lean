@@ -607,7 +607,7 @@ public safe-body EndToEnd wrapper live in `EvmYulLeanBodyClosure.lean` and
 `Compiler.Proofs.EndToEnd`.
 -/
 
-def execYulFuelWithBackend (backend : BuiltinBackend) :
+private def execYulFuelWithBackend (backend : BuiltinBackend) :
     Nat → YulState → YulExecTarget → YulExecResult
   | _, state, .stmts [] => .continue state
   | _, state, .stmt (Compiler.Yul.YulStmt.funcDef _ _ _ _) => .continue state
@@ -743,7 +743,7 @@ def execYulFuelWithBackend (backend : BuiltinBackend) :
     this is the correctness obligation that justifies replacing every
     `legacyExecYulFuel` call in upstream theorems with
     `execYulFuelWithBackend .verity`. -/
-theorem execYulFuelWithBackend_verity_eq
+private theorem execYulFuelWithBackend_verity_eq
     (fuel : Nat) (state : YulState) (target : YulExecTarget) :
     execYulFuelWithBackend .verity fuel state target =
     legacyExecYulFuel fuel state target := by
@@ -782,7 +782,7 @@ These are intentionally narrow helpers. A future statement-level predicate
 them rather than re-deriving the expression rewrite each time.
 -/
 
-theorem execYulFuelWithBackend_let_eq_on_bridged
+private theorem execYulFuelWithBackend_let_eq_on_bridged
     (fuel : Nat) (state : YulState) (name : String)
     (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
     execYulFuelWithBackend .verity fuel state (.stmt (.let_ name value)) =
@@ -793,7 +793,7 @@ theorem execYulFuelWithBackend_let_eq_on_bridged
       simp only [execYulFuelWithBackend]
       rw [evalYulExprWithBackend_eq_on_bridged state value hValue]
 
-theorem execYulFuelWithBackend_assign_eq_on_bridged
+private theorem execYulFuelWithBackend_assign_eq_on_bridged
     (fuel : Nat) (state : YulState) (name : String)
     (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
     execYulFuelWithBackend .verity fuel state (.stmt (.assign name value)) =
@@ -1077,7 +1077,7 @@ private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmt
             simp [execYulFuelWithBackend, isYulLogName, hEval]
   | funcDef _ _ _ _ => cases fuel <;> rfl
 
-theorem execYulFuelWithBackend_eq_on_bridged_straight_stmts
+private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmts
     (fuel : Nat) (state : YulState) (stmts : List Compiler.Yul.YulStmt)
     (hStmts : BridgedStraightStmts stmts) :
     execYulFuelWithBackend .verity fuel state (.stmts stmts) =
@@ -1108,7 +1108,7 @@ theorem execYulFuelWithBackend_eq_on_bridged_straight_stmts
     the block constructor when the block body is already in the straight-line
     fragment; recursive blocks and branching control flow still require the
     broader statement predicate/induction. -/
-theorem execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
+private theorem execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
     (fuel : Nat) (state : YulState) (stmts : List Compiler.Yul.YulStmt)
     (hStmts : BridgedStraightStmts stmts) :
     execYulFuelWithBackend .verity fuel state (.stmt (.block stmts)) =
@@ -1126,7 +1126,7 @@ theorem execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
     First narrow-helper lift into branching control flow; `.switch` and `.for_`
     still require their own helpers, and recursive control-flow bodies still
     require a broader predicate/induction. -/
-theorem execYulFuelWithBackend_if_eq_on_bridged_body
+private theorem execYulFuelWithBackend_if_eq_on_bridged_body
     (fuel : Nat) (state : YulState) (cond : Compiler.Yul.YulExpr)
     (body : List Compiler.Yul.YulStmt)
     (hCond : BridgedExpr cond) (hBody : BridgedStraightStmts body) :
@@ -1155,7 +1155,7 @@ def BridgedSwitchCases (cases : List (Nat × List Compiler.Yul.YulStmt)) : Prop 
     can actually be selected by `find?`; the default branch is handled
     separately. Recursive switch bodies and loops still need the broader
     statement predicate/induction. -/
-theorem execYulFuelWithBackend_switch_eq_on_bridged_cases
+private theorem execYulFuelWithBackend_switch_eq_on_bridged_cases
     (fuel : Nat) (state : YulState) (expr : Compiler.Yul.YulExpr)
     (cases : List (Nat × List Compiler.Yul.YulStmt))
     (defaultCase : Option (List Compiler.Yul.YulStmt))
@@ -1192,7 +1192,7 @@ theorem execYulFuelWithBackend_switch_eq_on_bridged_cases
     the predecessor fuel with an empty initializer, so the proof follows the
     executor's fuel structure directly. Recursive control-flow inside the loop
     lists still needs the broader statement predicate/induction. -/
-theorem execYulFuelWithBackend_for_eq_on_bridged_parts
+private theorem execYulFuelWithBackend_for_eq_on_bridged_parts
     (fuel : Nat) (state : YulState)
     (init : List Compiler.Yul.YulStmt) (cond : Compiler.Yul.YulExpr)
     (post body : List Compiler.Yul.YulStmt)
@@ -2503,7 +2503,7 @@ theorem emitYul_runtimeCode_bridged
     simpa [Compiler.emitYul] using
       runtimeCode_bridged contract hFunctions hFallback hReceive hInternals)
 
-theorem execYulFuelWithBackend_eq_on_bridged_target
+private theorem execYulFuelWithBackend_eq_on_bridged_target
     (fuel : Nat) (state : YulState) (target : YulExecTarget)
     (hTarget : BridgedTarget target) :
     execYulFuelWithBackend .verity fuel state target =
@@ -2616,7 +2616,7 @@ theorem execYulFuelWithBackend_eq_on_bridged_target
               | «stop» _ => rfl
               | «revert» _ => rfl
 
-theorem execYulFuelWithBackend_eq_on_bridged_stmt
+private theorem execYulFuelWithBackend_eq_on_bridged_stmt
     (fuel : Nat) (state : YulState) (stmt : Compiler.Yul.YulStmt)
     (hStmt : BridgedStmt stmt) :
     execYulFuelWithBackend .verity fuel state (.stmt stmt) =
@@ -2624,7 +2624,7 @@ theorem execYulFuelWithBackend_eq_on_bridged_stmt
   execYulFuelWithBackend_eq_on_bridged_target fuel state (.stmt stmt)
     (.stmt stmt hStmt)
 
-theorem execYulFuelWithBackend_eq_on_bridged_stmts
+private theorem execYulFuelWithBackend_eq_on_bridged_stmts
     (fuel : Nat) (state : YulState) (stmts : List Compiler.Yul.YulStmt)
     (hStmts : BridgedStmts stmts) :
     execYulFuelWithBackend .verity fuel state (.stmts stmts) =
@@ -2632,7 +2632,7 @@ theorem execYulFuelWithBackend_eq_on_bridged_stmts
   execYulFuelWithBackend_eq_on_bridged_target fuel state (.stmts stmts)
     (.stmts stmts hStmts)
 
-theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
+private theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
     (fuel : Nat) (state : YulState) (contract : Compiler.IRContract)
     (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
     (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)

@@ -322,13 +322,147 @@ private def memoryRevertDispatchSmokeContract : IRContract :=
     ]
     usesMapping := false }
 
+/- Regression-only comparison oracle for this executable smoke test. The
+production retarget executor in `EvmYulLeanRetarget.lean` stays private so it
+cannot become public proof authority. -/
+private def referenceExecYulFuelWithBackend (backend : BuiltinBackend) :
+    Nat → YulState → YulExecTarget → YulExecResult
+  | _, state, .stmts [] => .continue state
+  | _, state, .stmt (Compiler.Yul.YulStmt.funcDef _ _ _ _) => .continue state
+  | 0, state, _ => .revert state
+  | Nat.succ fuel, state, target =>
+      match target with
+      | .stmt stmt =>
+          match stmt with
+          | .comment _ => .continue state
+          | .let_ name value =>
+              match evalYulExprWithBackend backend state value with
+              | some v => .continue (state.setVar name v)
+              | none => .revert state
+          | .letMany _ _ => .revert state
+          | .assign name value =>
+              match evalYulExprWithBackend backend state value with
+              | some v => .continue (state.setVar name v)
+              | none => .revert state
+          | .leave => .continue state
+          | .expr e =>
+              match e with
+              | .call "sstore" [slotExpr, valExpr] =>
+                  match slotExpr with
+                  | .call "mappingSlot" [baseExpr, keyExpr] =>
+                      match evalYulExprWithBackend backend state baseExpr,
+                            evalYulExprWithBackend backend state keyExpr,
+                            evalYulExprWithBackend backend state valExpr with
+                      | some baseSlot, some key, some val =>
+                          let updated := Compiler.Proofs.abstractStoreMappingEntry
+                            state.storage baseSlot key val
+                          .continue { state with storage := updated }
+                      | _, _, _ => .revert state
+                  | _ =>
+                      match evalYulExprWithBackend backend state slotExpr,
+                            evalYulExprWithBackend backend state valExpr with
+                      | some slot, some val =>
+                          let updated := Compiler.Proofs.abstractStoreStorageOrMapping
+                            state.storage slot val
+                          .continue { state with storage := updated }
+                      | _, _ => .revert state
+              | .call "mstore" [offsetExpr, valExpr] =>
+                  match evalYulExprWithBackend backend state offsetExpr,
+                        evalYulExprWithBackend backend state valExpr with
+                  | some offset, some val =>
+                      .continue { state with
+                        memory := fun o => if o = offset then val else state.memory o }
+                  | _, _ => .revert state
+              | .call "tstore" [offsetExpr, valExpr] =>
+                  match evalYulExprWithBackend backend state offsetExpr,
+                        evalYulExprWithBackend backend state valExpr with
+                  | some offset, some val =>
+                      .continue { state with
+                        transientStorage := fun o =>
+                          if o = offset then val else state.transientStorage o }
+                  | _, _ => .revert state
+              | .call "stop" [] => .stop state
+              | .call "return" [offsetExpr, sizeExpr] =>
+                  match evalYulExprWithBackend backend state offsetExpr,
+                        evalYulExprWithBackend backend state sizeExpr with
+                  | some offset, some size =>
+                      if size = 32 then
+                        .return (state.memory offset) state
+                      else
+                        .return 0 state
+                  | _, _ => .revert state
+              | .call "revert" [_, _] => .revert state
+              | .call func args =>
+                  if isYulLogName func then
+                    match evalYulExprsWithBackend backend state args with
+                    | some argVals =>
+                        match applyYulLogCall? state func argVals with
+                        | some next => .continue next
+                        | none => .revert state
+                    | none => .revert state
+                  else
+                    match evalYulExprWithBackend backend state e with
+                    | some _ => .continue state
+                    | none => .revert state
+              | _ =>
+                  match evalYulExprWithBackend backend state e with
+                  | some _ => .continue state
+                  | none => .revert state
+          | .if_ cond body =>
+              match evalYulExprWithBackend backend state cond with
+              | some v =>
+                  if v = 0 then
+                    .continue state
+                  else
+                    referenceExecYulFuelWithBackend backend fuel state (.stmts body)
+              | none => .revert state
+          | .switch expr cases defaultCase =>
+              match evalYulExprWithBackend backend state expr with
+              | some v =>
+                  match cases.find? (fun x => decide (x.fst = v)) with
+                  | some (_, body) =>
+                      referenceExecYulFuelWithBackend backend fuel state (.stmts body)
+                  | none =>
+                      match defaultCase with
+                      | some body =>
+                          referenceExecYulFuelWithBackend backend fuel state (.stmts body)
+                      | none => .continue state
+              | none => .revert state
+          | .for_ init cond post body =>
+              match referenceExecYulFuelWithBackend backend fuel state (.stmts init) with
+              | .continue s' =>
+                  match evalYulExprWithBackend backend s' cond with
+                  | some v =>
+                      if v = 0 then .continue s'
+                      else
+                        match referenceExecYulFuelWithBackend backend fuel s' (.stmts body) with
+                        | .continue s'' =>
+                            match referenceExecYulFuelWithBackend backend fuel s'' (.stmts post) with
+                            | .continue s''' =>
+                                referenceExecYulFuelWithBackend backend fuel s'''
+                                  (.stmt (.for_ [] cond post body))
+                            | other => other
+                        | other => other
+                  | none => .revert s'
+              | other => other
+          | .block stmts =>
+              referenceExecYulFuelWithBackend backend fuel state (.stmts stmts)
+          | .funcDef _ _ _ _ => .continue state
+      | .stmts [] => .continue state
+      | .stmts (stmt :: rest) =>
+          match referenceExecYulFuelWithBackend backend fuel state (.stmt stmt) with
+          | .continue s' => referenceExecYulFuelWithBackend backend fuel s' (.stmts rest)
+          | .return v s => .return v s
+          | .stop s => .stop s
+          | .revert s => .revert s
+
 private def referenceRuntimeWithBackendFuel
     (fuel : Nat) (runtimeCode : List Compiler.Yul.YulStmt)
     (tx : YulTransaction) (storage : IRStorageSlot -> IRStorageWord) (events : List (List Nat)) :
     YulResult :=
   let initialState := YulState.initial tx storage events
   yulResultOfExecWithRollback initialState
-    (execYulFuelWithBackend .evmYulLean fuel initialState (.stmts runtimeCode))
+    (referenceExecYulFuelWithBackend .evmYulLean fuel initialState (.stmts runtimeCode))
 
 private def resultsMatchOnSlots
     (slots : List Nat) (nativeResult referenceResult : YulResult) : Bool :=
