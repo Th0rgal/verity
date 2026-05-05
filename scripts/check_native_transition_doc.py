@@ -1314,6 +1314,12 @@ def check_public_end_to_end_theorem_signatures(end_to_end_text: str) -> list[str
                 "rather than legacy oracle/interpreter terms: "
                 + ", ".join(f"`{term}`" for term in leaked_terms)
             )
+        if re.search(r"\(\s*fuel'?\s*:\s*Nat\s*\)", signature):
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean theorem "
+                f"`{name}` must use canonical native generated-runtime fuel "
+                "instead of exposing arbitrary theorem-facing fuel"
+            )
 
     return errors
 
