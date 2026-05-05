@@ -181,11 +181,14 @@ jobs:
             solc --version
             exit 0
           fi
+          install_dir="${RUNNER_TEMP}/bin"
+          mkdir -p "$install_dir"
           tmp_solc="${RUNNER_TEMP}/solc-${SOLC_VERSION}"
           curl -sSfL "$SOLC_URL" -o "$tmp_solc"
           echo "${SOLC_SHA256}  ${tmp_solc}" | sha256sum -c -
-          sudo install -m 0755 "$tmp_solc" /usr/local/bin/solc
-          solc --version
+          install -m 0755 "$tmp_solc" "${install_dir}/solc"
+          echo "$install_dir" >> "$GITHUB_PATH"
+          "${install_dir}/solc" --version
 
       - name: Run compiler-core CI subset
         if: inputs.include_compiler_core
