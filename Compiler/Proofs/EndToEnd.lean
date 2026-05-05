@@ -38,7 +38,7 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.YulGeneration.RuntimeTypes
-import Compiler.Proofs.IRGeneration.Contract
+import Compiler.Proofs.IRGeneration.ContractShape
 import Compiler.Proofs.IRGeneration.FunctionShape
 import Compiler.Proofs.IRGeneration.Expr
 import Compiler.SimpleStorageNativeWitness
@@ -457,7 +457,7 @@ theorem generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
       ((if irContract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
         irContract.internalFunctions) = true := by
   have hInternalNil : irContract.internalFunctions = [] :=
-    Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+    Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_internalFunctions_nil
       (model := spec) (selectors := selectors) (hSupported := hSupported)
       (ir := irContract) (hcompile := hCompile)
   rw [hInternalNil]
@@ -481,7 +481,7 @@ theorem generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported
       ∃ name params rets body, stmt = Yul.YulStmt.funcDef name params rets body := by
   intro stmt hmem
   have hInternalNil : irContract.internalFunctions = [] :=
-    Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+    Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_internalFunctions_nil
       (model := spec) (selectors := selectors) (hSupported := hSupported)
       (ir := irContract) (hcompile := hCompile)
   rw [hInternalNil] at hmem
@@ -499,7 +499,7 @@ theorem generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
         Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef body = false := by
   intro name params rets body hmem
   have hInternalNil : irContract.internalFunctions = [] :=
-    Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+    Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_internalFunctions_nil
       (model := spec) (selectors := selectors) (hSupported := hSupported)
       (ir := irContract) (hcompile := hCompile)
   rw [hInternalNil] at hmem
@@ -527,7 +527,7 @@ theorem generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_supported
         fn.body = false :=
   compiledExternalFunctions_noFuncDefs_of_static_params_and_body
     spec.fields spec.events spec.errors
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_compiled_functions
       spec selectors hSupported irContract hCompile)
     hStaticParams hBodyNoFuncDefs
 
@@ -546,7 +546,7 @@ theorem generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
         fn.body = false :=
   compiledExternalFunctions_noFuncDefs_of_safe_static
     spec.fields spec.events spec.errors
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_compiled_functions
       spec selectors hSupported irContract hCompile)
     hStaticParams hSafeBodies
 
@@ -573,9 +573,9 @@ theorem generatedRuntimeNativeFragment_of_compile_ok_supported_safe
       hCompile hSupported hStaticParams hSafeBodies)
     (generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
       hCompile hSupported)
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noFallbackEntrypoint
       spec selectors hSupported irContract hCompile)
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noReceiveEntrypoint
       spec selectors hSupported irContract hCompile)
 
 /-- Supported compiler output passes the native generated-runtime fragment
@@ -616,12 +616,12 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping
       | .error err => .error err :=
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive
     irContract hNoMapping
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_internalFunctions_nil
       (model := spec) (selectors := selectors) (hSupported := hSupported)
       (ir := irContract) (hcompile := hCompile))
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noFallbackEntrypoint
       spec selectors hSupported irContract hCompile)
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noReceiveEntrypoint
       spec selectors hSupported irContract hCompile)
 
 /-- Successful no-mapping native lowering for supported compiler output exposes
@@ -642,12 +642,12 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatch
       nativeContract = nativeContractOfDispatcher dispatcher :=
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher
     irContract nativeContract hNoMapping
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_internalFunctions_nil
       (model := spec) (selectors := selectors) (hSupported := hSupported)
       (ir := irContract) (hcompile := hCompile))
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noFallbackEntrypoint
       spec selectors hSupported irContract hCompile)
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noReceiveEntrypoint
       spec selectors hSupported irContract hCompile)
     hLower
 
@@ -677,12 +677,12 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
       | .error err => .error err :=
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved
     irContract hMapping
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_internalFunctions_nil
       (model := spec) (selectors := selectors) (hSupported := hSupported)
       (ir := irContract) (hcompile := hCompile))
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noFallbackEntrypoint
       spec selectors hSupported irContract hCompile)
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noReceiveEntrypoint
       spec selectors hSupported irContract hCompile)
 
 /-- Successful mapping-helper native lowering for supported compiler output
@@ -706,12 +706,12 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher
       nativeContract = nativeContractOfDispatcherWithMapping dispatcher :=
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved
     irContract nativeContract hMapping
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_internalFunctions_nil
       (model := spec) (selectors := selectors) (hSupported := hSupported)
       (ir := irContract) (hcompile := hCompile))
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noFallbackEntrypoint
       spec selectors hSupported irContract hCompile)
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noReceiveEntrypoint
       spec selectors hSupported irContract hCompile)
     hLower
 
@@ -740,9 +740,9 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_po
     hExternalBodies
     (generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
       hCompile hSupported)
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noFallbackEntrypoint
       spec selectors hSupported irContract hCompile)
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noReceiveEntrypoint
       spec selectors hSupported irContract hCompile)
     hLower hEnv hMatch
 
@@ -981,9 +981,9 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_pr
     hExternalBodies
     (generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
       hCompile hSupported)
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noFallbackEntrypoint
       spec selectors hSupported irContract hCompile)
-    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+    (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noReceiveEntrypoint
       spec selectors hSupported irContract hCompile)
     hLower hEnv hProject hMatch
 
@@ -9604,8 +9604,8 @@ retargeting module also proves
 `emitYul_runtimeCode_bridged`, the emitted-runtime closure witness conditional
 on bridged IR function, entrypoint, and internal helper bodies, and
   `emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`, the corresponding
-  emitted-runtime equality between Verity `legacyExecYulFuel` and the EVMYulLean
-  backend executor under those body witnesses. These theorems compose the
+  emitted-runtime equality between the transition proof-interpreter backend and
+  the EVMYulLean backend executor under those body witnesses. These theorems compose the
   fully proven builtin bridge equivalences. This file intentionally does not
   define EndToEnd wrappers over that proof-interpreter backend target; the
   public EndToEnd theorem family targets native dispatcher execution through

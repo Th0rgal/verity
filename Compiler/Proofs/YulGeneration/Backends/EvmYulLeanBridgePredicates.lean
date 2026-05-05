@@ -13,8 +13,8 @@ namespace Compiler.Proofs.YulGeneration.Backends
 
 open Compiler.Proofs.IRGeneration
 
-/-- The set of builtins for which the `.evmYulLean` and `.verity` backends
-    produce identical results in the transition bridge. Kept here so native
+/-- The set of builtins for which the native and transition backends produce
+    identical results in the transition bridge. Kept here so native
     closure proofs can name the supported fragment without importing the legacy
     retarget executor theorem stack. -/
 def bridgedBuiltins : List String :=
