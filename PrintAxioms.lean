@@ -757,10 +757,12 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.EndToEnd.yulBody_from_state_eq_yulBody
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLeanBackend
+#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLeanBackend_with_function_bridge
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLeanBackend
+#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
 #print axioms Compiler.Proofs.EndToEnd.generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
 #print axioms Compiler.Proofs.EndToEnd.generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported
@@ -4274,4 +4276,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4098 theorems/lemmas (3110 public, 988 private, 0 sorry'd)
+-- Total: 4100 theorems/lemmas (3112 public, 988 private, 0 sorry'd)
