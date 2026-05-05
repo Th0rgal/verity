@@ -1,4 +1,5 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 import EvmYul.Yul.Interpreter
 
 namespace Compiler.Proofs.YulGeneration.Backends
