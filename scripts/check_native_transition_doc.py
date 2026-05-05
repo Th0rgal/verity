@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DOC = ROOT / "docs" / "NATIVE_EVMYULLEAN_TRANSITION.md"
 DOD_DOC = ROOT / "docs" / "NATIVE_EVMYULLEAN_FULL_TRANSITION_DONE.md"
+ROOT_COMPILER = ROOT / "Compiler.lean"
 END_TO_END = ROOT / "Compiler" / "Proofs" / "EndToEnd.lean"
 NATIVE_HARNESS = (
     ROOT
@@ -1190,6 +1191,11 @@ def check_legacy_proof_boundary(
                     f"{label} must not import transition-only legacy proof "
                     f"module `{module}`"
                 )
+        if "import Compiler.Proofs.YulGeneration.ReferenceOracle" in text:
+            errors.append(
+                f"{label} must not import legacy ReferenceOracle modules; "
+                "keep the custom Yul interpreter below the native public path"
+            )
 
     public_decl_pattern = re.compile(
         r"^\s*(?:@[^\n]*\n\s*)*"
@@ -1340,6 +1346,7 @@ def main() -> int:
         print(f"Missing: {DOD_DOC.relative_to(ROOT)}", file=sys.stderr)
         return 1
     for path in (
+        ROOT_COMPILER,
         END_TO_END,
         NATIVE_HARNESS,
         RETARGET,
@@ -1389,6 +1396,7 @@ def main() -> int:
     errors.extend(
         check_legacy_proof_boundary(
             [
+                ("Compiler.lean", ROOT_COMPILER.read_text(encoding="utf-8")),
                 ("Compiler/Proofs/EndToEnd.lean", END_TO_END.read_text(encoding="utf-8")),
                 (
                     "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean",
