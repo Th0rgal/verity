@@ -449,6 +449,24 @@ ALLOWLIST: set[str] = {
     # preservation with emitted-runtime backend equality; the scanner also
     # counts the trailing Phase 4 summary block in its theorem span.
     "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle",
+    # Native signed division bridge mirrors the upstream signed arithmetic
+    # spec split across sign/zero/divisor cases. The proof is a linear case
+    # analysis over integer-range facts rather than reusable computation.
+    "int256_div_toUint256_val_eq_uint256_sdiv",
+    # Native signextend bridge follows EVM's byte-index split and signed-mask
+    # arithmetic cases. Decomposing would mostly create single-use arithmetic
+    # helper lemmas with the same hypotheses.
+    "uint256_signextend_val_eq_uint256_signextend",
+    # Projected native dispatcher result wrapper has a short proof body, but
+    # the scanner includes the following public runtime-harness doc block.
+    "nativeDispatcherExecMatchesIRPositive_of_project_eq_match",
+    # Public generated-dispatcher EndToEnd theorem necessarily carries the
+    # full source-to-IR and native-runtime composition boundary in one wrapper.
+    "compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match",
+    # Private transition wrapper retained only in EvmYulLeanRetarget; the proof
+    # is a thin composition but its statement carries the full bridged-body
+    # hypotheses for the isolated legacy regression boundary.
+    "interpretYulFromIR_evmYulLean_eq_on_bridged_bodies",
     # Scalar parameter body closure is a structural induction over the six
     # scalar ABI cases emitted by `genParamLoadBodyFrom`.
     "genParamLoadBodyFrom_calldataload_bridged",
@@ -461,8 +479,10 @@ ALLOWLIST: set[str] = {
     # has to cover both inline static loads and the generated first-element alias.
     "genParamLoadBodyFrom_calldataload_static_scalar_bridged",
     # Source-expression closure main theorem: structural induction over the
-    # 21 `BridgedSourceExpr` constructors (4 leaves + 17 binops); each binop
-    # case is 4-5 lines and cannot be merged without losing readability.
+    # 25 `BridgedSourceExpr` constructors (4 leaves, 17 binops/unops, and
+    # 4 boolean-normalization cases); each case is mechanical decomposition
+    # of the emitted `compileExpr` shape and cannot be merged without losing
+    # readability.
     "compileExpr_bridgedSource",
     # Pure binding list closure mirrors `compileStmtList`'s head/tail recursion;
     # most proof lines are boilerplate decomposition of the two Except binds.
@@ -645,10 +665,10 @@ ALLOWLIST: set[str] = {
     # Same recursive generated-shape proof as the external version, using the
     # internal body fragment so internal returns compile to assignment + leave.
     "compileStmt_internal_recursive_body_fragment_bridged",
-    # Require failure-condition source closure case-splits on the 23
+    # Require failure-condition source closure case-splits on the 25
     # `BridgedSourceExpr` constructors: `.ge`/`.le` are handled specially
     # because `compileRequireFailCond` uses the direct `lt`/`gt` optimization,
-    # and the remaining 21 constructors each invoke the shared
+    # and the remaining 23 constructors each invoke the shared
     # `compileRequireFailCond_default_bridgedSource` helper for the `iszero`
     # fall-through. Each constructor case is two mechanical lines; merging
     # them would require either introducing a generic reconstruction tactic

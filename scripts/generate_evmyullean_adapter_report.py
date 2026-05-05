@@ -1135,7 +1135,9 @@ def build_report() -> dict[str, object]:
         elif source_expr_pure_closure_has_sorry:
             source_expr_pure_closure_status = "sorry"
         else:
-            source_expr_pure_closure_status = "proven (pure source-expression fragment)"
+            source_expr_pure_closure_status = (
+                "proven (pure source-expression fragment with boolean normalization)"
+            )
         if not has_universal_body_closure:
             universal_body_closure_status = "missing"
         elif universal_body_closure_has_sorry:

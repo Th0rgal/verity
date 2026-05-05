@@ -102,6 +102,8 @@ inductive BridgedSourceExpr : Expr → Prop
       BridgedSourceExpr (.bitOr a b)
   | bitXor {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
       BridgedSourceExpr (.bitXor a b)
+  | bitNot {a} (ha : BridgedSourceExpr a) :
+      BridgedSourceExpr (.bitNot a)
   -- shift binops
   | shl {s v} (hs : BridgedSourceExpr s) (hv : BridgedSourceExpr v) :
       BridgedSourceExpr (.shl s v)
@@ -122,6 +124,13 @@ inductive BridgedSourceExpr : Expr → Prop
       BridgedSourceExpr (.lt a b)
   | slt {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
       BridgedSourceExpr (.slt a b)
+  -- boolean normalization
+  | logicalAnd {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
+      BridgedSourceExpr (.logicalAnd a b)
+  | logicalOr {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
+      BridgedSourceExpr (.logicalOr a b)
+  | logicalNot {a} (ha : BridgedSourceExpr a) :
+      BridgedSourceExpr (.logicalNot a)
   -- negated comparisons (yulNegatedBinOp)
   | ge {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
       BridgedSourceExpr (.ge a b)
@@ -172,6 +181,13 @@ private theorem bridgedExpr_yulNegatedBinOp {func : String}
   exact bridgedExpr_unopBuiltin (by simp [bridgedBuiltins])
     (bridgedExpr_binopBuiltin hBridged ha hb)
 
+/-- `yulToBool e = iszero(iszero(e))` is bridged when `e` is bridged. -/
+private theorem bridgedExpr_yulToBool {e : YulExpr} (hE : BridgedExpr e) :
+    BridgedExpr (yulToBool e) := by
+  unfold yulToBool
+  exact bridgedExpr_unopBuiltin (by simp [bridgedBuiltins])
+    (bridgedExpr_unopBuiltin (by simp [bridgedBuiltins]) hE)
+
 /-- Destructure a `do`-block emission of `yulBinOp` into its sub-results.
     This shape matches what `simp only [compileExpr]` produces for every
     binop constructor case. -/
@@ -213,6 +229,41 @@ private lemma compileExpr_yulNegatedBinOp_ok
           refine ⟨ca, cb, rfl, rfl, ?_⟩
           simp [hA, hB, bind, Except.bind, Pure.pure, Except.pure] at hOk
           exact hOk.symm
+
+/-- Destructure a boolean-normalized binary expression emission. -/
+private lemma compileExpr_yulBoolBinOp_ok
+    {fields : List CompilationModel.Field} {src : DynamicDataSource}
+    {op : String} {a b : Expr} {out : YulExpr}
+    (hOk : (do let x ← compileExpr fields src a
+               let y ← compileExpr fields src b
+               pure (yulBinOp op (yulToBool x) (yulToBool y)) :
+        Except String YulExpr) = .ok out) :
+    ∃ ca cb, compileExpr fields src a = .ok ca
+           ∧ compileExpr fields src b = .ok cb
+           ∧ out = yulBinOp op (yulToBool ca) (yulToBool cb) := by
+  cases hA : compileExpr fields src a with
+  | error e => simp [hA, bind, Except.bind] at hOk
+  | ok ca =>
+      cases hB : compileExpr fields src b with
+      | error e => simp [hA, hB, bind, Except.bind] at hOk
+      | ok cb =>
+          refine ⟨ca, cb, rfl, rfl, ?_⟩
+          simp [hA, hB, bind, Except.bind, Pure.pure, Except.pure] at hOk
+          exact hOk.symm
+
+/-- Destructure a unary builtin expression emission. -/
+private lemma compileExpr_unopBuiltin_ok
+    {fields : List CompilationModel.Field} {src : DynamicDataSource}
+    {op : String} {a : Expr} {out : YulExpr}
+    (hOk : (do let x ← compileExpr fields src a
+               pure (YulExpr.call op [x]) : Except String YulExpr) = .ok out) :
+    ∃ ca, compileExpr fields src a = .ok ca ∧ out = YulExpr.call op [ca] := by
+  cases hA : compileExpr fields src a with
+  | error e => simp [hA, bind, Except.bind] at hOk
+  | ok ca =>
+      refine ⟨ca, rfl, ?_⟩
+      simp [hA, bind, Except.bind, Pure.pure, Except.pure] at hOk
+      exact hOk.symm
 
 /-- Main theorem: every `BridgedSourceExpr` compiles to a `BridgedExpr`.
     Structural induction on the source predicate. Binop cases delegate
@@ -301,6 +352,12 @@ theorem compileExpr_bridgedSource
       obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulBinOp_ok hOk
       subst hEq
       exact bridgedExpr_yulBinOp (by simp [bridgedBuiltins]) (iha hA) (ihb hB)
+  | bitNot _ iha =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨ca, hA, hEq⟩ := compileExpr_unopBuiltin_ok hOk
+      subst hEq
+      exact bridgedExpr_unopBuiltin (by simp [bridgedBuiltins]) (iha hA)
   | shl _ _ ihs ihv =>
       intro out hOk
       simp only [compileExpr] at hOk
@@ -355,6 +412,26 @@ theorem compileExpr_bridgedSource
       obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulBinOp_ok hOk
       subst hEq
       exact bridgedExpr_yulBinOp (by simp [bridgedBuiltins]) (iha hA) (ihb hB)
+  | logicalAnd _ _ iha ihb =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulBoolBinOp_ok hOk
+      subst hEq
+      exact bridgedExpr_yulBinOp (by simp [bridgedBuiltins])
+        (bridgedExpr_yulToBool (iha hA)) (bridgedExpr_yulToBool (ihb hB))
+  | logicalOr _ _ iha ihb =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulBoolBinOp_ok hOk
+      subst hEq
+      exact bridgedExpr_yulBinOp (by simp [bridgedBuiltins])
+        (bridgedExpr_yulToBool (iha hA)) (bridgedExpr_yulToBool (ihb hB))
+  | logicalNot _ iha =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨ca, hA, hEq⟩ := compileExpr_unopBuiltin_ok hOk
+      subst hEq
+      exact bridgedExpr_unopBuiltin (by simp [bridgedBuiltins]) (iha hA)
   | ge _ _ iha ihb =>
       intro out hOk
       simp only [compileExpr] at hOk
@@ -456,6 +533,9 @@ theorem compileRequireFailCond_bridgedSource
   | bitXor ha hb =>
       exact compileRequireFailCond_default_bridgedSource (.bitXor ha hb)
         (by simpa [compileRequireFailCond] using hOk)
+  | bitNot ha =>
+      exact compileRequireFailCond_default_bridgedSource (.bitNot ha)
+        (by simpa [compileRequireFailCond] using hOk)
   | shl hs hv =>
       exact compileRequireFailCond_default_bridgedSource (.shl hs hv)
         (by simpa [compileRequireFailCond] using hOk)
@@ -482,6 +562,15 @@ theorem compileRequireFailCond_bridgedSource
         (by simpa [compileRequireFailCond] using hOk)
   | slt ha hb =>
       exact compileRequireFailCond_default_bridgedSource (.slt ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | logicalAnd ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.logicalAnd ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | logicalOr ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.logicalOr ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | logicalNot ha =>
+      exact compileRequireFailCond_default_bridgedSource (.logicalNot ha)
         (by simpa [compileRequireFailCond] using hOk)
 
 /-- List-level closure: when every source expression in a list is
