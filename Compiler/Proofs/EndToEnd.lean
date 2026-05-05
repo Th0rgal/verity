@@ -5999,7 +5999,7 @@ dispatcher shell for the two concrete SimpleStorage functions.
 
 This pins down the outer runtime layer that the native dispatcher bridge must
 peel before applying the concrete lowered selector-switch lemmas. -/
-theorem simpleStorage_runtimeCode_eq_single_dispatcher :
+private theorem simpleStorage_runtimeCode_eq_single_dispatcher :
     (Compiler.emitYul simpleStorageIRContract).runtimeCode =
       [Compiler.CodegenCommon.buildSwitch
         simpleStorageIRContract.functions none none] := by
@@ -6036,7 +6036,7 @@ lowering of the single emitted dispatcher shell.
 
 This exposes the concrete lowered dispatcher block without unfolding the
 computed native witness in later selector-case proofs. -/
-theorem simpleStorageNativeContract_dispatcher_eq_lowered_stmts :
+private theorem simpleStorageNativeContract_dispatcher_eq_lowered_stmts :
     Compiler.SimpleStorageNativeWitness.nativeContract.dispatcher =
       .Block simpleStorageNativeDispatcherStmts := by
   unfold Compiler.SimpleStorageNativeWitness.nativeContract
@@ -6075,7 +6075,7 @@ The outer success is inherited from
 `Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq` (which
 itself uses the existing `native_decide` trust chain on the runtime witness),
 combined with the structural single-statement equation. -/
-theorem simpleStorageNativeDispatcherStmts_lowering_ok :
+private theorem simpleStorageNativeDispatcherStmts_lowering_ok :
     Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
         [Compiler.CodegenCommon.buildSwitch
           simpleStorageIRContract.functions none none] =
@@ -6100,7 +6100,7 @@ Reason: `buildSwitch` produces a `Yul.YulStmt.block`, which the native lowering
 maps to `[.Block inner]` for the lowered inner statements. Combined with the
 fact that the lowering succeeds (above), this exposes the inner block shape
 without further computation. -/
-theorem simpleStorageNativeDispatcherStmts_exists_singleton_block :
+private theorem simpleStorageNativeDispatcherStmts_exists_singleton_block :
     ∃ inner : List EvmYul.Yul.Ast.Stmt,
       simpleStorageNativeDispatcherStmts = [.Block inner] := by
   have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
@@ -6116,7 +6116,7 @@ noncomputable def simpleStorageNativeDispatcherInnerStmts :
     List EvmYul.Yul.Ast.Stmt :=
   Classical.choose simpleStorageNativeDispatcherStmts_exists_singleton_block
 
-theorem simpleStorageNativeDispatcherStmts_eq_singleton_block :
+private theorem simpleStorageNativeDispatcherStmts_eq_singleton_block :
     simpleStorageNativeDispatcherStmts =
       [.Block simpleStorageNativeDispatcherInnerStmts] :=
   Classical.choose_spec simpleStorageNativeDispatcherStmts_exists_singleton_block
@@ -6125,7 +6125,7 @@ theorem simpleStorageNativeDispatcherStmts_eq_singleton_block :
 the lowered-stmts and singleton-block equalities exposes the dispatcher value
 as `.Block [.Block <inner>]`, which is the exact shape consumed by the harness
 dispatcher-exec peel lemma. -/
-theorem simpleStorageNativeContract_dispatcher_eq_singleton_block_inner :
+private theorem simpleStorageNativeContract_dispatcher_eq_singleton_block_inner :
     Compiler.SimpleStorageNativeWitness.nativeContract.dispatcher =
       .Block [.Block simpleStorageNativeDispatcherInnerStmts] := by
   rw [simpleStorageNativeContract_dispatcher_eq_lowered_stmts,
@@ -6137,7 +6137,7 @@ dispatcher is the doubly-blocked inner statement list.
 This packages record-η with the lowered + singleton-block dispatcher
 equalities so that the harness peel lemmas (which expect a
 `{ dispatcher := .Block body, functions := … }` shape) apply in one rewrite. -/
-theorem simpleStorageNativeContract_eq_record_inner_block :
+private theorem simpleStorageNativeContract_eq_record_inner_block :
     Compiler.SimpleStorageNativeWitness.nativeContract =
       { dispatcher := .Block [.Block simpleStorageNativeDispatcherInnerStmts]
         functions :=
@@ -6156,7 +6156,7 @@ direct `EvmYul.Yul.exec` over the inner statement list.
 This collapses the bridge's dispatcher invocation into the same shape the
 harness's per-selector body lemmas already speak about, in preparation for
 discharging the bridge from those lemmas. -/
-theorem simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
+private theorem simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
     (peeledFuel : Nat)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
@@ -6275,7 +6275,7 @@ singleton-block extraction (`simpleStorageNativeDispatcherStmts_eq_singleton_blo
 by applying the cons/`_let` lowering equations to the head of `buildSwitch`'s
 3-statement block. The remaining tail is left abstract — downstream peels will
 expose the second and third statements. -/
-theorem simpleStorageNativeDispatcherInnerStmts_head_let_exists :
+private theorem simpleStorageNativeDispatcherInnerStmts_head_let_exists :
     ∃ (e : EvmYul.Yul.Ast.Expr) (rest : List EvmYul.Yul.Ast.Stmt),
       simpleStorageNativeDispatcherInnerStmts =
         EvmYul.Yul.Ast.Stmt.Let ["__has_selector"] (some e) :: rest := by
@@ -6295,7 +6295,7 @@ guard `if iszero(__has_selector) { revert(0,0) }`. This peels the second
 statement of `buildSwitch`'s 3-statement source block by chaining
 `lowerStmtsNative_block_stmts_eq`, `lowerStmtsNativeWithSwitchIds_let_head_eq`,
 and `lowerStmtsNativeWithSwitchIds_if_head_eq`. -/
-theorem simpleStorageNativeDispatcherInnerStmts_let_if_head_exists :
+private theorem simpleStorageNativeDispatcherInnerStmts_let_if_head_exists :
     ∃ (e : EvmYul.Yul.Ast.Expr) (c : EvmYul.Yul.Ast.Expr)
       (body : List EvmYul.Yul.Ast.Stmt) (rest : List EvmYul.Yul.Ast.Stmt),
       simpleStorageNativeDispatcherInnerStmts =
@@ -6317,7 +6317,7 @@ expected three-statement shape: the lowered `let __has_selector := …`, the
 selector-miss `if iszero(__has_selector) { … }` guard, and the selector-hit
 `if __has_selector { switch … }` body. The trailing list is empty because
 `buildSwitch` produces a 3-statement source block. -/
-theorem simpleStorageNativeDispatcherInnerStmts_eq_let_if_if :
+private theorem simpleStorageNativeDispatcherInnerStmts_eq_let_if_if :
     ∃ (e : EvmYul.Yul.Ast.Expr) (c1 : EvmYul.Yul.Ast.Expr)
       (body1 : List EvmYul.Yul.Ast.Stmt)
       (c2 : EvmYul.Yul.Ast.Expr) (body2 : List EvmYul.Yul.Ast.Stmt),
@@ -6391,7 +6391,7 @@ noncomputable def simpleStorageNativeDispatcher_if2Body :
 statement list using the named witness defs. Eliminates the existential
 boilerplate from the `_eq_let_if_if` lemma so future selector-case proofs can
 rewrite the dispatcher inner-stmts to a literal 3-element list. -/
-theorem simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if :
+private theorem simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if :
     simpleStorageNativeDispatcherInnerStmts =
       [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
           (some simpleStorageNativeDispatcher_letValue),
@@ -6414,7 +6414,7 @@ spine using the pinned named witnesses. This combines
 `simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec` with
 `simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if`, replacing the
 existential let/if/if shape with a concrete equation in named witnesses. -/
-theorem simpleStorageNativeContract_dispatcherExec_eq_named_let_if_if_block_exec
+private theorem simpleStorageNativeContract_dispatcherExec_eq_named_let_if_if_block_exec
     (peeledFuel : Nat)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
@@ -6447,7 +6447,7 @@ the same peel as `simpleStorageNativeDispatcherInnerStmts_head_let_exists` but
 exposes the *concrete* lowered RHS (not just an abstract Lean witness), so the
 `Classical.choose`-pinned `simpleStorageNativeDispatcher_letValue` can be
 equated to it via head injection. -/
-theorem simpleStorageNativeDispatcherInnerStmts_concrete_let_head :
+private theorem simpleStorageNativeDispatcherInnerStmts_concrete_let_head :
     ∃ rest : List EvmYul.Yul.Ast.Stmt,
       simpleStorageNativeDispatcherInnerStmts =
         EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
@@ -6472,7 +6472,7 @@ selector-miss `iszero(__has_selector)` guard, and the selector-hit
 on the lowering of the inner switch over the generated cases. This is the
 companion of `simpleStorageNativeDispatcherInnerStmts_eq_let_if_if` with
 abstract Yul witnesses replaced by concrete syntax. -/
-theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_if :
+private theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_if :
     ∃ (body1 body2 : List EvmYul.Yul.Ast.Stmt),
       simpleStorageNativeDispatcherInnerStmts =
         [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
@@ -6516,7 +6516,7 @@ selector cases and default body remain existential because they depend on the
 contract's `functions` list. This is the next dispatcher peel beyond the
 let/if/if shape and is the foundation for replacing the Classical.choose-pinned
 `simpleStorageNativeDispatcher_if2Body` with a concrete switch block. -/
-theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton :
+private theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton :
     ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (switchId : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (default' : List EvmYul.Yul.Ast.Stmt),
@@ -6632,7 +6632,7 @@ existing concrete decomposition with the new
 the definitional fact that `simpleStorageIRContract` has both `fallback` and
 `receive` set to `none`, so the switch's source-level `defaultCase` is
 `defaultDispatchCase none none = [revert(0,0)]`. -/
-theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default :
+private theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default :
     ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (switchId : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
       simpleStorageNativeDispatcherInnerStmts =
@@ -6665,7 +6665,7 @@ theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSinglet
 `_sourceLowered` companion below as the explicit input to
 `lowerSwitchCasesNativeWithSwitchIds`, anchoring the switch lowering to the
 concrete source-level selector list. -/
-abbrev simpleStorageBuildSwitchSourceCases : List (Nat × List Yul.YulStmt) :=
+private abbrev simpleStorageBuildSwitchSourceCases : List (Nat × List Yul.YulStmt) :=
   simpleStorageIRContract.functions.map (fun fn =>
     (fn.selector,
       Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
@@ -6677,7 +6677,7 @@ case list `simpleStorageBuildSwitchSourceCases` into the lowered `cases'`.
 Bridge lemma for the selector-miss closed-form: chained with
 `lowerSwitchCasesNativeWithSwitchIds_tags_eq` it converts source-level
 selector facts into lowered-level `find?` results. -/
-theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default_sourceLowered :
+private theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default_sourceLowered :
     ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
       simpleStorageNativeDispatcherInnerStmts =
@@ -6714,7 +6714,7 @@ concrete-head exposure
 injection eliminates the structural existential between the named witness and
 the concrete source expression, letting downstream proofs evaluate the let
 RHS directly via the existing harness lemmas. -/
-theorem simpleStorageNativeDispatcher_letValue_eq :
+private theorem simpleStorageNativeDispatcher_letValue_eq :
     simpleStorageNativeDispatcher_letValue =
       Compiler.Proofs.YulGeneration.Backends.lowerExprNative
         (Yul.YulExpr.call "iszero"
@@ -6733,7 +6733,7 @@ theorem simpleStorageNativeDispatcher_letValue_eq :
 SimpleStorage native dispatcher equals the lowered `iszero(__has_selector)`
 Yul expression that `buildSwitch` emits. Derived by head injection from the
 concrete-form full equation and the named-form decomposition. -/
-theorem simpleStorageNativeDispatcher_if1Cond_eq :
+private theorem simpleStorageNativeDispatcher_if1Cond_eq :
     simpleStorageNativeDispatcher_if1Cond =
       Compiler.Proofs.YulGeneration.Backends.lowerExprNative
         (Yul.YulExpr.call "iszero"
@@ -6749,7 +6749,7 @@ theorem simpleStorageNativeDispatcher_if1Cond_eq :
 SimpleStorage native dispatcher equals the lowered `__has_selector` ident
 expression that `buildSwitch` emits. Derived by head injection from the
 concrete-form full equation and the named-form decomposition. -/
-theorem simpleStorageNativeDispatcher_if2Cond_eq :
+private theorem simpleStorageNativeDispatcher_if2Cond_eq :
     simpleStorageNativeDispatcher_if2Cond =
       Compiler.Proofs.YulGeneration.Backends.lowerExprNative
         (Yul.YulExpr.ident "__has_selector") := by
@@ -6769,7 +6769,7 @@ existence as a closed-form switch block is enough to drive the next dispatcher
 peel into selector-case dispatch. Derived by head injection from the
 strengthened concrete-form `_eq_concrete_let_if_switchSingleton` and the
 named-form decomposition. -/
-theorem simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_exists :
+private theorem simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_exists :
     ∃ (switchId : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (default' : List EvmYul.Yul.Ast.Stmt),
@@ -6791,7 +6791,7 @@ the lowered default body of the dispatcher's selector-hit switch is pinned to
 `[nativeRevertZeroZeroStmt]`. Derived by head injection from the strengthened
 concrete-form `_eq_concrete_let_if_switchSingleton_revert_default` and the
 named-form decomposition. -/
-theorem simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_exists :
+private theorem simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_exists :
     ∃ (switchId : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
       simpleStorageNativeDispatcher_if2Body =
@@ -6815,7 +6815,7 @@ linking `simpleStorageBuildSwitchSourceCases` to the lowered `cases'`. This is
 the form the dispatcher selector-miss closed-form consumes — chaining it with
 `lowerSwitchCasesNativeWithSwitchIds_tags_eq` lifts source-level selector
 facts through the lowering. -/
-theorem simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_sourceLowered :
+private theorem simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_sourceLowered :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
       simpleStorageNativeDispatcher_if2Body =
@@ -6842,7 +6842,7 @@ fully-pinned concrete-form decomposition of the inner block (where body1 is
 also pinned via the WithSwitchIds revert lowering equation), then uses head
 injection on the second `If` to extract the body equation. Lets downstream
 selector-miss exec proofs invoke `exec_revert_zero_zero_error` directly. -/
-theorem simpleStorageNativeDispatcher_if1Body_eq :
+private theorem simpleStorageNativeDispatcher_if1Body_eq :
     simpleStorageNativeDispatcher_if1Body =
       [Backends.Native.nativeRevertZeroZeroStmt] := by
   have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
@@ -6888,7 +6888,7 @@ This is the per-statement halt lemma the selector-miss dispatcher proof will
 chain after the `let __has_selector := …` and `if iszero(__has_selector)`
 peels: once `__has_selector = 0` is established, the if guard fires, and this
 lemma immediately closes the dispatcher result as `.error Revert`. -/
-theorem exec_block_simpleStorageNativeDispatcher_if1Body_revert
+private theorem exec_block_simpleStorageNativeDispatcher_if1Body_revert
     (fuel : Nat) (state : EvmYul.Yul.State)
     (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
     EvmYul.Yul.exec (fuel + 7) (.Block simpleStorageNativeDispatcher_if1Body)
@@ -6916,7 +6916,7 @@ lowered case bodies, and lowered default body remain existential — they are
 fixed by the concrete `simpleStorageIRContract.functions` list and threaded
 through later case-dispatch peels using
 `exec_lowerNativeSwitchBlock_simpleStorageConcrete_*` lemmas. -/
-theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_exec
+private theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_exec
     (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
     (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
@@ -6961,7 +6961,7 @@ where the lowered default body of the inner switch is pinned to
 `[nativeRevertZeroZeroStmt]`. Uses
 `simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_exists`
 in place of the unpinned existential variant. -/
-theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec
+private theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec
     (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
     (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
@@ -7008,7 +7008,7 @@ the inner-stmts-to-lowered-switch-block exec equation additionally exposes
 equation linking `simpleStorageBuildSwitchSourceCases` to the lowered `cases'`.
 Built by switching the underlying `if2Body` decomposition to its sourceLowered
 companion. -/
-theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
+private theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
     (fuel : Nat) (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
     (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
@@ -7058,7 +7058,7 @@ just-landed `_innerStmts_eq_lowerNativeSwitchBlock_exec`, so the bridge's
 `contractDispatcherExecResult` at fuel `peeledFuel + 14` reduces to an exec of
 a singleton lowered-switch block at fuel `peeledFuel + 8` on
 `(initialOk).insert "__has_selector" 1`. -/
-theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_exec
+private theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_exec
     (peeledFuel : Nat)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
@@ -7101,7 +7101,7 @@ the `_innerBlock_exec` combinator with the strengthened
 point that downstream selector-miss bridge proofs will plug into the new
 store-parametric `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_fuel`
 endpoint. -/
-theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec
+private theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec
     (peeledFuel : Nat)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
@@ -7145,7 +7145,7 @@ they open the existential, then chain `lowerSwitchCasesNativeWithSwitchIds_tags_
 to lift source-level selector facts (decided from `simpleStorageIRContract`)
 into the lowered `cases'.find?` results required by the `_via_reduction`
 endpoint. -/
-theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
+private theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
     (peeledFuel : Nat)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
@@ -7194,7 +7194,7 @@ existential of `_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec`)
 without forcing the fuel parameter to depend on a not-yet-bound term. This is
 the direct selector-miss discharge composing into
 `contractDispatcherExecResult = .error Revert`. -/
-theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_via_reduction
+private theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_via_reduction
     (fuel selector switchId : Nat)
     (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
@@ -7241,7 +7241,7 @@ theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_via_reduc
 project to the concrete two-element selector list `[0x6057361d, 0x2e64cec1]`.
 This anchors source-level selector-miss reasoning at the IR layer so the rest
 of the dispatcher proof can stay parametric in `cases'`. -/
-theorem simpleStorageBuildSwitchSourceCases_map_fst :
+private theorem simpleStorageBuildSwitchSourceCases_map_fst :
     simpleStorageBuildSwitchSourceCases.map (·.1) =
       [(0x6057361d : Nat), (0x2e64cec1 : Nat)] := rfl
 
@@ -7249,7 +7249,7 @@ theorem simpleStorageBuildSwitchSourceCases_map_fst :
 `sel ≠ 0x6057361d ∧ sel ≠ 0x2e64cec1` (the two SimpleStorage IR selectors)
 suffices to discharge `find?` on the buildSwitch-emitted source case list.
 This is the source-level half of the selector-miss closed form. -/
-theorem simpleStorageBuildSwitchSourceCases_find?_none {sel : Nat}
+private theorem simpleStorageBuildSwitchSourceCases_find?_none {sel : Nat}
     (h1 : sel ≠ 0x6057361d) (h2 : sel ≠ 0x2e64cec1) :
     simpleStorageBuildSwitchSourceCases.find? (fun entry => entry.1 == sel) =
       none := by
@@ -7265,7 +7265,7 @@ theorem simpleStorageBuildSwitchSourceCases_find?_none {sel : Nat}
 strictly less than `EvmYul.UInt256.size = 2^256`. The two source selectors
 (`0x6057361d`, `0x2e64cec1`) both fit in 32 bits, far below the EVM word
 modulus. -/
-theorem simpleStorageBuildSwitchSourceCases_tags_lt_uint256_size :
+private theorem simpleStorageBuildSwitchSourceCases_tags_lt_uint256_size :
     ∀ tag body, (tag, body) ∈ simpleStorageBuildSwitchSourceCases →
       tag < EvmYul.UInt256.size := by
   intro tag body h
@@ -7285,7 +7285,7 @@ parametric `cases'` (opened from the `_sourceLowered` existential) into the
 concrete `[(0x6057361d, _), (0x2e64cec1, _)]` form that matches the
 generic harness lemmas like
 `exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel`. -/
-theorem simpleStorageBuildSwitchSourceCases_lowered_shape
+private theorem simpleStorageBuildSwitchSourceCases_lowered_shape
     (reservedNames : List String) (nextSwitchId final : Nat)
     (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (hLower :
@@ -7326,7 +7326,7 @@ def simpleStorageLoweredStoreCaseBody : List EvmYul.Yul.Ast.Stmt :=
 /-- Lowered native body shape of the `retrieve()` selector arm of the
 SimpleStorage source switch cases. Mirrors `simpleStorageLoweredStoreCaseBody`
 for the source `mstore(0, sload(0)); return(0, 32)` body. -/
-def simpleStorageLoweredRetrieveCaseBody : List EvmYul.Yul.Ast.Stmt :=
+private def simpleStorageLoweredRetrieveCaseBody : List EvmYul.Yul.Ast.Stmt :=
   [EvmYul.Yul.Ast.Stmt.Block [],
    .If (Backends.lowerExprNative (.call "callvalue" []))
      [.ExprStmtCall (Backends.lowerExprNative (.call "revert" [.lit 0, .lit 0]))],
@@ -7354,7 +7354,7 @@ def simpleStorageLoweredStoreCaseBodyTail : List EvmYul.Yul.Ast.Stmt :=
 
 /-- 4-statement tail of `simpleStorageLoweredRetrieveCaseBody`, with the leading
 no-op `.Block []` (from the `dispatchBody` source comment) stripped. -/
-def simpleStorageLoweredRetrieveCaseBodyTail : List EvmYul.Yul.Ast.Stmt :=
+private def simpleStorageLoweredRetrieveCaseBodyTail : List EvmYul.Yul.Ast.Stmt :=
   [.If (Backends.lowerExprNative (.call "callvalue" []))
      [.ExprStmtCall (Backends.lowerExprNative (.call "revert" [.lit 0, .lit 0]))],
    .If (Backends.lowerExprNative
@@ -7372,7 +7372,7 @@ positive fuel, returning the input state unchanged) with
 `exec_block_cons_tail_error` (a successful head followed by an erroring tail
 makes the whole block error). Reduces a 6-statement obligation to a strictly
 smaller 5-statement tail obligation. -/
-theorem exec_block_simpleStorageLoweredStoreCaseBody_head_strip_error
+private theorem exec_block_simpleStorageLoweredStoreCaseBody_head_strip_error
     (fuel' : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
     (state : EvmYul.Yul.State) (err : EvmYul.Yul.Exception)
     (hTail :
@@ -7391,7 +7391,7 @@ theorem exec_block_simpleStorageLoweredStoreCaseBody_head_strip_error
 
 /-- Retrieve-case dual of
 `exec_block_simpleStorageLoweredStoreCaseBody_head_strip_error`. -/
-theorem exec_block_simpleStorageLoweredRetrieveCaseBody_head_strip_error
+private theorem exec_block_simpleStorageLoweredRetrieveCaseBody_head_strip_error
     (fuel' : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
     (state : EvmYul.Yul.State) (err : EvmYul.Yul.Exception)
     (hTail :
@@ -7412,7 +7412,7 @@ theorem exec_block_simpleStorageLoweredRetrieveCaseBody_head_strip_error
 with both the leading no-op `.Block []` and the leading `if callvalue() {…}`
 revert guard removed. Used to further shrink the dispatcher hit-case body-exec
 obligation when the transaction has zero `msgValue`. -/
-def simpleStorageLoweredStoreCaseBodyTail2 : List EvmYul.Yul.Ast.Stmt :=
+private def simpleStorageLoweredStoreCaseBodyTail2 : List EvmYul.Yul.Ast.Stmt :=
   [.If (Backends.lowerExprNative
           (.call "lt" [.call "calldatasize" [], .lit 36]))
      [.ExprStmtCall (Backends.lowerExprNative (.call "revert" [.lit 0, .lit 0]))],
@@ -7433,7 +7433,7 @@ def simpleStorageLoweredStoreCaseBodyTail3 : List EvmYul.Yul.Ast.Stmt :=
    .ExprStmtCall (Backends.lowerExprNative (.call "stop" []))]
 
 /-- 3-statement callvalue-stripped tail of `simpleStorageLoweredRetrieveCaseBody`. -/
-def simpleStorageLoweredRetrieveCaseBodyTail2 : List EvmYul.Yul.Ast.Stmt :=
+private def simpleStorageLoweredRetrieveCaseBodyTail2 : List EvmYul.Yul.Ast.Stmt :=
   [.If (Backends.lowerExprNative
           (.call "lt" [.call "calldatasize" [], .lit 4]))
      [.ExprStmtCall (Backends.lowerExprNative (.call "revert" [.lit 0, .lit 0]))],
@@ -7448,7 +7448,7 @@ guard and the inner `if lt(calldatasize, 4) {…}` argument-length revert
 guard removed. Used to further shrink the dispatcher hit-case body-exec
 obligation when the calldata is at least 4 bytes (which is automatic for any
 ABI-conforming call since the selector itself is 4 bytes). -/
-def simpleStorageLoweredRetrieveCaseBodyTail3 : List EvmYul.Yul.Ast.Stmt :=
+private def simpleStorageLoweredRetrieveCaseBodyTail3 : List EvmYul.Yul.Ast.Stmt :=
   [.ExprStmtCall (Backends.lowerExprNative
      (.call "mstore" [.lit 0, .call "sload" [.lit 0]])),
    .ExprStmtCall (Backends.lowerExprNative
@@ -7463,7 +7463,7 @@ is a no-op at zero `weiValue`) with `exec_block_cons_tail_error` (a
 successful head followed by an erroring tail makes the whole block
 error). Reduces a 5-statement tail obligation to a 4-statement
 callvalue-stripped tail2 obligation. -/
-theorem exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
+private theorem exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
     (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
     (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
     (err : EvmYul.Yul.Exception)
@@ -7490,7 +7490,7 @@ theorem exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
 
 /-- Retrieve-case dual of
 `exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error`. -/
-theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error
+private theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error
     (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
     (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
     (err : EvmYul.Yul.Exception)
@@ -7523,7 +7523,7 @@ bytes (the selector). Combines the harness skip lemma
 `exec_if_lowerExprNative_lt_calldatasize_skip_ge_fuel` with
 `exec_block_cons_tail_error`. Reduces a 3-statement tail2 obligation to a
 2-statement lt-stripped tail3 obligation. -/
-theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
+private theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
     (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
     (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
     (err : EvmYul.Yul.Exception)
@@ -7557,7 +7557,7 @@ theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
 /-- Store-case dual of
 `exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error`, with
 the ABI argument guard threshold `36 = 4 + 32`. -/
-theorem exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error
+private theorem exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error
     (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
     (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
     (err : EvmYul.Yul.Exception)
@@ -7591,7 +7591,7 @@ theorem exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error
 /-- Store-case argument-length guard fires when calldata contains only the
 selector. This is the short-calldata counterpart to
 `exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error`. -/
-theorem exec_block_simpleStorageLoweredStoreCaseBodyTail2_short_revert
+private theorem exec_block_simpleStorageLoweredStoreCaseBodyTail2_short_revert
     (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
     (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
     (hSizeEq : shared.executionEnv.calldata.size = 4) :
@@ -7738,7 +7738,7 @@ theorem exec_block_simpleStorageLoweredStoreCaseBody_halt
     `exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error`
     unconditionally — no extra calldata/wei hypotheses needed because the
     payload reads only from storage and writes only to memory. -/
-theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed
+private theorem exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed
     (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
     (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore) :
     EvmYul.Yul.exec (fuel + 9)
@@ -7784,7 +7784,7 @@ Stacks the three guard-strip lemmas (head no-op, callvalue, lt-calldatasize)
 on top of `_Tail3_closed` to characterize the full lowered retrieve body's
 exec output as the closed-form halt error produced by
 `mstore(0, sload(0)); return(0, 32)`. The `shared3` form mirrors `_Tail3_closed`. -/
-theorem exec_block_simpleStorageLoweredRetrieveCaseBody_halt
+private theorem exec_block_simpleStorageLoweredRetrieveCaseBody_halt
     (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
     (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
     (hWei : shared.executionEnv.weiValue = (⟨0⟩ : EvmYul.Literal))
@@ -7819,7 +7819,7 @@ the threaded `nextSwitchId` returns unchanged. Strengthens `_lowered_shape`
 from a two-element shape with unspecified bodies to a fixed shape with
 explicit lowered bodies, anchoring downstream hit-case proofs against the
 harness primitive-call lemmas. -/
-theorem simpleStorageBuildSwitchSourceCases_lowered_concrete
+private theorem simpleStorageBuildSwitchSourceCases_lowered_concrete
     (reservedNames : List String) (nextSwitchId : Nat) :
     Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId
         simpleStorageBuildSwitchSourceCases =
@@ -7856,7 +7856,7 @@ from the source-cases facts via `_find?_none` / `_tags_eq` chained with
 then composes through `_selectorMiss_revert_via_reduction`. This lifts the
 remaining selector-miss obligation in the SimpleStorage native dispatcher
 bridge to a purely source-level statement. -/
-theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
+private theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
     (fuel selector : Nat)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (hSelector :
@@ -7906,7 +7906,7 @@ theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
 /-- Post-`__has_selector := 1` switch-prefix state at a hit, with the matched
 flag set: the input state shape consumed by the selected body inside the
 lowered native switch's hit branch. -/
-def simpleStorageDispatcherHitBodyInputState
+private def simpleStorageDispatcherHitBodyInputState
     (switchId : Nat) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) : EvmYul.Yul.State :=
   ((((.Ok (Compiler.Proofs.YulGeneration.Backends.Native.initialState
@@ -7927,7 +7927,7 @@ SimpleStorage `store(uint256)` selector: composes the harness-level
 `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error`
 with the strengthened-reduction equation, parametric in `cases'`, the lowered
 bodies, and the body-execution `err`. -/
-theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction
+private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction
     (fuel switchId : Nat)
     (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (storeBody' retrieveBody' : List EvmYul.Yul.Ast.Stmt)
@@ -7977,7 +7977,7 @@ theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction
     rcases hMem with ⟨rfl, _⟩ | ⟨rfl, _⟩ <;> decide
   · simpa [simpleStorageDispatcherHitBodyInputState] using hBody
 
-def simpleStorageLoweredHitCasesShape
+private def simpleStorageLoweredHitCasesShape
     (reservedNames : List String) (n0 midN : Nat)
     (storeBody' retrieveBody' : List EvmYul.Yul.Ast.Stmt) : Prop :=
   Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
@@ -7985,7 +7985,7 @@ def simpleStorageLoweredHitCasesShape
       simpleStorageBuildSwitchSourceCases =
     .ok ([(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')], midN)
 
-theorem simpleStorageNativeContract_dispatcherExec_storeHit_error
+private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error
     (fuel : Nat) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (err : EvmYul.Yul.Exception)
     (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -8034,7 +8034,7 @@ theorem simpleStorageNativeContract_dispatcherExec_storeHit_error
                exact absurd hRest.1.1 (by decide)
       | cons _ _ => simp at hRest
 
-theorem simpleStorageLoweredHitCasesShape_concrete
+private theorem simpleStorageLoweredHitCasesShape_concrete
     {reservedNames : List String} {n0 midN : Nat}
     {storeBody' retrieveBody' : List EvmYul.Yul.Ast.Stmt}
     (hShape : simpleStorageLoweredHitCasesShape reservedNames n0 midN
@@ -8055,7 +8055,7 @@ only has to discharge the body-exec obligation on the *fixed* lowered body
 `simpleStorageLoweredHitCasesShape_concrete` to specialize the underlying
 parametric premise. This strictly weakens the hit-case obligation that the
 dispatcher bridge proof has to supply. -/
-theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete
+private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete
     (fuel : Nat) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -8080,7 +8080,7 @@ theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete
   rw [hStore]
   exact hBody reservedNames n0
 
-theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail
+private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail
     (fuel : Nat) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -8111,7 +8111,7 @@ is a no-op, so the body-execution premise can be expressed against the
 the 5-statement `simpleStorageLoweredStoreCaseBodyTail` at fuel `+8`. Strictly
 shrinks the dispatcher hit-case body-exec obligation under the natural Solidity
 assumption that non-payable functions are called with `msg.value = 0`. -/
-theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail2
+private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail2
     (fuel : Nat) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x6057361d = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -8149,7 +8149,7 @@ theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail2
   exact exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
     fuel _ _ _ err hWei hT2
 
-theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reduction
+private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reduction
     (fuel switchId : Nat)
     (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
     (storeBody' retrieveBody' : List EvmYul.Yul.Ast.Stmt)
@@ -8199,7 +8199,7 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reducti
     rcases hMem with ⟨rfl, _⟩ | ⟨rfl, _⟩ <;> decide
   · simpa [simpleStorageDispatcherHitBodyInputState] using hBody
 
-theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error
+private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error
     (fuel : Nat) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
     (err : EvmYul.Yul.Exception)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -8248,7 +8248,7 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error
                obtain ⟨_, hSuf⟩ := hRest; subst hSuf; simpa using hBody'
       | cons _ _ => simp at hRest
 
-theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete
+private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete
     (fuel : Nat) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -8273,7 +8273,7 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete
   rw [hRetrieve]
   exact hBody reservedNames n0
 
-theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail
+private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail
     (fuel : Nat) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -8298,7 +8298,7 @@ theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_ta
     (fuel + 6) _ _ err (hTail reservedNames n0)
 
 /-- Retrieve-case dual of `_storeHit_error_concrete_tail2`. -/
-theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail2
+private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail2
     (fuel : Nat) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -8345,7 +8345,7 @@ guard. The user supplies the tail3 obligation (the 2-statement
 the callvalue and lt-calldatasize guards via the strip lemmas. The
 calldata-size assumptions are derived automatically from `hNoWrap` and
 `initialState_calldataSize`. -/
-theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail3
+private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail3
     (fuel : Nat) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) (err : EvmYul.Yul.Exception)
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
@@ -8396,18 +8396,18 @@ noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
 /-- Lower bound on the SimpleStorage native dispatcher fuel constant for
 the retrieve-hit and store-hit bridges, which use the `_concrete_tail3`
 chain that produces dispatcher exec at `fuel + 25`. -/
-theorem simpleStorageNativeDispatcherFuel_ge_25 :
+private theorem simpleStorageNativeDispatcherFuel_ge_25 :
     simpleStorageNativeDispatcherFuel ≥ 25 := by
   unfold simpleStorageNativeDispatcherFuel
   decide
 
-theorem simpleStorageNativeDispatcherFuel_ge_21 :
+private theorem simpleStorageNativeDispatcherFuel_ge_21 :
     simpleStorageNativeDispatcherFuel ≥ 21 := by
   exact Nat.le_trans (by decide) simpleStorageNativeDispatcherFuel_ge_25
 
 /-- Native dispatcher exec at exactly `simpleStorageNativeDispatcherFuel`
 reduces to `.error Revert` for the selector-miss class. -/
-theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel
+private theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (hSelectorRange : tx.functionSelector % Compiler.Constants.selectorModulus
@@ -8438,7 +8438,7 @@ theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel
 class. Given the two raw selector mismatches (`≠ 0x6057361d` and
 `≠ 0x2e64cec1`), `interpretIR` falls into the `find?`-`none` branch and returns
 the trivial reverted shape with storage and events untouched. -/
-theorem interpretIR_simpleStorage_selectorMiss
+private theorem interpretIR_simpleStorage_selectorMiss
     (tx : IRTransaction) (initialState : IRState)
     (hSelMissStore : tx.functionSelector ≠ 0x6057361d)
     (hSelMissRetrieve : tx.functionSelector ≠ 0x2e64cec1) :
@@ -8570,7 +8570,7 @@ theorem interpretIR_simpleStorage_storeHit_arg
 /-- Closed-form `interpretIR` reduction for the SimpleStorage store-hit class
 when calldata is too short for the single setter argument. The dispatcher
 selects the function, but the IR arity guard fails before executing the body. -/
-theorem interpretIR_simpleStorage_storeHit_short
+private theorem interpretIR_simpleStorage_storeHit_short
     (tx : IRTransaction) (initialState : IRState)
     (hSel : tx.functionSelector = 0x6057361d)
     (hShort : tx.args = []) :
@@ -9691,7 +9691,7 @@ private theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherE
 
 /-- The concrete SimpleStorage native witness is the helper-free native
 contract produced by any successful lowering of the generated dispatcher. -/
-theorem simpleStorageNativeContract_eq_nativeContractOfDispatcher_of_lowerStmtsNative
+private theorem simpleStorageNativeContract_eq_nativeContractOfDispatcher_of_lowerStmtsNative
     {dispatcher : List EvmYul.Yul.Ast.Stmt}
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
       [Compiler.CodegenCommon.buildSwitch simpleStorageIRContract.functions none none] =
