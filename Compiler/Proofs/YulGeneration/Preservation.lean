@@ -111,6 +111,45 @@ private def HasSelectorDeadBridge (body : List YulStmt) : Prop :=
 private def initialYulState (tx : YulTransaction) (state : IRState) : YulState :=
   YulState.initial tx state.storage state.events
 
+private def switchCaseBody (fn : IRFunction) : List YulStmt :=
+  let valueGuard := if fn.payable then [] else [Compiler.callvalueGuard]
+  [YulStmt.comment s!"{fn.name}()"] ++ valueGuard ++
+    [Compiler.calldatasizeGuard fn.params.length] ++ fn.body
+
+private def switchCases (fns : List IRFunction) : List (Prod Nat (List YulStmt)) :=
+  fns.map (fun f => (f.selector, switchCaseBody f))
+
+private def switchDefaultCase
+    (fallback : Option IREntrypoint)
+    (receive : Option IREntrypoint) : List YulStmt :=
+  match receive, fallback with
+  | none, none =>
+      [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
+  | none, some fb =>
+      let valueGuard := if fb.payable then [] else [Compiler.callvalueGuard]
+      [YulStmt.comment "fallback()"] ++ valueGuard ++ fb.body
+  | some rc, none =>
+      let receiveGuard := if rc.payable then [] else [Compiler.callvalueGuard]
+      [YulStmt.block [
+        YulStmt.let_ "__is_empty_calldata"
+          (YulExpr.call "eq" [YulExpr.call "calldatasize" [], YulExpr.lit 0]),
+        YulStmt.if_ (YulExpr.ident "__is_empty_calldata")
+          ([YulStmt.comment "receive()"] ++ receiveGuard ++ rc.body),
+        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__is_empty_calldata"])
+          [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
+      ]]
+  | some rc, some fb =>
+      let receiveGuard := if rc.payable then [] else [Compiler.callvalueGuard]
+      let fallbackGuard := if fb.payable then [] else [Compiler.callvalueGuard]
+      [YulStmt.block [
+        YulStmt.let_ "__is_empty_calldata"
+          (YulExpr.call "eq" [YulExpr.call "calldatasize" [], YulExpr.lit 0]),
+        YulStmt.if_ (YulExpr.ident "__is_empty_calldata")
+          ([YulStmt.comment "receive()"] ++ receiveGuard ++ rc.body),
+        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__is_empty_calldata"])
+          ([YulStmt.comment "fallback()"] ++ fallbackGuard ++ fb.body)
+      ]]
+
 private theorem preservation_emitYul_runtimeCode_eq (contract : IRContract) :
     (Compiler.emitYul contract).runtimeCode = Compiler.runtimeCode contract := by
   rfl

@@ -66,16 +66,16 @@ by
   simp [Nat.mod_eq_of_lt hselector]
 
 /-- Dispatch body emitted for one external function case. -/
-def switchCaseBody (fn : IRFunction) : List YulStmt :=
+private def switchCaseBody (fn : IRFunction) : List YulStmt :=
   let valueGuard := if fn.payable then [] else [Compiler.callvalueGuard]
   [YulStmt.comment s!"{fn.name}()"] ++ valueGuard ++ [Compiler.calldatasizeGuard fn.params.length] ++ fn.body
 
 /-- Switch cases generated from IR functions. -/
-def switchCases (fns : List IRFunction) : List (Prod Nat (List YulStmt)) :=
+private def switchCases (fns : List IRFunction) : List (Prod Nat (List YulStmt)) :=
   fns.map (fun f => (f.selector, switchCaseBody f))
 
 /-- Default dispatch body used by `buildSwitch`. -/
-def switchDefaultCase
+private def switchDefaultCase
     (fallback : Option IREntrypoint)
     (receive : Option IREntrypoint) : List YulStmt :=
   match receive, fallback with
