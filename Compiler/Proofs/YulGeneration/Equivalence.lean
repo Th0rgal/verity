@@ -31,19 +31,6 @@ def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
 def statesAligned (selector : Nat) (ir : IRState) (yul : YulState) : Prop :=
   yul = yulStateOfIR selector ir
 
-/-! ## Bridging IR and Yul Semantics
-
-These helpers wire IR-level execution to Yul runtime execution so we can
-compare results directly in smoke tests.
--/
-
-noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction) (state : IRState) : YulResult :=
-  interpretYulRuntime (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) state.storage state.events
-
-/-- Interpret just a function body as Yul runtime code. -/
-noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state : IRState) : YulResult :=
-  interpretYulRuntime fn.body (YulTransaction.ofIR tx) state.storage state.events
-
 /- ## Layer 3 Equivalence Scaffolding
 
 These statements capture the generic proof shape for IR → Yul equivalence.

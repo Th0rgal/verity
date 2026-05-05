@@ -23,6 +23,15 @@ executing an IR function body matches executing the same Yul statements.
 See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
 -/
 
+private noncomputable def interpretYulFromIR
+    (contract : IRContract) (tx : IRTransaction) (state : IRState) : YulResult :=
+  interpretYulRuntime (Compiler.emitYul contract).runtimeCode
+    (YulTransaction.ofIR tx) state.storage state.events
+
+private noncomputable def interpretYulBody
+    (fn : IRFunction) (tx : IRTransaction) (state : IRState) : YulResult :=
+  interpretYulRuntime fn.body (YulTransaction.ofIR tx) state.storage state.events
+
 @[simp] private theorem interpretYulBody_eq_runtime (fn : IRFunction) (tx : IRTransaction) (state : IRState) :
     interpretYulBody fn tx state =
       interpretYulRuntime fn.body (YulTransaction.ofIR tx) state.storage state.events := by

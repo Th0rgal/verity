@@ -1467,6 +1467,13 @@ private noncomputable def interpretYulRuntimeWithBackend
     (execYulFuelWithBackend backend (sizeOf runtimeCode + 1) initialState
       (.stmts runtimeCode))
 
+private noncomputable def interpretYulFromIR
+    (contract : Compiler.IRContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (state : Compiler.Proofs.IRGeneration.IRState) : YulResult :=
+  interpretYulRuntime (Compiler.emitYul contract).runtimeCode
+    (YulTransaction.ofIR tx) state.storage state.events
+
 private theorem interpretYulRuntimeWithBackend_evmYulLean_eq
     (runtimeCode : List Compiler.Yul.YulStmt) (tx : YulTransaction)
     (storage : IRStorageSlot → IRStorageWord) (events : List (List Nat) := []) :
