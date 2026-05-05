@@ -398,7 +398,8 @@ end -- mutual
         (fun slot => some (Compiler.Proofs.abstractLoadStorageOrMapping state.storage slot).toNat) := by
   simp [evalIRCall, evalIRExprs,
     Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-    Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext]
+    Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext,
+    Compiler.Proofs.abstractLoadStorageOrMapping]
   cases evalIRExpr state argExpr with
   | none => simp
   | some val => simp
