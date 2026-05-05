@@ -253,9 +253,9 @@
       "discharge the conditional EndToEnd theorem's bridged-body hypotheses for full compiler-produced contracts"
     ],
     "retarget_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
-    "status": "universal-safe-body-closure",
+    "status": "runtime-backend-equality-recursive-statement-target-level",
     "trust_boundary": "recursive BridgedTarget statement fragment: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr expressions, BridgedStraightStmts (including mapping-slot, literal-slot, and identifier-slot sstore), and recursively nested BridgedStmt targets; generated runtime-code closure, emitted-runtime backend equality, and the lower-level Layer-3 EVMYulLean retarget theorem are proven under bridged IR-body witnesses; the EndToEnd safe-body backend-wrapper lemma is private transition plumbing, while public EndToEnd targets use native dispatcher execution through interpretIRRuntimeNative; compileStmtList_always_bridged proves a universal BridgedSafeStmts aggregation theorem with the external-call family carved out behind explicit function-table hypotheses",
-    "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle": "proven (conditional on bridged IR bodies)"
+    "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle": "missing"
   },
   "schema_version": 7,
   "status": "ok",
