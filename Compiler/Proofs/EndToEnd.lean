@@ -10056,17 +10056,26 @@ theorem simpleStorage_endToEnd_native_evmYulLean
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
     (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       DispatchGuardsSafe fn tx)
-    (hEnv :
-        Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-          (Compiler.emitYul simpleStorageIRContract).runtimeCode
-        (YulTransaction.ofIR tx) = .ok ()) :
+    (hChainId :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
+        tx.chainId = true)
+    (hBlobBaseFee :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable
+        tx.blobBaseFee = true)
+    (hNoHeader :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+        (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (YulTransaction.ofIR tx) = false) :
     nativeResultsMatchOn observableSlots
       (interpretIR simpleStorageIRContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
         simpleStorageIRContract tx initialState observableSlots) :=
   simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match
-    tx initialState observableSlots hEnv
+    tx initialState observableSlots
+    (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+      (Compiler.emitYul simpleStorageIRContract).runtimeCode tx hChainId
+      hBlobBaseFee hNoHeader)
     (by
       intro dispatcher hLowerDispatcher
       have hConcrete :
