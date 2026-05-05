@@ -4007,14 +4007,45 @@ private theorem allStaticScalarParams_of_supportedSpec_selectorFunctionPairs
   exact isStaticScalarParamType_of_supportedExternalParamType
     ((hSupported.functions entry.1 hfnModel).params.supported param hparam)
 
+/-- Public source-body closure input for the generated native dispatcher theorem.
+
+Callers provide compiler-core body facts; this file packages them into
+`BridgedSafeStmts` internally before discharging the native generated-fragment
+shape obligations. -/
+def SourceBodyNativeClosure
+    (model : CompilationModel.CompilationModel)
+    (selectors : List Nat) : Prop :=
+  ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs model selectors →
+    FunctionBody.StmtListCompileCore (entry.1.params.map (·.name)) entry.1.body ∨
+      FunctionBody.StmtListTerminalCore (entry.1.params.map (·.name)) entry.1.body
+
+private theorem safeBodies_of_sourceBodyNativeClosure
+    (model : CompilationModel.CompilationModel)
+    (selectors : List Nat)
+    (hBodies : SourceBodyNativeClosure model selectors) :
+    ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs model selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        model.fields model.errors .calldata [] false entry.1.body := by
+  intro entry hentry
+  rcases hBodies entry hentry with hCore | hTerminal
+  · exact Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_externalCompileCore
+      (fields := model.fields) (errors := model.errors)
+      (dynamicSource := .calldata) (internalRetNames := [])
+      (scope := entry.1.params.map (·.name)) hCore
+  · exact Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_externalTerminalCore
+      (fields := model.fields) (errors := model.errors)
+      (dynamicSource := .calldata) (internalRetNames := [])
+      (scope := entry.1.params.map (·.name)) hTerminal
+
 /-- Public supported-compiler correctness theorem over the generated native
 dispatcher-exec target.
 
 Unlike `compile_preserves_native_evmYulLean_of_nativeResultsMatchOn`, this
 wrapper does not ask callers to provide the final native/IR result match for
 `interpretIRRuntimeNative`. It consumes the canonical generated-runtime
-dispatcher execution premise directly, then discharges the runtime-harness
-shape obligations from supported compiler output. -/
+dispatcher execution premise directly, derives static-parameter closure from
+`SupportedSpec`, and packages compile-core/terminal-core source-body closure
+into the native safe-body predicate internally. -/
 theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
     (model : CompilationModel.CompilationModel)
     (selectors : List Nat)
@@ -4027,10 +4058,7 @@ theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
     (htxNormalized : Function.TxContextNormalized tx)
     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hcompile : CompilationModel.compile model selectors = Except.ok irContract)
-    (hSafeBodies : ∀ entry,
-      entry ∈ SourceSemantics.selectorFunctionPairs model selectors →
-        Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
-          model.fields model.errors .calldata [] false entry.1.body)
+    (hBodies : SourceBodyNativeClosure model selectors)
     (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv :
@@ -4072,7 +4100,8 @@ theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
       observableSlots nativeContract hcompile hSupported
       (allStaticScalarParams_of_supportedSpec_selectorFunctionPairs
         model selectors hSupported)
-      hSafeBodies hLower hEnv hNativeDispatcherExec'
+      (safeBodies_of_sourceBodyNativeClosure model selectors hBodies)
+      hLower hEnv hNativeDispatcherExec'
   have hSourceIR :
       Compiler.Proofs.IRGeneration.FunctionBody.sourceResultMatchesIRResult
         (supportedSourceContractSemantics model selectors hSupported tx

@@ -50,8 +50,10 @@ materializes pre-state storage for those slots.
   `compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match` at
   canonical generated-runtime fuel, and the concrete SimpleStorage native
   theorem. The dispatcher-exec wrapper derives static ABI parameter coverage
-  from `SupportedSpec`; only the native body whitelist and concrete dispatcher
-  execution/result obligation remain explicit. The opaque arbitrary-fuel
+  from `SupportedSpec` and exposes source-body closure as
+  `SourceBodyNativeClosure` (compile-core or terminal-core), packaging that
+  into the native body whitelist internally; only the concrete dispatcher
+  execution/result obligation remains explicit. The opaque arbitrary-fuel
   identity seams, generated dispatcher-exec lift facts, and fuel-indexed
   `nativeIRRuntimeMatchesIR` targets are file-local, and the older
   proof-interpreter bridge signature has been removed from EndToEnd. The public
