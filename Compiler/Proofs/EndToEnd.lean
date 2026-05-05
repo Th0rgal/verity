@@ -22,8 +22,9 @@
   - This file: compose them into a single theorem statement.
 
   **EVMYulLean note (native transition)**: the active public native surface in
-  this file is `nativeIRRuntimeMatchesIR` and the generated dispatcher theorem
-  family below it. Those theorems compare IR execution directly with native
+  this file is `nativeResultsMatchOn`, `sourceResultMatchesNativeOn`, and the
+  concrete generated-dispatcher theorem family below them. The file-local
+  runtime seams compare IR execution directly with native
   `EvmYul.Yul.callDispatcher` execution through
   `Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness`.
 
@@ -58,8 +59,16 @@ abbrev nativeResultsMatchOn :=
 
 /-- Native EVMYulLean execution matches the IR semantics on the observable
 result surface. -/
-private abbrev nativeIRRuntimeMatchesIR :=
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR
+private def nativeIRRuntimeMatchesIR
+    (fuel : Nat)
+    (contract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat) :
+    Prop :=
+  nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+    (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+      fuel contract tx state observableSlots)
 
 /-- Observable source-result comparison surface for native EVMYulLean execution.
 
@@ -226,7 +235,6 @@ private theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_pos
         observableSlots nativeContract) :
     nativeIRRuntimeMatchesIR (Nat.succ fuel') contract tx state observableSlots := by
   unfold nativeIRRuntimeMatchesIR
-  unfold Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR
   rw [Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_succ_eq_contractDispatcherExecResult_of_lowerRuntimeContractNative
     fuel' contract tx state observableSlots nativeContract
     (Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment_emitYul_runtimeCode_noFallback_noReceive

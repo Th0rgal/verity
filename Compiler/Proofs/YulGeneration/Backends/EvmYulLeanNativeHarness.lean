@@ -17578,7 +17578,7 @@ def nativeResultsMatchOn
 
 /-- Native EVMYulLean execution matches the IR semantics on the observable
 result surface. -/
-def nativeIRRuntimeMatchesIR
+private def nativeIRRuntimeMatchesIR
     (fuel : Nat)
     (contract : IRContract)
     (tx : IRTransaction)
