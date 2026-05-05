@@ -80,10 +80,13 @@ materializes pre-state storage for those slots.
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_canonicalFuel`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment`,
-  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment_canonicalFuel`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults_canonicalFuel`
   as the explicitly named safe-body wrapper aliases.
-  The canonical positive wrappers set dispatcher fuel to
+  The canonical positive and projected-result wrappers set dispatcher fuel to
   `nativeRuntimeDispatcherFuel irContract` and runtime fuel to
   `nativeRuntimeFuel irContract`, avoiding an arbitrary public fuel parameter
   on the recommended direct-match surface. These direct match seams keep the
@@ -249,7 +252,8 @@ scope so the native path does not look more complete than it is:
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel`,
-  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`.
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults_canonicalFuel`.
   The
   `verity_contract` surface now accepts monadic environment reads such as
   `let t <- blockTimestamp`, `let t <- Verity.blockTimestamp`, `blockNumber`,
