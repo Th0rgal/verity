@@ -1137,7 +1137,8 @@ def build_report() -> dict[str, object]:
         else:
             source_expr_pure_closure_status = (
                 "proven (pure source-expression fragment with boolean normalization, "
-                "branchless helpers, and bridged environment reads)"
+                "branchless helpers, bridged environment reads, and unary "
+                "calldata/memory/transient reads)"
             )
         if not has_universal_body_closure:
             universal_body_closure_status = "missing"

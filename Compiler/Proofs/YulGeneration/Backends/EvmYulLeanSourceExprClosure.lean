@@ -17,10 +17,11 @@
       are already bridged: `caller`, `contractAddress`, `msgValue`,
       `blockTimestamp`, `blockNumber`, `chainid`, `blobbasefee`,
       `calldatasize`
+    - unary calldata/memory/transient reads: `calldataload`, `mload`, `tload`
 
-  Storage, mapping, state-dependent memory/transient reads, calldata loads,
-  returndata, call, keccak256, dynamic helpers, ABI casts, and `selfBalance`
-  are out of scope and require dedicated closure proofs.
+  Storage, mapping, returndata, call, keccak256, dynamic helpers, ABI casts,
+  `selfBalance`, and external account/state reads are out of scope and require
+  dedicated closure proofs.
 
   The scalar-leaf-only theorem `compileExpr_bridgedSource_leaf` is
   retained below as a specialization.
@@ -77,10 +78,10 @@ theorem compileExpr_bridgedSource_leaf
 /-- Source EDSL expressions whose `compileExpr` output is a `BridgedExpr`.
     Covers scalar leaves, pure arithmetic/comparison/bit-op binops,
     boolean-normalization forms, branchless arithmetic helpers,
-    zero-argument environment/calldata-size reads, and `ge`/`le` negated
-    comparisons. Storage, calldata loads, dynamic helpers, ABI casts, calls,
-    state-dependent memory/transient reads, and `selfBalance` are out of
-    scope. -/
+    zero-argument environment/calldata-size reads, unary calldata/memory/
+    transient reads, and `ge`/`le` negated comparisons. Storage, mapping,
+    returndata, dynamic helpers, ABI casts, calls, `selfBalance`, and external
+    account/state reads are out of scope. -/
 inductive BridgedSourceExpr : Expr → Prop
   -- scalar leaves
   | literal (n : Nat) : BridgedSourceExpr (.literal n)
@@ -96,6 +97,13 @@ inductive BridgedSourceExpr : Expr → Prop
   | chainid : BridgedSourceExpr .chainid
   | blobbasefee : BridgedSourceExpr .blobbasefee
   | calldatasize : BridgedSourceExpr .calldatasize
+  -- unary calldata / memory / transient reads
+  | calldataload {offset} (hOffset : BridgedSourceExpr offset) :
+      BridgedSourceExpr (.calldataload offset)
+  | mload {offset} (hOffset : BridgedSourceExpr offset) :
+      BridgedSourceExpr (.mload offset)
+  | tload {offset} (hOffset : BridgedSourceExpr offset) :
+      BridgedSourceExpr (.tload offset)
   -- arithmetic binops (yulBinOp with bridged name)
   | add {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
       BridgedSourceExpr (.add a b)
@@ -574,6 +582,24 @@ theorem compileExpr_bridgedSource
       simp [compileExpr, Pure.pure, Except.pure] at hOk
       subst out
       exact bridgedExpr_nullaryBuiltin (by simp [bridgedBuiltins])
+  | calldataload _ iho =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨co, hO, hEq⟩ := compileExpr_unopBuiltin_ok hOk
+      subst hEq
+      exact bridgedExpr_unopBuiltin (by simp [bridgedBuiltins]) (iho hO)
+  | mload _ iho =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨co, hO, hEq⟩ := compileExpr_unopBuiltin_ok hOk
+      subst hEq
+      exact bridgedExpr_mload co (iho hO)
+  | tload _ iho =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨co, hO, hEq⟩ := compileExpr_unopBuiltin_ok hOk
+      subst hEq
+      exact bridgedExpr_tload co (iho hO)
   | add _ _ iha ihb =>
       intro out hOk
       simp only [compileExpr] at hOk
@@ -856,6 +882,15 @@ theorem compileRequireFailCond_bridgedSource
         (by simpa [compileRequireFailCond] using hOk)
   | calldatasize =>
       exact compileRequireFailCond_default_bridgedSource .calldatasize
+        (by simpa [compileRequireFailCond] using hOk)
+  | calldataload hOffset =>
+      exact compileRequireFailCond_default_bridgedSource (.calldataload hOffset)
+        (by simpa [compileRequireFailCond] using hOk)
+  | mload hOffset =>
+      exact compileRequireFailCond_default_bridgedSource (.mload hOffset)
+        (by simpa [compileRequireFailCond] using hOk)
+  | tload hOffset =>
+      exact compileRequireFailCond_default_bridgedSource (.tload hOffset)
         (by simpa [compileRequireFailCond] using hOk)
   | add ha hb =>
       exact compileRequireFailCond_default_bridgedSource (.add ha hb)

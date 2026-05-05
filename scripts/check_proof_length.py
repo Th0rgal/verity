@@ -479,9 +479,9 @@ ALLOWLIST: set[str] = {
     # has to cover both inline static loads and the generated first-element alias.
     "genParamLoadBodyFrom_calldataload_static_scalar_bridged",
     # Source-expression closure main theorem: structural induction over the
-    # 45 `BridgedSourceExpr` constructors (4 scalar leaves, 33 direct builtin,
-    # boolean-normalization, or bridged environment-read cases, and 8
-    # branchless helper cases); each case is mechanical decomposition of the
+    # 48 `BridgedSourceExpr` constructors (4 scalar leaves, 36 direct builtin,
+    # boolean-normalization, bridged environment-read, or unary read cases, and
+    # 8 branchless helper cases); each case is mechanical decomposition of the
     # emitted `compileExpr` shape and cannot be merged without losing
     # readability.
     "compileExpr_bridgedSource",
@@ -666,10 +666,10 @@ ALLOWLIST: set[str] = {
     # Same recursive generated-shape proof as the external version, using the
     # internal body fragment so internal returns compile to assignment + leave.
     "compileStmt_internal_recursive_body_fragment_bridged",
-    # Require failure-condition source closure case-splits on the 45
+    # Require failure-condition source closure case-splits on the 48
     # `BridgedSourceExpr` constructors: `.ge`/`.le` are handled specially
     # because `compileRequireFailCond` uses the direct `lt`/`gt` optimization,
-    # and the remaining 43 constructors each invoke the shared
+    # and the remaining 46 constructors each invoke the shared
     # `compileRequireFailCond_default_bridgedSource` helper for the `iszero`
     # fall-through. Each constructor case is two mechanical lines; merging
     # them would require either introducing a generic reconstruction tactic
