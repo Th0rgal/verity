@@ -336,8 +336,10 @@ theorem compiledExternalFunctions_noFuncDefs_of_safe_static
           (fun next hnext => hSafe next (by simp [hnext]))
           target hmemTail
 
-/-- Generic native Layer 3 seam on the direct native-vs-IR target. -/
-theorem layer3_contract_preserves_semantics_native
+/-- Generic native Layer 3 identity seam on the direct native-vs-IR target.
+Kept private so the public theorem surface is the generated-dispatcher family
+that exposes concrete native execution obligations. -/
+private theorem layer3_contract_preserves_semantics_native
     (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
     (initialState : IRState) (observableSlots : List Nat)
     (hNativeBridge : nativeIRRuntimeMatchesIR fuel contract tx initialState observableSlots) :
@@ -380,8 +382,10 @@ theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_p
 
 /-! ## Layers 2+3 Composition -/
 
-/-- Supported native theorem seam on the direct native-vs-IR target. -/
-theorem layers2_3_ir_matches_native_evmYulLean
+/-- Supported native identity seam on the direct native-vs-IR target. Kept
+private so public supported-contract theorems use the generated-dispatcher
+wrappers below. -/
+private theorem layers2_3_ir_matches_native_evmYulLean
     (fuel : Nat)
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction)

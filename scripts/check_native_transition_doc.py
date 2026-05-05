@@ -361,6 +361,23 @@ def check_public_theorem_target(
                 f"backend-wrapper transition lemma `{removed_transition_seam}`"
             )
 
+    for private_native_identity_seam in (
+        "layer3_contract_preserves_semantics_native",
+        "layers2_3_ir_matches_native_evmYulLean",
+    ):
+        if re.search(
+            r"^\s*theorem\s+"
+            + re.escape(private_native_identity_seam)
+            + r"\b",
+            end_to_end_text,
+            re.MULTILINE,
+        ):
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must not export arbitrary-fuel "
+                f"native identity seam `{private_native_identity_seam}`; keep "
+                "the public surface on generated-dispatcher native wrappers"
+            )
+
     for removed_fuel_wrapper_seam in (
         "def yulResultsAgreeOn",
         "def nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper",

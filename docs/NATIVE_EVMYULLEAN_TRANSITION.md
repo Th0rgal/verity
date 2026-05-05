@@ -41,18 +41,20 @@ materializes pre-state storage for those slots.
 - Native result projection preserves pre-existing event history and appends
   native EVMYulLean logs, matching the observable shape expected by the current
   proof-side `YulResult`.
-- The EndToEnd layer now exposes the native-facing theorem seam
-  `layers2_3_ir_matches_native_evmYulLean`; the older proof-interpreter bridge
-  signature has been removed from EndToEnd.
-  Its conclusion targets `Native.interpretIRRuntimeNative` through
-  `nativeResultsMatchOn`, comparing success, return value, events, and the
-  explicitly observable final-storage slots. The result-surface definitions and
-  positive dispatcher-exec intro/lift facts now live in the native harness, and
-  EndToEnd consumes the direct `nativeIRRuntimeMatchesIR` target instead of the older
-  reference-oracle/fuel-wrapper wrapper alias. The backend-parameterized
-  safe-body Yul target is now isolated lower-level transition evidence; the generated native
-  fragment still needs broader direct match proofs before that transition
-  plumbing can be removed completely.
+- The EndToEnd layer now exposes generated native-facing theorem seams such as
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match`;
+  the opaque arbitrary-fuel `layers2_3_ir_matches_native_evmYulLean` identity
+  seam is private, and the older proof-interpreter bridge signature has been
+  removed from EndToEnd. The public generated seams target
+  `Native.interpretIRRuntimeNative` through `nativeResultsMatchOn`, comparing
+  success, return value, events, and the explicitly observable final-storage
+  slots. The result-surface definitions and positive dispatcher-exec intro/lift
+  facts now live in the native harness, and EndToEnd consumes the direct
+  `nativeIRRuntimeMatchesIR` target instead of the older reference-oracle/fuel-
+  wrapper alias. The backend-parameterized safe-body Yul target is now isolated
+  lower-level transition evidence; the generated native fragment still needs
+  broader direct match proofs before that transition plumbing can be removed
+  completely.
 - The same module also exposes
   `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`,
@@ -119,9 +121,10 @@ materializes pre-state storage for those slots.
   and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
   wrappers expose the direct native-vs-IR result surface. The mapping-enabled
   equivalents are exposed under the `_mapping_reserved` suffix for the
-  `nativeIRRuntimeMatchesIR`, `layer3_contract_preserves_semantics_native`, and
-  `layers2_3_ir_matches_native_evmYulLean` dispatcher-statement wrapper
-  families. The `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
+  `nativeIRRuntimeMatchesIR`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_*`, and
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_*` dispatcher-statement
+  wrapper families. The `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
   wrappers now compose successful full runtime lowering with those dispatcher
   statement surfaces, so callers can remain at the emitted-runtime lowering
   boundary while proving the exact extracted dispatcher match. The same
@@ -940,23 +943,10 @@ scope so the native path does not look more complete than it is:
    - static-call permission behavior,
    - proof-level preservation for the covered mapping member oracle cases.
 
-5. Introduce the public native preservation theorem.
+5. Introduce the public generated native preservation theorem.
 
-   The EndToEnd module now has a named native theorem seam:
-
-   ```lean
-   layers2_3_ir_matches_native_evmYulLean
-   ```
-
-   It targets `Native.interpretIRRuntimeNative` directly, under the compiled
-   contract identity and:
-
-   ```lean
-   nativeIRRuntimeMatchesIR fuel irContract tx initialState
-     observableSlots
-   ```
-
-   The next theorem in that chain is:
+   The EndToEnd module keeps the arbitrary-fuel identity seam private. The
+   public generated native theorem chain starts at:
 
    ```lean
    layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match
