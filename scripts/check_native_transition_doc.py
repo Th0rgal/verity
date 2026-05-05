@@ -103,7 +103,7 @@ REQUIRED_SNIPPETS = (
     "buildSwitch_noFallback_noReceive_lowered_inner_find?_none_of_find_function",
     "same explicit fuel",
     "default runtime fuel",
-    "native public theorem pending",
+    "private transition lemmas still route",
     "not yet proved",
     "`yulCodegen_preserves_semantics_evmYulLeanBackend`",
     "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`",
@@ -199,12 +199,11 @@ def check_definition_of_done_doc(text: str) -> list[str]:
 def check_public_theorem_target(
     end_to_end_text: str, native_harness_text: str, retarget_text: str
 ) -> list[str]:
-    """Pin the current transition boundary until the native theorem flips.
+    """Pin the current transition boundary until private transition plumbing is removed.
 
-    This guard should be updated in the same PR that proves the native
-    preservation theorem and retargets the public EndToEnd path. Until then,
-    the public theorem must still visibly target the backend-parameterized
-    interpreter, while the native harness remains an executable side path.
+    Public EndToEnd correctness targets native dispatcher execution. The old
+    backend-parameterized interpreter lemmas may remain only as private
+    transition plumbing while generated native direct-match coverage is widened.
     """
 
     errors: list[str] = []
@@ -214,9 +213,9 @@ def check_public_theorem_target(
 
     if "interpretYulRuntimeWithBackend .evmYulLean" not in normalized_end_to_end:
         errors.append(
-            "Compiler/Proofs/EndToEnd.lean must still expose the current "
-            "`interpretYulRuntimeWithBackend .evmYulLean` public theorem target "
-            "until the native preservation theorem is proved and this guard is updated"
+            "Compiler/Proofs/EndToEnd.lean must still document or isolate the "
+            "`interpretYulRuntimeWithBackend .evmYulLean` transition target "
+            "until the private backend-wrapper lemmas are removed"
         )
 
     for required_native_surface in (
@@ -281,7 +280,6 @@ def check_public_theorem_target(
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved",
         "hFuel : fuel = sizeOf (Compiler.emitYul contract).runtimeCode + 1",
-        "theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge",
         "theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match",
         "theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match",
         "theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure",
@@ -299,7 +297,6 @@ def check_public_theorem_target(
         "theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping",
         "theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved",
         "theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved",
-        "theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure",
@@ -330,21 +327,51 @@ def check_public_theorem_target(
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults",
-        "theorem layer3_contract_preserves_semantics_evmYulLeanBackend ",
-        "theorem layers2_3_ir_matches_yul_evmYulLeanBackend ",
         "theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match",
         "theorem simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match",
         "theorem simpleStorageNativeCallDispatcherMatchBridge_of_per_case",
         "theorem simpleStorageNativeRetrieveHitMatchBridge_proved",
         "theorem simpleStorageNativeStoreHitMatchBridge_proved",
         "theorem simpleStorageNativeSelectorMissMatchBridge_proved",
-        "theorem simpleStorage_endToEnd_evmYulLeanBackend ",
     ):
         if required_native_seam not in normalized_end_to_end:
             errors.append(
                 "Compiler/Proofs/EndToEnd.lean must keep the native theorem seam "
                 f"`{required_native_seam}` explicit until the generated-fragment "
                 "native bridge is discharged"
+            )
+
+    for private_transition_seam in (
+        "layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge",
+        "layer3_contract_preserves_semantics_evmYulLeanBackend",
+        "layer3_contract_preserves_semantics_native_of_evmYulLean_bridge",
+        "layers2_3_ir_matches_yul_evmYulLeanBackend_with_function_bridge",
+        "layers2_3_ir_matches_yul_evmYulLeanBackend",
+        "layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
+        "simpleStorage_endToEnd_evmYulLeanBackend",
+    ):
+        if not re.search(
+            r"^\s*private\s+theorem\s+"
+            + re.escape(private_transition_seam)
+            + r"\b",
+            end_to_end_text,
+            re.MULTILINE,
+        ):
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must keep backend-wrapper "
+                "transition lemma "
+                f"`{private_transition_seam}` private while it remains"
+            )
+        if re.search(
+            r"^\s*theorem\s+"
+            + re.escape(private_transition_seam)
+            + r"\b",
+            end_to_end_text,
+            re.MULTILINE,
+        ):
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must not export backend-wrapper "
+                f"transition lemma `{private_transition_seam}` as a public theorem"
             )
 
     for removed_fuel_wrapper_seam in (
@@ -378,32 +405,6 @@ def check_public_theorem_target(
                 "Compiler/Proofs/EndToEnd.lean must not reintroduce the removed "
                 "native fuel-wrapper agreement seam "
                 f"`{removed_fuel_wrapper_seam.removeprefix('theorem ').removeprefix('def ')}`"
-            )
-
-    direct_native_wrappers = (
-        "layer3_contract_preserves_semantics_native_of_evmYulLean_bridge",
-        "layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
-    )
-    theorem_pattern = re.compile(
-        r"^\s*theorem\s+([A-Za-z0-9_']+)\b(.*?)(?=\s:=)",
-        re.DOTALL | re.MULTILINE,
-    )
-    theorem_signatures = {
-        match.group(1): normalize_ws(match.group(2))
-        for match in theorem_pattern.finditer(end_to_end_text)
-    }
-    for wrapper in direct_native_wrappers:
-        signature = theorem_signatures.get(wrapper, "")
-        if "nativeIRRuntimeMatchesIR" not in signature:
-            errors.append(
-                "Compiler/Proofs/EndToEnd.lean non-reference native wrapper "
-                f"`{wrapper}` must consume `nativeIRRuntimeMatchesIR` directly"
-            )
-        if "nativeIRRuntimeAgreesWithEvmYulLean " in signature:
-            errors.append(
-                "Compiler/Proofs/EndToEnd.lean non-reference native wrapper "
-                f"`{wrapper}` must not consume the fuel-wrapper compatibility "
-                "`nativeIRRuntimeAgreesWithEvmYulLean` obligation"
             )
 
     for forbidden_ir_runtime_alias in (

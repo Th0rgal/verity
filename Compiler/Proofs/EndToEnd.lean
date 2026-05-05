@@ -484,7 +484,7 @@ function-body simulation hypotheses plus `BridgedStmts` witnesses for emitted
 external function bodies. Fallback/receive witnesses are discharged from the
 existing `none` hypotheses, and the internal-function table witness is derived
 from `ContractWF`. -/
-theorem layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge
+private theorem layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -520,7 +520,7 @@ theorem layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_brid
 /-- Layer 3 contract-level preservation targeting EVMYulLean under explicit
 function-body bridge witnesses, using the same entry-state normalization
 hypotheses as the reference-oracle theorem. -/
-theorem layer3_contract_preserves_semantics_evmYulLeanBackend
+private theorem layer3_contract_preserves_semantics_evmYulLeanBackend
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -570,7 +570,7 @@ theorem layer3_contract_preserves_semantics_native
 native theorem above is the preferred public surface; the extra arguments here
 are retained only for downstream proofs still shaped like the older
 proof-interpreter bridge theorem. -/
-theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
+private theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
     (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
     (initialState : IRState) (observableSlots : List Nat)
     (_hselector : tx.functionSelector < selectorModulus)
@@ -636,7 +636,7 @@ IR execution matches EVMYulLean-backed Yul execution under explicit
 function-body closure hypotheses. Fallback/receive bridge witnesses are
 vacuous under the public `none` hypotheses and are discharged internally, as is
 the internal function table witness via `ContractWF`. -/
-theorem layers2_3_ir_matches_yul_evmYulLeanBackend_with_function_bridge
+private theorem layers2_3_ir_matches_yul_evmYulLeanBackend_with_function_bridge
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (_hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -675,7 +675,7 @@ selector-dispatched function bodies are in the EVMYulLean-safe source fragment
 and whose ABI parameters compile through the static-scalar prologue bridge, IR
 execution matches EVMYulLean-backed Yul execution without exposing a raw
 `BridgedStmts fn.body` hypothesis to callers. -/
-theorem layers2_3_ir_matches_yul_evmYulLeanBackend
+private theorem layers2_3_ir_matches_yul_evmYulLeanBackend
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hCompile : CompilationModel.compile spec selectors = .ok irContract)
@@ -740,7 +740,7 @@ theorem layers2_3_ir_matches_native_evmYulLean
 /-- Compatibility wrapper for the wider native theorem seam that carried the
 old proof-interpreter bridge hypotheses. Prefer
 `layers2_3_ir_matches_native_evmYulLean` for new public proofs. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
+private theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
     (fuel : Nat)
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction)
@@ -7217,7 +7217,7 @@ theorem simpleStorageNativeCallDispatcherMatchBridge_of_per_case
 
 /-- SimpleStorage end-to-end: compile → IR → EVMYulLean-backed Yul preserves
 semantics. The concrete function-body bridge witnesses are discharged above. -/
-theorem simpleStorage_endToEnd_evmYulLeanBackend
+private theorem simpleStorage_endToEnd_evmYulLeanBackend
     (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -7349,18 +7349,8 @@ theorem simpleStorage_endToEnd_native_evmYulLean
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (_hvars : initialState.vars = [])
-    (_hmemory : initialState.memory = fun _ => 0)
-    (_htransient : initialState.transientStorage = fun _ => 0)
-    (_hreturn : initialState.returnValue = none)
     (hdispatchGuardSafe : ∀ fn, fn ∈ simpleStorageIRContract.functions →
       DispatchGuardsSafe fn tx)
-    (_hNoHasSelector : ∀ fn, fn ∈ simpleStorageIRContract.functions →
-      yulStmtsNoRef "__has_selector" fn.body)
-    (_hHasSelectorDead : ∀ fn, fn ∈ simpleStorageIRContract.functions →
-      HasSelectorDeadBridge fn.body)
-    (_hparamErase : ∀ fn, fn ∈ simpleStorageIRContract.functions →
-      paramLoadErasure fn tx (initialState.withTx tx))
     (hEnv :
         Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
           (Compiler.emitYul simpleStorageIRContract).runtimeCode
@@ -7428,12 +7418,12 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   fully proven builtin bridge equivalences. It also proves
   `yulCodegen_preserves_semantics_evmYulLeanBackend`, the
   lower-level Layer-3 theorem whose Yul side is the EVMYulLean backend runtime.
-  This file exposes deprecated EndToEnd compatibility wrappers
+  This file keeps private EndToEnd compatibility lemmas
   `layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge`,
   `layer3_contract_preserves_semantics_evmYulLeanBackend`,
   `layers2_3_ir_matches_yul_evmYulLeanBackend`, and
-  `simpleStorage_endToEnd_evmYulLeanBackend` over that target. The public
-  `layers2_3_ir_matches_yul_evmYulLeanBackend` wrapper discharges raw external
+  `simpleStorage_endToEnd_evmYulLeanBackend` over that target. The private
+  `layers2_3_ir_matches_yul_evmYulLeanBackend` lemma discharges raw external
   function-body bridge witnesses from `SupportedSpec`, static-parameter
   witnesses, and `BridgedSafeStmts` source-body witnesses.
   Body-closure increments also prove scalar and static-scalar calldata
@@ -7451,13 +7441,11 @@ on bridged IR function, entrypoint, and internal helper bodies, and
 - The generated runtime dispatch wrapper is now known to satisfy `BridgedTarget`
   and execute equivalently under the EVMYulLean backend when the IR bodies it
   embeds satisfy `BridgedStmt`.
-- Layer 3 now has a contract-level theorem targeting
-  `interpretYulRuntimeWithBackend .evmYulLean`; the public safe-body wrapper
-  derives its raw body witnesses from supported source bodies.
-- This public EndToEnd module now has a safe-body wrapper targeting
-  `interpretYulRuntimeWithBackend .evmYulLean` without raw `BridgedStmts`
-  body hypotheses; the historical Verity-backed public `via_reference_oracle`
-  EndToEnd wrappers have been removed.
+- Layer 3 keeps private compatibility lemmas targeting
+  `interpretYulRuntimeWithBackend .evmYulLean`; the public EndToEnd theorem
+  family targets native dispatcher execution through `interpretIRRuntimeNative`.
+- The historical Verity-backed public `via_reference_oracle` EndToEnd wrappers
+  have been removed.
 - Scalar and static-scalar calldata parameter-loading prologues are now known
   to satisfy `BridgedStmts`.
 - Scalar source expression leaves and the pure arithmetic/comparison/bit-operation
@@ -7482,42 +7470,5 @@ on bridged IR function, entrypoint, and internal helper bodies, and
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.
 -/
-
-/-! ## Deprecated Compatibility Surface
-
-The following attributes intentionally steer public users away from the
-backend-parameterized proof-interpreter target and toward the native
-EVMYulLean dispatcher-exec target. The deprecated theorems are kept buildable
-for older downstream proofs while this PR continues removing the
-reference-oracle path from theorem-facing correctness statements.
--/
-
-attribute [deprecated layer3_contract_preserves_semantics_native
-  (since := "2026-05-05")]
-  layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
-
-attribute [deprecated layer3_contract_preserves_semantics_native
-  (since := "2026-05-05")]
-  layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge
-
-attribute [deprecated layer3_contract_preserves_semantics_native
-  (since := "2026-05-05")]
-  layer3_contract_preserves_semantics_evmYulLeanBackend
-
-attribute [deprecated layers2_3_ir_matches_native_evmYulLean
-  (since := "2026-05-05")]
-  layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
-
-attribute [deprecated layers2_3_ir_matches_native_evmYulLean
-  (since := "2026-05-05")]
-  layers2_3_ir_matches_yul_evmYulLeanBackend_with_function_bridge
-
-attribute [deprecated layers2_3_ir_matches_native_evmYulLean
-  (since := "2026-05-05")]
-  layers2_3_ir_matches_yul_evmYulLeanBackend
-
-attribute [deprecated simpleStorage_endToEnd_native_evmYulLean
-  (since := "2026-05-05")]
-  simpleStorage_endToEnd_evmYulLeanBackend
 
 end Compiler.Proofs.EndToEnd

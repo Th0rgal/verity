@@ -44,17 +44,17 @@ materializes pre-state storage for those slots.
 - The EndToEnd layer now exposes the native-facing theorem seam
   `layers2_3_ir_matches_native_evmYulLean`; the older
   `layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge` signature is
-  deprecated compatibility API for downstream proofs that still carry the old
+  private transition plumbing for proof shapes that still carry the old
   proof-interpreter bridge hypotheses.
   Its conclusion targets `Native.interpretIRRuntimeNative` through
   `nativeResultsMatchOn`, comparing success, return value, events, and the
   explicitly observable final-storage slots. The result-surface definitions and
   positive dispatcher-exec intro/lift facts now live in the native harness, and
   EndToEnd consumes the direct `nativeIRRuntimeMatchesIR` target instead of the older
-  reference-oracle/fuel-wrapper wrapper alias. This is still not a completed
-  public flip: the safe-body public Yul target remains the EVMYulLean fuel
-  wrapper, and the generated native fragment still needs the direct match proof
-  to become the public source-of-truth theorem.
+  reference-oracle/fuel-wrapper wrapper alias. The backend-parameterized
+  safe-body Yul target is now private transition plumbing; the generated native
+  fragment still needs broader direct match proofs before that transition
+  plumbing can be removed completely.
 - The same module also exposes
   `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`,
@@ -1015,8 +1015,8 @@ scope so the native path does not look more complete than it is:
 
    This closes the SimpleStorage public theorem against the native
    lowered-dispatcher source of truth. The remaining generic work is to remove
-   the compatibility fuel-wrapper/reference-oracle theorem family that still
-   exists for contracts without direct native dispatcher match proofs.
+   the private compatibility fuel-wrapper/reference-oracle theorem family that
+   still exists for contracts without direct native dispatcher match proofs.
 
    A clean intermediate theorem is:
 
@@ -1031,20 +1031,17 @@ scope so the native path does not look more complete than it is:
 
 6. Flip the trust boundary only after the theorem target moves.
 
-   Documentation should say EVMYulLean is the authoritative semantic target
-   only after the public theorem no longer routes through
-   `execYulFuelWithBackend`. Until then, the accurate status is:
-   EVMYulLean-backed builtin bridge proven, native runtime harness executable,
-   native public theorem pending.
+   Documentation should say EVMYulLean is the authoritative public semantic
+   target, while making clear that private transition lemmas still route
+   through `execYulFuelWithBackend` until the generic native proof stack
+   replaces them.
 
    The direct native target is now named `nativeIRRuntimeMatchesIR`: it compares
    `Native.interpretIRRuntimeNative` against `interpretIR` on the observable
    result surface. Remaining generated-fragment work can target a successful
-   native run plus `nativeResultsMatchOn` against IR directly, while the current
-   fuel-wrapper theorem remains explicitly named as the oracle side of the
-   lower-level comparison. The Layer 3 and Layers 2-3 native theorem spellings
-   now consume `nativeIRRuntimeMatchesIR`; the older `_via_reference_oracle`
-   native wrapper variants have been removed.
+   native run plus `nativeResultsMatchOn` against IR directly. The Layer 3 and
+   Layers 2-3 native theorem spellings now consume `nativeIRRuntimeMatchesIR`;
+   the older `_via_reference_oracle` native wrapper variants have been removed.
    At the raw lowered-dispatcher boundary,
    `nativeDispatcherExecMatchesIRPositive` and
    `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match` expose the
@@ -1098,7 +1095,8 @@ scope so the native path does not look more complete than it is:
 
 ## Cleanup After the Flip
 
-- Move `legacyExecYulFuel` and `execYulFuelWithBackend` to reference-oracle status.
+- Keep `legacyExecYulFuel` and `execYulFuelWithBackend` in reference-oracle or
+  private transition status.
 - Remove bridge-only docs that describe the custom interpreter as the active
   semantic target.
 - Keep cross-check tests between the old oracle and native EVMYulLean for one

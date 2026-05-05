@@ -1104,10 +1104,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         report = gen.build_report()
         phase4 = report["phase4_retarget"]
         self.assertIn("proven", phase4["compileStmtList_always_bridged"])
-        self.assertEqual(phase4["status"], "full_semantic_integration")
+        self.assertEqual(phase4["status"], "universal-safe-body-closure")
         self.assertEqual(
             phase4["layers2_3_ir_matches_yul_evmYulLeanBackend"],
-            "proven (body hypotheses discharged)",
+            "private transition lemma (body hypotheses discharged)",
         )
 
     def _retarget_all_proven(self) -> str:

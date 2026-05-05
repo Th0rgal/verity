@@ -755,15 +755,15 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.EndToEnd.compiledExternalFunctions_noFuncDefs_of_static_params_and_body
 #print axioms Compiler.Proofs.EndToEnd.compiledExternalFunctions_noFuncDefs_of_safe_static
 #print axioms Compiler.Proofs.EndToEnd.yulBody_from_state_eq_yulBody
-#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge
-#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLeanBackend
+-- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge  -- private compatibility
+-- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLeanBackend  -- private compatibility
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native
-#print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
+-- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_evmYulLean_bridge  -- private compatibility
 #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match
-#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLeanBackend_with_function_bridge
-#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLeanBackend
+-- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLeanBackend_with_function_bridge  -- private compatibility
+-- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLeanBackend  -- private compatibility
 #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean
-#print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
+-- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge  -- private compatibility
 #print axioms Compiler.Proofs.EndToEnd.generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
 #print axioms Compiler.Proofs.EndToEnd.generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported
 #print axioms Compiler.Proofs.EndToEnd.generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
@@ -934,7 +934,7 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeStoreHitMatchBridge_proved
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeSelectorMissMatchBridge_proved
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeCallDispatcherMatchBridge_of_per_case
-#print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLeanBackend
+-- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLeanBackend  -- private compatibility
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match
 #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_eq_nativeContractOfDispatcher_of_lowerStmtsNative
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match

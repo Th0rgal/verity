@@ -16,9 +16,9 @@ flip lands in subsequent commits on this branch.
   and round-trip lemmas (PR #1753, Phase 0).
 - `IRState.storage : Nat → IRStorageWord` is rfl-identical to `Nat → Nat`
   under the abbrev, so the Phase 0 retype required no callsite changes.
-- The public theorem `simpleStorage_endToEnd_native_evmYulLean` retains
-  `hRetrieveHit` and `hStoreHit` as explicit hypotheses (#1743 commit
-  `fe63b826`).
+- The public theorem `simpleStorage_endToEnd_native_evmYulLean` originally
+  retained `hRetrieveHit` and `hStoreHit` as explicit hypotheses (#1743 commit
+  `fe63b826`); later native bridge work discharged those premises.
 
 ## Phase 1 deliverables
 
@@ -66,9 +66,8 @@ flip lands in subsequent commits on this branch.
 - `lake build` clean.
 - `make check` clean.
 - Every `Contracts/*/Proofs/` spec theorem unchanged (no signature drift).
-- Public theorem `simpleStorage_endToEnd_native_evmYulLean` still carries
-  `hRetrieveHit` and `hStoreHit` premises — Phase 1 does not yet discharge
-  them. That work is Phase 2 / Phase 3.
+- Public theorem `simpleStorage_endToEnd_native_evmYulLean` keeps building;
+  the later Phase 2 / Phase 3 work discharges the retrieve/store hit premises.
 
 ## Status
 
@@ -76,5 +75,6 @@ Carrier flip implemented. `IRStorageWord` is now `@[reducible] def := UInt256`
 with `OfNat` / `Inhabited` instances and the round-trip lemmas restated for the
 new carrier. Downstream callsites have been migrated (helpers wrap `Nat → IRStorageWord`
 internally; sload sites project via `.toNat`). `lake build` clean, `make check`
-green (600 tests). `hRetrieveHit` / `hStoreHit` remain on
-`simpleStorage_endToEnd_native_evmYulLean`; their discharge is Phase 2 / Phase 3.
+green (600 tests). The later Phase 2 / Phase 3 bridge work discharges the
+`hRetrieveHit` / `hStoreHit` premises from
+`simpleStorage_endToEnd_native_evmYulLean`.

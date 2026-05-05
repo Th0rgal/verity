@@ -590,6 +590,13 @@ def build_report() -> dict[str, object]:
             )
             return re.search(pattern, code, re.MULTILINE) is not None
 
+        def _has_private_theorem_in(code: str, name: str) -> bool:
+            pattern = (
+                r'^[ \t]{0,2}(?:@\[[^\]]*\]\s*)*'
+                r'private\s+theorem\s+' + re.escape(name) + r'\b'
+            )
+            return re.search(pattern, code, re.MULTILINE) is not None
+
         def _has_theorem(name: str) -> bool:
             return _has_theorem_in(retarget_code, name)
 
@@ -665,6 +672,9 @@ def build_report() -> dict[str, object]:
             has_end_to_end_evm_retarget = _has_theorem_in(
                 end_to_end_code, "layers2_3_ir_matches_yul_evmYulLeanBackend"
             )
+            end_to_end_evm_retarget_is_private = _has_private_theorem_in(
+                end_to_end_code, "layers2_3_ir_matches_yul_evmYulLeanBackend"
+            )
             end_to_end_evm_retarget_has_sorry = _theorem_body_has_sorry_in(
                 end_to_end_code, "layers2_3_ir_matches_yul_evmYulLeanBackend"
             )
@@ -680,6 +690,7 @@ def build_report() -> dict[str, object]:
             )
         else:
             has_end_to_end_evm_retarget = False
+            end_to_end_evm_retarget_is_private = False
             end_to_end_evm_retarget_has_sorry = False
             end_to_end_evm_retarget_has_body_hypotheses = False
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
@@ -811,6 +822,10 @@ def build_report() -> dict[str, object]:
             end_to_end_evm_retarget_status = (
                 "proven (conditional on bridged IR bodies)"
             )
+        elif end_to_end_evm_retarget_is_private:
+            end_to_end_evm_retarget_status = (
+                "private transition lemma (body hypotheses discharged)"
+            )
         else:
             end_to_end_evm_retarget_status = "proven (body hypotheses discharged)"
         if BODY_CLOSURE_FILE.exists():
@@ -923,8 +938,8 @@ def build_report() -> dict[str, object]:
             # proven, every compileStmtList output for external-safe source
             # statement lists discharges `BridgedStmts` without per-call
             # hypotheses. The phase4 status only reaches
-            # "full_semantic_integration" after the public EndToEnd theorem
-            # stops carrying explicit BridgedStmts body hypotheses as well.
+            # "full_semantic_integration" only after the exported EndToEnd
+            # theorem stops carrying explicit BridgedStmts body hypotheses.
             has_universal_body_closure = _has_theorem_in(
                 body_closure_code, "compileStmtList_always_bridged"
             )
@@ -1131,6 +1146,7 @@ def build_report() -> dict[str, object]:
             has_universal_body_closure
             and not universal_body_closure_has_sorry
             and has_end_to_end_evm_retarget
+            and not end_to_end_evm_retarget_is_private
             and not end_to_end_evm_retarget_has_sorry
             and not end_to_end_evm_retarget_has_body_hypotheses
             and has_layer3_evm_retarget
@@ -1401,9 +1417,9 @@ def build_report() -> dict[str, object]:
             "identifier-slot sstore), and recursively nested BridgedStmt targets; "
             "generated runtime-code closure, emitted-runtime backend equality, and the "
             "lower-level Layer-3 EVMYulLean retarget theorem are proven under bridged "
-            "IR-body witnesses; the public EndToEnd safe-body wrapper discharges raw "
-            "BridgedStmts body hypotheses from SupportedSpec, static-parameter, and "
-            "BridgedSafeStmts source witnesses; "
+            "IR-body witnesses; the EndToEnd safe-body backend-wrapper lemma is private "
+            "transition plumbing, while public EndToEnd targets use native dispatcher "
+            "execution through interpretIRRuntimeNative; "
             "compileStmtList_always_bridged proves a universal BridgedSafeStmts aggregation "
             "theorem with the external-call family carved out behind explicit function-table "
             "hypotheses"
