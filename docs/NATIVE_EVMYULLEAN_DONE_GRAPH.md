@@ -110,6 +110,10 @@ N8 public Layer 3 theorem flip
   `YulTransaction.ofIR` validation cases once unsupported selected-path header
   builtin use has been ruled out. EndToEnd mirrors the global-default case for
   the compiled native positive and projected-result seams.
+  `generatedRuntimeNativeFragment_of_compile_ok_supported_safe` and
+  `validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe` close
+  the executable generated-runtime fragment validator for supported compiled
+  contracts.
 - **Definition of done**:
   - Every environment field reachable from generated Yul is bridged, explicitly
     defaulted under a theorem invariant, or rejected fail-closed.

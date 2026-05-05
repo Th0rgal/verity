@@ -841,6 +841,52 @@ theorem generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
       spec selectors hSupported irContract hCompile)
     hStaticParams hSafeBodies
 
+/-- Supported compiler output satisfies the native generated-runtime fragment
+validator's executable predicate. -/
+theorem generatedRuntimeNativeFragment_of_compile_ok_supported_safe
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body) :
+    Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment
+      (Compiler.emitYul irContract).runtimeCode = true :=
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment_emitYul_runtimeCode_noFallback_noReceive
+    irContract
+    (generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported
+      hCompile hSupported)
+    (generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported
+      hCompile hSupported)
+    (generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
+      hCompile hSupported hStaticParams hSafeBodies)
+    (generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+      hCompile hSupported)
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+      spec selectors hSupported irContract hCompile)
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+      spec selectors hSupported irContract hCompile)
+
+/-- Supported compiler output passes the native generated-runtime fragment
+validator. -/
+theorem validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body) :
+    Compiler.Proofs.YulGeneration.Backends.Native.validateGeneratedRuntimeNativeFragment
+      (Compiler.emitYul irContract).runtimeCode = .ok () :=
+  Compiler.Proofs.YulGeneration.Backends.Native.validateGeneratedRuntimeNativeFragment_ok
+    (Compiler.emitYul irContract).runtimeCode
+    (generatedRuntimeNativeFragment_of_compile_ok_supported_safe
+      hCompile hSupported hStaticParams hSafeBodies)
+
 theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}

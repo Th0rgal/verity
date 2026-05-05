@@ -80,7 +80,12 @@ materializes pre-state storage for those slots.
   These direct match seams keep the remaining proof obligation at concrete
   native lowering, selected-path environment validation, and either raw
   positive dispatcher-exec matching or projected-result matching against IR
-  execution.
+  execution. The compiled supported fragment check is now named explicitly by
+  `generatedRuntimeNativeFragment_of_compile_ok_supported_safe` and
+  `validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe`, so the
+  executable generated-runtime validator is closed from the same public
+  `SupportedSpec`, static-parameter, and safe-body hypotheses as the native
+  wrapper seams.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with
