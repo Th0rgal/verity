@@ -48,16 +48,20 @@ materializes pre-state storage for those slots.
   `nativeGeneratedDispatcherExecMatchesIROn`, the supported-compiler
   dispatcher-exec wrapper
   `compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match` at
-  canonical generated-runtime fuel, and the concrete SimpleStorage native
-  theorem. The dispatcher-exec wrapper derives static ABI parameter coverage
-  from `SupportedSpec` and exposes source-body closure as
+  canonical generated-runtime fuel, the helper-free dispatcher lowering wrapper
+  `compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping`,
+  and the concrete SimpleStorage native theorem. The dispatcher-exec wrappers
+  derive static ABI parameter coverage from `SupportedSpec` and expose
+  source-body closure as
   `SourceBodyNativeClosure` (compile-core or terminal-core), packaging that
   into the native body whitelist internally. It also derives native runtime
   environment validation from explicit chain-id, blob-base-fee, and unsupported
   header-builtin facts; only the concrete dispatcher execution/result
-  obligation remains explicit. The concrete SimpleStorage native theorem uses
-  the same explicit native-environment facts instead of an opaque validation
-  premise. The opaque arbitrary-fuel
+  obligation remains explicit. On the helper-free path, the public theorem now
+  accepts the concrete `lowerStmtsNative` dispatcher lowering and constructs the
+  full `lowerRuntimeContractNative` result internally. The concrete
+  SimpleStorage native theorem uses the same explicit native-environment facts
+  instead of an opaque validation premise. The opaque arbitrary-fuel
   identity seams, generated dispatcher-exec lift facts, and fuel-indexed
   `nativeIRRuntimeMatchesIR` targets are file-local, and the older
   proof-interpreter bridge signature has been removed from EndToEnd. The public
@@ -133,8 +137,11 @@ materializes pre-state storage for those slots.
   in the native harness and by
   `lowerRuntimeContractNative_of_compile_ok_supported_noMapping` for compiled
   supported contracts, reducing no-mapping runtimes to the single generated
-  dispatcher shell. The mapping-helper side of the same boundary is now named
-  by `nativeMappingSlotFunctionDefinition` and
+  dispatcher shell. The public
+  `compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping`
+  wrapper consumes that concrete dispatcher lowering directly and keeps the
+  full emitted-runtime lowering equality internal. The mapping-helper side of
+  the same boundary is now named by `nativeMappingSlotFunctionDefinition` and
   `lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero`, which
   package the concrete native lowering of the generated `mappingSlot` helper at
   scratch base zero. Mapping-enabled emitted runtime lowering is now packaged
