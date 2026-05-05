@@ -617,13 +617,33 @@ def check_public_theorem_target(
                 )
 
     for required_fuel_surface in (
-        "def interpretYulRuntimeWithBackend",
+        "private noncomputable def interpretYulRuntimeWithBackend",
     ):
         if required_fuel_surface not in normalized_retarget:
             errors.append(
                 "Compiler/Proofs/YulGeneration/Backends/"
                 "EvmYulLeanRetarget.lean must keep the backend-parameterized "
-                f"EVMYulLean interpreter surface `{required_fuel_surface}` explicit"
+                f"EVMYulLean interpreter surface `{required_fuel_surface}` "
+                "explicit but private"
+            )
+
+    for public_fuel_surface in (
+        "execYulStmtsWithBackend",
+        "interpretYulRuntimeWithBackend",
+        "interpretYulRuntimeWithBackend_verity_eq",
+        "interpretYulFromIR_evmYulLean_eq_on_bridged_bodies",
+    ):
+        if re.search(
+            r"^\s*(?:noncomputable\s+)?(?:def|theorem)\s+"
+            + re.escape(public_fuel_surface)
+            + r"\b",
+            retarget_text,
+            re.MULTILINE,
+        ):
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean "
+                "must keep backend-interpreter transition surface "
+                f"`{public_fuel_surface}` private"
             )
 
     for forbidden_fuel_alias in (

@@ -197,7 +197,8 @@ materializes pre-state storage for those slots.
   `yulCodegen_preserves_semantics_evmYulLeanBackend` theorem still composes
   through
   `yulCodegen_preserves_semantics_via_reference_oracle` before rewriting the
-  emitted runtime to the EVMYulLean backend executor. The explicit
+  emitted runtime to the private EVMYulLean backend executor wrapper
+  `interpretYulRuntimeWithBackend`. The explicit
   `yulCodegen_preserves_semantics_evmYulLeanBackend` theorem gives isolated
   transition evidence for an EVMYulLean-backed Yul target, but it is not yet a
   native source-of-truth

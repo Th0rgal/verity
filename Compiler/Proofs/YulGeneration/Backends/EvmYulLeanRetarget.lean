@@ -2647,12 +2647,12 @@ theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
     (.stmts (Compiler.emitYul contract).runtimeCode)
     (emitYul_runtimeCode_bridged contract hFunctions hFallback hReceive hInternals)
 
-noncomputable def execYulStmtsWithBackend
+private noncomputable def execYulStmtsWithBackend
     (backend : BuiltinBackend) (state : YulState) (stmts : List Compiler.Yul.YulStmt) :
     YulExecResult :=
   execYulFuelWithBackend backend (sizeOf stmts + 1) state (.stmts stmts)
 
-noncomputable def interpretYulRuntimeWithBackend
+private noncomputable def interpretYulRuntimeWithBackend
     (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (events : List (List Nat) := []) :
@@ -2662,7 +2662,7 @@ noncomputable def interpretYulRuntimeWithBackend
     (execYulFuelWithBackend backend (sizeOf runtimeCode + 1) initialState
       (.stmts runtimeCode))
 
-theorem interpretYulRuntimeWithBackend_verity_eq
+private theorem interpretYulRuntimeWithBackend_verity_eq
     (runtimeCode : List Compiler.Yul.YulStmt) (tx : YulTransaction)
     (storage : IRStorageSlot → IRStorageWord) (events : List (List Nat) := []) :
     interpretYulRuntimeWithBackend .verity runtimeCode tx storage events =
@@ -2691,7 +2691,7 @@ theorem interpretYulRuntimeWithBackend_verity_eq
   cases legacyExecYulFuel (sizeOf runtimeCode + 1) (YulState.initial tx storage events)
       (.stmts runtimeCode) <;> rfl
 
-theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
+private theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
     (contract : Compiler.IRContract) (tx : Compiler.Proofs.IRGeneration.IRTransaction)
     (state : Compiler.Proofs.IRGeneration.IRState)
     (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
