@@ -1167,18 +1167,18 @@ private theorem bridgedExpr_iszero_ident (name : String) :
   exact BridgedExpr.ident name
 
 
-theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
+private theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact bridgedStmt_if_of_bridgedStmts bridgedExpr_callvalue
     BridgedStmts_singleton_revert_zero
 
-theorem calldatasizeGuard_bridged (numParams : Nat) :
+private theorem calldatasizeGuard_bridged (numParams : Nat) :
     BridgedStmt (Compiler.CodegenCommon.calldatasizeGuard numParams) := by
   unfold Compiler.CodegenCommon.calldatasizeGuard
   exact bridgedStmt_if_of_bridgedStmts (bridgedExpr_calldatasize_lt (4 + numParams * 32))
     BridgedStmts_singleton_revert_zero
 
-theorem dispatchBody_bridged (payable : Bool) (label : String)
+private theorem dispatchBody_bridged (payable : Bool) (label : String)
     (body : List Compiler.Yul.YulStmt) (hBody : BridgedStmts body) :
     BridgedStmts (Compiler.CodegenCommon.dispatchBody payable label body) := by
   unfold Compiler.CodegenCommon.dispatchBody
@@ -1189,7 +1189,7 @@ theorem dispatchBody_bridged (payable : Bool) (label : String)
       (BridgedStmts_cons callvalueGuard_bridged hBody)
   · exact BridgedStmts_cons_comment label hBody
 
-theorem defaultDispatchCase_bridged
+private theorem defaultDispatchCase_bridged
     (fallback receive : Option Compiler.IREntrypoint)
     (hFallback : ∀ fb, fallback = some fb → BridgedStmts fb.body)
     (hReceive : ∀ rc, receive = some rc → BridgedStmts rc.body) :
@@ -1254,7 +1254,7 @@ private theorem switchCases_bridged
     (BridgedStmts_cons (calldatasizeGuard_bridged fn.params.length)
       (hFunctions fn hFn))
 
-theorem buildSwitch_bridged
+private theorem buildSwitch_bridged
     (funcs : List Compiler.IRFunction)
     (fallback receive : Option Compiler.IREntrypoint)
     (hFunctions : ∀ fn, fn ∈ funcs → BridgedStmts fn.body)
@@ -1277,12 +1277,12 @@ theorem buildSwitch_bridged
               exact defaultDispatchCase_bridged fallback receive hFallback hReceive))
           BridgedStmts_nil)))
 
-theorem mappingSlotFuncAt_bridged (scratchBase : Nat) :
+private theorem mappingSlotFuncAt_bridged (scratchBase : Nat) :
     BridgedStmt (Compiler.CodegenCommon.mappingSlotFuncAt scratchBase) := by
   unfold Compiler.CodegenCommon.mappingSlotFuncAt
   exact bridgedStmt_funcDef "mappingSlot" ["baseSlot", "key"] ["slot"] _
 
-theorem runtimeCode_bridged
+private theorem runtimeCode_bridged
     (contract : Compiler.IRContract)
     (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
     (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
@@ -1300,7 +1300,7 @@ theorem runtimeCode_bridged
         (buildSwitch_bridged contract.functions contract.fallbackEntrypoint
           contract.receiveEntrypoint hFunctions hFallback hReceive))
 
-theorem emitYul_runtimeCode_bridged
+private theorem emitYul_runtimeCode_bridged
     (contract : Compiler.IRContract)
     (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
     (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
