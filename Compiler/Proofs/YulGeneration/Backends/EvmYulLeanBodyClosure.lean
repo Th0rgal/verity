@@ -24,6 +24,7 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
+import Compiler.TypedIRCompilerCorrectness
 import Compiler.CompilationModel.Compile
 import Compiler.CompilationModel.ParamLoading
 
@@ -35,6 +36,7 @@ open Compiler
 open Compiler.Yul
 open Compiler.CompilationModel
 open Compiler.Proofs.YulGeneration
+open Verity.Core.Free
 
 /-- Scalar ABI parameter types handled inline by `genScalarLoad`. These are
 the `ParamType` constructors whose head word is consumed directly from
@@ -1044,6 +1046,23 @@ inductive BridgedSourceStorageStmt (fields : List Field) : Stmt → Prop
 def BridgedSourceStorageStmts (fields : List Field) (stmts : List Stmt) : Prop :=
   ∀ stmt ∈ stmts, BridgedSourceStorageStmt fields stmt
 
+/-- `SupportedFragment.setStorageSingleSlot` expression and field-layout
+    witnesses are enough to build the native storage source-statement bridge
+    witness. -/
+theorem bridgedSourceStorageStmt_setStorageSingleSlot_of_exprCompileCore
+    {fields : List Field} {fieldName : String} {value : Expr} {slot : Nat}
+    (hValue : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value)
+    (hFind :
+      findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    BridgedSourceStorageStmt fields (.setStorage fieldName value) :=
+  BridgedSourceStorageStmt.setStorage fieldName value
+    { name := fieldName, ty := FieldType.uint256 } slot
+    (bridgedSourceExpr_of_exprCompileCore hValue)
+    (isMapping_false_of_findFieldWithResolvedSlot_uint256 hFind rfl)
+    (by simpa using hFind)
+    (by intro name maxFields h; cases h)
+
 /-- An unpacked single-slot `setStorage` source statement with a pure bridged
 right-hand side compiles to a literal-slot `sstore`, hence satisfies
 `BridgedStmts`. -/
@@ -1741,6 +1760,31 @@ inductive BridgedSourceRequireStmt
 def BridgedSourceRequireStmts
     (fields : List Field) (dynamicSource : DynamicDataSource) (stmts : List Stmt) : Prop :=
   ∀ stmt ∈ stmts, BridgedSourceRequireStmt fields dynamicSource stmt
+
+/-- A `require` over a compile-core condition has a bridged compiled failure
+    condition, so it belongs to the native require source-statement bridge. -/
+theorem bridgedSourceRequireStmt_of_exprCompileCore
+    {fields : List Field} {dynamicSource : DynamicDataSource}
+    {cond : Expr} {message : String}
+    (hCond : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore cond) :
+    BridgedSourceRequireStmt fields dynamicSource (.require cond message) :=
+  BridgedSourceRequireStmt.require cond message
+    (compileRequireFailCond_bridgedSource fields dynamicSource
+      (bridgedSourceExpr_of_exprCompileCore hCond))
+
+/-- Every literal guard-family clause lowers to a `require` whose condition is
+    in the compile-core expression grammar, hence is native-bridged. -/
+theorem bridgedSourceRequireStmt_of_guardFamilyClause
+    {fields : List Field} {dynamicSource : DynamicDataSource}
+    (clause : RequireLiteralGuardFamilyClause) :
+    BridgedSourceRequireStmt fields dynamicSource clause.toStmt := by
+  cases clause with
+  | mk family n m p q message =>
+      cases family <;> simp [RequireLiteralGuardFamilyClause.toStmt]
+      case binary op =>
+        cases op <;> simp [RequireLiteralGuardFamilyClause.toStmt]
+        all_goals exact bridgedSourceRequireStmt_of_exprCompileCore (by repeat constructor)
+      all_goals exact bridgedSourceRequireStmt_of_exprCompileCore (by repeat constructor)
 
 /-- A plain `Stmt.require` whose compiled failure condition is bridged compiles
 to a bridged Yul `if` around `revertWithMessage`. -/
@@ -8314,6 +8358,23 @@ inductive BridgedSourceStorageAddrStmt (fields : List Field) : Stmt → Prop
 def BridgedSourceStorageAddrStmts (fields : List Field) (stmts : List Stmt) : Prop :=
   ∀ stmt ∈ stmts, BridgedSourceStorageAddrStmt fields stmt
 
+/-- `SupportedFragment.setStorageAddrSingleSlot` expression and field-layout
+    witnesses are enough to build the native address-storage source-statement
+    bridge witness. -/
+theorem bridgedSourceStorageAddrStmt_setStorageAddrSingleSlot_of_exprCompileCore
+    {fields : List Field} {fieldName : String} {value : Expr} {slot : Nat}
+    (hValue : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value)
+    (hFind :
+      findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.address }, slot)) :
+    BridgedSourceStorageAddrStmt fields (.setStorageAddr fieldName value) :=
+  BridgedSourceStorageAddrStmt.setStorageAddr fieldName value
+    { name := fieldName, ty := FieldType.address } slot
+    (bridgedSourceExpr_of_exprCompileCore hValue)
+    (isMapping_false_of_findFieldWithResolvedSlot_address hFind rfl)
+    rfl
+    (by simpa using hFind)
+
 /-- An address-typed, unpacked single-slot `setStorageAddr` source statement
 with a pure bridged right-hand side compiles to a literal-slot
 `sstore(lit slot, and(value, hex addressMask))`, hence satisfies
@@ -8421,6 +8482,44 @@ theorem compileStmtList_storageAddr_bridged
                 (compileStmt_storageAddr_bridged fields events errors dynamicSource
                   internalRetNames isInternal inScopeNames hHeadSource hHead)
                 (ih (collectStmtNames head ++ inScopeNames) hTailSource hTail)
+
+theorem compileStmt_storageAddr_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) :
+    ∀ {stmt : Stmt}, BridgedSourceStorageAddrStmt fields stmt →
+      ∀ {out : List YulStmt},
+        compileStmt fields events errors dynamicSource internalRetNames isInternal
+          inScopeNames [] stmt = .ok out →
+        Native.yulStmtsContainFuncDef out = false := by
+  intro stmt hStmt out hOk
+  cases hStmt with
+  | setStorageAddr field value f slot hValue hNotMapping hAddrTy hFind =>
+      simp only [compileStmt] at hOk
+      unfold compileSetStorage at hOk
+      simp [hNotMapping, hFind, hAddrTy] at hOk
+      cases hExpr : compileExpr fields dynamicSource value with
+      | error err => simp [hExpr] at hOk
+      | ok valueExpr =>
+          simp [hExpr] at hOk
+          subst out
+          simp [Native.yulStmtContainsFuncDef]
+
+theorem compileStmtList_storageAddr_noFuncDefs
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceStorageAddrStmts fields stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames [] stmts = .ok out →
+        Native.yulStmtsContainFuncDef out = false :=
+  compileStmtList_noFuncDefs_of_forall fields events errors dynamicSource
+    internalRetNames isInternal (BridgedSourceStorageAddrStmt fields)
+    (fun inScopeNames {_} {_} hStmt hOk =>
+      compileStmt_storageAddr_noFuncDefs fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames hStmt hOk)
 
 /-! ## Source statement body closure: single-slot `setStructMember`
 
@@ -15532,6 +15631,15 @@ inductive BridgedSafeStmts
       (hStmts : BridgedSourceInternalRecursiveBodyWithRawLogStmts
         fields errors dynamicSource stmts) :
       BridgedSafeStmts fields errors dynamicSource internalRetNames true stmts
+  | storage {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceStorageStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | storageAddr {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceStorageAddrStmts fields stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+  | require {isInternal : Bool} {stmts : List Stmt}
+      (hStmts : BridgedSourceRequireStmts fields dynamicSource stmts) :
+      BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
   | setStorageArrayElement {isInternal : Bool} {stmts : List Stmt}
       (hStmts : BridgedSourceSetStorageArrayElementStmts fields stmts) :
       BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
@@ -15616,6 +15724,76 @@ theorem bridgedSafeStmts_mstoreSingle_of_exprCompileCore
     subst stmt
     exact bridgedSourceMstoreStmt_of_exprCompileCore hOffset hValue)
 
+/-- The singleton `setStorage` shape exposed by
+    `SupportedFragment.setStorageSingleSlot` is a native safe body whenever its
+    value is a compile-core expression and the field is an unpacked uint slot. -/
+theorem bridgedSafeStmts_setStorageSingleSlot_of_exprCompileCore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {isInternal : Bool} {fieldName : String} {value : Expr} {slot : Nat}
+    (hValue : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value)
+    (hFind :
+      findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.uint256 }, slot)) :
+    BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal
+      [Stmt.setStorage fieldName value] :=
+  BridgedSafeStmts.storage (by
+    intro stmt hMem
+    simp only [List.mem_singleton] at hMem
+    subst stmt
+    exact bridgedSourceStorageStmt_setStorageSingleSlot_of_exprCompileCore
+      hValue hFind)
+
+/-- The singleton `setStorageAddr` shape exposed by
+    `SupportedFragment.setStorageAddrSingleSlot` is a native safe body whenever
+    its value is a compile-core expression and the field is an unpacked address
+    slot. -/
+theorem bridgedSafeStmts_setStorageAddrSingleSlot_of_exprCompileCore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {isInternal : Bool} {fieldName : String} {value : Expr} {slot : Nat}
+    (hValue : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value)
+    (hFind :
+      findFieldWithResolvedSlot fields fieldName =
+        some ({ name := fieldName, ty := FieldType.address }, slot)) :
+    BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal
+      [Stmt.setStorageAddr fieldName value] :=
+  BridgedSafeStmts.storageAddr (by
+    intro stmt hMem
+    simp only [List.mem_singleton] at hMem
+    subst stmt
+    exact bridgedSourceStorageAddrStmt_setStorageAddrSingleSlot_of_exprCompileCore
+      hValue hFind)
+
+/-- A singleton `require` whose condition is compile-core is a native safe
+    body. -/
+theorem bridgedSafeStmts_requireSingle_of_exprCompileCore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {isInternal : Bool} {cond : Expr} {message : String}
+    (hCond : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore cond) :
+    BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal
+      [Stmt.require cond message] :=
+  BridgedSafeStmts.require (by
+    intro stmt hMem
+    simp only [List.mem_singleton] at hMem
+    subst stmt
+    exact bridgedSourceRequireStmt_of_exprCompileCore hCond)
+
+/-- A singleton literal guard-family clause is a native safe body. -/
+theorem bridgedSafeStmts_requireGuardFamilyClause
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {isInternal : Bool}
+    (clause : RequireLiteralGuardFamilyClause) :
+    BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal
+      [clause.toStmt] :=
+  BridgedSafeStmts.require (by
+    intro stmt hMem
+    simp only [List.mem_singleton] at hMem
+    subst stmt
+    exact bridgedSourceRequireStmt_of_guardFamilyClause clause)
+
 /-- The singleton `tstore` shape exposed by `SupportedFragment.tstoreSingle`
     is a native safe body whenever its offset and value are compile-core
     expressions. -/
@@ -15656,6 +15834,15 @@ theorem compileStmtList_always_bridged
   | internalRecursiveRawLog hStmts =>
       exact compileStmtList_internal_recursive_body_with_raw_log_bridged fields
         events errors dynamicSource internalRetNames hStmts inScopeNames hOk
+  | storage hStmts =>
+      exact compileStmtList_storage_fragment_bridged fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | storageAddr hStmts =>
+      exact compileStmtList_storageAddr_bridged fields events errors dynamicSource
+        internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | require hStmts =>
+      exact compileStmtList_require_bridged fields events errors dynamicSource
+        internalRetNames isInternal stmts inScopeNames hStmts hOk
   | setStorageArrayElement hStmts =>
       exact compileStmtList_setStorageArrayElement_bridged fields events errors
         dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
@@ -15747,6 +15934,15 @@ theorem compileStmtList_always_noFuncDefs
   | internalRecursiveRawLog hStmts =>
       exact compileStmtList_internal_recursive_body_with_raw_log_noFuncDefs
         fields events errors dynamicSource internalRetNames hStmts inScopeNames hOk
+  | storage hStmts =>
+      exact compileStmtList_storage_fragment_noFuncDefs fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | storageAddr hStmts =>
+      exact compileStmtList_storageAddr_noFuncDefs fields events errors
+        dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk
+  | require hStmts =>
+      exact compileStmtList_require_noFuncDefs fields events errors dynamicSource
+        internalRetNames isInternal stmts inScopeNames hStmts hOk
   | setStorageArrayElement hStmts =>
       exact compileStmtList_setStorageArrayElement_noFuncDefs fields events
         errors dynamicSource internalRetNames isInternal stmts inScopeNames hStmts hOk

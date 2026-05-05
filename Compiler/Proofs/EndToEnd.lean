@@ -10114,6 +10114,10 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   `ExprCompileCore` are now known to satisfy `BridgedSafeStmts`, matching the
   `SupportedFragment.mstoreSingle` and `SupportedFragment.tstoreSingle`
   source shapes.
+- Simple `setStorage`, `setStorageAddr`, and `require` source-body lists now
+  have direct `BridgedSafeStmts` constructors. The singleton uint/address
+  storage and literal guard-family shapes exposed by `SupportedFragment` can be
+  discharged from their compile-core and field-layout witnesses.
 - Scalar-leaf and pure-expression `letVar`/`assignVar` statement lists are now
   known to compile to `BridgedStmts`.
 - Pure-binding plus unpacked single-slot `setStorage` statement lists and

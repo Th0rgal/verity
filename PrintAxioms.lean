@@ -2648,6 +2648,7 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_pure_binding_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_pure_binding_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_pure_binding_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSourceStorageStmt_setStorageSingleSlot_of_exprCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorage_singleSlot_pure_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorage_singleSlot_pure_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storage_fragment_bridged
@@ -2672,6 +2673,8 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.revertWithMessage_bridged  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.revertWithMessage_chunks_noFuncDefs  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.revertWithMessage_noFuncDefs  -- private
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSourceRequireStmt_of_exprCompileCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSourceRequireStmt_of_guardFamilyClause
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_require_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_require_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_require_bridged
@@ -2894,9 +2897,12 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2_singleSlot_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite2_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite2_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSourceStorageAddrStmt_setStorageAddrSingleSlot_of_exprCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorageAddr_singleSlot_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storageAddr_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageAddr_bridged
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_storageAddr_noFuncDefs
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageAddr_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember_singleSlot_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmt_structMember_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMember_bridged
@@ -3088,6 +3094,10 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordMultiSlotNonzero_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordMultiSlotNonzero_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_mstoreSingle_of_exprCompileCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setStorageSingleSlot_of_exprCompileCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setStorageAddrSingleSlot_of_exprCompileCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_requireSingle_of_exprCompileCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_requireGuardFamilyClause
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_tstoreSingle_of_exprCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_noFuncDefs
@@ -4470,4 +4480,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4276 theorems/lemmas (2876 public, 1400 private, 0 sorry'd)
+-- Total: 4286 theorems/lemmas (2886 public, 1400 private, 0 sorry'd)
