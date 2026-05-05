@@ -78,7 +78,10 @@ N8 public Layer 3 theorem flip
   `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq`, and
   `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered`.
   The combined no-fallback/no-receive generated dispatcher lowering shape is
-  exposed as `buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered`.
+  exposed as `buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered`;
+  its selector hit/miss lookup companions are
+  `buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function`
+  and `buildSwitch_noFallback_noReceive_lowered_inner_find?_none_of_find_function`.
 - **Definition of done**:
   - The compiler-emitted runtime Yul fragment is explicitly characterized.
   - Allowed statements, expressions, builtins, helper functions, dispatcher

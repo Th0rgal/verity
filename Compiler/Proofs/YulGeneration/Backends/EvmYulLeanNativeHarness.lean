@@ -846,6 +846,89 @@ theorem buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered
   rw [hBody2Eq] at hIf2; rw [hIf2] at hIf1; rw [hIf1] at hLet
   exact ⟨body1', _, _, cases', midN, hLet, hLowerCases⟩
 
+/-- Selector-hit companion of
+`buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered`: opening the
+generated dispatcher lowering also lifts an `IRFunction` lookup hit through
+the lowered native switch cases. -/
+theorem buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+    (funcs : List IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (selector : Nat) (fn : IRFunction)
+    (h : Backends.lowerStmtsNative
+            [Compiler.CodegenCommon.buildSwitch funcs none none] =
+          .ok [.Block inner])
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn) :
+    ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+      inner =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some (Backends.lowerExprNative (YulExpr.call "iszero"
+              [YulExpr.call "lt"
+                [YulExpr.call "calldatasize" [], YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (YulExpr.call "iszero" [YulExpr.ident "__has_selector"])) body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]]] ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, hInner, hLowerCases⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered funcs inner h
+  obtain ⟨body', bodyStart, bodyEnd, hCase, hBodyLower⟩ :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function
+      reservedNames (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+      selector funcs fn cases' hLowerCases hFind
+  exact ⟨body1, reservedNames, n0, cases', body', bodyStart, bodyEnd,
+    hInner, hCase, hBodyLower⟩
+
+/-- Selector-miss companion of
+`buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered`: opening the
+generated dispatcher lowering also lifts an `IRFunction` lookup miss through
+the lowered native switch cases. -/
+theorem buildSwitch_noFallback_noReceive_lowered_inner_find?_none_of_find_function
+    (funcs : List IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (selector : Nat)
+    (h : Backends.lowerStmtsNative
+            [Compiler.CodegenCommon.buildSwitch funcs none none] =
+          .ok [.Block inner])
+    (hFind : funcs.find? (fun f => f.selector == selector) = none) :
+    ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
+      inner =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some (Backends.lowerExprNative (YulExpr.call "iszero"
+              [YulExpr.call "lt"
+                [YulExpr.call "calldatasize" [], YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (YulExpr.call "iszero" [YulExpr.ident "__has_selector"])) body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]]] ∧
+      cases'.find? (fun entry => entry.1 == selector) = none := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, hInner, hLowerCases⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered funcs inner h
+  have hCase :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+      reservedNames (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+      selector funcs cases' hLowerCases hFind
+  exact ⟨body1, reservedNames, n0, cases', hInner, hCase⟩
+
 theorem generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
     (funcs : List IRFunction)
     (hBodies : ∀ fn, fn ∈ funcs → yulStmtsContainFuncDef fn.body = false) :
