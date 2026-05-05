@@ -153,6 +153,14 @@ N8 public Layer 3 theorem flip
   corresponding runtime lifts are named by
   `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match` and
   `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match`.
+  EndToEnd now mirrors this as compiled-contract projected-result seams:
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match`,
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure`.
 - **Definition of done**:
   - Projection lemmas cover every native halt/error/result used by generated
     runtime execution.

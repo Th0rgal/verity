@@ -55,17 +55,24 @@ materializes pre-state storage for those slots.
 - The same module also exposes
   `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure`,
   `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match`, and
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match`,
-  with
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure`
-  as the explicitly named safe-body wrapper alias.
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match`,
+  with `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure`
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure`
+  as the explicitly named safe-body wrapper aliases.
   These direct match seams keep the remaining proof obligation at concrete
-  native lowering, selected-path environment validation, and raw positive
-  dispatcher-exec matching against IR execution.
+  native lowering, selected-path environment validation, and either raw
+  positive dispatcher-exec matching or projected-result matching against IR
+  execution.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with
@@ -108,6 +115,13 @@ materializes pre-state storage for those slots.
 - `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match` and
   `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match`
   lift that projected-result package through the native runtime harness.
+- The EndToEnd module mirrors that projected-result surface for compiled
+  supported contracts through
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure`,
+  and the `layer3_...project...` / `layers2_3_...project...` wrappers, so
+  callers can provide one projected native result equality plus the observable
+  match without first building the positive-dispatcher predicate.
 
 ## Clean Target Architecture
 
