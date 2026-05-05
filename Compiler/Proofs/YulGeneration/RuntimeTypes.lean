@@ -1,6 +1,5 @@
 import Compiler.Yul.Ast
 import Compiler.Proofs.IRGeneration.IRInterpreter
-import Compiler.Proofs.YulGeneration.ReferenceOracle.State
 
 namespace Compiler.Proofs.YulGeneration
 
@@ -15,6 +14,24 @@ This module intentionally contains only neutral transaction/result/state
 plumbing used by both the historical reference oracle and the native
 EVMYulLean harness. It does not define or import the legacy fuel interpreter.
 -/
+
+structure YulState where
+  vars : List (String × Nat)
+  storage : IRStorageSlot → IRStorageWord
+  transientStorage : Nat → Nat := fun _ => 0
+  memory : Nat → Nat
+  calldata : List Nat
+  selector : Nat
+  returnValue : Option Nat
+  sender : Nat
+  msgValue : Nat := 0
+  thisAddress : Nat := 0
+  blockTimestamp : Nat := 0
+  blockNumber : Nat := 0
+  chainId : Nat := 0
+  blobBaseFee : Nat := 0
+  events : List (List Nat) := []
+  deriving Nonempty
 
 /-- Selector expression used by the runtime switch. -/
 def selectorExpr : YulExpr :=

@@ -1,27 +1,13 @@
-import Compiler.Proofs.IRGeneration.IRStorageWord
+import Compiler.Proofs.YulGeneration.RuntimeTypes
 
 namespace Compiler.Proofs.YulGeneration
 
-open Compiler.Proofs.IRGeneration (IRStorageWord IRStorageSlot)
+/-!
+Compatibility re-export for historical imports.
 
-/-! Shared state structures for the reference-oracle Yul runtime. -/
-
-structure YulState where
-  vars : List (String × Nat)
-  storage : IRStorageSlot → IRStorageWord
-  transientStorage : Nat → Nat := fun _ => 0
-  memory : Nat → Nat
-  calldata : List Nat
-  selector : Nat
-  returnValue : Option Nat
-  sender : Nat
-  msgValue : Nat := 0
-  thisAddress : Nat := 0
-  blockTimestamp : Nat := 0
-  blockNumber : Nat := 0
-  chainId : Nat := 0
-  blobBaseFee : Nat := 0
-  events : List (List Nat) := []
-  deriving Nonempty
+`YulState` now lives in `Compiler.Proofs.YulGeneration.RuntimeTypes` so native
+EVMYulLean proofs can use the shared state shape without importing a
+reference-oracle module.
+-/
 
 end Compiler.Proofs.YulGeneration
