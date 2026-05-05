@@ -101,6 +101,10 @@ materializes pre-state storage for those slots.
   removed. The remaining native Layer 3 and supported EndToEnd seams consume
   `nativeIRRuntimeMatchesIR` directly, making the generated native fragment's
   direct match proof the visible blocker.
+- `nativeDispatcherExecMatchesIRPositive_of_project_eq_match` now gives the
+  remaining generated-dispatch proof a single projected-result introduction
+  form, so endpoint-specific native success/halt/error splits are only needed
+  when a proof needs endpoint-specific facts.
 
 ## Clean Target Architecture
 

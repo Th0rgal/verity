@@ -146,6 +146,10 @@ N8 public Layer 3 theorem flip
   `exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq`
   and its dispatcher-block companion
   `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq`.
+  The final direct dispatcher-match surface also has the endpoint-agnostic
+  `nativeDispatcherExecMatchesIRPositive_of_project_eq_match`, which lets a
+  generated runtime proof discharge the positive native-vs-IR target from one
+  projected native `YulResult` equality plus the observable IR match.
 - **Definition of done**:
   - Projection lemmas cover every native halt/error/result used by generated
     runtime execution.

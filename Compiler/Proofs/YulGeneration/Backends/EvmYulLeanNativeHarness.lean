@@ -17337,6 +17337,36 @@ theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_ma
       hNoFallback hNoReceive)
     hLower hEnv hMatch
 
+/-- Generic intro form for the direct positive-fuel native-vs-IR dispatcher
+target when a proof has already identified the projected native result.
+
+This keeps future generated-dispatch proofs from splitting on the native
+execution endpoint unless they need endpoint-specific facts. -/
+theorem nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+    {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
+    {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    {nativeYul : YulResult}
+    (hProject :
+      let initial :=
+        initialState nativeContract (YulTransaction.ofIR tx) state.storage
+          (materializedStorageSlots (Compiler.runtimeCode contract) observableSlots)
+      let nativeResult :=
+        match contractDispatcherExecResult fuel' nativeContract initial with
+        | .error err => .error err
+        | .ok finalState =>
+            let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+            .ok (restored, [])
+      projectResult (YulTransaction.ofIR tx) state.storage state.events nativeResult =
+        nativeYul)
+    (hMatch :
+      nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+        (.ok nativeYul)) :
+    nativeDispatcherExecMatchesIRPositive fuel' contract tx state
+      observableSlots nativeContract := by
+  unfold nativeDispatcherExecMatchesIRPositive
+  simpa [hProject] using hMatch
+
 /-- Intro form for the direct positive-fuel native-vs-IR dispatcher-exec target
 when native execution finishes normally. -/
 theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_match
