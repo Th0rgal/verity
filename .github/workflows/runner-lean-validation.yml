@@ -37,6 +37,9 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runner_labels_json) }}
     timeout-minutes: 240
     env:
+      SOLC_VERSION: "0.8.33"
+      SOLC_URL: "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.33+commit.64118f21"
+      SOLC_SHA256: "1274e5c4621ae478090c5a1f48466fd3c5f658ed9e14b15a0b213dc806215468"
       LEAN_NUM_THREADS: ${{ inputs.lean_num_threads }}
       CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
@@ -169,6 +172,10 @@ jobs:
           fi
           sudo apt-get update
           sudo apt-get install -y clang lld ccache libc++-dev libc++abi-dev libgmp-dev libuv1-dev
+
+      - name: Setup x64 solc
+        if: inputs.include_compiler_core && runner.arch == 'X64'
+        uses: ./.github/actions/setup-solc
 
       - name: Run compiler-core CI subset
         if: inputs.include_compiler_core
