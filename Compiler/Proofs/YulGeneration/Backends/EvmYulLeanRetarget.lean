@@ -2735,7 +2735,7 @@ theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
             (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
             contract hFunctions hFallback hReceive hInternals]
 
-theorem yulCodegen_preserves_semantics_evmYulLeanBackend
+private theorem yulCodegen_preserves_semantics_evmYulLeanBackend
     (contract : Compiler.IRContract)
     (tx : IRTransaction)
     (initialState : IRState)
@@ -2776,7 +2776,7 @@ theorem yulCodegen_preserves_semantics_evmYulLeanBackend
 /-- Compatibility name for callers that still track the legacy proof route.
 New public wrappers should consume
 `yulCodegen_preserves_semantics_evmYulLeanBackend`. -/
-theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle
+private theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle
     (contract : Compiler.IRContract)
     (tx : IRTransaction)
     (initialState : IRState)

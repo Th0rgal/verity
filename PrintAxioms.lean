@@ -4216,8 +4216,8 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
 #print axioms Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend_verity_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
-#print axioms Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLeanBackend
-#print axioms Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLeanBackend  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle  -- private
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSignedArithSpec.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.specSignBit_lt_specModulus
@@ -4334,4 +4334,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4158 theorems/lemmas (3169 public, 989 private, 0 sorry'd)
+-- Total: 4158 theorems/lemmas (3167 public, 991 private, 0 sorry'd)

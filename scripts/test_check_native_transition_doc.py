@@ -617,8 +617,8 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
 
     def test_reference_oracle_names_guard_rejects_missing_explicit_evmyullean_retarget(self) -> None:
         retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
-            "theorem yulCodegen_preserves_semantics_evmYulLeanBackend",
-            "theorem yulCodegen_preserves_semantics_evmYulLean_reference_hidden",
+            "private theorem yulCodegen_preserves_semantics_evmYulLeanBackend",
+            "private theorem yulCodegen_preserves_semantics_evmYulLean_reference_hidden",
         )
         errors = check.check_reference_oracle_names(
             check.END_TO_END.read_text(encoding="utf-8"),
@@ -627,6 +627,22 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertTrue(
             any("yulCodegen_preserves_semantics_evmYulLeanBackend" in error for error in errors),
+            errors,
+        )
+
+    def test_reference_oracle_names_guard_rejects_public_evmyullean_retarget(self) -> None:
+        retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
+            "private theorem yulCodegen_preserves_semantics_evmYulLeanBackend",
+            "theorem yulCodegen_preserves_semantics_evmYulLeanBackend",
+            1,
+        )
+        errors = check.check_reference_oracle_names(
+            check.END_TO_END.read_text(encoding="utf-8"),
+            retarget_text,
+            check.PRESERVATION.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("public proof authority" in error for error in errors),
             errors,
         )
 
@@ -662,7 +678,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
 
     def test_reference_oracle_names_guard_rejects_missing_explicit_evmyullean_fuel_wrapper_retarget(self) -> None:
         retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
-            "yulCodegen_preserves_semantics_evmYulLeanBackend",
+            "private theorem yulCodegen_preserves_semantics_evmYulLeanBackend",
             "yulCodegen_preserves_semantics_evmYulLeanFuelWrapper_reference_hidden",
         )
         errors = check.check_reference_oracle_names(

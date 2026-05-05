@@ -193,17 +193,18 @@ materializes pre-state storage for those slots.
   `selectedSwitchBody_hit`, and `selectedSwitchBody_miss`.
 - The native harness remains separate from the existing retargeting theorem, so
   the proof tree does not claim a theorem that is not yet proved.
-- The current
+- The current private transition-only
   `yulCodegen_preserves_semantics_evmYulLeanBackend` theorem still composes
   through
   `yulCodegen_preserves_semantics_via_reference_oracle` before rewriting the
   emitted runtime to the EVMYulLean backend executor. The explicit
-  `yulCodegen_preserves_semantics_evmYulLeanBackend` theorem gives an
-  EVMYulLean-backed Yul target, but it is not yet a native source-of-truth
+  `yulCodegen_preserves_semantics_evmYulLeanBackend` theorem gives isolated
+  transition evidence for an EVMYulLean-backed Yul target, but it is not yet a
+  native source-of-truth
   Layer 3 proof. The older
   `yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle` name
-  remains only as a compatibility alias; public EndToEnd wrappers consume the
-  non-compatibility name.
+  remains only as a private compatibility alias; public EndToEnd wrappers no
+  longer consume either legacy retarget name.
 - The older generic native reference-oracle/fuel-wrapper aliases have been
   removed. The remaining native Layer 3 and supported EndToEnd seams consume
   `nativeIRRuntimeMatchesIR` directly, making the generated native fragment's
