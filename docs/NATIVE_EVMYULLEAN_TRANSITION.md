@@ -380,11 +380,11 @@ scope so the native path does not look more complete than it is:
 
    The generated dispatcher selector expression is also pinned for the
    EVMYulLean-backed EVMYulLean fuel wrapper:
-   `bridgedExpr_selectorExpr` shows that `selectorExpr` is in the bridged
-   expression fragment, and
-   `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` proves that it
-   evaluates to `state.selector % selectorModulus`. This discharges the
-   interpreter-oracle side of the first selector branch condition. The native
+   the private `bridgedExpr_selectorExpr` lemma shows that `selectorExpr` is in
+   the bridged expression fragment, and the private
+   `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` lemma proves that
+   it evaluates to `state.selector % selectorModulus`. This discharges the
+   isolated interpreter-oracle side of the first selector branch condition. The native
    side now exposes `lowerExprNative_selectorExpr`,
    `step_calldataload_ok`, `step_shr_ok`,
    `primCall_calldataload_ok`, `primCall_shr_ok`, and
@@ -907,9 +907,9 @@ scope so the native path does not look more complete than it is:
    `nativeSwitchTempsFreshForNativeBodies`, plus freshness projection lemmas
    for selected native bodies and optional defaults,
    plus the named
-   `bridgedExpr_selectorExpr` and
+   private `bridgedExpr_selectorExpr` and
    `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` lemmas for the
-   generated dispatcher selector expression on the interpreter-oracle side, the named
+   generated dispatcher selector expression on the isolated interpreter-oracle side, the named
    `initialState_unbridgedEnvironmentDefaults` lemma for
    base-fee/blob-field defaults and native-global `chainid` behavior, callvalue,
    caller/address, calldatasize, timestamp/number, a native-vs-reference-oracle

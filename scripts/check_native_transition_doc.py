@@ -629,6 +629,11 @@ def check_public_theorem_target(
             )
 
     for public_fuel_surface in (
+        "backends_agree_on_bridged_builtins",
+        "evalYulExprWithBackend_eq_on_bridged",
+        "evalYulExpr_evmYulLean_eq_on_bridged",
+        "bridgedExpr_selectorExpr",
+        "evalYulExprWithBackend_evmYulLean_selectorExpr_semantics",
         "execYulFuelWithBackend",
         "execYulFuelWithBackend_verity_eq",
         "execYulFuelWithBackend_let_eq_on_bridged",

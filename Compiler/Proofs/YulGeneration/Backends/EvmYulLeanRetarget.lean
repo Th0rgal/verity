@@ -367,7 +367,7 @@ All bridged builtin dependencies are fully proven in `EvmYulLeanBridgeLemmas.lea
 
     This theorem is sorry-free, composing the fully proven per-builtin bridge
     lemmas in `EvmYulLeanBridgeLemmas.lean`. -/
-theorem backends_agree_on_bridged_builtins
+private theorem backends_agree_on_bridged_builtins
     (storage : IRStorageSlot → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat)
     (func : String) (argVals : List Nat)
@@ -543,7 +543,7 @@ end
 
 mutual
 
-theorem evalYulExprWithBackend_eq_on_bridged
+private theorem evalYulExprWithBackend_eq_on_bridged
     (state : YulState) (expr : Compiler.Yul.YulExpr) (hExpr : BridgedExpr expr) :
     evalYulExprWithBackend .verity state expr =
     evalYulExprWithBackend .evmYulLean state expr := by
@@ -589,7 +589,7 @@ private theorem evalYulExprsWithBackend_eq_on_bridged
 
 end
 
-theorem evalYulExpr_evmYulLean_eq_on_bridged
+private theorem evalYulExpr_evmYulLean_eq_on_bridged
     (state : YulState) (expr : Compiler.Yul.YulExpr) (hExpr : BridgedExpr expr) :
     evalYulExpr state expr =
     evalYulExprWithBackend .evmYulLean state expr := by
@@ -1356,7 +1356,7 @@ private theorem bridgedExpr_selector :
 /-- The generated dispatcher selector expression is in the bridged expression
 fragment, so the EVMYulLean fuel wrapper evaluates it exactly like
 the historical Verity interpreter. -/
-theorem bridgedExpr_selectorExpr :
+private theorem bridgedExpr_selectorExpr :
     BridgedExpr Compiler.Proofs.YulGeneration.selectorExpr := by
   simpa [Compiler.Proofs.YulGeneration.selectorExpr] using bridgedExpr_selector
 
@@ -1366,7 +1366,7 @@ selector as the generated Verity selector expression.
 This is the first generated-dispatcher semantic slice needed by the native
 migration: every native/EVMYulLean dispatcher simulation branches on this
 expression before it reaches storage, memory, or halt behavior. -/
-@[simp] theorem evalYulExprWithBackend_evmYulLean_selectorExpr_semantics
+@[simp] private theorem evalYulExprWithBackend_evmYulLean_selectorExpr_semantics
     (state : YulState) :
     evalYulExprWithBackend .evmYulLean state
         Compiler.Proofs.YulGeneration.selectorExpr =

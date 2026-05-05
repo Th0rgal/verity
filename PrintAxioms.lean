@@ -4078,13 +4078,13 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_calldatasize  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_sload  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_mappingSlot  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_on_bridged_builtins
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_on_bridged_builtins  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.backends_agree_on_keccak256  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_verity_eq  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprsWithBackend_verity_eq  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_eq_on_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_eq_on_bridged  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprsWithBackend_eq_on_bridged  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExpr_evmYulLean_eq_on_bridged
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExpr_evmYulLean_eq_on_bridged  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_verity_eq  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_let_eq_on_bridged  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_assign_eq_on_bridged  -- private
@@ -4109,8 +4109,8 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_callvalue  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selector  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selectorExpr
-#print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_evmYulLean_selectorExpr_semantics
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selectorExpr  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_evmYulLean_selectorExpr_semantics  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize_lt  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_has_selector  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_empty_calldata  -- private
@@ -4334,4 +4334,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4158 theorems/lemmas (3153 public, 1005 private, 0 sorry'd)
+-- Total: 4158 theorems/lemmas (3148 public, 1010 private, 0 sorry'd)
