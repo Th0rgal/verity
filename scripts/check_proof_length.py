@@ -364,6 +364,11 @@ ALLOWLIST: set[str] = {
     # variant. Splitting it would only move the hypothesis threading into a
     # single-use helper.
     "layers2_3_ir_matches_yul_evmYulLean",
+    # Native generic-route bridge closure has to expose the function, fallback,
+    # receive, and internal-body BridgedStmts witnesses explicitly before
+    # applying the Yul backend equivalence. The proof is linear hypothesis
+    # plumbing around one public transition theorem.
+    "interpretYulFromIR_evmYulLean_eq_on_bridged_bodies",
     # --- Contract proofs (Contracts/) ---
     "constructor_increment_getCount",
     "add_one_preserves_order_iff_no_overflow",
