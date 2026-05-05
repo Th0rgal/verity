@@ -42,7 +42,10 @@ materializes pre-state storage for those slots.
   native EVMYulLean logs, matching the observable shape expected by the current
   proof-side `YulResult`.
 - The EndToEnd layer now exposes the native-facing theorem seam
-  `layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge`.
+  `layers2_3_ir_matches_native_evmYulLean`; the older
+  `layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge` signature is
+  deprecated compatibility API for downstream proofs that still carry the old
+  proof-interpreter bridge hypotheses.
   Its conclusion targets `Native.interpretIRRuntimeNative` through
   `nativeResultsMatchOn`, comparing success, return value, events, and the
   explicitly observable final-storage slots. The result-surface definitions and
@@ -944,10 +947,11 @@ scope so the native path does not look more complete than it is:
    The EndToEnd module now has a named native theorem seam:
 
    ```lean
-   layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
+   layers2_3_ir_matches_native_evmYulLean
    ```
 
-   It targets `Native.interpretIRRuntimeNative` directly, but only under:
+   It targets `Native.interpretIRRuntimeNative` directly, under the compiled
+   contract identity and:
 
    ```lean
    nativeIRRuntimeMatchesIR fuel irContract tx initialState

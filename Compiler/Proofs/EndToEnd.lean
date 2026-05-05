@@ -557,6 +557,19 @@ theorem layer3_contract_preserves_semantics_evmYulLeanBackend
   · exact hFunctions
 
 /-- Generic native Layer 3 seam on the direct native-vs-IR target. -/
+theorem layer3_contract_preserves_semantics_native
+    (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
+    (initialState : IRState) (observableSlots : List Nat)
+    (hNativeBridge : nativeIRRuntimeMatchesIR fuel contract tx initialState observableSlots) :
+    nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel contract tx initialState observableSlots) :=
+  hNativeBridge
+
+/-- Compatibility wrapper for the former native Layer 3 seam. The direct
+native theorem above is the preferred public surface; the extra arguments here
+are retained only for downstream proofs still shaped like the older
+proof-interpreter bridge theorem. -/
 theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
     (fuel : Nat) (contract : IRContract) (tx : IRTransaction)
     (initialState : IRState) (observableSlots : List Nat)
@@ -581,7 +594,8 @@ theorem layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
     nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel contract tx initialState observableSlots) :=
-  hNativeBridge
+  layer3_contract_preserves_semantics_native fuel contract tx initialState
+    observableSlots hNativeBridge
 
 /-- Native Layer 3 generated-shape variant at raw lowered-dispatcher exec on
 the direct native-vs-IR target. -/
@@ -708,7 +722,24 @@ theorem layers2_3_ir_matches_yul_evmYulLeanBackend
         spec selectors hSupported irContract hCompile)
       hStaticParams hSafeBodies)
 
-/-- Current supported native theorem seam on the direct native-vs-IR target. -/
+/-- Supported native theorem seam on the direct native-vs-IR target. -/
+theorem layers2_3_ir_matches_native_evmYulLean
+    (fuel : Nat)
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction)
+    (initialState : IRState) (observableSlots : List Nat)
+    (_hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hNativeBridge : nativeIRRuntimeMatchesIR fuel irContract tx
+      initialState observableSlots) :
+    nativeResultsMatchOn observableSlots
+      (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel irContract tx initialState observableSlots) :=
+  hNativeBridge
+
+/-- Compatibility wrapper for the wider native theorem seam that carried the
+old proof-interpreter bridge hypotheses. Prefer
+`layers2_3_ir_matches_native_evmYulLean` for new public proofs. -/
 theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
     (fuel : Nat)
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
@@ -743,7 +774,8 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
       (interpretIR irContract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         fuel irContract tx initialState observableSlots) :=
-  hNativeBridge
+  layers2_3_ir_matches_native_evmYulLean fuel spec selectors irContract tx
+    initialState observableSlots _hCompile hNativeBridge
 
 /-- Supported compiler output has a unique generated-runtime helper prefix.
 
@@ -7460,19 +7492,27 @@ for older downstream proofs while this PR continues removing the
 reference-oracle path from theorem-facing correctness statements.
 -/
 
-attribute [deprecated layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match
+attribute [deprecated layer3_contract_preserves_semantics_native
+  (since := "2026-05-05")]
+  layer3_contract_preserves_semantics_native_of_evmYulLean_bridge
+
+attribute [deprecated layer3_contract_preserves_semantics_native
   (since := "2026-05-05")]
   layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge
 
-attribute [deprecated layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match
+attribute [deprecated layer3_contract_preserves_semantics_native
   (since := "2026-05-05")]
   layer3_contract_preserves_semantics_evmYulLeanBackend
 
-attribute [deprecated layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
+attribute [deprecated layers2_3_ir_matches_native_evmYulLean
+  (since := "2026-05-05")]
+  layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
+
+attribute [deprecated layers2_3_ir_matches_native_evmYulLean
   (since := "2026-05-05")]
   layers2_3_ir_matches_yul_evmYulLeanBackend_with_function_bridge
 
-attribute [deprecated layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
+attribute [deprecated layers2_3_ir_matches_native_evmYulLean
   (since := "2026-05-05")]
   layers2_3_ir_matches_yul_evmYulLeanBackend
 
