@@ -487,7 +487,7 @@ theorem yulBody_from_state_eq_yulBody
 
 /-- Lower-level Layer 3 contract-level preservation targeting the
 EVMYulLean-backed Yul runtime. This is the EndToEnd-facing wrapper around
-`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`;
+`yulCodegen_preserves_semantics_evmYulLeanBackend`;
 callers supply the existing
 function-body simulation hypotheses plus `BridgedStmts` witnesses for emitted
 external function bodies. Fallback/receive witnesses are discharged from the
@@ -518,7 +518,7 @@ theorem layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_brid
       (interpretIR contract tx initialState)
       (Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend .evmYulLean (Compiler.emitYul contract).runtimeCode
         (YulTransaction.ofIR tx) initialState.storage initialState.events) :=
-  Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle
+  Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLeanBackend
     contract tx initialState hselector hNoWrap hWF hNoFallback hNoReceive
     hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hbody
     hFunctions
@@ -7044,7 +7044,7 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   emitted-runtime equality between Verity `legacyExecYulFuel` and the EVMYulLean
   backend executor under those body witnesses. These theorems compose the
   fully proven builtin bridge equivalences. It also proves
-  `yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`, the
+  `yulCodegen_preserves_semantics_evmYulLeanBackend`, the
   lower-level Layer-3 theorem whose Yul side is the EVMYulLean backend runtime.
   This file now exposes
   EndToEnd wrappers

@@ -105,6 +105,7 @@ REQUIRED_SNIPPETS = (
     "default runtime fuel",
     "native public theorem pending",
     "not yet proved",
+    "`yulCodegen_preserves_semantics_evmYulLeanBackend`",
     "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`",
     "`yulCodegen_preserves_semantics_via_reference_oracle`",
     "not yet a native source-of-truth Layer 3 proof",
@@ -926,10 +927,17 @@ def check_reference_oracle_names(
             "`yulCodegen_preserves_semantics_via_reference_oracle`"
         )
 
-    if "theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle" not in normalized_retarget:
+    if "theorem yulCodegen_preserves_semantics_evmYulLeanBackend" not in normalized_retarget:
         errors.append(
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
             "name the current EVMYulLean Layer-3 retarget as "
+            "`yulCodegen_preserves_semantics_evmYulLeanBackend`"
+        )
+
+    if "theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle" not in normalized_retarget:
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean must "
+            "keep the legacy compatibility alias explicitly named "
             "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`"
         )
 
@@ -950,10 +958,16 @@ def check_reference_oracle_names(
             "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle` name"
         )
 
-    if "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle" not in normalized_end_to_end:
+    if "yulCodegen_preserves_semantics_evmYulLeanBackend" not in normalized_end_to_end:
         errors.append(
             "Compiler/Proofs/EndToEnd.lean must call the current EVMYulLean "
             "Layer-3 retarget through "
+            "`yulCodegen_preserves_semantics_evmYulLeanBackend`"
+        )
+    if "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle" in normalized_end_to_end:
+        errors.append(
+            "Compiler/Proofs/EndToEnd.lean public wrappers must not call the "
+            "legacy compatibility alias "
             "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`"
         )
 

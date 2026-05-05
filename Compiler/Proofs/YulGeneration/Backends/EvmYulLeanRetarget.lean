@@ -2735,7 +2735,7 @@ theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
             (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
             contract hFunctions hFallback hReceive hInternals]
 
-theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle
+theorem yulCodegen_preserves_semantics_evmYulLeanBackend
     (contract : Compiler.IRContract)
     (tx : IRTransaction)
     (initialState : IRState)
@@ -2772,6 +2772,44 @@ theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle
   rw [← interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
     contract tx initialState hFunctions hFallback hReceive hInternals]
   exact hLayer3
+
+/-- Compatibility name for callers that still track the legacy proof route.
+New public wrappers should consume
+`yulCodegen_preserves_semantics_evmYulLeanBackend`. -/
+theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle
+    (contract : Compiler.IRContract)
+    (tx : IRTransaction)
+    (initialState : IRState)
+    (hselector : tx.functionSelector < selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
+    (hWF : ContractWF contract)
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
+      DispatchGuardsSafe fn tx)
+    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
+      yulStmtsNoRef "__has_selector" fn.body)
+    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
+      HasSelectorDeadBridge fn.body)
+    (hLoopFree : ∀ fn, fn ∈ contract.functions →
+      yulStmtsLoopFree fn.body = true)
+    (hbody : ∀ fn, fn ∈ contract.functions →
+      resultsMatch
+        (execIRFunction fn tx.args (initialState.withTx tx))
+        (interpretYulBody fn tx (initialState.withTx tx)))
+    (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
+    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
+    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
+    (hInternals : BridgedStmts contract.internalFunctions) :
+    resultsMatch
+      (interpretIR contract tx initialState)
+      (interpretYulRuntimeWithBackend .evmYulLean
+        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
+        initialState.storage initialState.events) :=
+  yulCodegen_preserves_semantics_evmYulLeanBackend
+    contract tx initialState hselector hNoWrap hWF hNoFallback hNoReceive
+    hdispatchGuardSafe hNoHasSelector hHasSelectorDead hLoopFree hbody
+    hFunctions hFallback hReceive hInternals
 
 /-! ## Phase 4 Completion Summary
 
@@ -2815,13 +2853,16 @@ theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle
     emitted runtime-wrapper closure with recursive target equivalence to state
     that Verity `legacyExecYulFuel` equals the EVMYulLean backend executor for
     `emitYul` runtime code when its embedded bodies are bridged.
-12. **`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`**:
+12. **`yulCodegen_preserves_semantics_evmYulLeanBackend`**:
     Composes the existing Layer-3 IR-to-Yul preservation theorem with the
     bridged-runtime equality above, yielding a contract-level result whose Yul
     side is evaluated by the explicitly named EVMYulLean fuel-wrapper runtime.
     This lower-level theorem is intentionally parameterized by generated embedded-body
     `BridgedStmts` witnesses; the public safe-body EndToEnd wrapper derives
     those witnesses for supported compiler-produced contracts.
+    `yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`
+    remains as a compatibility alias for callers still tracking the legacy
+    proof route explicitly.
 
 The public safe-body EndToEnd wrapper consumes this Layer-3 theorem after
 deriving the raw `BridgedStmts` body witnesses from source-level
