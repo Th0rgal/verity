@@ -183,6 +183,21 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_theorem_target_guard_rejects_missing_mapping_reserved_dispatcher_stmts_canonical_native_fuel_seam(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel",
+            "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_hiddenCanonicalFuel",
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel" in error for error in errors),
+            errors,
+        )
+
     def test_public_theorem_target_guard_rejects_legacy_backend_target(self) -> None:
         end_to_end_text = (
             check.END_TO_END.read_text(encoding="utf-8")
