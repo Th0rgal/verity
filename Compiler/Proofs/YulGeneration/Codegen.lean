@@ -105,7 +105,7 @@ def switchDefaultCase
       ]]
 
 /-- If the selector matches a case, the switch executes that case body (fueled). -/
-theorem execYulStmtFuel_switch_match
+private theorem execYulStmtFuel_switch_match
     (state : YulState) (expr : YulExpr) (cases' : List (Prod Nat (List YulStmt)))
     (defaultCase : Option (List YulStmt)) (fuel v : Nat) (body : List YulStmt)
     (hEval : evalYulExpr state expr = some v)
@@ -119,13 +119,13 @@ theorem execYulStmtFuel_switch_match
       simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
 
 /-- If no selector case matches, the switch executes the default (or continues). -/
-def execYulStmtFuel_switch_miss_result (state : YulState) (fuel : Nat)
+private def execYulStmtFuel_switch_miss_result (state : YulState) (fuel : Nat)
     (defaultCase : Option (List YulStmt)) : YulExecResult :=
   match defaultCase with
   | some body => execYulStmtsFuel fuel state body
   | none => YulExecResult.continue state
 
-theorem execYulStmtFuel_switch_miss
+private theorem execYulStmtFuel_switch_miss
     (state : YulState) (expr : YulExpr) (cases' : List (Prod Nat (List YulStmt)))
     (defaultCase : Option (List YulStmt)) (fuel v : Nat)
     (hEval : evalYulExpr state expr = some v)
@@ -143,7 +143,7 @@ theorem execYulStmtFuel_switch_miss
       rfl
 
 /- Bridge lemmas for switch-case lookup. -/
-theorem find_switch_case_of_find_function
+private theorem find_switch_case_of_find_function
     (fns : List IRFunction) (sel : Nat) (fn : IRFunction)
     (hFind : fns.find? (fun f => f.selector == sel) = some fn) :
     (switchCases fns).find? (fun (c, _) => c = sel) =
@@ -168,7 +168,7 @@ theorem find_switch_case_of_find_function
 
 /-- Selector-specialized variant: if `find?` hits `fn` at `sel`, the switch case
 lookup returns the same selector `sel` paired with `switchCaseBody fn`. -/
-theorem find_switch_case_of_find_function_eq_selector
+private theorem find_switch_case_of_find_function_eq_selector
     (fns : List IRFunction) (sel : Nat) (fn : IRFunction)
     (hFind : fns.find? (fun f => f.selector == sel) = some fn) :
     (switchCases fns).find? (fun (c, _) => c = sel) =
@@ -180,7 +180,7 @@ theorem find_switch_case_of_find_function_eq_selector
     exact h
   simpa [hSel] using hCase
 
-theorem find_switch_case_of_find_function_none
+private theorem find_switch_case_of_find_function_none
     (fns : List IRFunction) (sel : Nat)
     (hFind : fns.find? (fun f => f.selector == sel) = none) :
     (switchCases fns).find? (fun (c, _) => c = sel) = none := by
@@ -229,7 +229,7 @@ theorem find_switch_case_of_find_function_none
 
 /-- Executing funcDef statements followed by a suffix: the funcDefs are no-ops
 and each one burns one fuel unit. -/
-theorem execYulStmtsFuel_funcDefs_then_suffix (fuel : Nat) (state : YulState)
+private theorem execYulStmtsFuel_funcDefs_then_suffix (fuel : Nat) (state : YulState)
     (prefix_ : List YulStmt) (suffix_ : List YulStmt)
     (hFuncDefs : ∀ s ∈ prefix_, ∃ nm p r b, s = YulStmt.funcDef nm p r b) :
     execYulStmtsFuel (prefix_.length + fuel) state (prefix_ ++ suffix_) =
@@ -245,7 +245,7 @@ theorem execYulStmtsFuel_funcDefs_then_suffix (fuel : Nat) (state : YulState)
       exact ih state (fun s hs => hFuncDefs s (List.mem_cons_of_mem _ hs))
 
 /-- Variant with `fuel ≥ prefix_.length` instead of exact `prefix_.length + fuel`. -/
-theorem execYulStmtsFuel_funcDefs_then_suffix_ge (fuel : Nat) (state : YulState)
+private theorem execYulStmtsFuel_funcDefs_then_suffix_ge (fuel : Nat) (state : YulState)
     (prefix_ : List YulStmt) (suffix_ : List YulStmt)
     (hFuncDefs : ∀ s ∈ prefix_, ∃ nm p r b, s = YulStmt.funcDef nm p r b)
     (hFuel : fuel ≥ prefix_.length) :

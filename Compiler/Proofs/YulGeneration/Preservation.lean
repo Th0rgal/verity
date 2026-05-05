@@ -154,6 +154,125 @@ private theorem preservation_evalYulExpr_selectorExpr_eq (state : YulState)
   rw [preservation_evalYulExpr_selectorExpr]
   simp [Nat.mod_eq_of_lt hselector]
 
+private theorem preservation_execYulStmtFuel_switch_match
+    (state : YulState) (expr : YulExpr) (cases' : List (Prod Nat (List YulStmt)))
+    (defaultCase : Option (List YulStmt)) (fuel v : Nat) (body : List YulStmt)
+    (hEval : evalYulExpr state expr = some v)
+    (hFind : List.find? (fun (c, _) => c = v) cases' = some (v, body)) :
+    execYulStmtFuel (Nat.succ fuel) state (YulStmt.switch expr cases' defaultCase) =
+      execYulStmtsFuel fuel state body := by
+  cases fuel with
+  | zero =>
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
+  | succ fuel =>
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
+
+private def preservation_execYulStmtFuel_switch_miss_result (state : YulState) (fuel : Nat)
+    (defaultCase : Option (List YulStmt)) : YulExecResult :=
+  match defaultCase with
+  | some body => execYulStmtsFuel fuel state body
+  | none => YulExecResult.continue state
+
+private theorem preservation_execYulStmtFuel_switch_miss
+    (state : YulState) (expr : YulExpr) (cases' : List (Prod Nat (List YulStmt)))
+    (defaultCase : Option (List YulStmt)) (fuel v : Nat)
+    (hEval : evalYulExpr state expr = some v)
+    (hFind : List.find? (fun (c, _) => c = v) cases' = none) :
+    execYulStmtFuel (Nat.succ fuel) state (YulStmt.switch expr cases' defaultCase) =
+      preservation_execYulStmtFuel_switch_miss_result state fuel defaultCase := by
+  cases fuel with
+  | zero =>
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind,
+        preservation_execYulStmtFuel_switch_miss_result]
+      rfl
+  | succ fuel =>
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind,
+        preservation_execYulStmtFuel_switch_miss_result]
+      rfl
+
+private theorem preservation_find_switch_case_of_find_function
+    (fns : List IRFunction) (sel : Nat) (fn : IRFunction)
+    (hFind : fns.find? (fun f => f.selector == sel) = some fn) :
+    (switchCases fns).find? (fun (c, _) => c = sel) =
+      some (fn.selector, switchCaseBody fn) := by
+  induction fns with
+  | nil =>
+      simp at hFind
+  | cons f rest ih =>
+      by_cases hsel : f.selector = sel
+      · have hselb : (f.selector == sel) = true := by
+          simp [hsel]
+        have hFind' : some f = some fn := by
+          simpa [List.find?, hselb] using hFind
+        cases hFind'
+        simp [switchCases, hsel]
+      · have hselb : (f.selector == sel) = false := by
+          simp [hsel]
+        have hFind' : rest.find? (fun f => f.selector == sel) = some fn := by
+          simpa [List.find?, hselb] using hFind
+        have ih' := ih hFind'
+        simpa [switchCases, List.find?, hsel] using ih'
+
+private theorem preservation_find_switch_case_of_find_function_eq_selector
+    (fns : List IRFunction) (sel : Nat) (fn : IRFunction)
+    (hFind : fns.find? (fun f => f.selector == sel) = some fn) :
+    (switchCases fns).find? (fun (c, _) => c = sel) =
+      some (sel, switchCaseBody fn) := by
+  have hCase := preservation_find_switch_case_of_find_function fns sel fn hFind
+  have hSel : fn.selector = sel := by
+    have h := List.find?_some hFind
+    simp at h
+    exact h
+  simpa [hSel] using hCase
+
+private theorem preservation_find_switch_case_of_find_function_none
+    (fns : List IRFunction) (sel : Nat)
+    (hFind : fns.find? (fun f => f.selector == sel) = none) :
+    (switchCases fns).find? (fun (c, _) => c = sel) = none := by
+  induction fns with
+  | nil =>
+      simp at hFind
+      simp [switchCases]
+  | cons f rest ih =>
+      by_cases hsel : f.selector = sel
+      · have hselb : (f.selector == sel) = true := by
+          simp [hsel]
+        have hFind' : (some f : Option IRFunction) = none := by
+          simp [List.find?, hselb] at hFind
+        cases hFind'
+      · have hselb : (f.selector == sel) = false := by
+          simp [hsel]
+        have hFind' : rest.find? (fun f => f.selector == sel) = none := by
+          simpa [List.find?, hselb] using hFind
+        have ih' := ih hFind'
+        simpa [switchCases, List.find?, hsel] using ih'
+
+private theorem preservation_execYulStmtsFuel_funcDefs_then_suffix (fuel : Nat) (state : YulState)
+    (prefix_ : List YulStmt) (suffix_ : List YulStmt)
+    (hFuncDefs : ∀ s ∈ prefix_, ∃ nm p r b, s = YulStmt.funcDef nm p r b) :
+    execYulStmtsFuel (prefix_.length + fuel) state (prefix_ ++ suffix_) =
+      execYulStmtsFuel fuel state suffix_ := by
+  induction prefix_ generalizing state with
+  | nil => simp
+  | cons h t ih =>
+      have hmem : h ∈ h :: t := .head t
+      obtain ⟨nm, p, r, b, rfl⟩ := hFuncDefs h hmem
+      simp only [List.cons_append, List.length_cons]
+      conv_lhs => rw [show t.length + 1 + fuel = Nat.succ (t.length + fuel) from by omega]
+      rw [execYulStmtsFuel_cons_funcDef]
+      exact ih state (fun s hs => hFuncDefs s (List.mem_cons_of_mem _ hs))
+
+private theorem preservation_execYulStmtsFuel_funcDefs_then_suffix_ge
+    (fuel : Nat) (state : YulState)
+    (prefix_ : List YulStmt) (suffix_ : List YulStmt)
+    (hFuncDefs : ∀ s ∈ prefix_, ∃ nm p r b, s = YulStmt.funcDef nm p r b)
+    (hFuel : fuel ≥ prefix_.length) :
+    execYulStmtsFuel fuel state (prefix_ ++ suffix_) =
+      execYulStmtsFuel (fuel - prefix_.length) state suffix_ := by
+  have : fuel = prefix_.length + (fuel - prefix_.length) := by omega
+  conv_lhs => rw [this]
+  exact preservation_execYulStmtsFuel_funcDefs_then_suffix _ state prefix_ suffix_ hFuncDefs
+
 @[simp]
 private theorem evalYulExpr_selectorExpr_initial
     (tx : YulTransaction) (state : IRState)
@@ -1267,7 +1386,9 @@ private theorem yulCodegen_preserves_semantics_via_reference_oracle
   have hSkip : ∀ state : YulState,
       execYulStmtsFuel (sizeOf (prefix_ ++ [switchStmt]) + 1) state (prefix_ ++ [switchStmt]) =
       execYulStmtsFuel (sizeOf (prefix_ ++ [switchStmt]) + 1 - prefix_.length) state [switchStmt] :=
-    fun state => execYulStmtsFuel_funcDefs_then_suffix_ge _ state prefix_ [switchStmt] hPrefixFD hFuel
+    fun state =>
+      preservation_execYulStmtsFuel_funcDefs_then_suffix_ge _ state prefix_ [switchStmt]
+        hPrefixFD hFuel
   set adjustedFuel := sizeOf (prefix_ ++ [switchStmt]) + 1 - prefix_.length
   have hAdjGe : adjustedFuel ≥ 10 := by
     have : sizeOf (prefix_ ++ [switchStmt]) + 1 - prefix_.length ≥ sizeOf [switchStmt] + 1 := by
@@ -1311,13 +1432,13 @@ private theorem yulCodegen_preserves_semantics_via_reference_oracle
       have hSelEval := evalSelectorExpr_setVar_has_selector yulInitState 1 (by
         rw [hSelEq]; exact hselector)
       -- Bridge hcase: tx.functionSelector = yulInitState.selector
-      have hcase := find_switch_case_of_find_function_none contract.functions
+      have hcase := preservation_find_switch_case_of_find_function_none contract.functions
         yulInitState.selector (hSelEq ▸ hFind)
       -- Apply switch miss lemma
       rw [show m + 2 + 1 = Nat.succ (m + 2) from by omega]
-      rw [execYulStmtFuel_switch_miss _ _ _ _ _ _ hSelEval hcase]
+      rw [preservation_execYulStmtFuel_switch_miss _ _ _ _ _ _ hSelEval hcase]
       -- Now we need to show the revert case matches resultsMatch for failure
-      simp [execYulStmtFuel_switch_miss_result, switchDefaultCase,
+      simp [preservation_execYulStmtFuel_switch_miss_result, switchDefaultCase,
         execYulStmtsFuel, legacyExecYulFuel, resultsMatch,
         Compiler.Proofs.storageAsMappings, yulInitState, YulState.initial, YulState.setVar]
   | some fn =>
@@ -1342,12 +1463,13 @@ private theorem yulCodegen_preserves_semantics_via_reference_oracle
       have hcase : (switchCases contract.functions).find? (fun (c, _) => c = tx.functionSelector) =
           some (tx.functionSelector, switchCaseBody fn) := by
         simpa [hSelEq] using
-          (find_switch_case_of_find_function_eq_selector contract.functions yulInitState.selector fn
+          (preservation_find_switch_case_of_find_function_eq_selector
+            contract.functions yulInitState.selector fn
             (hSelEq ▸ hFind))
       rw [← hSelEq] at hcase
       -- Apply switch match lemma
       rw [show m + 2 + 1 = Nat.succ (m + 2) from by omega]
-      rw [execYulStmtFuel_switch_match _ _ _ _ _ _ _ hSelEval hcase]
+      rw [preservation_execYulStmtFuel_switch_match _ _ _ _ _ _ _ hSelEval hcase]
       -- Establish fuel adequacy for the body bridge.
       -- sizeOf [switchStmt] ≥ sizeOf fn.body + 12 (by sizeOf_buildSwitch_ge_fn_body),
       -- adjustedFuel ≥ sizeOf [switchStmt] + 1, and m + 10 = adjustedFuel.
