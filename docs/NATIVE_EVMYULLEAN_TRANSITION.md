@@ -74,16 +74,23 @@ materializes pre-state storage for those slots.
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match`,
   with `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure`
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_canonicalFuel`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment_canonicalFuel`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment`,
   and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`
   as the explicitly named safe-body wrapper aliases.
-  These direct match seams keep the remaining proof obligation at concrete
-  native lowering, selected-path environment validation, and either raw
-  positive dispatcher-exec matching or projected-result matching against IR
-  execution. The compiled supported fragment check is now named explicitly by
+  The canonical positive wrappers set dispatcher fuel to
+  `nativeRuntimeDispatcherFuel irContract` and runtime fuel to
+  `nativeRuntimeFuel irContract`, avoiding an arbitrary public fuel parameter
+  on the recommended direct-match surface. These direct match seams keep the
+  remaining proof obligation at concrete native lowering, selected-path
+  environment validation, and either raw positive dispatcher-exec matching or
+  projected-result matching against IR execution. The compiled supported
+  fragment check is now named explicitly by
   `generatedRuntimeNativeFragment_of_compile_ok_supported_safe` and
   `validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe`, so the
   executable generated-runtime validator is closed from the same public
@@ -241,6 +248,7 @@ scope so the native path does not look more complete than it is:
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel`,
   and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`.
   The
   `verity_contract` surface now accepts monadic environment reads such as
