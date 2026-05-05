@@ -541,6 +541,38 @@ theorem lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_funct
   exact lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function
     reservedNames nextSwitchId final selector funcs cases' hLower hFind
 
+/-- A singleton non-`funcDef` runtime lowers exactly through statement lowering,
+with an empty native function table.
+
+This is the generic native-lowering boundary used when generated runtime code
+has only the dispatcher shell. -/
+theorem lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
+    (stmt : YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    Backends.lowerRuntimeContractNative [stmt] =
+      match Backends.lowerStmtsNative [stmt] with
+      | .ok dispatcher =>
+          .ok { dispatcher := .Block dispatcher
+                functions := (∅ : Backends.NativeFunctionMap) }
+      | .error err => .error err := by
+  unfold Backends.lowerRuntimeContractNative
+  unfold Backends.lowerStmtsNative
+  dsimp
+  rw [Backends.lowerRuntimeContractNativeAux_stmt_cons]
+  · rw [Backends.lowerStmtsNativeWithSwitchIds_cons]
+    cases hLower :
+        Backends.lowerStmtGroupNativeWithSwitchIds
+          (Backends.yulStmtsIdentifierNames [stmt]) 0 stmt with
+    | ok pair =>
+        cases pair with
+        | mk lowered next =>
+            simp [Bind.bind, Except.bind, Pure.pure, Except.pure,
+              Backends.lowerRuntimeContractNativeAux]
+    | error err =>
+        simp [Bind.bind, Except.bind]
+  · exact hNoFunc
+
 /-- A `.block` head in native lowering surfaces as a singleton `.Block` output
 when the lowering succeeds. -/
 theorem lowerStmtsNative_single_block_ok_singleton

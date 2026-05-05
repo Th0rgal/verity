@@ -1376,24 +1376,9 @@ theorem lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
                 functions :=
                   (∅ :
                     Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap) }
-      | .error err => .error err := by
-  unfold Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-  unfold Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-  dsimp
-  rw [Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_stmt_cons]
-  · rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons]
-    cases hLower :
-        Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds
-          (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames [stmt])
-          0 stmt with
-    | ok pair =>
-        cases pair with
-        | mk lowered next =>
-            simp [Bind.bind, Except.bind, Pure.pure, Except.pure,
-              Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux]
-    | error err =>
-        simp [Bind.bind, Except.bind]
-  · exact hNoFunc
+      | .error err => .error err :=
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
+    stmt hNoFunc
 
 noncomputable def simpleStorageNativeDispatcherStmts :
     List EvmYul.Yul.Ast.Stmt :=

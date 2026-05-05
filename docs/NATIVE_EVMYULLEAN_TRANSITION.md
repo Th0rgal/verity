@@ -348,7 +348,10 @@ scope so the native path does not look more complete than it is:
   and `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function`,
   so generated dispatcher proofs can consume the source case list emitted by
   `Compiler.CodegenCommon.buildSwitch` without first rewriting manually to
-  `switchCases`. The native harness also owns the generic
+  `switchCases`. The native harness also owns
+  `lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative`, the generic
+  singleton non-`funcDef` runtime lowering boundary for dispatcher-only runtime
+  code. It also owns the generic
   block-lowering shape lemmas `lowerStmtsNative_single_block_ok_singleton` and
   `lowerStmtsNative_block_stmts_eq`, plus the generated-dispatcher peel facts
   `lowerStmtsNativeWithSwitchIds_let_head_eq`,
@@ -738,6 +741,8 @@ scope so the native path does not look more complete than it is:
    `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function`,
    and `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function`
    for the actual `buildSwitch` source case list,
+   `lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative` for singleton
+   dispatcher-only runtime lowering,
    `lowerStmtsNative_single_block_ok_singleton` and
    `lowerStmtsNative_block_stmts_eq` for generic `.block` lowering shape,
    `lowerStmtsNativeWithSwitchIds_let_head_eq`,

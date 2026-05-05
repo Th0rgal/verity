@@ -68,7 +68,9 @@ N8 public Layer 3 theorem flip
   `buildSwitchSourceCases_eq_switchCases`, and consumed directly by
   `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function`
   and `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function`.
-  Generic `.block` lowering shape now lives in the native harness via
+  The singleton dispatcher-only runtime lowering boundary now lives in the
+  native harness as `lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative`.
+  Generic `.block` lowering shape also lives in the native harness via
   `lowerStmtsNative_single_block_ok_singleton` and
   `lowerStmtsNative_block_stmts_eq`; let/if/switch dispatcher statement peels
   are named by `lowerStmtsNativeWithSwitchIds_let_head_eq`,

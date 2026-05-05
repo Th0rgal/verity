@@ -517,6 +517,7 @@ def check_public_theorem_target(
         "theorem lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function",
         "theorem lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function",
         "theorem lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function",
+        "theorem lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative",
         "theorem lowerStmtsNative_single_block_ok_singleton",
         "theorem lowerStmtsNative_block_stmts_eq",
         "theorem lowerStmtsNativeWithSwitchIds_let_head_eq",
