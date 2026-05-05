@@ -21,28 +21,29 @@ lfglabs-dev/verity GitHub Actions
   |-- tmd-verity-fastlane-1
   |     host: 95.216.244.60
   |     architecture: Linux X64
-  |     role: short checks, change detection, failure hints
+  |     role: standby x64 fastlane fallback
   |     labels: self-hosted, Linux, X64, verity, fastlane, cpu-8,
   |             ci-host-95-216-244-60, hetzner, hz1
   |
   |-- dgx-spark-gpu-1
         host: spark-de79 over Tailscale
         architecture: Linux ARM64
-        role: trusted GPU jobs and explicit ARM64 Lean validation
-        labels: self-hosted, Linux, ARM64, dgx, dgx-spark, gpu, nvidia,
-                home, arm64-gb10
+        role: primary fastlane, trusted GPU jobs, explicit ARM64 Lean validation
+        labels: self-hosted, Linux, ARM64, verity, fastlane, dgx, dgx-spark,
+                gpu, nvidia, home, arm64-gb10
 ```
 
 Production workflow routing remains capability based:
 
 ```yaml
-runs-on: [self-hosted, linux, x64, verity, fastlane]
+runs-on: [self-hosted, linux, ARM64, dgx-spark, verity, fastlane]
 runs-on: [self-hosted, linux, x64, verity, build]
 runs-on: [self-hosted, linux, ARM64, dgx-spark, gpu]
 ```
 
-The DGX intentionally does not have the `verity`, `build`, or `fastlane`
-labels, so ordinary Verity CI cannot land there accidentally.
+The DGX intentionally has `verity,fastlane` but not `build`. Ordinary short
+fastlane jobs land there, while full proof/build jobs stay on the x64 build
+runner.
 
 ## Validation Workflow
 
@@ -80,8 +81,8 @@ runner capability, benchmarking new hosts, and qualifying architecture changes.
 | Runner | Host | CPU | RAM | Root disk free | Notes |
 | --- | --- | --- | --- | --- | --- |
 | `build-88-99-4-254-1` | `Ubuntu-2404-noble-amd64-base` | Intel i7-6700, 4C/8T | 62 GiB | about 680 GiB free | Healthy x64 build host. |
-| `tmd-verity-fastlane-1` | `tmd` | Intel i7-7700, 4C/8T | 62 GiB | about 95 GiB free | Still disk constrained; keep fastlane-only. |
-| `dgx-spark-gpu-1` | `spark-de79` | 20 ARM64 cores: Cortex-X925 + Cortex-A725 | 119 GiB | about 1.6 TiB free | Much faster on Lean validation; keep explicitly routed. |
+| `tmd-verity-fastlane-1` | `tmd` | Intel i7-7700, 4C/8T | 62 GiB | about 95 GiB free | Standby x64 fastlane fallback; still disk constrained. |
+| `dgx-spark-gpu-1` | `spark-de79` | 20 ARM64 cores: Cortex-X925 + Cortex-A725 | 119 GiB | about 1.6 TiB free | Primary fastlane and explicit ARM64/GPU runner. |
 
 ## Cold-ish Validation Results
 
@@ -135,20 +136,20 @@ The DGX can run the Lean/proof-heavy part of Verity CI reliably on ARM64. It
 also built the Verity compiler-core executables on ARM64 and generated Yul and
 gas reports.
 
-The DGX should still not become the default general Verity runner yet. The
+The DGX should still not become the default general Verity build runner yet. The
 remaining x64-specific surface is real:
 
 - production Solidity/Yul checking currently expects a Linux x64 `solc`;
 - Foundry and other EVM tooling should be audited before default ARM64 use;
 - generated compiler artifacts may be consumed by x64 assumptions elsewhere;
 - the DGX is also a valuable GPU/inference host and should not receive
-  accidental CPU-only queue pressure;
+  accidental full-build CPU-only queue pressure;
 - the DGX is reachable through private networking and should stay in a
   restricted runner group with trusted workflows only.
 
 The x64 build host remains necessary as the default production proof runner for
-now. The fastlane host should remain fastlane-only until disk pressure is
-comfortably reduced.
+now. The old x64 fastlane host remains useful as a fallback and for
+host-pinned debugging, but primary fastlane routing now points at the DGX.
 
 ## Reliability Fixes Made During Validation
 
@@ -177,8 +178,8 @@ works on the non-root runner services.
 
 ## Recommended Architecture Change
 
-Promote the DGX to a first-class explicit ARM64 Lean lane, but do not move all
-CI to it.
+Promote the DGX to primary fastlane and keep it as a first-class explicit
+ARM64 Lean lane, but do not move all CI to it.
 
 Recommended steady state:
 
@@ -187,20 +188,23 @@ lfglabs-dev/verity
   |
   |-- hz1 fastlane
   |     labels: self-hosted, linux, x64, verity, fastlane
-  |     use: short checks and queue feedback
+  |     use: standby fallback and temporary host-pinned debugging
   |
   |-- hz2 x64 build
   |     labels: self-hosted, linux, x64, verity, build
   |     use: default full proof/build CI and x64 external-tool validation
   |
   |-- DGX ARM64 Lean/GPU
-        labels: self-hosted, linux, ARM64, dgx-spark, gpu
+        labels: self-hosted, linux, ARM64, dgx-spark, verity, fastlane, gpu
         optional future label: dgx-lean or verity-arm64
-        use: trusted/manual/scheduled ARM64 Lean proof validation and GPU jobs
+        use: primary fastlane, trusted/manual/scheduled ARM64 Lean proof
+             validation, and GPU jobs
 ```
 
 Concrete next repo change to consider:
 
+- Keep production fastlane jobs routed to
+  `[self-hosted, linux, ARM64, dgx-spark, verity, fastlane]`.
 - Add a scheduled or manually triggered `DGX Lean validation` job that reuses
   the validation task set and routes to
   `[self-hosted, linux, ARM64, dgx-spark, gpu]`.
@@ -233,16 +237,17 @@ services. Route by labels and capability, not by hostname.
 
 Current production:
 - 88.99.4.254: one x64 build/proof runner, labels `verity,build,hetzner,hz2`
-- 95.216.244.60: one x64 fastlane runner, labels `verity,fastlane,hetzner,hz1`
-- spark-de79 DGX: one ARM64 GPU/Lean validation runner, labels
-  `dgx,dgx-spark,gpu,nvidia`
+- 95.216.244.60: one x64 standby fastlane runner, labels
+  `verity,fastlane,hetzner,hz1`
+- spark-de79 DGX: one ARM64 primary fastlane/GPU/Lean validation runner,
+  labels `verity,fastlane,dgx,dgx-spark,gpu,nvidia`
 
 Rules:
 - Keep fastlane and full proof/build jobs on separate labels.
 - Do not run two full `LEAN_NUM_THREADS=8` Verity builds on one 4C/8T host.
 - Add build capacity by adding machines before adding same-host runner count.
-- Keep DGX off normal PR CI; use explicit `dgx-spark,gpu` or future
-  `dgx-lean` / `verity-arm64` labels for trusted ARM64/GPU jobs.
+- DGX runs normal fastlane PR CI only. Use explicit `dgx-spark,gpu` or future
+  `dgx-lean` / `verity-arm64` labels for heavier trusted ARM64/GPU jobs.
 - Keep x64 build CI for `solc`, Foundry, and x64 artifact assumptions until
   those paths are split or proven portable.
 - Keep runner systemd services hardened with `KillMode=control-group`.

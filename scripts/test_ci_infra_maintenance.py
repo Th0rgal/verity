@@ -29,12 +29,25 @@ class CiInfraMaintenanceTests(unittest.TestCase):
         self.assertIn("decommission_surplus_runners", text)
         self.assertIn('if [ "$index" -gt "$RUNNER_COUNT" ]; then', text)
 
-    def test_runner_host_profiles_keep_dgx_gpu_only(self) -> None:
+    def test_runner_host_profiles_promote_dgx_to_fastlane_gpu(self) -> None:
         text = RUNNER_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("spark-de79|dgx-spark", text)
         self.assertIn('RUNNER_PROFILE="${RUNNER_PROFILE_INPUT:-dgx-gpu}"', text)
         self.assertIn('RUNNER_ARCH="${RUNNER_ARCH_INPUT:-arm64}"', text)
+        self.assertIn("verity,fastlane,dgx,dgx-spark,gpu,nvidia", text)
         self.assertIn("arm64-gb10", text)
+
+    def test_verify_fastlane_jobs_route_to_dgx(self) -> None:
+        text = VERIFY_WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotIn("runs-on: [self-hosted, linux, x64, verity, fastlane]", text)
+        for job in ("changes", "checks", "timeout-watchdog", "failure-hints"):
+            match = re.search(rf"^  {job}:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", text, re.S | re.M)
+            self.assertIsNotNone(match, job)
+            self.assertIn(
+                "runs-on: [self-hosted, linux, ARM64, dgx-spark, verity, fastlane]",
+                match.group("body"),
+                job,
+            )
 
     def test_dgx_smoke_workflow_is_manual_only_and_gpu_routed(self) -> None:
         text = DGX_SMOKE_WORKFLOW.read_text(encoding="utf-8")

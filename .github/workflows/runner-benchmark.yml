@@ -6,7 +6,7 @@ on:
       runner_labels_json:
         description: 'JSON array of runs-on labels to pin the benchmark runner'
         required: true
-        default: '["self-hosted","linux","x64","verity","fastlane"]'
+        default: '["self-hosted","linux","ARM64","dgx-spark","verity","fastlane"]'
         type: string
       task:
         description: 'Repo task to benchmark'

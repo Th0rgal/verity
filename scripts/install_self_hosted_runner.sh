@@ -43,7 +43,7 @@ case "$RUNNER_DETECTED_PROFILE" in
     RUNNER_PROFILE="${RUNNER_PROFILE_INPUT:-dgx-gpu}"
     RUNNER_ARCH="${RUNNER_ARCH_INPUT:-arm64}"
     RUNNER_COUNT="${RUNNER_COUNT:-1}"
-    RUNNER_LABELS_1="${RUNNER_LABELS_1:-dgx,dgx-spark,gpu,nvidia,home,arm64-gb10}"
+    RUNNER_LABELS_1="${RUNNER_LABELS_1:-verity,fastlane,dgx,dgx-spark,gpu,nvidia,home,arm64-gb10}"
     ;;
 esac
 RUNNER_NAME_PREFIX="${RUNNER_NAME_PREFIX_INPUT:-$(hostname)-verity-${RUNNER_PROFILE}}"
@@ -90,10 +90,10 @@ runner_labels_for_index() {
     dgx-gpu)
       case "$1" in
         1)
-          printf '%s' "${RUNNER_LABELS_1:-dgx,dgx-spark,gpu,nvidia}"
+          printf '%s' "${RUNNER_LABELS_1:-verity,fastlane,dgx,dgx-spark,gpu,nvidia}"
           ;;
         *)
-          printf '%s' "${RUNNER_LABELS_EXTRA:-dgx,dgx-spark,gpu,nvidia}"
+          printf '%s' "${RUNNER_LABELS_EXTRA:-verity,fastlane,dgx,dgx-spark,gpu,nvidia}"
           ;;
       esac
       ;;

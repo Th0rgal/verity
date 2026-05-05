@@ -17,19 +17,20 @@ GitHub Actions for lfglabs-dev/verity
   |
   |-- tmd-verity-fastlane-1
   |     host: 95.216.244.60
-  |     role: short checks, change detection, failure hints
+  |     role: standby x64 fastlane fallback
   |     labels: self-hosted, linux, x64, verity, fastlane, hetzner, hz1
   |
   |-- dgx-spark-gpu-1
         host: spark-de79 over Tailscale
-        role: trusted manual GPU jobs and explicit ARM64 Lean validation
-        labels: self-hosted, linux, ARM64, dgx, dgx-spark, gpu, nvidia
+        role: primary fastlane, trusted GPU jobs, explicit ARM64 Lean validation
+        labels: self-hosted, linux, ARM64, verity, fastlane, dgx, dgx-spark,
+                gpu, nvidia
 ```
 
 The workflows route by capability, not by hostname:
 
 ```yaml
-runs-on: [self-hosted, linux, x64, verity, fastlane]
+runs-on: [self-hosted, linux, ARM64, dgx-spark, verity, fastlane]
 runs-on: [self-hosted, linux, x64, verity, build]
 runs-on: [self-hosted, linux, ARM64, dgx-spark, gpu]
 ```
@@ -54,9 +55,10 @@ them only for temporary debugging or deliberate host pinning.
   Docker cache, and `/tmp/verity-main-test-*` directories must be pruned.
 - Do not run untrusted public fork PRs on these machines. Self-hosted runners
   execute repository code on owned hosts.
-- The DGX is especially sensitive. Keep it off normal `pull_request` workflows
-  for this public repository; use `workflow_dispatch`, scheduled trusted-branch
-  validation, or a restricted private repository.
+- The DGX is especially sensitive. It now runs the lightweight Verity
+  fastlane jobs, so keep that route limited to short Python/GitHub API checks
+  and do not add full build/proof, Foundry, or external x64 tooling work to
+  the DGX without a separate validation lane.
 
 ## Adding A CPU Server
 
@@ -95,7 +97,7 @@ RUNNER_PROFILE=dgx-gpu \
 RUNNER_ARCH=arm64 \
 RUNNER_COUNT=1 \
 RUNNER_NAME_PREFIX=dgx-spark-gpu \
-RUNNER_LABELS_1=dgx,dgx-spark,gpu,nvidia,home,arm64-gb10 \
+RUNNER_LABELS_1=verity,fastlane,dgx,dgx-spark,gpu,nvidia,home,arm64-gb10 \
 scripts/install_self_hosted_runner.sh
 ```
 
@@ -105,10 +107,16 @@ GPU and ARM64 Lean validation jobs should route explicitly:
 runs-on: [self-hosted, linux, ARM64, dgx-spark, gpu]
 ```
 
-Do not let ordinary Verity `build` or `fastlane` jobs use the DGX labels.
-Do not add the `verity`, `build`, or `fastlane` labels to the DGX runner unless
-you have separately proven the ARM64 Lean build is reliable and intentionally
-want general Verity CI to schedule there.
+Fastlane jobs intentionally route to the DGX:
+
+```yaml
+runs-on: [self-hosted, linux, ARM64, dgx-spark, verity, fastlane]
+```
+
+Do not let ordinary Verity `build` jobs use the DGX labels. Do not add the
+`build` label to the DGX runner unless you have separately proven the ARM64
+Lean build is reliable for required CI and intentionally want full Verity CI to
+schedule there.
 
 If DGX Lean validation becomes a regular lane, prefer adding a dedicated label
 such as `dgx-lean` or `verity-arm64` instead of reusing `verity,build`. That
@@ -163,7 +171,8 @@ The target health state is:
 
 - all registered runners online;
 - no stale offline runner registrations;
-- `95.216.244.60` has enough free disk for fastlane jobs;
+- `95.216.244.60` stays online as an x64 fastlane fallback and has enough free
+  disk for temporary host-pinned debugging;
 - `88.99.4.254` has enough free disk for sticky build caches;
 - no more than one active full `LEAN_NUM_THREADS=8` build job per 8-core host.
 

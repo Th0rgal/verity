@@ -158,9 +158,9 @@
     "failure-hints": "always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')"
   },
   "expected_job_runs_on": {
-    "changes": "[self-hosted, linux, x64, verity, fastlane]",
-    "checks": "[self-hosted, linux, x64, verity, fastlane]",
-    "timeout-watchdog": "[self-hosted, linux, x64, verity, fastlane]",
+    "changes": "[self-hosted, linux, ARM64, dgx-spark, verity, fastlane]",
+    "checks": "[self-hosted, linux, ARM64, dgx-spark, verity, fastlane]",
+    "timeout-watchdog": "[self-hosted, linux, ARM64, dgx-spark, verity, fastlane]",
     "build": "[self-hosted, linux, x64, verity, build]",
     "prepare-macro-fuzz": "[self-hosted, linux, x64, verity, build]",
     "build-audits": "[self-hosted, linux, x64, verity, build]",
@@ -173,7 +173,7 @@
     "foundry": "[self-hosted, linux, x64, verity, build]",
     "foundry-patched": "[self-hosted, linux, x64, verity, build]",
     "foundry-multi-seed": "[self-hosted, linux, x64, verity, build]",
-    "failure-hints": "[self-hosted, linux, x64, verity, fastlane]"
+    "failure-hints": "[self-hosted, linux, ARM64, dgx-spark, verity, fastlane]"
   },
   "expected_job_timeouts": {
     "changes": 5,
