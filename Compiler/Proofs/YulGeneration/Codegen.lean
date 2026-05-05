@@ -17,13 +17,13 @@ These lemmas capture the core obligations for Yul codegen correctness:
 -/
 
 @[simp]
-theorem emitYul_runtimeCode_eq (contract : IRContract) :
+private theorem emitYul_runtimeCode_eq (contract : IRContract) :
     (Compiler.emitYul contract).runtimeCode = Compiler.runtimeCode contract := by
   rfl
 
 /-- Selector extraction via `selectorExpr` yields the 4-byte selector. -/
 @[simp]
-theorem evalYulExpr_selectorExpr (state : YulState) :
+private theorem evalYulExpr_selectorExpr (state : YulState) :
     evalYulExpr state selectorExpr = some (state.selector % selectorModulus) :=
 by
   have hShiftModEq : selectorShift % evmModulus = selectorShift := by
@@ -59,7 +59,7 @@ by
 
 /-- Selector extraction yields the raw selector when it fits in 4 bytes. -/
 @[simp]
-theorem evalYulExpr_selectorExpr_eq (state : YulState)
+private theorem evalYulExpr_selectorExpr_eq (state : YulState)
     (hselector : state.selector < selectorModulus) :
     evalYulExpr state selectorExpr = some state.selector :=
 by

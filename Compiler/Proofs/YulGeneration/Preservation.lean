@@ -111,12 +111,55 @@ private def HasSelectorDeadBridge (body : List YulStmt) : Prop :=
 private def initialYulState (tx : YulTransaction) (state : IRState) : YulState :=
   YulState.initial tx state.storage state.events
 
+private theorem preservation_emitYul_runtimeCode_eq (contract : IRContract) :
+    (Compiler.emitYul contract).runtimeCode = Compiler.runtimeCode contract := by
+  rfl
+
+private theorem preservation_evalYulExpr_selectorExpr (state : YulState) :
+    evalYulExpr state selectorExpr = some (state.selector % selectorModulus) := by
+  have hShiftModEq : selectorShift % evmModulus = selectorShift := by
+    have hShiftLtModulus : selectorShift < evmModulus := by
+      norm_num [selectorShift, evmModulus]
+    exact Nat.mod_eq_of_lt hShiftLtModulus
+  have hSelectorShiftLt256 : selectorShift < 256 := by
+    norm_num [selectorShift]
+  have hSelectorShiftNotGe256 : ¬ 256 ≤ selectorShift := Nat.not_le_of_lt hSelectorShiftLt256
+  have hSelectorWordLt :
+      (state.selector % selectorModulus) * 2 ^ selectorShift < evmModulus := by
+    have hModLt : state.selector % selectorModulus < selectorModulus := by
+      exact Nat.mod_lt _ (by decide)
+    have hPowPos : 0 < 2 ^ selectorShift := by
+      exact Nat.pow_pos (a := 2) (n := selectorShift) (by decide)
+    have hMulLt :
+        (state.selector % selectorModulus) * 2 ^ selectorShift <
+          selectorModulus * 2 ^ selectorShift := by
+      exact Nat.mul_lt_mul_of_pos_right hModLt hPowPos
+    have hModulusSplit : selectorModulus * 2 ^ selectorShift = evmModulus := by
+      norm_num [selectorModulus, selectorShift, evmModulus, Nat.pow_add, Nat.mul_comm,
+        Nat.mul_left_comm, Nat.mul_assoc]
+    simpa [hModulusSplit] using hMulLt
+  have hSelectorWordMod :
+      ((state.selector % selectorModulus) * 2 ^ selectorShift) % evmModulus =
+        (state.selector % selectorModulus) * 2 ^ selectorShift := by
+    exact Nat.mod_eq_of_lt hSelectorWordLt
+  simp [selectorExpr, evalYulExpr, evalYulCall, evalYulExprs,
+    evalBuiltinCallWithBackendContext, Backends.evalBuiltinCallWithEvmYulLeanContext,
+    Backends.evalBuiltinCallViaEvmYulLean,
+    calldataloadWord, selectorWord,
+    hShiftModEq, hSelectorWordMod, hSelectorShiftNotGe256]
+
+private theorem preservation_evalYulExpr_selectorExpr_eq (state : YulState)
+    (hselector : state.selector < selectorModulus) :
+    evalYulExpr state selectorExpr = some state.selector := by
+  rw [preservation_evalYulExpr_selectorExpr]
+  simp [Nat.mod_eq_of_lt hselector]
+
 @[simp]
 private theorem evalYulExpr_selectorExpr_initial
     (tx : YulTransaction) (state : IRState)
     (hselector : tx.functionSelector < selectorModulus) :
     evalYulExpr (initialYulState tx state) selectorExpr = some tx.functionSelector := by
-  simpa using (evalYulExpr_selectorExpr_eq (initialYulState tx state) hselector)
+  simpa using (preservation_evalYulExpr_selectorExpr_eq (initialYulState tx state) hselector)
 
 /-- Well-formedness: all internalFunctions are funcDef statements. -/
 private def ContractWF (contract : IRContract) : Prop :=
@@ -580,7 +623,7 @@ private theorem evalSelectorExpr_setVar_has_selector (state : YulState) (v : Nat
     evalYulExpr (state.setVar "__has_selector" v) selectorExpr =
       some state.selector := by
   -- Keep this bridge local and avoid unfolding the full builtin evaluator.
-  simpa using (evalYulExpr_selectorExpr_eq (state.setVar "__has_selector" v) (by
+  simpa using (preservation_evalYulExpr_selectorExpr_eq (state.setVar "__has_selector" v) (by
     simpa [YulState.setVar] using hselector))
 
 /-- In the non-payable branch, `DispatchGuardsSafe` forces `msgValue = 0 mod 2^256`. -/
@@ -1254,7 +1297,7 @@ private theorem yulCodegen_preserves_semantics_via_reference_oracle
       -- No function matches: IR returns failure, Yul should revert
       simp only [interpretIR, hFind]
       -- The Yul side: skip prefix, reach buildSwitch, step through block to switch, miss all cases, revert
-      simp only [interpretYulFromIR, emitYul_runtimeCode_eq, interpretYulRuntime,
+      simp only [interpretYulFromIR, preservation_emitYul_runtimeCode_eq, interpretYulRuntime,
         execYulStmts, hRuntimeEq, hSkip]
       rw [hm, hSwitchSimp]
       -- Use the buildSwitch stepping axiom
@@ -1282,7 +1325,7 @@ private theorem yulCodegen_preserves_semantics_via_reference_oracle
       have hmem : fn ∈ contract.functions := List.mem_of_find?_eq_some hFind
       have hmatch := hbody fn hmem
       simp only [interpretIR, hFind]
-      simp only [interpretYulFromIR, emitYul_runtimeCode_eq, interpretYulRuntime,
+      simp only [interpretYulFromIR, preservation_emitYul_runtimeCode_eq, interpretYulRuntime,
         execYulStmts, hRuntimeEq, hSkip]
       simp only [interpretYulBody_eq_runtime, interpretYulRuntime, execYulStmts] at hmatch
       rw [hm, hSwitchSimp]
