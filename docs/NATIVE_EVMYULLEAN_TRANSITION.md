@@ -49,10 +49,13 @@ materializes pre-state storage for those slots.
   dispatcher-exec wrapper
   `compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match` at
   canonical generated-runtime fuel, and the concrete SimpleStorage native
-  theorem. The opaque arbitrary-fuel identity seams, generated dispatcher-exec
-  lift facts, and fuel-indexed `nativeIRRuntimeMatchesIR` targets are
-  file-local, and the older proof-interpreter bridge signature has been removed
-  from EndToEnd. The public generated target is native
+  theorem. The dispatcher-exec wrapper derives static ABI parameter coverage
+  from `SupportedSpec`; only the native body whitelist and concrete dispatcher
+  execution/result obligation remain explicit. The opaque arbitrary-fuel
+  identity seams, generated dispatcher-exec lift facts, and fuel-indexed
+  `nativeIRRuntimeMatchesIR` targets are file-local, and the older
+  proof-interpreter bridge signature has been removed from EndToEnd. The public
+  generated target is native
   `Native.interpretIRRuntimeNative` through `nativeResultsMatchOn`, comparing
   success, return value, events, and the explicitly observable final-storage
   slots. The backend-parameterized safe-body Yul target is now isolated

@@ -3977,6 +3977,36 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherEx
     initialState observableSlots nativeContract hCompile hSupported hStaticParams
     hSafeBodies hLower hEnv hNativeDispatcherExec
 
+/-- Supported external parameter types are static scalar ABI types for the
+native generated-dispatcher theorem. -/
+private theorem isStaticScalarParamType_of_supportedExternalParamType
+    {ty : CompilationModel.ParamType}
+    (hSupported : SupportedExternalParamType ty) :
+    Compiler.Proofs.YulGeneration.Backends.IsStaticScalarParamType ty :=
+  Compiler.Proofs.YulGeneration.Backends.IsStaticScalarParamType.scalar (by
+    cases ty <;> simp [
+      SupportedExternalParamType,
+      Compiler.Proofs.YulGeneration.Backends.IsScalarParamType] at hSupported ⊢)
+
+/-- Static-parameter witness derived from `SupportedSpec` for every
+selector-dispatched source entry. -/
+private theorem allStaticScalarParams_of_supportedSpec_selectorFunctionPairs
+    (model : CompilationModel.CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors) :
+    ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs model selectors →
+      Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams
+        entry.1.params := by
+  intro entry hentry param hparam
+  have hfnDispatched :
+      entry.1 ∈ selectorDispatchedFunctions model := by
+    simpa [SourceSemantics.selectorFunctionPairs] using
+      (List.of_mem_zip hentry).1
+  have hfnModel : entry.1 ∈ model.functions :=
+    List.mem_of_mem_filter hfnDispatched
+  exact isStaticScalarParamType_of_supportedExternalParamType
+    ((hSupported.functions entry.1 hfnModel).params.supported param hparam)
+
 /-- Public supported-compiler correctness theorem over the generated native
 dispatcher-exec target.
 
@@ -3997,10 +4027,6 @@ theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
     (htxNormalized : Function.TxContextNormalized tx)
     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hcompile : CompilationModel.compile model selectors = Except.ok irContract)
-    (hStaticParams : ∀ entry,
-      entry ∈ SourceSemantics.selectorFunctionPairs model selectors →
-        Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams
-          entry.1.params)
     (hSafeBodies : ∀ entry,
       entry ∈ SourceSemantics.selectorFunctionPairs model selectors →
         Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
@@ -4043,7 +4069,9 @@ theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
     layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match_canonicalFuel
       model selectors irContract tx
       (FunctionBody.initialIRStateForTx model tx initialWorld)
-      observableSlots nativeContract hcompile hSupported hStaticParams
+      observableSlots nativeContract hcompile hSupported
+      (allStaticScalarParams_of_supportedSpec_selectorFunctionPairs
+        model selectors hSupported)
       hSafeBodies hLower hEnv hNativeDispatcherExec'
   have hSourceIR :
       Compiler.Proofs.IRGeneration.FunctionBody.sourceResultMatchesIRResult
