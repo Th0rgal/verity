@@ -59,7 +59,7 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
 import Compiler.Proofs.YulGeneration.Equivalence
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
+import Compiler.Proofs.YulGeneration.RuntimeTypes
 
 -- Contracts/Counter/Proofs/Basic.lean
 #print axioms Contracts.Counter.Proofs.setStorage_updates_count
@@ -4273,7 +4273,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_sload_single
 #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_sload_single
 
--- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
+-- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 -- Total: 4100 theorems/lemmas (3112 public, 988 private, 0 sorry'd)
