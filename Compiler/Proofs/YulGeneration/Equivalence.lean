@@ -44,17 +44,7 @@ noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction
 noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state : IRState) : YulResult :=
   interpretYulRuntime fn.body (YulTransaction.ofIR tx) state.storage state.events
 
-/-- Interpret a function body starting from an aligned IR-derived state. -/
-def resultsMatchOn (slots : List Nat) (mappingKeys : List (Nat × Nat))
-    (ir : IRResult) (yul : YulResult) : Bool :=
-  ir.success == yul.success &&
-  ir.returnValue == yul.returnValue &&
-  slots.all (fun slot =>
-    ir.finalStorage (IRStorageSlot.ofNat slot) == yul.finalStorage (IRStorageSlot.ofNat slot)) &&
-  mappingKeys.all (fun (base, key) => ir.finalMappings base key == yul.finalMappings base key) &&
-  ir.events == yul.events
-
-/-! ## Layer 3 Equivalence Scaffolding
+/- ## Layer 3 Equivalence Scaffolding
 
 These statements capture the generic proof shape for IR → Yul equivalence.
 They are intentionally parameterized so contract-level results become
@@ -76,7 +66,7 @@ def resultsMatch (ir : IRResult) (yul : YulResult) : Prop :=
   (∀ base key, ir.finalMappings base key = yul.finalMappings base key) ∧
   ir.events = yul.events
 
-def irResultOfExecWithRollback (rollback : IRState) : IRExecResult → IRResult
+private def irResultOfExecWithRollback (rollback : IRState) : IRExecResult → IRResult
   | .continue s =>
       { success := true
         returnValue := s.returnValue
@@ -129,7 +119,7 @@ def yulResultOfExecWithRollback (rollback : YulState) : YulExecResult → YulRes
         events := rollback.events }
 
 /-- Interpret a function body starting from an aligned IR-derived state. -/
-noncomputable def interpretYulBodyFromState
+private noncomputable def interpretYulBodyFromState
     (fn : IRFunction) (selector : Nat) (state rollback : IRState) : YulResult :=
   let yulState := yulStateOfIR selector state
   let yulRollback := yulStateOfIR selector rollback
