@@ -67,8 +67,10 @@ materializes pre-state storage for those slots.
   `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure_canonicalFuel`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure_canonicalFuel`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match`, and
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match`,
@@ -86,7 +88,7 @@ materializes pre-state storage for those slots.
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
   and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults_canonicalFuel`
   as the explicitly named safe-body wrapper aliases.
-  The canonical positive and projected-result wrappers set dispatcher fuel to
+  The canonical Layer 3 and Layer 2/3 positive and projected-result wrappers set dispatcher fuel to
   `nativeRuntimeDispatcherFuel irContract` and runtime fuel to
   `nativeRuntimeFuel irContract`, avoiding an arbitrary public fuel parameter
   on the recommended direct-match surface. These direct match seams keep the

@@ -1556,6 +1556,35 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
       hCompile hSupported hStaticParams hSafeBodies)
     hLower hEnv hNativeDispatcherExec
 
+/-- Compiler-produced Layer 3 native theorem using canonical runtime-size fuel
+for the public positive dispatcher-exec surface. -/
+theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure_canonicalFuel
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hNativeDispatcherExec :
+      nativeDispatcherExecMatchesIRPositive
+        (nativeRuntimeDispatcherFuel irContract) irContract tx initialState
+        observableSlots nativeContract) :
+    nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (nativeRuntimeFuel irContract) irContract tx initialState observableSlots) :=
+  layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure
+    (nativeRuntimeDispatcherFuel irContract) spec selectors irContract tx
+    initialState observableSlots nativeContract hCompile hSupported
+    hStaticParams hSafeBodies hLower hEnv hNativeDispatcherExec
+
 /-- Compiler-produced Layer 3 native theorem from a projected native result,
 using source-level safe-body and static-parameter closure. -/
 theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure
@@ -1588,6 +1617,38 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
     (generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
       hCompile hSupported hStaticParams hSafeBodies)
     hLower hEnv hProject hMatch
+
+/-- Compiler-produced Layer 3 native theorem using canonical runtime-size fuel
+for the public projected-result dispatcher-exec surface. -/
+theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure_canonicalFuel
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (nativeYul : YulResult)
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hProject : nativeProjectedDispatcherResultEq
+      (nativeRuntimeDispatcherFuel irContract) irContract tx initialState
+      observableSlots nativeContract nativeYul)
+    (hMatch :
+      nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+        (.ok nativeYul)) :
+    nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (nativeRuntimeFuel irContract) irContract tx initialState observableSlots) :=
+  layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure
+    (nativeRuntimeDispatcherFuel irContract) spec selectors irContract tx
+    initialState observableSlots nativeContract nativeYul hCompile hSupported
+    hStaticParams hSafeBodies hLower hEnv hProject hMatch
 
 /-- Compiler-produced Layer 3 native theorem for no-mapping dispatcher-statement
 lowering, with `YulTransaction.ofIR` environment validation discharged from
