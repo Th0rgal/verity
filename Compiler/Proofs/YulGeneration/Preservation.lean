@@ -1,5 +1,6 @@
 import Compiler.Proofs.YulGeneration.Codegen
 import Compiler.Proofs.YulGeneration.Equivalence
+import Compiler.Proofs.YulGeneration.RuntimeTypes
 import Compiler.Proofs.YulGeneration.StatementEquivalence
 import Compiler.Proofs.IRGeneration.IRInterpreter
 
@@ -88,33 +89,6 @@ def yulOptionStmtsNoRef (name : String) : Option (List YulStmt) → Prop
   | some body => yulStmtsNoRef name body
 end
 
-/-! ### Loop-free syntactic predicates
-
-Decidable predicates checking that a Yul AST does not contain `for_` loops.
-These are `Bool`-valued so the compiler can discharge them automatically via `rfl`. -/
-mutual
-def yulStmtLoopFree : YulStmt → Bool
-  | .comment _ | .let_ _ _ | .letMany _ _ | .assign _ _ | .expr _ | .leave => true
-  | .if_ _ body => yulStmtsLoopFree body
-  | .for_ _ _ _ _ => false
-  | .switch _ cases defaultCase =>
-      yulSwitchCasesLoopFree cases && yulOptionStmtsLoopFree defaultCase
-  | .block stmts => yulStmtsLoopFree stmts
-  | .funcDef _ _ _ body => yulStmtsLoopFree body
-
-def yulStmtsLoopFree : List YulStmt → Bool
-  | [] => true
-  | stmt :: stmts => yulStmtLoopFree stmt && yulStmtsLoopFree stmts
-
-def yulSwitchCasesLoopFree : List (Nat × List YulStmt) → Bool
-  | [] => true
-  | (_, body) :: rest => yulStmtsLoopFree body && yulSwitchCasesLoopFree rest
-
-def yulOptionStmtsLoopFree : Option (List YulStmt) → Bool
-  | none => true
-  | some body => yulStmtsLoopFree body
-end
-
 /-- Explicit theorem hypothesis used in place of the old kernel axiom. -/
 def HasSelectorDeadBridge (body : List YulStmt) : Prop :=
   ∀ state fuel,
@@ -127,12 +101,6 @@ def HasSelectorDeadBridge (body : List YulStmt) : Prop :=
 /-- Helper: initial Yul state aligned with the IR transaction/state. -/
 private def initialYulState (tx : YulTransaction) (state : IRState) : YulState :=
   YulState.initial tx state.storage state.events
-
-/-- Preconditions under which the generated dispatch guards behave like the
-    intended source-level checks for a selected function case. -/
-def DispatchGuardsSafe (fn : IRFunction) (tx : IRTransaction) : Prop :=
-  (fn.payable = true ∨ tx.msgValue % evmModulus = 0) ∧
-  4 + fn.params.length * 32 < evmModulus
 
 @[simp]
 private theorem evalYulExpr_selectorExpr_initial

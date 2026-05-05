@@ -37,6 +37,7 @@
 
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
+import Compiler.Proofs.YulGeneration.RuntimeTypes
 import Compiler.Proofs.IRGeneration.Contract
 import Compiler.Proofs.IRGeneration.Function
 import Compiler.Proofs.IRGeneration.Expr

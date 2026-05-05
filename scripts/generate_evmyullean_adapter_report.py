@@ -20,6 +20,7 @@ BACKENDS_DIR = (
     ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Backends"
 )
 ADAPTER_FILE = BACKENDS_DIR / "EvmYulLeanAdapter.lean"
+BRIDGE_PREDICATES_FILE = BACKENDS_DIR / "EvmYulLeanBridgePredicates.lean"
 BRIDGE_LEMMAS_FILE = BACKENDS_DIR / "EvmYulLeanBridgeLemmas.lean"
 BRIDGE_TEST_FILE = BACKENDS_DIR / "EvmYulLeanBridgeTest.lean"
 CORRECTNESS_FILE = BACKENDS_DIR / "EvmYulLeanAdapterCorrectness.lean"
@@ -455,13 +456,13 @@ def _parse_context_bridge_lemmas() -> tuple[list[str], list[str]]:
 
 
 def _parse_bridged_builtins_defs() -> tuple[list[str], list[str]]:
-    """Extract bridgedBuiltins and unbridgedBuiltins from BridgeLemmas file.
+    """Extract bridgedBuiltins and unbridgedBuiltins from the predicate module.
 
     Returns (bridged, unbridged) or empty lists if definitions not found.
     """
-    if not BRIDGE_LEMMAS_FILE.exists():
+    if not BRIDGE_PREDICATES_FILE.exists():
         return [], []
-    text = BRIDGE_LEMMAS_FILE.read_text(encoding="utf-8")
+    text = BRIDGE_PREDICATES_FILE.read_text(encoding="utf-8")
     code = _strip_lean_comments(text)
 
     def _extract_string_list(pattern: re.Pattern[str]) -> list[str]:

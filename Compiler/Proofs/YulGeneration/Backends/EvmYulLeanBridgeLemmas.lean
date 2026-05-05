@@ -1,3 +1,4 @@
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
@@ -3256,31 +3257,6 @@ will invoke.
 | State (sload, mappingSlot) | 2 | Fully proven (Phase 3 keccak-semantic bridge) |
 | **Total bridged** | **36** | **36 proven, 0 sorry** |
 -/
-
-/-- The set of builtins for which the `.evmYulLean` and `.verity` backends
-    produce identical results. This now covers all 36 builtins handled by
-    `legacyEvalBuiltinCallWithContext`, including `mappingSlot` which is bridged
-    via the shared keccak-faithful `abstractMappingSlot` derivation.
-
-    Phase 4's `Preservation.lean` retargeting uses this set to determine
-    which builtin invocations can be transparently switched from `.verity`
-    to `.evmYulLean` backend without affecting the proof. -/
-def bridgedBuiltins : List String :=
-  ["add", "sub", "mul", "div", "mod",
-   "lt", "gt", "eq", "iszero",
-   "and", "or", "xor", "not", "shl", "shr",
-   "addmod", "mulmod", "byte",
-   "slt", "sgt",
-   "exp", "sdiv", "smod", "sar", "signextend",
-   "caller", "address", "callvalue", "timestamp",
-   "number", "chainid", "blobbasefee",
-   "calldataload", "calldatasize",
-   "sload", "mappingSlot"]
-
-/-- The set of builtins that the `.evmYulLean` backend cannot handle is
-    now empty: every builtin in `legacyEvalBuiltinCallWithContext` has a bridge
-    lemma and appears in `bridgedBuiltins`. -/
-def unbridgedBuiltins : List String := []
 
 /-! ## Remaining Core Equivalence Proofs — Status
 

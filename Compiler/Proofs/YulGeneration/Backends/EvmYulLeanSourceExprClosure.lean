@@ -25,7 +25,7 @@
   Run: lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
 -/
 
-import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
 import Compiler.CompilationModel.ExpressionCompile
 
 namespace Compiler.Proofs.YulGeneration.Backends

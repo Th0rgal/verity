@@ -33,6 +33,30 @@ RETARGET = (
     / "Backends"
     / "EvmYulLeanRetarget.lean"
 )
+BRIDGE_PREDICATES = (
+    ROOT
+    / "Compiler"
+    / "Proofs"
+    / "YulGeneration"
+    / "Backends"
+    / "EvmYulLeanBridgePredicates.lean"
+)
+BODY_CLOSURE = (
+    ROOT
+    / "Compiler"
+    / "Proofs"
+    / "YulGeneration"
+    / "Backends"
+    / "EvmYulLeanBodyClosure.lean"
+)
+SOURCE_EXPR_CLOSURE = (
+    ROOT
+    / "Compiler"
+    / "Proofs"
+    / "YulGeneration"
+    / "Backends"
+    / "EvmYulLeanSourceExprClosure.lean"
+)
 BUILTINS = (
     ROOT
     / "Compiler"
@@ -1116,6 +1140,46 @@ def check_reference_oracle_names(
     return errors
 
 
+def check_native_closure_import_boundary(
+    bridge_predicates_text: str,
+    body_closure_text: str,
+    source_expr_closure_text: str,
+) -> list[str]:
+    """Keep native closure predicates isolated from legacy retarget proofs."""
+
+    errors: list[str] = []
+
+    if "import Compiler.Proofs.YulGeneration.ReferenceOracle" in bridge_predicates_text:
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Backends/"
+            "EvmYulLeanBridgePredicates.lean must not import ReferenceOracle; "
+            "native closure predicates should remain syntactic"
+        )
+
+    for label, text in (
+        ("EvmYulLeanBodyClosure.lean", body_closure_text),
+        ("EvmYulLeanSourceExprClosure.lean", source_expr_closure_text),
+    ):
+        if "import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates" not in text:
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/"
+                f"{label} must import the neutral EVMYulLean bridge predicates"
+            )
+        for forbidden_import in (
+            "import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget",
+            "import Compiler.Proofs.YulGeneration.Preservation",
+            "import Compiler.Proofs.YulGeneration.ReferenceOracle",
+        ):
+            if forbidden_import in text:
+                errors.append(
+                    "Compiler/Proofs/YulGeneration/Backends/"
+                    f"{label} must not import legacy transition proof authority "
+                    f"`{forbidden_import.removeprefix('import ')}`"
+                )
+
+    return errors
+
+
 def check_native_alias_signatures(end_to_end_text: str) -> list[str]:
     """Reject hidden native dispatcher fuel-wrapper aliases in theorem signatures."""
 
@@ -1212,6 +1276,9 @@ def main() -> int:
         END_TO_END,
         NATIVE_HARNESS,
         RETARGET,
+        BRIDGE_PREDICATES,
+        BODY_CLOSURE,
+        SOURCE_EXPR_CLOSURE,
         BUILTINS,
         PRESERVATION,
         NATIVE_ADAPTER,
@@ -1242,6 +1309,13 @@ def main() -> int:
             END_TO_END.read_text(encoding="utf-8"),
             RETARGET.read_text(encoding="utf-8"),
             PRESERVATION.read_text(encoding="utf-8"),
+        )
+    )
+    errors.extend(
+        check_native_closure_import_boundary(
+            BRIDGE_PREDICATES.read_text(encoding="utf-8"),
+            BODY_CLOSURE.read_text(encoding="utf-8"),
+            SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
         )
     )
     errors.extend(
