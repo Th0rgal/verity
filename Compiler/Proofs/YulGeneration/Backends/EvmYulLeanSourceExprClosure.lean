@@ -13,9 +13,14 @@
     - boolean-normalized operations: `logicalAnd`, `logicalOr`, `logicalNot`
     - branchless arithmetic helpers: `ceilDiv`, `mulDivDown`, `mulDivUp`,
       `wMulDown`, `wDivUp`, `min`, `max`, `ite`
+    - zero-argument environment/calldata-size reads whose emitted Yul calls
+      are already bridged: `caller`, `contractAddress`, `msgValue`,
+      `blockTimestamp`, `blockNumber`, `chainid`, `blobbasefee`,
+      `calldatasize`
 
-  Storage, mapping, calldata, call, keccak256, dynamic helpers, ABI casts, and
-  environmental helpers are out of scope and require dedicated closure proofs.
+  Storage, mapping, state-dependent memory/transient reads, calldata loads,
+  returndata, call, keccak256, dynamic helpers, ABI casts, and `selfBalance`
+  are out of scope and require dedicated closure proofs.
 
   The scalar-leaf-only theorem `compileExpr_bridgedSource_leaf` is
   retained below as a specialization.
@@ -71,15 +76,26 @@ theorem compileExpr_bridgedSource_leaf
 
 /-- Source EDSL expressions whose `compileExpr` output is a `BridgedExpr`.
     Covers scalar leaves, pure arithmetic/comparison/bit-op binops,
-    boolean-normalization forms, branchless arithmetic helpers, and `ge`/`le`
-    negated comparisons. Storage, calldata, dynamic helpers, ABI casts, calls,
-    and environmental reads are out of scope. -/
+    boolean-normalization forms, branchless arithmetic helpers,
+    zero-argument environment/calldata-size reads, and `ge`/`le` negated
+    comparisons. Storage, calldata loads, dynamic helpers, ABI casts, calls,
+    state-dependent memory/transient reads, and `selfBalance` are out of
+    scope. -/
 inductive BridgedSourceExpr : Expr → Prop
   -- scalar leaves
   | literal (n : Nat) : BridgedSourceExpr (.literal n)
   | param (name : String) : BridgedSourceExpr (.param name)
   | constructorArg (idx : Nat) : BridgedSourceExpr (.constructorArg idx)
   | localVar (name : String) : BridgedSourceExpr (.localVar name)
+  -- zero-argument environment / calldata-size reads
+  | caller : BridgedSourceExpr .caller
+  | contractAddress : BridgedSourceExpr .contractAddress
+  | msgValue : BridgedSourceExpr .msgValue
+  | blockTimestamp : BridgedSourceExpr .blockTimestamp
+  | blockNumber : BridgedSourceExpr .blockNumber
+  | chainid : BridgedSourceExpr .chainid
+  | blobbasefee : BridgedSourceExpr .blobbasefee
+  | calldatasize : BridgedSourceExpr .calldatasize
   -- arithmetic binops (yulBinOp with bridged name)
   | add {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
       BridgedSourceExpr (.add a b)
@@ -184,6 +200,15 @@ private theorem bridgedExpr_unopBuiltin {func : String}
   simp only [List.mem_singleton] at hMem
   subst hMem
   exact ha
+
+/-- A zero-argument `YulExpr.call` whose name is in `bridgedBuiltins` is a
+    `BridgedExpr`. -/
+private theorem bridgedExpr_nullaryBuiltin {func : String}
+    (hBridged : func ∈ bridgedBuiltins) :
+    BridgedExpr (YulExpr.call func []) := by
+  refine BridgedExpr.call func [] (Or.inl hBridged) ?_
+  intro arg hMem
+  cases hMem
 
 /-- `yulBinOp op a b` is bridged when `op ∈ bridgedBuiltins` and both
     arguments are bridged. -/
@@ -509,6 +534,46 @@ theorem compileExpr_bridgedSource
       intro out hOk
       simp [compileExpr, Pure.pure, Except.pure] at hOk
       subst out; exact BridgedExpr.ident name
+  | caller =>
+      intro out hOk
+      simp [compileExpr, Pure.pure, Except.pure] at hOk
+      subst out
+      exact bridgedExpr_nullaryBuiltin (by simp [bridgedBuiltins])
+  | contractAddress =>
+      intro out hOk
+      simp [compileExpr, Pure.pure, Except.pure] at hOk
+      subst out
+      exact bridgedExpr_nullaryBuiltin (by simp [bridgedBuiltins])
+  | msgValue =>
+      intro out hOk
+      simp [compileExpr, Pure.pure, Except.pure] at hOk
+      subst out
+      exact bridgedExpr_nullaryBuiltin (by simp [bridgedBuiltins])
+  | blockTimestamp =>
+      intro out hOk
+      simp [compileExpr, Pure.pure, Except.pure] at hOk
+      subst out
+      exact bridgedExpr_nullaryBuiltin (by simp [bridgedBuiltins])
+  | blockNumber =>
+      intro out hOk
+      simp [compileExpr, Pure.pure, Except.pure] at hOk
+      subst out
+      exact bridgedExpr_nullaryBuiltin (by simp [bridgedBuiltins])
+  | chainid =>
+      intro out hOk
+      simp [compileExpr, Pure.pure, Except.pure] at hOk
+      subst out
+      exact bridgedExpr_nullaryBuiltin (by simp [bridgedBuiltins])
+  | blobbasefee =>
+      intro out hOk
+      simp [compileExpr, Pure.pure, Except.pure] at hOk
+      subst out
+      exact bridgedExpr_nullaryBuiltin (by simp [bridgedBuiltins])
+  | calldatasize =>
+      intro out hOk
+      simp [compileExpr, Pure.pure, Except.pure] at hOk
+      subst out
+      exact bridgedExpr_nullaryBuiltin (by simp [bridgedBuiltins])
   | add _ _ iha ihb =>
       intro out hOk
       simp only [compileExpr] at hOk
@@ -767,6 +832,30 @@ theorem compileRequireFailCond_bridgedSource
         (by simpa [compileRequireFailCond] using hOk)
   | localVar name =>
       exact compileRequireFailCond_default_bridgedSource (.localVar name)
+        (by simpa [compileRequireFailCond] using hOk)
+  | caller =>
+      exact compileRequireFailCond_default_bridgedSource .caller
+        (by simpa [compileRequireFailCond] using hOk)
+  | contractAddress =>
+      exact compileRequireFailCond_default_bridgedSource .contractAddress
+        (by simpa [compileRequireFailCond] using hOk)
+  | msgValue =>
+      exact compileRequireFailCond_default_bridgedSource .msgValue
+        (by simpa [compileRequireFailCond] using hOk)
+  | blockTimestamp =>
+      exact compileRequireFailCond_default_bridgedSource .blockTimestamp
+        (by simpa [compileRequireFailCond] using hOk)
+  | blockNumber =>
+      exact compileRequireFailCond_default_bridgedSource .blockNumber
+        (by simpa [compileRequireFailCond] using hOk)
+  | chainid =>
+      exact compileRequireFailCond_default_bridgedSource .chainid
+        (by simpa [compileRequireFailCond] using hOk)
+  | blobbasefee =>
+      exact compileRequireFailCond_default_bridgedSource .blobbasefee
+        (by simpa [compileRequireFailCond] using hOk)
+  | calldatasize =>
+      exact compileRequireFailCond_default_bridgedSource .calldatasize
         (by simpa [compileRequireFailCond] using hOk)
   | add ha hb =>
       exact compileRequireFailCond_default_bridgedSource (.add ha hb)

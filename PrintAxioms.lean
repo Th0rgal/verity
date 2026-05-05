@@ -4361,6 +4361,7 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_bridgedSource_leaf
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_binopBuiltin  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_unopBuiltin  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_nullaryBuiltin  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_yulBinOp  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_yulNegatedBinOp  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_yulToBool  -- private
@@ -4464,4 +4465,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4270 theorems/lemmas (2871 public, 1399 private, 0 sorry'd)
+-- Total: 4271 theorems/lemmas (2871 public, 1400 private, 0 sorry'd)
