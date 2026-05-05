@@ -875,6 +875,61 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertEqual(errors, [])
 
+    def test_public_transitive_import_boundary_accepts_current_shape(self) -> None:
+        errors = check.check_public_transitive_import_boundary(
+            [
+                ("Compiler/Proofs/EndToEnd.lean", check.END_TO_END.read_text(encoding="utf-8")),
+                ("Compiler.lean", check.ROOT_COMPILER.read_text(encoding="utf-8")),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean",
+                    check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
+                    check.NATIVE_ADAPTER.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgePredicates.lean",
+                    check.BRIDGE_PREDICATES.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean",
+                    check.BODY_CLOSURE.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean",
+                    check.SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
+                ),
+            ]
+        )
+        self.assertEqual(errors, [])
+
+    def test_public_transitive_import_boundary_rejects_helper_reaching_bridge_lemmas(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\nimport Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest\n"
+        )
+        errors = check.check_public_transitive_import_boundary(
+            [("Compiler/Proofs/EndToEnd.lean", end_to_end_text)]
+        )
+        self.assertTrue(
+            any("EvmYulLeanBridgeLemmas" in error for error in errors),
+            errors,
+        )
+
+    def test_public_transitive_import_boundary_rejects_helper_reaching_reference_oracle(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\nimport Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest\n"
+        )
+        errors = check.check_public_transitive_import_boundary(
+            [("Compiler/Proofs/EndToEnd.lean", end_to_end_text)]
+        )
+        self.assertTrue(
+            any("ReferenceOracle.Builtins" in error for error in errors),
+            errors,
+        )
+
     def test_legacy_proof_boundary_rejects_public_boundary_import(self) -> None:
         end_to_end_text = (
             check.END_TO_END.read_text(encoding="utf-8")

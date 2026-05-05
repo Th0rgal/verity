@@ -1233,6 +1233,77 @@ def check_legacy_proof_boundary(
     return errors
 
 
+def lean_module_to_path(module: str) -> Path | None:
+    path = ROOT / (module.replace(".", "/") + ".lean")
+    if path.exists():
+        return path
+    return None
+
+
+def lean_imports(text: str) -> list[str]:
+    imports: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("import "):
+            parts = stripped.split()
+            if len(parts) >= 2:
+                imports.append(parts[1])
+    return imports
+
+
+def check_public_transitive_import_boundary(
+    public_boundary_files: list[tuple[str, str]],
+) -> list[str]:
+    """Reject transitive legacy imports from native public boundary modules."""
+
+    errors: list[str] = []
+    forbidden_modules = TRANSITION_ONLY_PUBLIC_FORBIDDEN_MODULES + (
+        "Compiler.Proofs.YulGeneration.ReferenceOracle",
+    )
+    text_overrides = {
+        label: text
+        for label, text in public_boundary_files
+    }
+
+    for label, text in public_boundary_files:
+        queue: list[tuple[str, str, list[str]]] = [(label, text, [label])]
+        seen_modules: set[str] = set()
+        while queue:
+            current_label, current_text, chain = queue.pop(0)
+            for imported in lean_imports(current_text):
+                if any(
+                    imported == forbidden or imported.startswith(forbidden + ".")
+                    for forbidden in forbidden_modules
+                ):
+                    errors.append(
+                        f"{label} must not transitively import transition-only "
+                        f"legacy proof module `{imported}` via "
+                        + " -> ".join(chain + [imported])
+                    )
+                    continue
+
+                if imported in seen_modules:
+                    continue
+                seen_modules.add(imported)
+
+                imported_path = lean_module_to_path(imported)
+                if imported_path is None:
+                    continue
+                try:
+                    imported_relative = imported_path.relative_to(ROOT).as_posix()
+                except ValueError:
+                    continue
+                if not imported_relative.startswith("Compiler/"):
+                    continue
+                imported_text = text_overrides.get(
+                    imported_relative,
+                    imported_path.read_text(encoding="utf-8"),
+                )
+                queue.append((imported_relative, imported_text, chain + [imported]))
+
+    return errors
+
+
 def check_native_closure_import_boundary(
     bridge_predicates_text: str,
     body_closure_text: str,
@@ -1487,6 +1558,34 @@ def main() -> int:
                 (path.relative_to(ROOT).as_posix(), path.read_text(encoding="utf-8"))
                 for path in LEGACY_PROOF_FILES
             ],
+        )
+    )
+    errors.extend(
+        check_public_transitive_import_boundary(
+            [
+                ("Compiler.lean", ROOT_COMPILER.read_text(encoding="utf-8")),
+                ("Compiler/Proofs/EndToEnd.lean", END_TO_END.read_text(encoding="utf-8")),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean",
+                    native_harness_text,
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
+                    NATIVE_ADAPTER.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgePredicates.lean",
+                    BRIDGE_PREDICATES.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean",
+                    BODY_CLOSURE.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean",
+                    SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
+                ),
+            ]
         )
     )
     errors.extend(
