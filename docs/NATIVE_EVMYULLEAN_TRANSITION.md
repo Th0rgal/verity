@@ -50,6 +50,8 @@ materializes pre-state storage for those slots.
   `compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match` at
   canonical generated-runtime fuel, the helper-free dispatcher lowering wrapper
   `compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping`,
+  the mapping-helper dispatcher lowering wrapper
+  `compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_mapping`,
   and the concrete SimpleStorage native theorem. The dispatcher-exec wrappers
   derive static ABI parameter coverage from `SupportedSpec` and expose
   source-body closure as
@@ -57,11 +59,12 @@ materializes pre-state storage for those slots.
   into the native body whitelist internally. It also derives native runtime
   environment validation from explicit chain-id, blob-base-fee, and unsupported
   header-builtin facts; only the concrete dispatcher execution/result
-  obligation remains explicit. On the helper-free path, the public theorem now
-  accepts the concrete `lowerStmtsNative` dispatcher lowering and constructs the
-  full `lowerRuntimeContractNative` result internally. The concrete
-  SimpleStorage native theorem uses the same explicit native-environment facts
-  instead of an opaque validation premise. The opaque arbitrary-fuel
+  obligation remains explicit. On the helper-free and mapping-helper paths, the
+  public wrapper theorems now accept the concrete generated-dispatcher lowering
+  and construct the full `lowerRuntimeContractNative` result internally. The
+  concrete SimpleStorage native theorem uses the same explicit
+  native-environment facts instead of an opaque validation premise. The opaque
+  arbitrary-fuel
   identity seams, generated dispatcher-exec lift facts, and fuel-indexed
   `nativeIRRuntimeMatchesIR` targets are file-local, and the older
   proof-interpreter bridge signature has been removed from EndToEnd. The public
@@ -150,7 +153,10 @@ materializes pre-state storage for those slots.
   in the native harness and by
   `lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved` for
   compiled supported contracts, with the generated dispatcher lowered under the
-  full emitted-runtime reserved-name context. Successful full native lowering
+  full emitted-runtime reserved-name context. The public
+  `compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_mapping`
+  wrapper consumes that reserved-context dispatcher lowering directly and keeps
+  full emitted-runtime lowering equality internal. Successful full native lowering
   can now also be peeled back to the concrete dispatcher lowering by
   `lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher`,
   `lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher`,

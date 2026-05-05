@@ -252,6 +252,17 @@ def nativeGeneratedDispatcherContractOf
     functions :=
       (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap) }
 
+/-- Public native contract shell produced by generated dispatcher lowering
+when the runtime includes the native `mappingSlot` helper. -/
+def nativeGeneratedDispatcherContractWithMappingOf
+    (dispatcher : List EvmYul.Yul.Ast.Stmt) :
+    EvmYul.Yul.Ast.YulContract :=
+  { dispatcher := .Block dispatcher
+    functions :=
+      ((∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap).insert
+        "mappingSlot"
+        Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition) }
+
 /-- Canonical native dispatcher fuel for the generated runtime surface. -/
 private noncomputable abbrev nativeRuntimeDispatcherFuel (contract : IRContract) : Nat :=
   sizeOf (Compiler.emitYul contract).runtimeCode
@@ -4136,12 +4147,9 @@ theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
       hSourceIR hLayer3
 
-/-- Public supported-compiler correctness theorem over the helper-free generated
-native dispatcher shell. It consumes concrete dispatcher-statement lowering and
-constructs the full-runtime native contract internally. -/
+/-- Helper-free generated dispatcher wrapper over concrete dispatcher lowering. -/
 theorem compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping
-    (model : CompilationModel.CompilationModel)
-    (selectors : List Nat)
+    (model : CompilationModel.CompilationModel) (selectors : List Nat)
     (hSupported : SupportedSpec model selectors)
     (irContract : IRContract)
     (tx : IRTransaction)
@@ -4159,10 +4167,8 @@ theorem compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMa
         .ok dispatcher)
     (hChainId : Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable tx.chainId = true)
     (hBlobBaseFee : Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable tx.blobBaseFee = true)
-    (hNoHeader :
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
-        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
-        false)
+    (hNoHeader : Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = false)
     (hNativeDispatcherExec :
       nativeGeneratedDispatcherExecMatchesIROn irContract tx
         (FunctionBody.initialIRStateForTx model tx initialWorld)
@@ -4181,6 +4187,56 @@ theorem compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMa
   ·
     rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
       hcompile hSupported hNoMapping, hLowerDispatcher]
+    rfl
+  · exact hChainId
+  · exact hBlobBaseFee
+  · exact hNoHeader
+  · exact hNativeDispatcherExec
+
+/-- Mapping-helper generated dispatcher wrapper over concrete dispatcher
+lowering. -/
+theorem compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_mapping
+    (model : CompilationModel.CompilationModel) (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (observableSlots : List Nat)
+    (dispatcher : List EvmYul.Yul.Ast.Stmt)
+    (nextSwitchId : Nat)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hcompile : CompilationModel.compile model selectors = Except.ok irContract)
+    (hMapping : irContract.usesMapping = true)
+    (hBodies : SourceBodyNativeClosure model selectors)
+    (hLowerDispatcher :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+          (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+            (Compiler.emitYul irContract).runtimeCode)
+          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok (dispatcher, nextSwitchId))
+    (hChainId : Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable tx.chainId = true)
+    (hBlobBaseFee : Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable tx.blobBaseFee = true)
+    (hNoHeader : Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = false)
+    (hNativeDispatcherExec :
+      nativeGeneratedDispatcherExecMatchesIROn irContract tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        observableSlots (nativeGeneratedDispatcherContractWithMappingOf dispatcher)) :
+    sourceResultMatchesNativeOn observableSlots
+      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (Nat.succ (sizeOf (Compiler.emitYul irContract).runtimeCode))
+        irContract tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        observableSlots) := by
+  apply compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
+    model selectors hSupported irContract tx initialWorld observableSlots
+    (nativeGeneratedDispatcherContractWithMappingOf dispatcher) htxNormalized
+    hcalldataSizeFits hcompile hBodies
+  ·
+    rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
+      hcompile hSupported hMapping, hLowerDispatcher]
     rfl
   · exact hChainId
   · exact hBlobBaseFee
