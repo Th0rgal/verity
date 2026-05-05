@@ -70,6 +70,10 @@ N8 public Layer 3 theorem flip
   and `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function`.
   The singleton dispatcher-only runtime lowering boundary now lives in the
   native harness as `lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative`.
+  Helper-free emitted runtime lowering is packaged by
+  `lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive`,
+  with the compiled supported no-mapping wrapper
+  `lowerRuntimeContractNative_of_compile_ok_supported_noMapping`.
   Generic `.block` lowering shape also lives in the native harness via
   `lowerStmtsNative_single_block_ok_singleton` and
   `lowerStmtsNative_block_stmts_eq`; let/if/switch dispatcher statement peels

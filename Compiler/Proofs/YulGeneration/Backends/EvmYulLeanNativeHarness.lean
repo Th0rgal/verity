@@ -573,6 +573,43 @@ theorem lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
         simp [Bind.bind, Except.bind]
   · exact hNoFunc
 
+/-- Helper-free, no-fallback/no-receive emitted runtimes are exactly the
+single generated dispatcher shell. -/
+theorem emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive
+    (contract : IRContract)
+    (hNoMapping : contract.usesMapping = false)
+    (hInternals : contract.internalFunctions = [])
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none) :
+    (Compiler.emitYul contract).runtimeCode =
+      [Compiler.CodegenCommon.buildSwitch contract.functions none none] := by
+  simp [Compiler.emitYul, Compiler.CodegenCommon.emitYul,
+    Compiler.CodegenCommon.runtimeCode, hNoMapping, hInternals, hNoFallback,
+    hNoReceive]
+
+/-- In the helper-free, no-fallback/no-receive generated case, native runtime
+lowering reduces to lowering the single dispatcher shell. -/
+theorem lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive
+    (contract : IRContract)
+    (hNoMapping : contract.usesMapping = false)
+    (hInternals : contract.internalFunctions = [])
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none) :
+    Backends.lowerRuntimeContractNative (Compiler.emitYul contract).runtimeCode =
+      match Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch contract.functions none none] with
+      | .ok dispatcher =>
+          .ok { dispatcher := .Block dispatcher
+                functions := (∅ : Backends.NativeFunctionMap) }
+      | .error err => .error err := by
+  rw [emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive
+    contract hNoMapping hInternals hNoFallback hNoReceive]
+  exact lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
+    (Compiler.CodegenCommon.buildSwitch contract.functions none none)
+    (by
+      intro name params rets body h
+      simp [Compiler.CodegenCommon.buildSwitch] at h)
+
 /-- A `.block` head in native lowering surfaces as a singleton `.Block` output
 when the lowering succeeds. -/
 theorem lowerStmtsNative_single_block_ok_singleton

@@ -887,6 +887,34 @@ theorem validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe
     (generatedRuntimeNativeFragment_of_compile_ok_supported_safe
       hCompile hSupported hStaticParams hSafeBodies)
 
+/-- Supported compiler output with no mapping helper reduces native runtime
+lowering to the single generated dispatcher shell. -/
+theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hNoMapping : irContract.usesMapping = false) :
+    Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+        (Compiler.emitYul irContract).runtimeCode =
+      match Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] with
+      | .ok dispatcher =>
+          .ok { dispatcher := .Block dispatcher
+                functions :=
+                  (∅ :
+                    Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap) }
+      | .error err => .error err :=
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive
+    irContract hNoMapping
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+      (model := spec) (selectors := selectors) (hSupported := hSupported)
+      (ir := irContract) (hcompile := hCompile))
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+      spec selectors hSupported irContract hCompile)
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+      spec selectors hSupported irContract hCompile)
+
 theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}

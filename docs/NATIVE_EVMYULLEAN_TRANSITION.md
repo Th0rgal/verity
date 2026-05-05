@@ -85,7 +85,12 @@ materializes pre-state storage for those slots.
   `validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe`, so the
   executable generated-runtime validator is closed from the same public
   `SupportedSpec`, static-parameter, and safe-body hypotheses as the native
-  wrapper seams.
+  wrapper seams. The helper-free native lowering boundary is also named by
+  `lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive`
+  in the native harness and by
+  `lowerRuntimeContractNative_of_compile_ok_supported_noMapping` for compiled
+  supported contracts, reducing no-mapping runtimes to the single generated
+  dispatcher shell.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with
@@ -380,7 +385,9 @@ scope so the native path does not look more complete than it is:
   `switchCases`. The native harness also owns
   `lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative`, the generic
   singleton non-`funcDef` runtime lowering boundary for dispatcher-only runtime
-  code. It also owns the generic
+  code. Helper-free emitted runtime lowering is packaged by
+  `lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive`.
+  It also owns the generic
   block-lowering shape lemmas `lowerStmtsNative_single_block_ok_singleton` and
   `lowerStmtsNative_block_stmts_eq`, plus the generated-dispatcher peel facts
   `lowerStmtsNativeWithSwitchIds_let_head_eq`,
@@ -772,6 +779,8 @@ scope so the native path does not look more complete than it is:
    for the actual `buildSwitch` source case list,
    `lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative` for singleton
    dispatcher-only runtime lowering,
+   `lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive`
+   for helper-free emitted runtime lowering,
    `lowerStmtsNative_single_block_ok_singleton` and
    `lowerStmtsNative_block_stmts_eq` for generic `.block` lowering shape,
    `lowerStmtsNativeWithSwitchIds_let_head_eq`,
