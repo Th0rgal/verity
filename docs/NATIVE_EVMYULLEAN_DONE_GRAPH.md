@@ -82,7 +82,13 @@ N8 public Layer 3 theorem flip
   and the compiled supported wrapper
   `lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved`; the
   dispatcher is lowered under the full emitted-runtime reserved-name context so
-  native switch temporary allocation remains faithful. EndToEnd also
+  native switch temporary allocation remains faithful. Successful full native
+  lowering is now peeled back to its concrete dispatcher lowering by
+  `lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher`,
+  `lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher`,
+  `lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved`, and
+  `lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved`.
+  EndToEnd also
   names the positive/projected no-mapping dispatcher-statement wrappers
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping`
   and

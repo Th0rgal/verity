@@ -100,8 +100,13 @@ materializes pre-state storage for those slots.
   in the native harness and by
   `lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved` for
   compiled supported contracts, with the generated dispatcher lowered under the
-  full emitted-runtime reserved-name context. The no-mapping positive/projected
-  native wrappers
+  full emitted-runtime reserved-name context. Successful full native lowering
+  can now also be peeled back to the concrete dispatcher lowering by
+  `lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher`,
+  `lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher`,
+  `lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved`, and
+  `lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved`.
+  The no-mapping positive/projected native wrappers
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping`
   and
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping`

@@ -238,6 +238,7 @@ def check_public_theorem_target(
         "theorem lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero",
         "theorem lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero_body",
         "theorem lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved",
+        "theorem lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved",
     ):
         if required_native_surface not in normalized_native_harness:
             errors.append(
@@ -259,7 +260,9 @@ def check_public_theorem_target(
         "theorem generatedRuntimeNativeFragment_of_compile_ok_supported_safe",
         "theorem validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe",
         "theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping",
+        "theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher",
         "theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved",
+        "theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults",
@@ -566,6 +569,7 @@ def check_public_theorem_target(
         "theorem lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function",
         "theorem lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function",
         "theorem lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative",
+        "theorem lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher",
         "theorem lowerStmtsNative_single_block_ok_singleton",
         "theorem lowerStmtsNative_block_stmts_eq",
         "theorem lowerStmtsNativeWithSwitchIds_let_head_eq",

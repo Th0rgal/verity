@@ -641,6 +641,39 @@ theorem lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noRe
       intro name params rets body h
       simp [Compiler.CodegenCommon.buildSwitch] at h)
 
+/-- If helper-free emitted runtime lowering succeeds, the successful contract is
+exactly the native dispatcher shell produced by lowering the generated
+dispatcher statement. -/
+theorem lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher
+    (contract : IRContract)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hNoMapping : contract.usesMapping = false)
+    (hInternals : contract.internalFunctions = [])
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hLower :
+      Backends.lowerRuntimeContractNative (Compiler.emitYul contract).runtimeCode =
+        .ok nativeContract) :
+    ∃ dispatcher : List EvmYul.Yul.Ast.Stmt,
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch contract.functions none none] =
+        .ok dispatcher ∧
+      nativeContract =
+        { dispatcher := .Block dispatcher
+          functions := (∅ : Backends.NativeFunctionMap) } := by
+  rw [lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive
+    contract hNoMapping hInternals hNoFallback hNoReceive] at hLower
+  cases hDispatcher :
+      Backends.lowerStmtsNative
+        [Compiler.CodegenCommon.buildSwitch contract.functions none none] with
+  | ok dispatcher =>
+      rw [hDispatcher] at hLower
+      simp only [Except.ok.injEq] at hLower
+      exact ⟨dispatcher, rfl, hLower.symm⟩
+  | error err =>
+      rw [hDispatcher] at hLower
+      simp at hLower
+
 /-- A `.block` head in native lowering surfaces as a singleton `.Block` output
 when the lowering succeeds. -/
 theorem lowerStmtsNative_single_block_ok_singleton
@@ -1247,6 +1280,44 @@ theorem lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noRece
     intro name params rets body h
     simp [Compiler.CodegenCommon.buildSwitch] at h
   · exact lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero_body _
+
+/-- If mapping-helper emitted runtime lowering succeeds, the successful
+contract is exactly the native dispatcher shell plus the generated native
+`mappingSlot` helper. -/
+theorem lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved
+    (contract : IRContract)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hMapping : contract.usesMapping = true)
+    (hInternals : contract.internalFunctions = [])
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hLower :
+      Backends.lowerRuntimeContractNative (Compiler.emitYul contract).runtimeCode =
+        .ok nativeContract) :
+    ∃ (dispatcher : List EvmYul.Yul.Ast.Stmt) (nextSwitchId : Nat),
+      Backends.lowerStmtsNativeWithSwitchIds
+          (Backends.yulStmtsIdentifierNames
+            (Compiler.emitYul contract).runtimeCode)
+          0 [Compiler.CodegenCommon.buildSwitch contract.functions none none] =
+        .ok (dispatcher, nextSwitchId) ∧
+      nativeContract =
+        { dispatcher := .Block dispatcher
+          functions := ((∅ : Backends.NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) } := by
+  rw [lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved
+    contract hMapping hInternals hNoFallback hNoReceive] at hLower
+  cases hDispatcher :
+      Backends.lowerStmtsNativeWithSwitchIds
+        (Backends.yulStmtsIdentifierNames (Compiler.emitYul contract).runtimeCode)
+        0 [Compiler.CodegenCommon.buildSwitch contract.functions none none] with
+  | ok pair =>
+      rcases pair with ⟨dispatcher, nextSwitchId⟩
+      rw [hDispatcher] at hLower
+      simp only [Except.ok.injEq] at hLower
+      exact ⟨dispatcher, nextSwitchId, rfl, hLower.symm⟩
+  | error err =>
+      rw [hDispatcher] at hLower
+      simp at hLower
 
 theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
     (left right : List YulStmt)

@@ -934,6 +934,33 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping
     (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
       spec selectors hSupported irContract hCompile)
 
+/-- Successful no-mapping native lowering for supported compiler output exposes
+the concrete generated dispatcher lowering and produced native contract. -/
+theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hNoMapping : irContract.usesMapping = false)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+        (Compiler.emitYul irContract).runtimeCode = .ok nativeContract) :
+    ∃ dispatcher : List EvmYul.Yul.Ast.Stmt,
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok dispatcher ∧
+      nativeContract = nativeContractOfDispatcher dispatcher :=
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher
+    irContract nativeContract hNoMapping
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+      (model := spec) (selectors := selectors) (hSupported := hSupported)
+      (ir := irContract) (hcompile := hCompile))
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+      spec selectors hSupported irContract hCompile)
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+      spec selectors hSupported irContract hCompile)
+    hLower
+
 /-- Supported compiler output with the mapping helper reduces native runtime
 lowering to the generated dispatcher shell plus the lowered native
 `mappingSlot` helper. The dispatcher is lowered under the same reserved-name
@@ -967,6 +994,36 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
       spec selectors hSupported irContract hCompile)
     (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
       spec selectors hSupported irContract hCompile)
+
+/-- Successful mapping-helper native lowering for supported compiler output
+exposes the concrete generated dispatcher lowering, threaded switch counter,
+and produced native contract. -/
+theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hMapping : irContract.usesMapping = true)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+        (Compiler.emitYul irContract).runtimeCode = .ok nativeContract) :
+    ∃ (dispatcher : List EvmYul.Yul.Ast.Stmt) (nextSwitchId : Nat),
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+          (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+            (Compiler.emitYul irContract).runtimeCode)
+          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok (dispatcher, nextSwitchId) ∧
+      nativeContract = nativeContractOfDispatcherWithMapping dispatcher :=
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved
+    irContract nativeContract hMapping
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+      (model := spec) (selectors := selectors) (hSupported := hSupported)
+      (ir := irContract) (hcompile := hCompile))
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+      spec selectors hSupported irContract hCompile)
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+      spec selectors hSupported irContract hCompile)
+    hLower
 
 theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
