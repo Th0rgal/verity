@@ -52,6 +52,7 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
@@ -3267,6 +3268,106 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_mappingSlot_bridge
 #print axioms Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
 
+-- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgePredicates.lean
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_append
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_singleton
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_snoc
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_map_mstore
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_map_tstore
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_nil
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_snoc
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_keccak256
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_mload
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_tload
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_let_mload
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_let_tload
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_let_keccak256
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_assign_mload
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_assign_tload
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_assign_keccak256
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_log_of_bridged_args
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_of_bridgedStraightStmt
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_log_of_bridged_args
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_let_mload
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_let_tload
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_let_keccak256
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_assign_mload
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_assign_tload
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_assign_keccak256
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_mstore_of_bridged_args
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_tstore_of_bridged_args
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_sstore_mapping_of_bridged_args
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_sstore_lit_of_bridged_val
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_sstore_ident_of_bridged_val
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_sstore_add_of_bridged_args
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_stop
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_return_of_bridged_args
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_revert
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_leave
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_let_of_bridged_val
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_letMany
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_assign_of_bridged_val
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_comment
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_funcDef
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_of_BridgedStraightStmts
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_straight
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_straight
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append_straight
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_map_mstore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_block_of_bridgedStmts
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_block
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_block
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_if_of_bridgedStmts
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_if
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_if
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_for_of_bridgedStmts
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_for
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_for
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_switch_of_bridgedStmts
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_switch
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_switch
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_block_of_bridgedStraightStmts
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_if_of_bridgedStraightStmts
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_for_of_bridgedStraightStmts
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_map_tstore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_revert_zero
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_revert_zero
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_comment
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_comment
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_let
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_let
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_assign
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_assign
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_letMany
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_letMany
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_stop
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_stop
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_leave
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_leave
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_return
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_return
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_revert
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_revert
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_mstore
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_mstore
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_tstore
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_tstore
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_sstore_lit
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_sstore_lit
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_sstore_ident
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_sstore_ident
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_sstore_mapping
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_sstore_mapping
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_log
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_log
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_funcDef
+#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_funcDef
+
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.yulFunctionBodies_nil
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.yulFunctionBodies_funcDef_cons
@@ -4091,24 +4192,12 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_verity_eq  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_let_eq_on_bridged  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_assign_eq_on_bridged  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_nil
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_cons
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_append
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_singleton
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_snoc
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_map_mstore
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_map_tstore
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmt  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmts  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_block_eq_on_bridged_straight_stmts  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_if_eq_on_bridged_body  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_switch_eq_on_bridged_cases  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_for_eq_on_bridged_parts  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_nil
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_snoc
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_callvalue  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selector  -- private
@@ -4118,92 +4207,6 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_has_selector  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_empty_calldata  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_iszero_ident  -- private
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_keccak256
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_mload
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_tload
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_let_mload
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_let_tload
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_let_keccak256
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_assign_mload
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_assign_tload
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_assign_keccak256
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmt_log_of_bridged_args
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_of_bridgedStraightStmt
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_log_of_bridged_args
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_let_mload
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_let_tload
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_let_keccak256
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_assign_mload
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_assign_tload
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_assign_keccak256
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_mstore_of_bridged_args
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_tstore_of_bridged_args
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_sstore_mapping_of_bridged_args
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_sstore_lit_of_bridged_val
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_sstore_ident_of_bridged_val
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_sstore_add_of_bridged_args
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_stop
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_return_of_bridged_args
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_revert
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_leave
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_let_of_bridged_val
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_letMany
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_assign_of_bridged_val
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_comment
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_funcDef
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_of_BridgedStraightStmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_straight
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_straight
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append_straight
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_map_mstore
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_block_of_bridgedStmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_block
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_block
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_if_of_bridgedStmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_if
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_if
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_for_of_bridgedStmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_for
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_for
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_switch_of_bridgedStmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_switch
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_switch
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_block_of_bridgedStraightStmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_if_of_bridgedStraightStmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_for_of_bridgedStraightStmts
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_map_tstore
-#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedStmt_revert_zero
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_revert_zero
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_comment
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_comment
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_let
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_let
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_assign
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_assign
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_letMany
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_letMany
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_stop
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_stop
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_leave
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_leave
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_return
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_return
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_revert
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_revert
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_mstore
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_mstore
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_tstore
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_tstore
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_sstore_lit
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_sstore_lit
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_sstore_ident
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_sstore_ident
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_sstore_mapping
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_sstore_mapping
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_log
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_log
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_funcDef
-#print axioms Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_funcDef
 #print axioms Compiler.Proofs.YulGeneration.Backends.callvalueGuard_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.calldatasizeGuard_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.dispatchBody_bridged
