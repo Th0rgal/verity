@@ -1126,6 +1126,23 @@ def check_reference_oracle_names(
             "`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`"
         )
 
+    for forbidden_end_to_end_legacy_term in (
+        "legacyEvalBuiltinCallWithContext",
+        "legacyBuiltinBackend",
+        "Compiler.Proofs.YulGeneration.ReferenceOracle",
+        "interpretYulRuntimeWithBackend",
+        "execYulFuelWithBackend",
+        "defaultBuiltinBackend",
+        "BuiltinBackend",
+    ):
+        if forbidden_end_to_end_legacy_term in end_to_end_text:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must not directly mention "
+                "legacy oracle/backend term "
+                f"`{forbidden_end_to_end_legacy_term}`; keep those dependencies "
+                "isolated below the public EndToEnd surface"
+            )
+
     for removed_native_reference_alias in (
         "theorem layer3_contract_preserves_semantics_native_via_reference_oracle_of_evmYulLean_bridge",
         "theorem layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge",
