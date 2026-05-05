@@ -33,6 +33,7 @@
 -/
 
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
+import Compiler.Proofs.IRGeneration.ExprCore
 import Compiler.CompilationModel.ExpressionCompile
 
 namespace Compiler.Proofs.YulGeneration.Backends
@@ -40,6 +41,7 @@ namespace Compiler.Proofs.YulGeneration.Backends
 open Compiler
 open Compiler.Yul
 open Compiler.CompilationModel
+open Compiler.Proofs.IRGeneration
 open Compiler.Proofs.YulGeneration
 
 /-- Scalar leaf expressions of the EDSL whose `compileExpr` output is a
@@ -183,6 +185,15 @@ inductive BridgedSourceExpr : Expr → Prop
       BridgedSourceExpr (.ge a b)
   | le {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
       BridgedSourceExpr (.le a b)
+
+/-- The public IR compile-core expression grammar is contained in the native
+    source-expression bridge. This turns `SupportedFragment` expression
+    witnesses into the `BridgedSourceExpr` premises consumed by body-closure
+    proofs. -/
+theorem bridgedSourceExpr_of_exprCompileCore :
+    ∀ {e : Expr}, FunctionBody.ExprCompileCore e → BridgedSourceExpr e := by
+  intro e hCore
+  induction hCore <;> constructor <;> assumption
 
 /-- A `YulExpr.call` whose name is in `bridgedBuiltins` and whose two
     arguments are already `BridgedExpr` is itself a `BridgedExpr`. -/

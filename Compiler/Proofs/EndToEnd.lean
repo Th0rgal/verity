@@ -10107,8 +10107,13 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   have been removed.
 - Scalar and static-scalar calldata parameter-loading prologues are now known
   to satisfy `BridgedStmts`.
-- Scalar source expression leaves and the pure arithmetic/comparison/bit-operation
-  `BridgedSourceExpr` fragment are now known to compile to `BridgedExpr`.
+- The `ExprCompileCore` expression grammar is now known to lift into
+  `BridgedSourceExpr`, including environment reads, `calldatasize`,
+  branchless helpers, and calldata/memory/transient unary reads.
+- Singleton `mstore`/`tstore` bodies whose offset and value are
+  `ExprCompileCore` are now known to satisfy `BridgedSafeStmts`, matching the
+  `SupportedFragment.mstoreSingle` and `SupportedFragment.tstoreSingle`
+  source shapes.
 - Scalar-leaf and pure-expression `letVar`/`assignVar` statement lists are now
   known to compile to `BridgedStmts`.
 - Pure-binding plus unpacked single-slot `setStorage` statement lists and

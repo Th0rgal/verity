@@ -9707,6 +9707,17 @@ inductive BridgedSourceMstoreStmt : Stmt → Prop
 def BridgedSourceMstoreStmts (stmts : List Stmt) : Prop :=
   ∀ stmt ∈ stmts, BridgedSourceMstoreStmt stmt
 
+/-- `SupportedFragment.mstoreSingle` expression witnesses are enough to build
+    the native mstore source-statement bridge witness. -/
+theorem bridgedSourceMstoreStmt_of_exprCompileCore
+    {offset value : Expr}
+    (hOffset : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore offset)
+    (hValue : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value) :
+    BridgedSourceMstoreStmt (.mstore offset value) :=
+  BridgedSourceMstoreStmt.mstore offset value
+    (bridgedSourceExpr_of_exprCompileCore hOffset)
+    (bridgedSourceExpr_of_exprCompileCore hValue)
+
 private theorem compileStmt_mstore_bridged
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
     (dynamicSource : DynamicDataSource) (internalRetNames : List String)
@@ -9857,6 +9868,17 @@ inductive BridgedSourceTstoreStmt : Stmt → Prop
 
 def BridgedSourceTstoreStmts (stmts : List Stmt) : Prop :=
   ∀ stmt ∈ stmts, BridgedSourceTstoreStmt stmt
+
+/-- `SupportedFragment.tstoreSingle` expression witnesses are enough to build
+    the native tstore source-statement bridge witness. -/
+theorem bridgedSourceTstoreStmt_of_exprCompileCore
+    {offset value : Expr}
+    (hOffset : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore offset)
+    (hValue : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value) :
+    BridgedSourceTstoreStmt (.tstore offset value) :=
+  BridgedSourceTstoreStmt.tstore offset value
+    (bridgedSourceExpr_of_exprCompileCore hOffset)
+    (bridgedSourceExpr_of_exprCompileCore hValue)
 
 private theorem compileStmt_tstore_bridged
     (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
@@ -15576,6 +15598,40 @@ inductive BridgedSafeStmts
   | storageArrayPop {isInternal : Bool} {stmts : List Stmt}
       (hStmts : BridgedSourceStorageArrayPopStmts fields stmts) :
       BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal stmts
+
+/-- The singleton `mstore` shape exposed by `SupportedFragment.mstoreSingle`
+    is a native safe body whenever its offset and value are compile-core
+    expressions. -/
+theorem bridgedSafeStmts_mstoreSingle_of_exprCompileCore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {isInternal : Bool} {offset value : Expr}
+    (hOffset : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore offset)
+    (hValue : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value) :
+    BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal
+      [Stmt.mstore offset value] :=
+  BridgedSafeStmts.mstore (by
+    intro stmt hMem
+    simp only [List.mem_singleton] at hMem
+    subst stmt
+    exact bridgedSourceMstoreStmt_of_exprCompileCore hOffset hValue)
+
+/-- The singleton `tstore` shape exposed by `SupportedFragment.tstoreSingle`
+    is a native safe body whenever its offset and value are compile-core
+    expressions. -/
+theorem bridgedSafeStmts_tstoreSingle_of_exprCompileCore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {isInternal : Bool} {offset value : Expr}
+    (hOffset : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore offset)
+    (hValue : _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value) :
+    BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal
+      [Stmt.tstore offset value] :=
+  BridgedSafeStmts.tstore (by
+    intro stmt hMem
+    simp only [List.mem_singleton] at hMem
+    subst stmt
+    exact bridgedSourceTstoreStmt_of_exprCompileCore hOffset hValue)
 
 /-- Every source statement list accepted by `BridgedSafeStmts` compiles to a
 Yul statement list accepted by `BridgedStmts`. This is the B7 aggregation
