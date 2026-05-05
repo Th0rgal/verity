@@ -39,6 +39,7 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.YulGeneration.RuntimeTypes
+import Compiler.Proofs.IRGeneration.Contract
 import Compiler.Proofs.IRGeneration.ContractShape
 import Compiler.Proofs.IRGeneration.FunctionShape
 import Compiler.Proofs.IRGeneration.Expr
@@ -118,6 +119,47 @@ theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResu
           congrArg (fun f => f (IRStorageSlot.ofNat slot)) hSourceStorage
         exact hStorageAt.trans (hNativeStorage slot hslot)
       · exact hSourceEvents.trans hNativeEvents
+
+/-- Public supported-compiler correctness theorem over native EVMYulLean
+runtime execution.
+
+The theorem target is the native runtime harness backed by
+`EvmYul.Yul.callDispatcher`; the only Layer 3 premise is a direct native-vs-IR
+`nativeResultsMatchOn` proof for the same generated runtime. -/
+theorem compile_preserves_native_evmYulLean_of_nativeResultsMatchOn
+    (model : CompilationModel.CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (observableSlots : List Nat)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hcompile : CompilationModel.compile model selectors = Except.ok irContract)
+    (hNative :
+      nativeResultsMatchOn observableSlots
+        (interpretIR irContract tx
+          (FunctionBody.initialIRStateForTx model tx initialWorld))
+        (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+          (Nat.succ (sizeOf (Compiler.emitYul irContract).runtimeCode))
+          irContract tx
+          (FunctionBody.initialIRStateForTx model tx initialWorld)
+          observableSlots)) :
+    sourceResultMatchesNativeOn observableSlots
+      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (Nat.succ (sizeOf (Compiler.emitYul irContract).runtimeCode))
+        irContract tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        observableSlots) := by
+  exact
+    sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
+      (hSourceIR :=
+        Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
+          model selectors hSupported irContract tx initialWorld
+          htxNormalized hcalldataSizeFits hcompile)
+      (hNativeIR := hNative)
 
 /-- Native EVMYulLean whole-runtime composition target.
 

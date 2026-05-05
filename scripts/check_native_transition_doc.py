@@ -287,6 +287,7 @@ def check_public_theorem_target(
             )
 
     for required_native_seam in (
+        "theorem compile_preserves_native_evmYulLean_of_nativeResultsMatchOn",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match_canonicalFuel",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure",

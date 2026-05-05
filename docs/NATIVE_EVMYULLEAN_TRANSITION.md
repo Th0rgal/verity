@@ -43,8 +43,10 @@ materializes pre-state storage for those slots.
   proof-side `YulResult`.
 - The EndToEnd layer now exposes a small native result surface:
   `nativeResultsMatchOn`, `sourceResultMatchesNativeOn`, the source/native
-  composition theorem over that result surface, and the concrete SimpleStorage
-  native theorem. The opaque arbitrary-fuel identity seams, generated
+  composition theorem over that result surface,
+  `compile_preserves_native_evmYulLean_of_nativeResultsMatchOn` for supported
+  compiler output at canonical generated-runtime fuel, and the concrete
+  SimpleStorage native theorem. The opaque arbitrary-fuel identity seams, generated
   dispatcher-exec lift facts, and fuel-indexed `nativeIRRuntimeMatchesIR`
   targets are file-local, and the older proof-interpreter bridge signature has
   been removed from EndToEnd. The public generated target is native
