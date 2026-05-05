@@ -19,25 +19,16 @@
              (proven generically in Compiler/Proofs/YulGeneration/Preservation.lean)
   - This file: compose them into a single theorem statement.
 
-  **EVMYulLean note (Phase 4)**: The default builtin backend is now
-  EVMYulLean, and this file exposes safe-body public wrappers targeting the
-  explicit EVMYulLean default-fuel proof-interpreter wrapper
-  `interpretYulRuntimeWithBackend .evmYulLean`. Historical
-  Verity-backed comparison entry points remain available under explicit
-  reference-oracle names. The backend bridge is established in
-  `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`, proving
-  that for all 36 bridged builtins, the legacy Verity backend agrees with
-  EVMYulLean. The Phase 4 retargeting module (`EvmYulLeanRetarget.lean`)
-  composes these per-builtin equivalences through expression evaluation and
-  recursive `BridgedTarget` statement execution. It also proves that the emitted
-  runtime wrapper satisfies that predicate, and executes equivalently under the
-  EVMYulLean backend, when the IR bodies it contains do. It also exposes a
-  lower-level Layer-3 theorem whose Yul side is
-  `interpretYulRuntimeWithBackend .evmYulLean` and whose body witnesses
-  are supplied by this file's public wrappers. Those wrappers derive raw
-  external function-body bridge witnesses from source-level `SupportedSpec`,
-  static-parameter, and `BridgedSafeStmts` witnesses where the public theorem
-  applies.
+  **EVMYulLean note (native transition)**: the active public native surface in
+  this file is `nativeIRRuntimeMatchesIR` and the generated dispatcher theorem
+  family below it. Those theorems compare IR execution directly with native
+  `EvmYul.Yul.callDispatcher` execution through
+  `Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness`.
+
+  The older EVMYulLean backend-fuel wrapper theorems over
+  `interpretYulRuntimeWithBackend .evmYulLean` remain as deprecated
+  compatibility entry points while the remaining generated-fragment obligations
+  are moved to the native dispatcher target.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
@@ -7382,22 +7373,21 @@ See: `ArithmeticProfile.lean` and
 replacement coverage: universal bridge lemmas for all pure bridged builtins.
 -/
 
-/-! ## Phase 4: EVMYulLean as Semantic Target
+/-! ## EVMYulLean Semantic Targets
 
-The historical Yul execution semantics used throughout this file dispatch builtins via
-`evalBuiltinCallWithBackendContext legacyBuiltinBackend`, where
-`legacyBuiltinBackend = .verity`. The EVMYulLean bridge
-(`EvmYulLeanBridgeLemmas.lean`) proves that for all 36 bridged builtins,
-the `.verity` and `.evmYulLean` backends produce identical results.
+The active native theorem surface in this file targets native EVMYulLean
+dispatcher execution through `nativeIRRuntimeMatchesIR` and the generated
+dispatcher theorem family. The older backend-parameterized proof-interpreter
+surface remains below as deprecated compatibility API.
 
-This means the existing preservation theorems above are pointwise valid under
-EVMYulLean semantics for any single bridged-builtin call site whose bridge
-dependencies are fully proven. The retargeting module
-(`EvmYulLeanRetarget.lean`) makes this explicit with
-`backends_agree_on_bridged_builtins`, lifts it through `BridgedExpr`
-expression evaluation, proves statement-fragment helpers for straight-line,
-block, if, switch, and for cases, and now proves recursive
-`BridgedTarget` execution equivalence. It also proves
+The retargeting module (`EvmYulLeanRetarget.lean`) still records the
+bridge-history facts: `backends_agree_on_bridged_builtins`, `BridgedExpr`
+expression lifting, statement-fragment helpers for straight-line, block, if,
+switch, and for cases, and recursive `BridgedTarget` execution equivalence.
+Those facts explain why the compatibility wrapper over
+`interpretYulRuntimeWithBackend .evmYulLean` remains valid for the bridged
+fragment, but they are no longer the preferred public theorem target. The
+retargeting module also proves
 `emitYul_runtimeCode_bridged`, the emitted-runtime closure witness conditional
 on bridged IR function, entrypoint, and internal helper bodies, and
   `emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`, the corresponding
@@ -7406,8 +7396,7 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   fully proven builtin bridge equivalences. It also proves
   `yulCodegen_preserves_semantics_evmYulLeanBackend`, the
   lower-level Layer-3 theorem whose Yul side is the EVMYulLean backend runtime.
-  This file now exposes
-  EndToEnd wrappers
+  This file exposes deprecated EndToEnd compatibility wrappers
   `layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge`,
   `layer3_contract_preserves_semantics_evmYulLeanBackend`,
   `layers2_3_ir_matches_yul_evmYulLeanBackend`, and
@@ -7461,5 +7450,34 @@ on bridged IR function, entrypoint, and internal helper bodies, and
 See `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean` for
 the Phase 4 retargeting theorems.
 -/
+
+/-! ## Deprecated Compatibility Surface
+
+The following attributes intentionally steer public users away from the
+backend-parameterized proof-interpreter target and toward the native
+EVMYulLean dispatcher-exec target. The deprecated theorems are kept buildable
+for older downstream proofs while this PR continues removing the
+reference-oracle path from theorem-facing correctness statements.
+-/
+
+attribute [deprecated layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match
+  (since := "2026-05-05")]
+  layer3_contract_preserves_semantics_evmYulLeanBackend_with_function_bridge
+
+attribute [deprecated layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match
+  (since := "2026-05-05")]
+  layer3_contract_preserves_semantics_evmYulLeanBackend
+
+attribute [deprecated layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
+  (since := "2026-05-05")]
+  layers2_3_ir_matches_yul_evmYulLeanBackend_with_function_bridge
+
+attribute [deprecated layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge
+  (since := "2026-05-05")]
+  layers2_3_ir_matches_yul_evmYulLeanBackend
+
+attribute [deprecated simpleStorage_endToEnd_native_evmYulLean
+  (since := "2026-05-05")]
+  simpleStorage_endToEnd_evmYulLeanBackend
 
 end Compiler.Proofs.EndToEnd
