@@ -26,8 +26,7 @@
     The bridge converts between word-level and byte-level representations.
 -/
 
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
-import Compiler.Proofs.YulGeneration.ReferenceOracle.State
+import Compiler.Proofs.YulGeneration.RuntimeTypes
 import EvmYul.Yul.State
 import EvmYul.SharedState
 import EvmYul.State.Account
@@ -752,105 +751,6 @@ def extractStorage (sharedState : SharedState .Yul) (addr : AccountAddress) :
       | some val => val
       | none => 0
     | none => 0
-
-/-! ## Environment Field Bridge Proofs
-
-These theorems prove that Verity's `legacyEvalBuiltinCallWithContext` agrees with the
-corresponding field extraction from the EVMYulLean state constructed by
-`toSharedState`. Each theorem connects a stateful builtin's Verity semantics
-to the state bridge.
-
-The proof pattern is uniform:
-1. Unfold the Verity builtin to `some (field % evmModulus)`
-2. Unfold the bridge to `natToUInt256 field`
-3. Show `uint256ToNat (natToUInt256 field) = field % UInt256.size = field % evmModulus`
-   since `UInt256.size = evmModulus`. -/
-
-/-- The `callvalue` builtin reads `msgValue` from Verity's state.
-    The state bridge stores `natToUInt256 state.msgValue` in `execEnv.weiValue`.
-    These agree modulo `evmModulus`. -/
-theorem callvalue_bridge (state : YulState) (observableSlots : List Nat) :
-    legacyEvalBuiltinCallWithContext state.storage state.sender state.msgValue
-      state.thisAddress state.blockTimestamp state.blockNumber state.chainId
-      state.blobBaseFee state.selector state.calldata "callvalue" [] =
-    some (uint256ToNat (toSharedState state observableSlots).executionEnv.weiValue) := by
-  simp [legacyEvalBuiltinCallWithContext, toSharedState, uint256ToNat, natToUInt256,
-    UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
-
-/-- The `timestamp` builtin reads `blockTimestamp` from Verity's state.
-    The state bridge stores `state.blockTimestamp` in the block header's
-    `timestamp` field. EVMYulLean converts this to `UInt256.ofNat`. -/
-theorem timestamp_bridge (state : YulState) (observableSlots : List Nat) :
-    legacyEvalBuiltinCallWithContext state.storage state.sender state.msgValue
-      state.thisAddress state.blockTimestamp state.blockNumber state.chainId
-      state.blobBaseFee state.selector state.calldata "timestamp" [] =
-    some (uint256ToNat (UInt256.ofNat
-      (toSharedState state observableSlots).executionEnv.header.timestamp)) := by
-  simp [legacyEvalBuiltinCallWithContext, toSharedState, mkBlockHeader, uint256ToNat,
-    UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
-
-/-- The `number` builtin reads `blockNumber` from Verity's state.
-    The state bridge stores `state.blockNumber` in the block header's
-    `number` field. EVMYulLean converts this to `UInt256.ofNat`. -/
-theorem number_bridge (state : YulState) (observableSlots : List Nat) :
-    legacyEvalBuiltinCallWithContext state.storage state.sender state.msgValue
-      state.thisAddress state.blockTimestamp state.blockNumber state.chainId
-      state.blobBaseFee state.selector state.calldata "number" [] =
-    some (uint256ToNat (UInt256.ofNat
-      (toSharedState state observableSlots).executionEnv.header.number)) := by
-  simp [legacyEvalBuiltinCallWithContext, toSharedState, mkBlockHeader, uint256ToNat,
-    UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
-
-/-- The `calldatasize` builtin reads the size of the current calldata payload.
-    The state bridge encodes Verity calldata as 4 selector bytes followed by
-    one 32-byte word per calldata element. Both sides reduce the observable
-    length into the `UInt256` word domain, so the bridge agrees even when the
-    byte length wraps modulo `2^256`. -/
-theorem calldatasize_bridge (state : YulState) (observableSlots : List Nat) :
-    legacyEvalBuiltinCallWithContext state.storage state.sender state.msgValue
-      state.thisAddress state.blockTimestamp state.blockNumber state.chainId
-      state.blobBaseFee state.selector state.calldata "calldatasize" [] =
-    some (uint256ToNat (UInt256.ofNat
-      (toSharedState state observableSlots).executionEnv.calldata.size)) := by
-  simp [legacyEvalBuiltinCallWithContext, toSharedState, uint256ToNat, UInt256.toNat,
-    UInt256.ofNat, Id.run, UInt256.size, calldataToByteArray_size]
-
-set_option maxHeartbeats 8000000 in
-/-- The `caller` builtin reads `sender` from Verity's state.
-    The state bridge stores `natToAddress state.sender` in `execEnv.source`.
-    EVMYulLean's CALLER extracts `source` as `UInt256.ofNat (Fin.val source)`.
-
-    Since `natToAddress n = ⟨n % 2^160, _⟩`, the EVMYulLean side returns
-    `UInt256.ofNat (n % 2^160)`. Verity returns `sender` (no modular reduction
-    in `legacyEvalBuiltinCallWithContext`). Agreement requires the hypothesis that
-    `sender < evmModulus` (it's an Ethereum address, so `< 2^160 < 2^256`). -/
-theorem caller_bridge (state : YulState) (observableSlots : List Nat)
-    (hSender : state.sender < 2 ^ 160) :
-    legacyEvalBuiltinCallWithContext state.storage state.sender state.msgValue
-      state.thisAddress state.blockTimestamp state.blockNumber state.chainId
-      state.blobBaseFee state.selector state.calldata "caller" [] =
-    some (uint256ToNat (UInt256.ofNat
-      (toSharedState state observableSlots).executionEnv.source.val)) := by
-  simp [legacyEvalBuiltinCallWithContext, toSharedState, natToAddress,
-    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run, UInt256.size]
-  omega
-
-set_option maxHeartbeats 8000000 in
-/-- The `address` builtin reads `thisAddress` from Verity's state.
-    The state bridge stores `natToAddress state.thisAddress` in `execEnv.codeOwner`.
-    EVMYulLean's ADDRESS extracts `codeOwner` as `UInt256.ofNat (Fin.val codeOwner)`.
-
-    Agreement requires `thisAddress < 2^160` (valid Ethereum address). -/
-theorem address_bridge (state : YulState) (observableSlots : List Nat)
-    (hAddr : state.thisAddress < 2 ^ 160) :
-    legacyEvalBuiltinCallWithContext state.storage state.sender state.msgValue
-      state.thisAddress state.blockTimestamp state.blockNumber state.chainId
-      state.blobBaseFee state.selector state.calldata "address" [] =
-    some (uint256ToNat (UInt256.ofNat
-      (toSharedState state observableSlots).executionEnv.codeOwner.val)) := by
-  simp [legacyEvalBuiltinCallWithContext, toSharedState, natToAddress,
-    uint256ToNat, UInt256.toNat, UInt256.ofNat, Id.run, evmModulus, UInt256.size]
-  omega
 
 /-! ## Storage Bridge Proofs -/
 

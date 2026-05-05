@@ -1,6 +1,5 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
-import Compiler.Proofs.YulGeneration.Codegen
 import Compiler.Proofs.YulGeneration.RuntimeTypes
 import Compiler.Codegen
 import EvmYul.Yul.Interpreter
@@ -435,6 +434,16 @@ theorem buildSwitch_noFuncDefs_noFallback_noReceive
     Compiler.CodegenCommon.callvalueGuard, yulStmtContainsFuncDef,
     yulStmtsContainFuncDef, yulSwitchCasesContainFuncDef] using hCases
 
+/-- Dispatch body emitted for one external function case. This native-harness
+copy avoids importing the legacy proof-interpreter `Codegen` module. -/
+def switchCaseBody (fn : IRFunction) : List YulStmt :=
+  Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
+    ([Compiler.CodegenCommon.calldatasizeGuard fn.params.length] ++ fn.body)
+
+/-- Switch cases generated from IR functions. -/
+def switchCases (fns : List IRFunction) : List (Nat × List YulStmt) :=
+  fns.map (fun fn => (fn.selector, switchCaseBody fn))
+
 /-- Source case list emitted inside `buildSwitch` before the optional default
 case is attached. Kept explicit so native lowering lemmas can speak about the
 actual generated dispatcher source list, not only the proof-side `switchCases`
@@ -442,23 +451,70 @@ abbreviation. -/
 def buildSwitchSourceCases (funcs : List IRFunction) :
     List (Nat × List YulStmt) :=
   funcs.map (fun fn =>
-    (fn.selector,
-      Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
-        ([Compiler.CodegenCommon.calldatasizeGuard fn.params.length] ++ fn.body)))
+    (fn.selector, switchCaseBody fn))
 
-/-- The case list emitted by `buildSwitch` is the proof-side `switchCases`
-abbreviation used by the IR/Yul preservation lemmas. -/
+/-- The case list emitted by `buildSwitch` is the native-harness switch case
+abbreviation. -/
 theorem buildSwitchSourceCases_eq_switchCases (funcs : List IRFunction) :
     buildSwitchSourceCases funcs = switchCases funcs := by
-  induction funcs with
+  rfl
+
+theorem find_switch_case_of_find_function
+    (fns : List IRFunction) (sel : Nat) (fn : IRFunction)
+    (hFind : fns.find? (fun f => f.selector == sel) = some fn) :
+    (switchCases fns).find? (fun (c, _) => c = sel) =
+      some (fn.selector, switchCaseBody fn) := by
+  induction fns with
   | nil =>
-      simp [buildSwitchSourceCases, switchCases]
-  | cons fn rest ih =>
-      cases hpay : fn.payable <;>
-        simp [buildSwitchSourceCases, switchCases, switchCaseBody,
-          Compiler.CodegenCommon.dispatchBody, Compiler.callvalueGuard,
-          Compiler.calldatasizeGuard, Compiler.CodegenCommon.callvalueGuard,
-          Compiler.CodegenCommon.calldatasizeGuard, hpay]
+      simp at hFind
+  | cons f rest ih =>
+      by_cases hsel : f.selector = sel
+      · have hselb : (f.selector == sel) = true := by
+          simp [hsel]
+        have hFind' : some f = some fn := by
+          simpa [List.find?, hselb] using hFind
+        cases hFind'
+        simp [switchCases, hsel]
+      · have hselb : (f.selector == sel) = false := by
+          simp [hsel]
+        have hFind' : rest.find? (fun f => f.selector == sel) = some fn := by
+          simpa [List.find?, hselb] using hFind
+        have ih' := ih hFind'
+        simpa [switchCases, List.find?, hsel] using ih'
+
+theorem find_switch_case_of_find_function_eq_selector
+    (fns : List IRFunction) (sel : Nat) (fn : IRFunction)
+    (hFind : fns.find? (fun f => f.selector == sel) = some fn) :
+    (switchCases fns).find? (fun (c, _) => c = sel) =
+      some (sel, switchCaseBody fn) := by
+  have hCase := find_switch_case_of_find_function fns sel fn hFind
+  have hSel : fn.selector = sel := by
+    have h := List.find?_some hFind
+    simp at h
+    exact h
+  simpa [hSel] using hCase
+
+theorem find_switch_case_of_find_function_none
+    (fns : List IRFunction) (sel : Nat)
+    (hFind : fns.find? (fun f => f.selector == sel) = none) :
+    (switchCases fns).find? (fun (c, _) => c = sel) = none := by
+  induction fns with
+  | nil =>
+      simp at hFind
+      simp [switchCases]
+  | cons f rest ih =>
+      by_cases hsel : f.selector = sel
+      · have hselb : (f.selector == sel) = true := by
+          simp [hsel]
+        have hFind' : (some f : Option IRFunction) = none := by
+          simp [List.find?, hselb] at hFind
+        cases hFind'
+      · have hselb : (f.selector == sel) = false := by
+          simp [hsel]
+        have hFind' : rest.find? (fun f => f.selector == sel) = none := by
+          simpa [List.find?, hselb] using hFind
+        have ih' := ih hFind'
+        simpa [switchCases, List.find?, hsel] using ih'
 
 /-- Generated-dispatcher selector hit specialized to `IRFunction` lookup.
 
@@ -481,8 +537,7 @@ theorem lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function
       (switchCases funcs).find? (fun entry => entry.1 == selector) =
         some (selector, switchCaseBody fn) := by
     simpa using
-      (Compiler.Proofs.YulGeneration.find_switch_case_of_find_function_eq_selector
-        funcs selector fn hFind)
+      (find_switch_case_of_find_function_eq_selector funcs selector fn hFind)
   exact Backends.lowerSwitchCasesNativeWithSwitchIds_find?_some
     reservedNames nextSwitchId final selector selector (switchCaseBody fn)
     (switchCases funcs) cases' hLower hCase
@@ -502,8 +557,7 @@ theorem lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function
   have hCase :
       (switchCases funcs).find? (fun entry => entry.1 == selector) = none := by
     simpa using
-      (Compiler.Proofs.YulGeneration.find_switch_case_of_find_function_none
-        funcs selector hFind)
+      (find_switch_case_of_find_function_none funcs selector hFind)
   exact Backends.lowerSwitchCasesNativeWithSwitchIds_find?_none
     reservedNames nextSwitchId final selector (switchCases funcs) cases'
     hLower hCase
@@ -1450,16 +1504,7 @@ theorem generatedRuntimeNativeFragment_emitYul_runtimeCode_noFallback_noReceive
       contract hInternals hExternalBodies hNoFallback hNoReceive
   have hBodies := generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_emitYul_runtimeCode
     contract hInternalBodies
-  have hNames' :
-      generatedRuntimeFunctionNamesUnique (Compiler.runtimeCode contract) = true := by
-    simpa using hNames
-  have hDispatcher' :
-      generatedRuntimeDispatcherHasNoFuncDefs (Compiler.runtimeCode contract) = true := by
-    simpa using hDispatcher
-  have hBodies' :
-      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs (Compiler.runtimeCode contract) = true := by
-    simpa using hBodies
-  simp [generatedRuntimeNativeFragment, hNames', hDispatcher', hBodies']
+  simp [generatedRuntimeNativeFragment, hNames, hDispatcher, hBodies]
 
 def unsupportedGeneratedRuntimeNativeFragmentError : AdapterError :=
   "native EVMYulLean generated runtime fragment check failed"
