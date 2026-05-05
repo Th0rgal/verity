@@ -660,10 +660,11 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_reference_oracle_names_guard_rejects_missing_explicit_evmyullean_retarget(self) -> None:
-        retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
-            "private theorem yulCodegen_preserves_semantics_evmYulLeanBackend",
-            "private theorem yulCodegen_preserves_semantics_evmYulLean_reference_hidden",
+    def test_reference_oracle_names_guard_rejects_reintroduced_evmyullean_retarget(self) -> None:
+        retarget_text = (
+            check.RETARGET.read_text(encoding="utf-8")
+            + "\nprivate theorem yulCodegen_preserves_semantics_evmYulLeanBackend "
+            + ": True := by trivial\n"
         )
         errors = check.check_reference_oracle_names(
             check.END_TO_END.read_text(encoding="utf-8"),
@@ -671,15 +672,15 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.PRESERVATION.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("yulCodegen_preserves_semantics_evmYulLeanBackend" in error for error in errors),
+            any("transition-only legacy Layer-3 retarget theorem" in error for error in errors),
             errors,
         )
 
     def test_reference_oracle_names_guard_rejects_public_evmyullean_retarget(self) -> None:
-        retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
-            "private theorem yulCodegen_preserves_semantics_evmYulLeanBackend",
-            "theorem yulCodegen_preserves_semantics_evmYulLeanBackend",
-            1,
+        retarget_text = (
+            check.RETARGET.read_text(encoding="utf-8")
+            + "\ntheorem yulCodegen_preserves_semantics_evmYulLeanBackend "
+            + ": True := by trivial\n"
         )
         errors = check.check_reference_oracle_names(
             check.END_TO_END.read_text(encoding="utf-8"),
@@ -687,7 +688,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.PRESERVATION.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("public proof authority" in error for error in errors),
+            any("transition-only legacy Layer-3 retarget theorem" in error for error in errors),
             errors,
         )
 
@@ -721,10 +722,11 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_reference_oracle_names_guard_rejects_missing_explicit_evmyullean_fuel_wrapper_retarget(self) -> None:
-        retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
-            "private theorem yulCodegen_preserves_semantics_evmYulLeanBackend",
-            "yulCodegen_preserves_semantics_evmYulLeanFuelWrapper_reference_hidden",
+    def test_reference_oracle_names_guard_rejects_reintroduced_evmyullean_via_reference_retarget(self) -> None:
+        retarget_text = (
+            check.RETARGET.read_text(encoding="utf-8")
+            + "\nprivate theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle "
+            + ": True := by trivial\n"
         )
         errors = check.check_reference_oracle_names(
             check.END_TO_END.read_text(encoding="utf-8"),
@@ -732,14 +734,14 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.PRESERVATION.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("yulCodegen_preserves_semantics_evmYulLeanBackend" in error for error in errors),
+            any("transition-only legacy Layer-3 retarget theorem" in error for error in errors),
             errors,
         )
 
     def test_reference_oracle_names_guard_rejects_end_to_end_compat_alias_call(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "yulCodegen_preserves_semantics_evmYulLeanBackend",
-            "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle",
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\n-- yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle\n"
         )
         errors = check.check_reference_oracle_names(
             end_to_end_text,
@@ -780,6 +782,65 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertTrue(
             any("layers2_3_ir_matches_native_evmYulLean_via_reference_oracle_of_evmYulLean_bridge" in error for error in errors),
+            errors,
+        )
+
+    def test_legacy_proof_boundary_accepts_current_shape(self) -> None:
+        errors = check.check_legacy_proof_boundary(
+            [
+                ("Compiler/Proofs/EndToEnd.lean", check.END_TO_END.read_text(encoding="utf-8")),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean",
+                    check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgePredicates.lean",
+                    check.BRIDGE_PREDICATES.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean",
+                    check.BODY_CLOSURE.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean",
+                    check.SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
+                ),
+            ],
+            [
+                (path.relative_to(check.ROOT).as_posix(), path.read_text(encoding="utf-8"))
+                for path in check.LEGACY_PROOF_FILES
+            ],
+        )
+        self.assertEqual(errors, [])
+
+    def test_legacy_proof_boundary_rejects_public_boundary_import(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\nimport Compiler.Proofs.YulGeneration.Equivalence\n"
+        )
+        errors = check.check_legacy_proof_boundary(
+            [("Compiler/Proofs/EndToEnd.lean", end_to_end_text)],
+            [
+                (path.relative_to(check.ROOT).as_posix(), path.read_text(encoding="utf-8"))
+                for path in check.LEGACY_PROOF_FILES
+            ],
+        )
+        self.assertTrue(
+            any("transition-only legacy proof module" in error for error in errors),
+            errors,
+        )
+
+    def test_legacy_proof_boundary_rejects_public_legacy_declaration(self) -> None:
+        legacy_text = (
+            check.LEGACY_PROOF_FILES[1].read_text(encoding="utf-8")
+            + "\ntheorem leakedLegacyTransitionAuthority : True := by trivial\n"
+        )
+        errors = check.check_legacy_proof_boundary(
+            [],
+            [("Compiler/Proofs/YulGeneration/Equivalence.lean", legacy_text)],
+        )
+        self.assertTrue(
+            any("leakedLegacyTransitionAuthority" in error for error in errors),
             errors,
         )
 

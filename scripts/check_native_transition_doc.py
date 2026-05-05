@@ -82,6 +82,20 @@ NATIVE_SMOKE_TEST = (
     / "Backends"
     / "EvmYulLeanNativeSmokeTest.lean"
 )
+LEGACY_PROOF_MODULES = (
+    "Compiler.Proofs.YulGeneration.Codegen",
+    "Compiler.Proofs.YulGeneration.Equivalence",
+    "Compiler.Proofs.YulGeneration.StatementEquivalence",
+    "Compiler.Proofs.YulGeneration.Preservation",
+    "Compiler.Proofs.YulGeneration.Lemmas",
+)
+LEGACY_PROOF_FILES = (
+    ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Codegen.lean",
+    ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Equivalence.lean",
+    ROOT / "Compiler" / "Proofs" / "YulGeneration" / "StatementEquivalence.lean",
+    ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Preservation.lean",
+    ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Lemmas.lean",
+)
 
 REQUIRED_SNIPPETS = (
     "interpretYulRuntimeWithBackend .evmYulLean",
@@ -1157,6 +1171,39 @@ def check_reference_oracle_names(
     return errors
 
 
+def check_legacy_proof_boundary(
+    public_boundary_files: list[tuple[str, str]],
+    legacy_proof_files: list[tuple[str, str]],
+) -> list[str]:
+    """Keep transition-only legacy proof modules below the native public path."""
+
+    errors: list[str] = []
+
+    for label, text in public_boundary_files:
+        for module in LEGACY_PROOF_MODULES:
+            import_line = f"import {module}"
+            if import_line in text:
+                errors.append(
+                    f"{label} must not import transition-only legacy proof "
+                    f"module `{module}`"
+                )
+
+    public_decl_pattern = re.compile(
+        r"^\s*(?:@[^\n]*\n\s*)*"
+        r"(?!(?:private|namespace|end|open|section|variable|include|omit|attribute)\b)"
+        r"(def|theorem|lemma|abbrev|inductive|structure)\s+([A-Za-z0-9_'.]+)\b",
+        re.MULTILINE,
+    )
+    for label, text in legacy_proof_files:
+        for match in public_decl_pattern.finditer(text):
+            errors.append(
+                f"{label} must not expose transition-only legacy declaration "
+                f"`{match.group(2)}` as public proof authority"
+            )
+
+    return errors
+
+
 def check_native_closure_import_boundary(
     bridge_predicates_text: str,
     body_closure_text: str,
@@ -1300,6 +1347,7 @@ def main() -> int:
         PRESERVATION,
         NATIVE_ADAPTER,
         NATIVE_SMOKE_TEST,
+        *LEGACY_PROOF_FILES,
     ):
         if not path.exists():
             print(f"Missing: {path.relative_to(ROOT)}", file=sys.stderr)
@@ -1333,6 +1381,33 @@ def main() -> int:
             BRIDGE_PREDICATES.read_text(encoding="utf-8"),
             BODY_CLOSURE.read_text(encoding="utf-8"),
             SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
+        )
+    )
+    errors.extend(
+        check_legacy_proof_boundary(
+            [
+                ("Compiler/Proofs/EndToEnd.lean", END_TO_END.read_text(encoding="utf-8")),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean",
+                    native_harness_text,
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgePredicates.lean",
+                    BRIDGE_PREDICATES.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean",
+                    BODY_CLOSURE.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean",
+                    SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
+                ),
+            ],
+            [
+                (path.relative_to(ROOT).as_posix(), path.read_text(encoding="utf-8"))
+                for path in LEGACY_PROOF_FILES
+            ],
         )
     )
     errors.extend(
