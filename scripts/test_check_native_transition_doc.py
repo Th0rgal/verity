@@ -213,6 +213,63 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_theorem_target_guard_rejects_missing_call_dispatcher_match_surface(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "def nativeGeneratedCallDispatcherMatchesIROn",
+            "def nativeGeneratedHiddenCallDispatcherMatchesIROn",
+            1,
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("nativeGeneratedCallDispatcherMatchesIROn" in error for error in errors),
+            errors,
+        )
+
+    def test_public_theorem_target_guard_rejects_missing_generated_call_dispatcher_wrapper(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "theorem compile_preserves_native_evmYulLean_of_generated_callDispatcher_match",
+            "theorem compile_preserves_native_evmYulLean_of_generated_hiddenCallDispatcher_match",
+            1,
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("generated_callDispatcher_match" in error for error in errors),
+            errors,
+        )
+
+    def test_public_theorem_target_guard_rejects_missing_lowered_call_dispatcher_wrappers(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8")
+        end_to_end_text = end_to_end_text.replace(
+            "theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping",
+            "theorem compile_preserves_native_evmYulLean_of_lowered_generated_hiddenCallDispatcher_noMapping",
+            1,
+        ).replace(
+            "theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping",
+            "theorem compile_preserves_native_evmYulLean_of_lowered_generated_hiddenCallDispatcher_mapping",
+            1,
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("lowered_generated_callDispatcher_noMapping" in error for error in errors),
+            errors,
+        )
+        self.assertTrue(
+            any("lowered_generated_callDispatcher_mapping" in error for error in errors),
+            errors,
+        )
+
     def test_public_theorem_target_guard_rejects_missing_runtime_dispatcher_stmts_canonical_native_fuel_seam(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
             "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel",

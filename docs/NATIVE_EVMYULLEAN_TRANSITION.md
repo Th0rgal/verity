@@ -45,13 +45,21 @@ materializes pre-state storage for those slots.
   `nativeResultsMatchOn`, `sourceResultMatchesNativeOn`, the source/native
   composition theorem over that result surface,
   `compile_preserves_native_evmYulLean_of_nativeResultsMatchOn`,
-  `nativeGeneratedDispatcherExecMatchesIROn`, the supported-compiler
+  `nativeGeneratedDispatcherExecMatchesIROn`,
+  `nativeGeneratedCallDispatcherMatchesIROn`, the supported-compiler
   dispatcher-exec wrapper
   `compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match` at
-  canonical generated-runtime fuel, the helper-free dispatcher lowering wrapper
+  canonical generated-runtime fuel, the generated `EvmYul.Yul.callDispatcher`
+  wrapper
+  `compile_preserves_native_evmYulLean_of_generated_callDispatcher_match`, the
+  helper-free dispatcher lowering wrapper
   `compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping`,
+  its call-dispatcher sibling
+  `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping`,
   the mapping-helper dispatcher lowering wrapper
   `compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_mapping`,
+  its call-dispatcher sibling
+  `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping`,
   and the concrete SimpleStorage native theorem. The dispatcher-exec wrappers
   derive static ABI parameter coverage from `SupportedSpec` and expose
   source-body closure as
@@ -62,6 +70,9 @@ materializes pre-state storage for those slots.
   obligation remains explicit. On the helper-free and mapping-helper paths, the
   public wrapper theorems now accept the concrete generated-dispatcher lowering
   and construct the full `lowerRuntimeContractNative` result internally. The
+  call-dispatcher wrappers additionally expose the actual generated
+  `EvmYul.Yul.callDispatcher` premise and derive the dispatcher-exec projection
+  internally. The
   concrete SimpleStorage native theorem uses the same explicit
   native-environment facts instead of an opaque validation premise. The opaque
   arbitrary-fuel
@@ -143,7 +154,10 @@ materializes pre-state storage for those slots.
   dispatcher shell. The public
   `compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping`
   wrapper consumes that concrete dispatcher lowering directly and keeps the
-  full emitted-runtime lowering equality internal. The mapping-helper side of
+  full emitted-runtime lowering equality internal. Its
+  `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping`
+  sibling exposes the generated `EvmYul.Yul.callDispatcher` result surface while
+  keeping the same full emitted-runtime lowering equality internal. The mapping-helper side of
   the same boundary is now named by `nativeMappingSlotFunctionDefinition` and
   `lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero`, which
   package the concrete native lowering of the generated `mappingSlot` helper at
@@ -156,7 +170,10 @@ materializes pre-state storage for those slots.
   full emitted-runtime reserved-name context. The public
   `compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_mapping`
   wrapper consumes that reserved-context dispatcher lowering directly and keeps
-  full emitted-runtime lowering equality internal. Successful full native lowering
+  full emitted-runtime lowering equality internal. Its
+  `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping`
+  sibling keeps the reserved-context emitted-runtime lowering internal while
+  exposing the generated `EvmYul.Yul.callDispatcher` premise. Successful full native lowering
   can now also be peeled back to the concrete dispatcher lowering by
   `lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher`,
   `lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher`,
