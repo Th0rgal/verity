@@ -4,21 +4,23 @@ This document defines what it means to finish the transition from Verity's
 custom Yul interpreter to native EVMYulLean execution as the authoritative
 compiler-verification target.
 
-It is stricter than the current storage-semantics milestone. The SimpleStorage
+It is stricter than the current native EndToEnd surface. The SimpleStorage
 native theorem now discharges its retrieve, store, and selector bridge cases,
-but the generic compiler theorem stack still uses Verity's custom Yul
-statement interpreter through the EVMYulLean-backed builtin backend:
+and the public generated-dispatcher theorem family targets native EVMYulLean
+dispatcher execution. Lower transition evidence still records Verity's custom
+Yul statement interpreter path through the EVMYulLean-backed builtin backend:
 
 ```lean
 interpretYulRuntimeWithBackend .evmYulLean
 ```
 
-That path proves the custom interpreter agrees with EVMYulLean-backed builtin
-semantics for the bridged fragment through
-`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle`. The
-final transition is complete only when the public compiler-correctness theorem
-targets native EVMYulLean execution directly, or an equivalent wrapper whose
-only execution engine is `EvmYul.Yul.callDispatcher`.
+The removed transition theorem name
+`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle` marks
+the old shape: composing Layer 3 through the reference oracle before rewriting
+to an EVMYulLean-backed builtin executor. The final transition is complete only
+when the public compiler-correctness theorem targets native EVMYulLean
+execution directly, or an equivalent wrapper whose only execution engine is
+`EvmYul.Yul.callDispatcher`.
 
 ## Current Baseline
 
@@ -26,11 +28,14 @@ The current baseline is:
 
 - Layer 2 proves semantic preservation from supported `CompilationModel`
   programs to IR.
-- Layer 3 proves IR-to-Yul preservation over Verity's custom statement
-  interpreter, retargeted to the `.evmYulLean` backend for builtin execution.
-- `Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative` and
-  `interpretIRRuntimeNative` execute through native EVMYulLean, but the generic
-  native-vs-interpreter agreement is still an explicit theorem seam.
+- Public EndToEnd proofs now target
+  `Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative`,
+  which executes through native EVMYulLean. Helper-free and mapping-helper
+  generated-dispatcher wrappers consume concrete dispatcher lowering and build
+  full emitted-runtime native lowering internally.
+- Lower Layer 3 transition modules still contain isolated reference-oracle and
+  backend-wrapper evidence for the bridged fragment; that evidence is not the
+  public EndToEnd proof authority.
 - `simpleStorage_endToEnd_native_evmYulLean` is a concrete native theorem with
   no public retrieve-hit, store-hit, or selector-miss bridge premises.
 - The active compiler stack has zero project-level Lean axioms and zero `sorry`
