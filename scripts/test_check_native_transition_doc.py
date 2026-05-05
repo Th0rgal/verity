@@ -852,6 +852,10 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
                     check.NATIVE_HARNESS.read_text(encoding="utf-8"),
                 ),
                 (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
+                    check.NATIVE_ADAPTER.read_text(encoding="utf-8"),
+                ),
+                (
                     "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgePredicates.lean",
                     check.BRIDGE_PREDICATES.read_text(encoding="utf-8"),
                 ),
@@ -919,6 +923,45 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertTrue(
             any("EvmYulLeanRetarget" in error for error in errors),
+            errors,
+        )
+
+    def test_legacy_proof_boundary_rejects_root_bridge_lemmas_import(self) -> None:
+        root_compiler_text = (
+            check.ROOT_COMPILER.read_text(encoding="utf-8")
+            + "\nimport Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas\n"
+        )
+        errors = check.check_legacy_proof_boundary(
+            [("Compiler.lean", root_compiler_text)],
+            [
+                (path.relative_to(check.ROOT).as_posix(), path.read_text(encoding="utf-8"))
+                for path in check.LEGACY_PROOF_FILES
+            ],
+        )
+        self.assertTrue(
+            any("EvmYulLeanBridgeLemmas" in error for error in errors),
+            errors,
+        )
+
+    def test_legacy_proof_boundary_rejects_adapter_reference_oracle_import(self) -> None:
+        adapter_text = (
+            check.NATIVE_ADAPTER.read_text(encoding="utf-8")
+            + "\nimport Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins\n"
+        )
+        errors = check.check_legacy_proof_boundary(
+            [
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
+                    adapter_text,
+                )
+            ],
+            [
+                (path.relative_to(check.ROOT).as_posix(), path.read_text(encoding="utf-8"))
+                for path in check.LEGACY_PROOF_FILES
+            ],
+        )
+        self.assertTrue(
+            any("legacy ReferenceOracle modules" in error for error in errors),
             errors,
         )
 

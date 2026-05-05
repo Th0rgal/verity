@@ -42,6 +42,14 @@ BRIDGE_PREDICATES = (
     / "Backends"
     / "EvmYulLeanBridgePredicates.lean"
 )
+BRIDGE_LEMMAS = (
+    ROOT
+    / "Compiler"
+    / "Proofs"
+    / "YulGeneration"
+    / "Backends"
+    / "EvmYulLeanBridgeLemmas.lean"
+)
 BODY_CLOSURE = (
     ROOT
     / "Compiler"
@@ -92,6 +100,7 @@ LEGACY_PROOF_MODULES = (
 )
 TRANSITION_ONLY_PUBLIC_FORBIDDEN_MODULES = LEGACY_PROOF_MODULES + (
     "Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget",
+    "Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas",
 )
 LEGACY_PROOF_FILES = (
     ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Codegen.lean",
@@ -1405,6 +1414,7 @@ def main() -> int:
         NATIVE_HARNESS,
         RETARGET,
         BRIDGE_PREDICATES,
+        BRIDGE_LEMMAS,
         BODY_CLOSURE,
         SOURCE_EXPR_CLOSURE,
         BUILTINS,
@@ -1455,6 +1465,10 @@ def main() -> int:
                 (
                     "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean",
                     native_harness_text,
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
+                    NATIVE_ADAPTER.read_text(encoding="utf-8"),
                 ),
                 (
                     "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgePredicates.lean",
