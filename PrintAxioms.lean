@@ -4263,4 +4263,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4100 theorems/lemmas (3105 public, 995 private, 0 sorry'd)
+-- Total: 4087 theorems/lemmas (3100 public, 987 private, 0 sorry'd)
