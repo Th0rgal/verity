@@ -1470,6 +1470,34 @@ def validateNativeRuntimeEnvironment
     validateNativeRuntimeEnvironment runtimeCode tx = .ok () := by
   simp [validateNativeRuntimeEnvironment, hChainId, hBlobBaseFee, hNoHeader]
 
+@[simp] theorem validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+    (runtimeCode : List YulStmt)
+    (tx : IRTransaction)
+    (hChainId : nativeChainIdRepresentable tx.chainId = true)
+    (hBlobBaseFee : nativeBlobBaseFeeRepresentable tx.blobBaseFee = true)
+    (hNoHeader :
+      nativeRuntimePathUsesUnsupportedHeaderBuiltin runtimeCode
+        (YulTransaction.ofIR tx) = false) :
+    validateNativeRuntimeEnvironment runtimeCode (YulTransaction.ofIR tx) =
+      .ok () := by
+  simpa [YulTransaction.ofIR] using
+    validateNativeRuntimeEnvironment_representableEnvironment
+      runtimeCode (YulTransaction.ofIR tx) hChainId hBlobBaseFee hNoHeader
+
+@[simp] theorem validateNativeRuntimeEnvironment_ofIR_globalDefaults
+    (runtimeCode : List YulStmt)
+    (tx : IRTransaction)
+    (hChainId : tx.chainId = EvmYul.chainId)
+    (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
+    (hNoHeader :
+      nativeRuntimePathUsesUnsupportedHeaderBuiltin runtimeCode
+        (YulTransaction.ofIR tx) = false) :
+    validateNativeRuntimeEnvironment runtimeCode (YulTransaction.ofIR tx) =
+      .ok () := by
+  simpa [YulTransaction.ofIR, hChainId, hBlobBaseFee] using
+    validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+      runtimeCode tx (by simp [hChainId]) (by simp [hBlobBaseFee]) hNoHeader
+
 @[simp] theorem validateNativeRuntimeEnvironment_unsupportedChainId
     (runtimeCode : List YulStmt)
     (tx : YulTransaction)

@@ -159,7 +159,11 @@ scope so the native path does not look more complete than it is:
   defaults. The native harness names the remaining unbridged boundary with
   `initialState_unbridgedEnvironmentDefaults`, pinning base-fee/blob fields and
   native `chainid` to their current EVMYulLean default/global behavior until
-  the follow-up widens the state bridge. The
+  the follow-up widens the state bridge. The helper theorems
+  `validateNativeRuntimeEnvironment_ofIR_representableEnvironment` and
+  `validateNativeRuntimeEnvironment_ofIR_globalDefaults` now package the common
+  `YulTransaction.ofIR` validation cases once selected-path unsupported header
+  builtin use has been ruled out. The
   `verity_contract` surface now accepts monadic environment reads such as
   `let t <- blockTimestamp`, `let t <- Verity.blockTimestamp`, `blockNumber`,
   `chainid`, `blobbasefee`, `contractAddress`, `msgSender`, and `msgValue`, and the

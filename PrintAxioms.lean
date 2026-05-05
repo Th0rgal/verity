@@ -3208,6 +3208,8 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_noChainId_noBlobBaseFee
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_representableBlobBaseFee
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_representableEnvironment
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_globalDefaults
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedChainId
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedBlobBaseFee
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedHeaderBuiltin
@@ -4198,4 +4200,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4022 theorems/lemmas (3034 public, 988 private, 0 sorry'd)
+-- Total: 4024 theorems/lemmas (3036 public, 988 private, 0 sorry'd)

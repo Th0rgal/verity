@@ -105,6 +105,10 @@ N8 public Layer 3 theorem flip
   coverage. `chainid` and `blobbasefee` fail closed unless representable.
   Header-derived builtins without Verity transaction fields now also fail
   closed on selected native runtime paths.
+  `validateNativeRuntimeEnvironment_ofIR_representableEnvironment` and
+  `validateNativeRuntimeEnvironment_ofIR_globalDefaults` package the common
+  `YulTransaction.ofIR` validation cases once unsupported selected-path header
+  builtin use has been ruled out.
 - **Definition of done**:
   - Every environment field reachable from generated Yul is bridged, explicitly
     defaulted under a theorem invariant, or rejected fail-closed.

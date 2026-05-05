@@ -223,6 +223,8 @@ def check_public_theorem_target(
         "theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match",
         "theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match",
         "def nativeIRRuntimeMatchesIR",
+        "theorem validateNativeRuntimeEnvironment_ofIR_representableEnvironment",
+        "theorem validateNativeRuntimeEnvironment_ofIR_globalDefaults",
         "theorem nativeDispatcherExecMatchesIRPositive_of_project_eq_match",
         "theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match",
         "theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match",
