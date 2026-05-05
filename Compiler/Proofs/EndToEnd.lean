@@ -65,7 +65,7 @@ abbrev nativeIRRuntimeMatchesIR :=
   Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR
 
 /-- Positive-fuel raw native dispatcher-exec target against IR directly. -/
-abbrev nativeDispatcherExecMatchesIRPositive :=
+private abbrev nativeDispatcherExecMatchesIRPositive :=
   Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive
 
 /-- Canonical native dispatcher fuel for the generated runtime surface. -/
@@ -79,7 +79,7 @@ noncomputable abbrev nativeRuntimeFuel (contract : IRContract) : Nat :=
 
 /-- Projected native dispatcher-exec result equality used by the public native
 EndToEnd seams. -/
-abbrev nativeProjectedDispatcherResultEq
+private abbrev nativeProjectedDispatcherResultEq
     (fuel' : Nat) (contract : IRContract) (tx : IRTransaction)
     (state : IRState) (observableSlots : List Nat)
     (nativeContract : EvmYul.Yul.Ast.YulContract) (nativeYul : YulResult) :
@@ -361,7 +361,7 @@ private theorem layer3_contract_preserves_semantics_native
 
 /-- Native Layer 3 generated-shape variant at raw lowered-dispatcher exec on
 the direct native-vs-IR target. -/
-theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match
+private theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match
     (fuel' : Nat) (contract : IRContract) (tx : IRTransaction)
     (initialState : IRState) (observableSlots : List Nat)
     (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -393,7 +393,7 @@ theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_p
 
 /-- Native Layer 3 generated-shape variant at raw lowered-dispatcher exec using
 canonical runtime-size fuel. -/
-theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match_canonicalFuel
     (contract : IRContract) (tx : IRTransaction)
     (initialState : IRState) (observableSlots : List Nat)
     (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -715,7 +715,7 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher
       spec selectors hSupported irContract hCompile)
     hLower
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -748,7 +748,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_po
 
 /-- Native runtime theorem using canonical runtime-size fuel for the external
 body-shape dispatcher-exec surface. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match_canonicalFuel
     {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -770,7 +770,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_po
   nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match
     hCompile hSupported hExternalBodies hLower hEnv hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -795,7 +795,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_po
 
 /-- Native runtime theorem using canonical runtime-size fuel for the public
 positive dispatcher-exec surface. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_canonicalFuel
     {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -819,7 +819,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_po
   nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
     hCompile hSupported hStaticParams hSafeBodies hLower hEnv hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -853,7 +853,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_po
 
 /-- Canonical-fuel positive dispatcher theorem with `YulTransaction.ofIR`
 environment validation discharged from representable environment facts. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment_canonicalFuel
     {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -892,7 +892,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_po
 /-- Supported compiler-produced positive dispatcher theorem with
 `YulTransaction.ofIR` environment validation discharged from the EVMYulLean
 global default environment. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -922,7 +922,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_po
 
 /-- Canonical-fuel positive dispatcher theorem with `YulTransaction.ofIR`
 environment validation discharged from the EVMYulLean global defaults. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel
     {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -954,7 +954,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_po
       hNoHeader)
     hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -989,7 +989,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_pr
 
 /-- Native runtime theorem using canonical runtime-size fuel for the external
 body-shape projected dispatcher-exec surface. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match_canonicalFuel
     {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1013,7 +1013,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_pr
   nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match
     hCompile hSupported hExternalBodies hLower hEnv hProject hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1042,7 +1042,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_pr
 
 /-- Native runtime theorem using canonical runtime-size fuel for the public
 projected-result dispatcher-exec surface. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_canonicalFuel
     {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1068,7 +1068,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_pr
   nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure
     hCompile hSupported hStaticParams hSafeBodies hLower hEnv hProject hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1095,7 +1095,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_
   · exact hEnv
   · exact hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1126,7 +1126,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
   · exact hProject
   · exact hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1155,7 +1155,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_
   · exact hEnv
   · exact hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1191,7 +1191,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
 
 /-- No-mapping variant that starts from successful full runtime lowering and
 then exposes the generated dispatcher lowering internally. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1223,7 +1223,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatche
 
 /-- No-mapping projected-result variant that starts from successful full runtime
 lowering and then exposes the generated dispatcher lowering internally. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1259,7 +1259,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatche
 /-- Mapping-helper variant that starts from successful full runtime lowering
 and then exposes the generated dispatcher lowering under the emitted runtime's
 reserved-name context internally. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1294,7 +1294,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatche
 /-- Mapping-helper projected-result variant that starts from successful full
 runtime lowering and then exposes the generated dispatcher lowering under the
 emitted runtime's reserved-name context internally. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1332,7 +1332,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatche
 
 /-- Canonical-fuel no-mapping variant that starts from successful full runtime
 lowering and exposes the generated dispatcher lowering internally. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -1362,7 +1362,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatche
 
 /-- Canonical-fuel no-mapping projected variant that starts from successful
 full runtime lowering and exposes the generated dispatcher lowering internally. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -1396,7 +1396,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatche
 
 /-- Canonical-fuel mapping-helper variant that starts from successful full
 runtime lowering and exposes the generated dispatcher lowering internally. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -1427,7 +1427,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatche
 
 /-- Canonical-fuel mapping-helper projected variant that starts from successful
 full runtime lowering and exposes the generated dispatcher lowering internally. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -1462,7 +1462,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatche
     hCompile hSupported hMapping hStaticParams hSafeBodies hLower hEnv
     hProject hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1497,7 +1497,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_
       hNoHeader)
     hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1528,7 +1528,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_
       hNoHeader)
     hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1566,7 +1566,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
       hNoHeader)
     hProject hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1600,7 +1600,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
       hNoHeader)
     hProject hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1637,7 +1637,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_
       hNoHeader)
     hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1670,7 +1670,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_
       hNoHeader)
     hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1711,7 +1711,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
       hNoHeader)
     hProject hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -1750,7 +1750,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
 
 /-- Canonical-fuel native runtime theorem for no-mapping positive
 dispatcher-statement lowering with an already validated native environment. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {dispatcher : List EvmYul.Yul.Ast.Stmt}
@@ -1777,7 +1777,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_
 
 /-- Canonical-fuel native runtime theorem for no-mapping projected
 dispatcher-statement lowering with an already validated native environment. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {dispatcher : List EvmYul.Yul.Ast.Stmt}
@@ -1808,7 +1808,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
 
 /-- Canonical-fuel native runtime theorem for mapping-reserved positive
 dispatcher-statement lowering with an already validated native environment. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {dispatcher : List EvmYul.Yul.Ast.Stmt}
@@ -1838,7 +1838,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_
 
 /-- Canonical-fuel native runtime theorem for mapping-reserved projected
 dispatcher-statement lowering with an already validated native environment. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {dispatcher : List EvmYul.Yul.Ast.Stmt}
@@ -1872,7 +1872,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
 
 /-- Canonical-fuel native runtime theorem for no-mapping positive
 dispatcher-statement lowering with `YulTransaction.ofIR` environment facts. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {dispatcher : List EvmYul.Yul.Ast.Stmt}
@@ -1907,7 +1907,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_
 
 /-- Canonical-fuel native runtime theorem for no-mapping positive
 dispatcher-statement lowering with EVMYulLean global defaults. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {dispatcher : List EvmYul.Yul.Ast.Stmt}
@@ -1938,7 +1938,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_
 
 /-- Canonical-fuel native runtime theorem for no-mapping projected
 dispatcher-statement lowering with `YulTransaction.ofIR` environment facts. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {dispatcher : List EvmYul.Yul.Ast.Stmt}
@@ -1977,7 +1977,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
 
 /-- Canonical-fuel native runtime theorem for no-mapping projected
 dispatcher-statement lowering with EVMYulLean global defaults. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {dispatcher : List EvmYul.Yul.Ast.Stmt}
@@ -2012,7 +2012,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
 
 /-- Canonical-fuel native runtime theorem for mapping-reserved positive
 dispatcher-statement lowering with `YulTransaction.ofIR` environment facts. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {dispatcher : List EvmYul.Yul.Ast.Stmt}
@@ -2050,7 +2050,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_
 
 /-- Canonical-fuel native runtime theorem for mapping-reserved positive
 dispatcher-statement lowering with EVMYulLean global defaults. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {dispatcher : List EvmYul.Yul.Ast.Stmt}
@@ -2084,7 +2084,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_
 
 /-- Canonical-fuel native runtime theorem for mapping-reserved projected
 dispatcher-statement lowering with `YulTransaction.ofIR` environment facts. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {dispatcher : List EvmYul.Yul.Ast.Stmt}
@@ -2126,7 +2126,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
 
 /-- Canonical-fuel native runtime theorem for mapping-reserved projected
 dispatcher-statement lowering with EVMYulLean global defaults. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract} {tx : IRTransaction} {state : IRState}
     {observableSlots : List Nat} {dispatcher : List EvmYul.Yul.Ast.Stmt}
@@ -2162,7 +2162,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
     hCompile hSupported hMapping hStaticParams hSafeBodies hLowerDispatcher
     hChainId hBlobBaseFee hNoHeader hProject hMatch
 
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -2200,7 +2200,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_pr
 
 /-- Canonical-fuel projected-result theorem with `YulTransaction.ofIR`
 environment validation discharged from representable environment facts. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment_canonicalFuel
     {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -2241,7 +2241,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_pr
 /-- Supported compiler-produced projected-result theorem with
 `YulTransaction.ofIR` environment validation discharged from the EVMYulLean
 global default environment. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -2275,7 +2275,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_pr
 
 /-- Canonical-fuel projected-result theorem with `YulTransaction.ofIR`
 environment validation discharged from the EVMYulLean global defaults. -/
-theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults_canonicalFuel
+private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults_canonicalFuel
     {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
     {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
@@ -2311,7 +2311,7 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_pr
 
 /-- Compiler-produced Layer 3 native theorem with an already-closed external
 native body-shape witness. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -2335,7 +2335,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Compiler-produced Layer 3 native theorem with an already-closed external
 native body-shape witness using canonical runtime-size fuel. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -2362,7 +2362,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Compiler-produced Layer 3 native theorem from a projected native result,
 with an already-closed external native body-shape witness. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -2390,7 +2390,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 /-- Compiler-produced Layer 3 native projected-result theorem with an
 already-closed external native body-shape witness using canonical runtime-size
 fuel. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -2420,7 +2420,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Compiler-produced Layer 3 native theorem using source-level safe-body and
 static-parameter closure to discharge emitted external body shape. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -2450,7 +2450,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Compiler-produced Layer 3 native theorem using canonical runtime-size fuel
 for the public positive dispatcher-exec surface. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -2479,7 +2479,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Compiler-produced Layer 3 native theorem from a projected native result,
 using source-level safe-body and static-parameter closure. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -2512,7 +2512,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Compiler-produced Layer 3 native theorem using canonical runtime-size fuel
 for the public projected-result dispatcher-exec surface. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -2545,7 +2545,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 /-- Compiler-produced Layer 3 native theorem for no-mapping dispatcher-statement
 lowering, with `YulTransaction.ofIR` environment validation discharged from
 representable environment facts. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -2583,7 +2583,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 /-- Compiler-produced Layer 3 native theorem for no-mapping dispatcher-statement
 lowering, with `YulTransaction.ofIR` environment validation discharged from
 the EVMYulLean global default environment. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -2617,7 +2617,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 /-- Compiler-produced Layer 3 native theorem from a projected native result for
 no-mapping dispatcher-statement lowering, with `YulTransaction.ofIR`
 environment validation discharged from representable environment facts. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -2659,7 +2659,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 no-mapping dispatcher-statement lowering, with `YulTransaction.ofIR`
 environment validation discharged from the EVMYulLean global default
 environment. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -2693,7 +2693,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
     hCompile hSupported hNoMapping hStaticParams hSafeBodies hLowerDispatcher
     hChainId hBlobBaseFee hNoHeader hProject hMatch
 
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -2731,7 +2731,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
     hCompile hSupported hMapping hStaticParams hSafeBodies hLowerDispatcher
     hChainId hBlobBaseFee hNoHeader hNativeDispatcherExec
 
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -2765,7 +2765,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
     hCompile hSupported hMapping hStaticParams hSafeBodies hLowerDispatcher
     hChainId hBlobBaseFee hNoHeader hNativeDispatcherExec
 
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -2805,7 +2805,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
     hCompile hSupported hMapping hStaticParams hSafeBodies hLowerDispatcher
     hChainId hBlobBaseFee hNoHeader hProject hMatch
 
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -2843,7 +2843,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Canonical-fuel Layer 3 theorem for no-mapping positive
 dispatcher-statement lowering with representable environment facts. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -2883,7 +2883,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Canonical-fuel Layer 3 theorem for no-mapping positive
 dispatcher-statement lowering with EVMYulLean global defaults. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -2919,7 +2919,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Canonical-fuel Layer 3 theorem for no-mapping projected
 dispatcher-statement lowering with representable environment facts. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -2962,7 +2962,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Canonical-fuel Layer 3 theorem for no-mapping projected
 dispatcher-statement lowering with EVMYulLean global defaults. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -3001,7 +3001,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Canonical-fuel Layer 3 theorem for mapping-reserved positive
 dispatcher-statement lowering with representable environment facts. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -3044,7 +3044,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Canonical-fuel Layer 3 theorem for mapping-reserved positive
 dispatcher-statement lowering with EVMYulLean global defaults. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -3083,7 +3083,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Canonical-fuel Layer 3 theorem for mapping-reserved projected
 dispatcher-statement lowering with representable environment facts. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -3128,7 +3128,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Canonical-fuel Layer 3 theorem for mapping-reserved projected
 dispatcher-statement lowering with EVMYulLean global defaults. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -3169,7 +3169,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
 
 /-- Compiler-produced Layer 3 native theorem for no-mapping full runtime
 lowering, exposing the concrete dispatcher-statement lowering internally. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3201,7 +3201,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered
 /-- Compiler-produced Layer 3 native theorem for no-mapping projected full
 runtime lowering, exposing the concrete dispatcher-statement lowering
 internally. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3237,7 +3237,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered
 /-- Compiler-produced Layer 3 native theorem for mapping-helper full runtime
 lowering, exposing the concrete reserved dispatcher-statement lowering
 internally. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3271,7 +3271,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered
 /-- Compiler-produced Layer 3 native theorem for mapping-helper projected full
 runtime lowering, exposing the concrete reserved dispatcher-statement lowering
 internally. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3309,7 +3309,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered
 
 /-- Canonical-fuel Layer 3 theorem for no-mapping full runtime lowering,
 exposing the concrete dispatcher-statement lowering internally. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3342,7 +3342,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered
 
 /-- Canonical-fuel Layer 3 theorem for no-mapping projected full runtime
 lowering, exposing the concrete dispatcher-statement lowering internally. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3379,7 +3379,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered
 
 /-- Canonical-fuel Layer 3 theorem for mapping-helper full runtime lowering,
 exposing the concrete reserved dispatcher-statement lowering internally. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3414,7 +3414,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered
 
 /-- Canonical-fuel Layer 3 theorem for mapping-helper projected full runtime
 lowering, exposing the concrete reserved dispatcher-statement lowering. -/
-theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel
+private theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3454,7 +3454,7 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_lowered
 
 /-- Supported compiler-produced direct native theorem with an already-closed
 external native body-shape witness. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3478,7 +3478,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
 
 /-- Supported compiler-produced direct native theorem with an already-closed
 external native body-shape witness using canonical runtime-size fuel. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3505,7 +3505,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
 
 /-- Supported compiler-produced direct native theorem from a projected native
 result with an already-closed external native body-shape witness. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3533,7 +3533,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
 /-- Supported compiler-produced direct native projected-result theorem with an
 already-closed external native body-shape witness using canonical runtime-size
 fuel. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3563,7 +3563,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
 
 /-- Supported compiler-produced positive dispatcher-exec theorem on the direct
 native-vs-IR target. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3588,7 +3588,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
 
 /-- Supported compiler-produced positive dispatcher-exec theorem on the direct
 native-vs-IR target using canonical runtime-size fuel. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3616,7 +3616,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
 
 /-- Supported compiler-produced projected-result theorem on the direct
 native-vs-IR target. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3644,7 +3644,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
 
 /-- Supported compiler-produced projected-result theorem on the direct
 native-vs-IR target using canonical runtime-size fuel. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3675,7 +3675,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
 
 /-- Supported compiler-produced positive dispatcher-exec theorem on the direct
 native-vs-IR target, with source-level body closure named explicitly. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3701,7 +3701,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
 
 /-- Supported compiler-produced positive dispatcher-exec theorem using the
 canonical runtime-size fuel for the public native-vs-IR surface. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3730,7 +3730,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
 /-- Supported compiler-produced positive dispatcher-exec theorem with
 `YulTransaction.ofIR` environment validation discharged from representable
 environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3769,7 +3769,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
 /-- Supported compiler-produced canonical-fuel dispatcher-exec theorem with
 `YulTransaction.ofIR` environment validation discharged from representable
 environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3809,7 +3809,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
 /-- Supported compiler-produced positive dispatcher-exec theorem with
 `YulTransaction.ofIR` environment validation discharged from the EVMYulLean
 global default environment. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3844,7 +3844,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
 /-- Supported compiler-produced canonical-fuel dispatcher-exec theorem with
 `YulTransaction.ofIR` environment validation discharged from the EVMYulLean
 global default environment. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -3880,7 +3880,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
 /-- Supported no-mapping compiler-produced positive dispatcher-statement theorem
 on the direct native-vs-IR target, with `YulTransaction.ofIR` environment
 validation discharged from representable environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -3918,7 +3918,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_posi
 /-- Supported no-mapping compiler-produced canonical-fuel positive
 dispatcher-statement theorem with `YulTransaction.ofIR` environment validation
 discharged from representable environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -3959,7 +3959,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_posi
 /-- Supported no-mapping compiler-produced positive dispatcher-statement theorem
 on the direct native-vs-IR target, with `YulTransaction.ofIR` environment
 validation discharged from the EVMYulLean global default environment. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -3993,7 +3993,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_posi
 /-- Supported no-mapping compiler-produced canonical-fuel positive
 dispatcher-statement theorem with `YulTransaction.ofIR` environment validation
 discharged from the EVMYulLean global defaults. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4029,7 +4029,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_posi
 
 /-- Supported compiler-produced projected-result theorem on the direct
 native-vs-IR target, with source-level body closure named explicitly. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -4058,7 +4058,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
 
 /-- Supported compiler-produced projected-result theorem using the canonical
 runtime-size fuel for the public native-vs-IR surface. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -4090,7 +4090,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
 /-- Supported compiler-produced projected-result theorem with
 `YulTransaction.ofIR` environment validation discharged from representable
 environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -4132,7 +4132,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
 /-- Supported compiler-produced canonical-fuel projected-result theorem with
 `YulTransaction.ofIR` environment validation discharged from representable
 environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -4175,7 +4175,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
 /-- Supported compiler-produced projected-result theorem with
 `YulTransaction.ofIR` environment validation discharged from the EVMYulLean
 global default environment. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -4213,7 +4213,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
 /-- Supported compiler-produced canonical-fuel projected-result theorem with
 `YulTransaction.ofIR` environment validation discharged from the EVMYulLean
 global default environment. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -4253,7 +4253,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
 dispatcher-statement theorem on the direct native-vs-IR target, with
 `YulTransaction.ofIR` environment validation discharged from representable
 environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4294,7 +4294,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_proj
 /-- Supported no-mapping compiler-produced canonical-fuel projected-result
 dispatcher-statement theorem with `YulTransaction.ofIR` environment validation
 discharged from representable environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4339,7 +4339,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_proj
 dispatcher-statement theorem on the direct native-vs-IR target, with
 `YulTransaction.ofIR` environment validation discharged from the EVMYulLean
 global default environment. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4376,7 +4376,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_proj
 /-- Supported no-mapping compiler-produced canonical-fuel projected-result
 dispatcher-statement theorem with `YulTransaction.ofIR` environment validation
 discharged from the EVMYulLean global defaults. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4413,7 +4413,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_proj
     hNoMapping hStaticParams hSafeBodies hLowerDispatcher hChainId
     hBlobBaseFee hNoHeader hProject hMatch
 
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4454,7 +4454,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_posi
 /-- Supported mapping-reserved compiler-produced canonical-fuel positive
 dispatcher-statement theorem with `YulTransaction.ofIR` environment validation
 discharged from representable environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4495,7 +4495,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_posi
     hMapping hStaticParams hSafeBodies hLowerDispatcher hChainId
     hBlobBaseFee hNoHeader hNativeDispatcherExec
 
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4532,7 +4532,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_posi
 /-- Supported mapping-reserved compiler-produced canonical-fuel positive
 dispatcher-statement theorem with `YulTransaction.ofIR` environment validation
 discharged from the EVMYulLean global defaults. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4569,7 +4569,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_posi
     hMapping hStaticParams hSafeBodies hLowerDispatcher hChainId
     hBlobBaseFee hNoHeader hNativeDispatcherExec
 
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4612,7 +4612,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_proj
 /-- Supported mapping-reserved compiler-produced canonical-fuel
 projected-result dispatcher-statement theorem with `YulTransaction.ofIR`
 environment validation discharged from representable environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4655,7 +4655,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_proj
     hSupported hMapping hStaticParams hSafeBodies hLowerDispatcher hChainId
     hBlobBaseFee hNoHeader hProject hMatch
 
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4694,7 +4694,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_proj
 /-- Supported mapping-reserved compiler-produced canonical-fuel
 projected-result dispatcher-statement theorem with `YulTransaction.ofIR`
 environment validation discharged from the EVMYulLean global defaults. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (dispatcher : List EvmYul.Yul.Ast.Stmt)
@@ -4735,7 +4735,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_proj
 
 /-- Supported compiler-produced Layers 2+3 theorem for no-mapping full runtime
 lowering, exposing the concrete dispatcher-statement lowering internally. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -4768,7 +4768,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Supported compiler-produced Layers 2+3 theorem for no-mapping projected
 full runtime lowering, exposing the concrete dispatcher-statement lowering
 internally. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -4805,7 +4805,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Supported compiler-produced Layers 2+3 theorem for mapping-helper full
 runtime lowering, exposing the concrete reserved dispatcher-statement lowering
 internally. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -4840,7 +4840,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Supported compiler-produced Layers 2+3 theorem for mapping-helper projected
 full runtime lowering, exposing the concrete reserved dispatcher-statement
 lowering internally. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -4880,7 +4880,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Supported compiler-produced Layers 2+3 theorem for no-mapping full runtime
 lowering, with `YulTransaction.ofIR` environment validation discharged from
 representable environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -4924,7 +4924,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Supported compiler-produced Layers 2+3 theorem for no-mapping full runtime
 lowering, with `YulTransaction.ofIR` environment validation discharged from
 the EVMYulLean global default environment. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -4964,7 +4964,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Supported compiler-produced Layers 2+3 projected-result theorem for
 no-mapping full runtime lowering, with `YulTransaction.ofIR` environment
 validation discharged from representable environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_ofIR_environment
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5012,7 +5012,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Supported compiler-produced Layers 2+3 projected-result theorem for
 no-mapping full runtime lowering, with `YulTransaction.ofIR` environment
 validation discharged from the EVMYulLean global default environment. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5056,7 +5056,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Supported compiler-produced Layers 2+3 theorem for mapping-helper full
 runtime lowering, with `YulTransaction.ofIR` environment validation discharged
 from representable environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5102,7 +5102,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Supported compiler-produced Layers 2+3 theorem for mapping-helper full
 runtime lowering, with `YulTransaction.ofIR` environment validation discharged
 from the EVMYulLean global default environment. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5144,7 +5144,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Supported compiler-produced Layers 2+3 projected-result theorem for
 mapping-helper full runtime lowering, with `YulTransaction.ofIR` environment
 validation discharged from representable environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5193,7 +5193,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Supported compiler-produced Layers 2+3 projected-result theorem for
 mapping-helper full runtime lowering, with `YulTransaction.ofIR` environment
 validation discharged from the EVMYulLean global default environment. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults
     (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5239,7 +5239,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 
 /-- Canonical-fuel Layers 2+3 theorem for no-mapping full runtime lowering,
 exposing the concrete dispatcher-statement lowering internally. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5273,7 +5273,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Canonical-fuel Layers 2+3 projected-result theorem for no-mapping full
 runtime lowering, exposing the concrete dispatcher-statement lowering
 internally. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5311,7 +5311,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Canonical-fuel Layers 2+3 theorem for mapping-helper full runtime
 lowering, exposing the concrete reserved dispatcher-statement lowering
 internally. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5347,7 +5347,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Canonical-fuel Layers 2+3 projected-result theorem for mapping-helper full
 runtime lowering, exposing the concrete reserved dispatcher-statement lowering
 internally. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5388,7 +5388,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Canonical-fuel Layers 2+3 theorem for no-mapping full runtime lowering,
 with `YulTransaction.ofIR` environment validation discharged from representable
 environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5431,7 +5431,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Canonical-fuel Layers 2+3 theorem for no-mapping full runtime lowering,
 with `YulTransaction.ofIR` environment validation discharged from the
 EVMYulLean global defaults. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5470,7 +5470,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Canonical-fuel Layers 2+3 projected-result theorem for no-mapping full
 runtime lowering, with `YulTransaction.ofIR` environment validation discharged
 from representable environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_ofIR_environment_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5517,7 +5517,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Canonical-fuel Layers 2+3 projected-result theorem for no-mapping full
 runtime lowering, with `YulTransaction.ofIR` environment validation discharged
 from the EVMYulLean global defaults. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5560,7 +5560,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Canonical-fuel Layers 2+3 theorem for mapping-helper full runtime
 lowering, with `YulTransaction.ofIR` environment validation discharged from
 representable environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5605,7 +5605,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Canonical-fuel Layers 2+3 theorem for mapping-helper full runtime
 lowering, with `YulTransaction.ofIR` environment validation discharged from the
 EVMYulLean global defaults. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5646,7 +5646,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Canonical-fuel Layers 2+3 projected-result theorem for mapping-helper full
 runtime lowering, with `YulTransaction.ofIR` environment validation discharged
 from representable environment facts. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -5694,7 +5694,7 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_disp
 /-- Canonical-fuel Layers 2+3 projected-result theorem for mapping-helper full
 runtime lowering, with `YulTransaction.ofIR` environment validation discharged
 from the EVMYulLean global defaults. -/
-theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
+private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
@@ -9067,7 +9067,7 @@ theorem projectResult_retrieveHit_eq
 
 The lowered native dispatcher result is compared with `interpretIR` directly
 instead of with the EVMYulLean fuel wrapper. -/
-def simpleStorageNativeCallDispatcherMatchBridge
+private def simpleStorageNativeCallDispatcherMatchBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
   nativeDispatcherExecMatchesIRPositive
@@ -9078,7 +9078,7 @@ def simpleStorageNativeCallDispatcherMatchBridge
 /-! ### Per-case sub-bridges for the SimpleStorage native dispatcher. -/
 
 /-- Direct-match per-case sub-bridge for the `retrieve()` selector hit. -/
-def simpleStorageNativeRetrieveHitMatchBridge
+private def simpleStorageNativeRetrieveHitMatchBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
   tx.functionSelector % Compiler.Constants.selectorModulus = 0x2e64cec1 →
@@ -9088,7 +9088,7 @@ def simpleStorageNativeRetrieveHitMatchBridge
     Compiler.SimpleStorageNativeWitness.nativeContract
 
 /-- Direct-match per-case sub-bridge for the `store(uint256)` selector hit. -/
-def simpleStorageNativeStoreHitMatchBridge
+private def simpleStorageNativeStoreHitMatchBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
   tx.functionSelector % Compiler.Constants.selectorModulus = 0x6057361d →
@@ -9098,7 +9098,7 @@ def simpleStorageNativeStoreHitMatchBridge
     Compiler.SimpleStorageNativeWitness.nativeContract
 
 /-- Direct-match per-case sub-bridge for the selector-miss revert arm. -/
-def simpleStorageNativeSelectorMissMatchBridge
+private def simpleStorageNativeSelectorMissMatchBridge
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     : Prop :=
   tx.functionSelector % Compiler.Constants.selectorModulus ≠ 0x2e64cec1 →
@@ -9109,7 +9109,7 @@ def simpleStorageNativeSelectorMissMatchBridge
     Compiler.SimpleStorageNativeWitness.nativeContract
 
 /-- Retrieve-hit direct-match native dispatcher bridge. -/
-theorem simpleStorageNativeRetrieveHitMatchBridge_proved
+private theorem simpleStorageNativeRetrieveHitMatchBridge_proved
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -9238,7 +9238,7 @@ The proof splits on the setter calldata argument. Short calldata projects the
 native argument-guard revert directly to the IR arity failure; present calldata
 uses the closed-form native store halt and compares projected storage on the
 materialized observable slots. -/
-theorem simpleStorageNativeStoreHitMatchBridge_proved
+private theorem simpleStorageNativeStoreHitMatchBridge_proved
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -9371,7 +9371,7 @@ theorem simpleStorageNativeStoreHitMatchBridge_proved
 The native selector-miss path projects to the same revert result as the IR
 selector-miss interpreter case, so this proof avoids the compatibility
 fuel-wrapper bridge entirely. -/
-theorem simpleStorageNativeSelectorMissMatchBridge_proved
+private theorem simpleStorageNativeSelectorMissMatchBridge_proved
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus) :
@@ -9418,7 +9418,7 @@ theorem simpleStorageNativeSelectorMissMatchBridge_proved
 
 /-- Recover the direct-match monolithic SimpleStorage dispatcher obligation
 from the three direct per-case sub-bridges. -/
-theorem simpleStorageNativeCallDispatcherMatchBridge_of_per_case
+private theorem simpleStorageNativeCallDispatcherMatchBridge_of_per_case
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     (hRetrieveHit :
       simpleStorageNativeRetrieveHitMatchBridge tx initialState observableSlots)
@@ -9441,7 +9441,7 @@ target.
 
 Callers prove the lowered dispatcher result matches `interpretIR` directly,
 without comparing through the compatibility EVMYulLean fuel-wrapper bridge. -/
-theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match
+private theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     (hEnv :
         Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
@@ -9504,7 +9504,7 @@ theorem simpleStorageNativeContract_eq_nativeContractOfDispatcher_of_lowerStmtsN
 /-- Native SimpleStorage wrapper starting from the successful full-runtime
 lowering boundary and exposing the generated dispatcher-statement lowering
 internally. -/
-theorem simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match
+private theorem simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match
     (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
     (hEnv :
         Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
