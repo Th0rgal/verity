@@ -126,7 +126,9 @@ materializes pre-state storage for those slots.
   boundary while proving the exact extracted dispatcher match. The same
   full-runtime boundary is lifted to Layer 3 by the
   `layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
-  wrapper family.
+  wrapper family, and to the Layers 2+3 composition by the
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_*`
+  wrappers.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with

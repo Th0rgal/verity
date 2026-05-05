@@ -108,7 +108,9 @@ N8 public Layer 3 theorem flip
   dispatcher-statement surfaces, keeping callers at the emitted-runtime
   boundary while the exact dispatcher lowering is extracted internally. The
   `layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
-  wrappers lift that same full-runtime boundary to Layer 3.
+  wrappers lift that same full-runtime boundary to Layer 3, and
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_*`
+  lifts it to the Layers 2+3 composition.
   Generic `.block` lowering shape also lives in the native harness via
   `lowerStmtsNative_single_block_ok_singleton` and
   `lowerStmtsNative_block_stmts_eq`; let/if/switch dispatcher statement peels
