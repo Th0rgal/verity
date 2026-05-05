@@ -11,7 +11,7 @@ open Compiler.Yul
 
 /-! ## IR ↔ Yul State Alignment -/
 
-def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
+private def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
   { vars := state.vars
     storage := state.storage
     transientStorage := state.transientStorage
@@ -28,7 +28,7 @@ def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
     blobBaseFee := state.blobBaseFee
     events := state.events }
 
-def statesAligned (selector : Nat) (ir : IRState) (yul : YulState) : Prop :=
+private def statesAligned (selector : Nat) (ir : IRState) (yul : YulState) : Prop :=
   yul = yulStateOfIR selector ir
 
 /- ## Layer 3 Equivalence Scaffolding
@@ -38,7 +38,7 @@ They are intentionally parameterized so contract-level results become
 mechanical instantiations once the instruction-level lemmas are proven.
 -/
 
-def execResultsAligned (selector : Nat) : IRExecResult → YulExecResult → Prop
+private def execResultsAligned (selector : Nat) : IRExecResult → YulExecResult → Prop
   | .continue ir, .continue yul => statesAligned selector ir yul
   | .return v ir, .return v' yul => v = v' ∧ statesAligned selector ir yul
   | .stop ir, .stop yul => statesAligned selector ir yul
@@ -46,7 +46,7 @@ def execResultsAligned (selector : Nat) : IRExecResult → YulExecResult → Pro
   | _, _ => False
 
 /-- Results match when success, return value, and storage/mapping functions agree. -/
-def resultsMatch (ir : IRResult) (yul : YulResult) : Prop :=
+private def resultsMatch (ir : IRResult) (yul : YulResult) : Prop :=
   ir.success = yul.success ∧
   ir.returnValue = yul.returnValue ∧
   (∀ slot, ir.finalStorage slot = yul.finalStorage slot) ∧
@@ -190,13 +190,13 @@ private theorem execYulStmtFuel_for
   rfl
 
 /-- Instruction-level equivalence goal: single IR statement matches Yul statement (fuel-parametric). -/
-def execIRStmt_equiv_execYulStmt_goal
+private def execIRStmt_equiv_execYulStmt_goal
     (selector : Nat) (fuel : Nat) (stmt : YulStmt) (irState : IRState) (yulState : YulState) : Prop :=
     statesAligned selector irState yulState →
     execResultsAligned selector (execIRStmtFuel fuel irState stmt) (execYulStmtFuel fuel yulState stmt)
 
 /-- Sequence/program equivalence goal: statement lists compose under alignment (fuel-parametric). -/
-def execIRStmts_equiv_execYulStmts_goal
+private def execIRStmts_equiv_execYulStmts_goal
     (selector : Nat) (fuel : Nat) (stmts : List YulStmt) (irState : IRState) (yulState : YulState) : Prop :=
     statesAligned selector irState yulState →
     execResultsAligned selector (execIRStmtsFuel fuel irState stmts) (execYulStmtsFuel fuel yulState stmts)

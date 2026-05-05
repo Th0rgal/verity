@@ -1,11 +1,53 @@
-import Compiler.Proofs.YulGeneration.Equivalence
 import Compiler.Proofs.IRGeneration.IRInterpreter
+import Compiler.Proofs.YulGeneration.IRFuel
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 
 namespace Compiler.Proofs.YulGeneration
 
 open Compiler
 open Compiler.Yul
 open Compiler.Proofs.IRGeneration
+
+private def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
+  { vars := state.vars
+    storage := state.storage
+    transientStorage := state.transientStorage
+    memory := state.memory
+    calldata := state.calldata
+    selector := state.selector
+    returnValue := state.returnValue
+    sender := state.sender
+    msgValue := state.msgValue
+    thisAddress := state.thisAddress
+    blockTimestamp := state.blockTimestamp
+    blockNumber := state.blockNumber
+    chainId := state.chainId
+    blobBaseFee := state.blobBaseFee
+    events := state.events }
+
+private def statesAligned (selector : Nat) (ir : IRState) (yul : YulState) : Prop :=
+  yul = yulStateOfIR selector ir
+
+private def execResultsAligned (selector : Nat) : IRExecResult → YulExecResult → Prop
+  | .continue ir, .continue yul => statesAligned selector ir yul
+  | .return v ir, .return v' yul => v = v' ∧ statesAligned selector ir yul
+  | .stop ir, .stop yul => statesAligned selector ir yul
+  | .revert ir, .revert yul => statesAligned selector ir yul
+  | _, _ => False
+
+private def execIRStmt_equiv_execYulStmt_goal
+    (selector : Nat) (fuel : Nat) (stmt : YulStmt)
+    (irState : IRState) (yulState : YulState) : Prop :=
+  statesAligned selector irState yulState →
+  execResultsAligned selector
+    (execIRStmtFuel fuel irState stmt) (execYulStmtFuel fuel yulState stmt)
+
+private def execIRStmts_equiv_execYulStmts_goal
+    (selector : Nat) (fuel : Nat) (stmts : List YulStmt)
+    (irState : IRState) (yulState : YulState) : Prop :=
+  statesAligned selector irState yulState →
+  execResultsAligned selector
+    (execIRStmtsFuel fuel irState stmts) (execYulStmtsFuel fuel yulState stmts)
 
 /-! ## Layer 3: Statement-Level Equivalence (Complete)
 

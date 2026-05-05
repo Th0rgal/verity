@@ -1,6 +1,6 @@
-import Compiler.Proofs.YulGeneration.Codegen
-import Compiler.Proofs.YulGeneration.Equivalence
+import Compiler.Codegen
 import Compiler.Proofs.YulGeneration.RuntimeTypes
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Compiler.Proofs.IRGeneration.IRInterpreter
 
@@ -111,6 +111,13 @@ private def HasSelectorDeadBridge (body : List YulStmt) : Prop :=
 private def initialYulState (tx : YulTransaction) (state : IRState) : YulState :=
   YulState.initial tx state.storage state.events
 
+private def resultsMatch (ir : IRResult) (yul : YulResult) : Prop :=
+  ir.success = yul.success ∧
+  ir.returnValue = yul.returnValue ∧
+  (∀ slot, ir.finalStorage slot = yul.finalStorage slot) ∧
+  (∀ base key, ir.finalMappings base key = yul.finalMappings base key) ∧
+  ir.events = yul.events
+
 private def switchCaseBody (fn : IRFunction) : List YulStmt :=
   let valueGuard := if fn.payable then [] else [Compiler.callvalueGuard]
   [YulStmt.comment s!"{fn.name}()"] ++ valueGuard ++
@@ -149,6 +156,27 @@ private def switchDefaultCase
         YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__is_empty_calldata"])
           ([YulStmt.comment "fallback()"] ++ fallbackGuard ++ fb.body)
       ]]
+
+@[simp]
+private theorem preservation_execYulStmtFuel_funcDef (fuel : Nat) (state : YulState)
+    (name : String) (params ret : List String) (body : List YulStmt) :
+    execYulStmtFuel fuel state (YulStmt.funcDef name params ret body) =
+      YulExecResult.continue state := by
+  cases fuel <;> simp [execYulStmtFuel, legacyExecYulFuel]
+
+@[simp]
+private theorem preservation_legacyExecYulFuel_funcDef (fuel : Nat) (state : YulState)
+    (name : String) (params ret : List String) (body : List YulStmt) :
+    legacyExecYulFuel fuel state (.stmt (YulStmt.funcDef name params ret body)) =
+      YulExecResult.continue state := by
+  cases fuel <;> simp [legacyExecYulFuel]
+
+private theorem preservation_execYulStmtsFuel_cons_funcDef (fuel : Nat) (state : YulState)
+    (name : String) (params ret : List String) (body rest : List YulStmt) :
+    execYulStmtsFuel (Nat.succ fuel) state (YulStmt.funcDef name params ret body :: rest) =
+      execYulStmtsFuel fuel state rest := by
+  simp only [execYulStmtsFuel, legacyExecYulFuel]
+  rw [preservation_legacyExecYulFuel_funcDef]
 
 private theorem preservation_emitYul_runtimeCode_eq (contract : IRContract) :
     (Compiler.emitYul contract).runtimeCode = Compiler.runtimeCode contract := by
@@ -298,7 +326,7 @@ private theorem preservation_execYulStmtsFuel_funcDefs_then_suffix (fuel : Nat) 
       obtain ⟨nm, p, r, b, rfl⟩ := hFuncDefs h hmem
       simp only [List.cons_append, List.length_cons]
       conv_lhs => rw [show t.length + 1 + fuel = Nat.succ (t.length + fuel) from by omega]
-      rw [execYulStmtsFuel_cons_funcDef]
+      rw [preservation_execYulStmtsFuel_cons_funcDef]
       exact ih state (fun s hs => hFuncDefs s (List.mem_cons_of_mem _ hs))
 
 private theorem preservation_execYulStmtsFuel_funcDefs_then_suffix_ge
