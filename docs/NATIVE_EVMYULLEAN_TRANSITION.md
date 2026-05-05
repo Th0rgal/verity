@@ -137,7 +137,10 @@ materializes pre-state storage for those slots.
   while the matching
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_*`
   and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
-  wrappers expose the direct native-vs-IR result surface. The mapping-enabled
+  wrappers expose the direct native-vs-IR result surface. The Layer 2/3
+  no-mapping dispatcher-statement aliases also expose canonical-fuel
+  `_canonicalFuel` variants for the positive and projected `_ofIR_environment`
+  and `_ofIR_globalDefaults` cases. The mapping-enabled
   equivalents are exposed under the `_mapping_reserved` suffix for the
   `nativeIRRuntimeMatchesIR`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_*`, and
