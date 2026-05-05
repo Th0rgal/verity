@@ -41,6 +41,7 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 import Compiler.Proofs.IRGeneration.ContractShape
 import Compiler.Proofs.IRGeneration.FunctionShape
 import Compiler.Proofs.IRGeneration.Expr
+import Compiler.Proofs.IRGeneration.FunctionBody
 import Compiler.SimpleStorageNativeWitness
 
 namespace Compiler.Proofs.EndToEnd
@@ -59,6 +60,78 @@ abbrev nativeResultsMatchOn :=
 result surface. -/
 abbrev nativeIRRuntimeMatchesIR :=
   Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR
+
+/-- Observable source-result comparison surface for native EVMYulLean execution.
+
+This is the public composition target for source-level compiler correctness:
+the storage comparison is intentionally projected to `observableSlots`, matching
+the native harness' materialized-storage boundary. -/
+def sourceResultMatchesNativeOn
+    (observableSlots : List Nat)
+    (source : SourceSemantics.SourceContractResult)
+    (native : Except Compiler.Proofs.YulGeneration.Backends.AdapterError YulResult) :
+    Prop :=
+  match native with
+  | .ok yul =>
+      source.success = yul.success ∧
+      source.returnValue = yul.returnValue ∧
+      (∀ slot, slot ∈ observableSlots →
+        IRStorageWord.ofNat
+            (source.finalStorage (IRStorageSlot.ofNat slot).toNat) =
+          yul.finalStorage (IRStorageSlot.ofNat slot)) ∧
+      source.events = yul.events
+  | .error _ => False
+
+/-- Compose Layer 2 source-to-IR correctness with native EVMYulLean runtime
+correctness, without mentioning the legacy Yul interpreter. -/
+theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
+    {observableSlots : List Nat}
+    {source : SourceSemantics.SourceContractResult}
+    {ir : IRResult}
+    {native : Except Compiler.Proofs.YulGeneration.Backends.AdapterError YulResult}
+    (hSourceIR :
+      Compiler.Proofs.IRGeneration.FunctionBody.sourceResultMatchesIRResult
+        source ir)
+    (hNativeIR :
+      nativeResultsMatchOn observableSlots ir native) :
+    sourceResultMatchesNativeOn observableSlots source native := by
+  cases native with
+  | error err =>
+      cases hNativeIR
+  | ok yul =>
+      rcases hSourceIR with ⟨hSourceSuccess, hSourceReturn, hSourceStorage, hSourceEvents⟩
+      rcases hNativeIR with ⟨hNativeSuccess, hNativeReturn, hNativeStorage, hNativeEvents⟩
+      refine ⟨?_, ?_, ?_, ?_⟩
+      · exact hSourceSuccess.trans hNativeSuccess
+      · exact hSourceReturn.trans hNativeReturn
+      · intro slot hslot
+        have hStorageAt :=
+          congrArg (fun f => f (IRStorageSlot.ofNat slot)) hSourceStorage
+        exact hStorageAt.trans (hNativeStorage slot hslot)
+      · exact hSourceEvents.trans hNativeEvents
+
+/-- Native EVMYulLean whole-runtime composition target.
+
+Callers can combine any source-to-IR compiler theorem with any native
+`nativeIRRuntimeMatchesIR` proof to obtain a source-facing theorem over
+`interpretIRRuntimeNative`. -/
+theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
+    {fuel : Nat}
+    {contract : IRContract}
+    {tx : IRTransaction}
+    {state : IRState}
+    {observableSlots : List Nat}
+    {source : SourceSemantics.SourceContractResult}
+    (hSourceIR :
+      Compiler.Proofs.IRGeneration.FunctionBody.sourceResultMatchesIRResult source
+        (interpretIR contract tx state))
+    (hNativeIR :
+      nativeIRRuntimeMatchesIR fuel contract tx state observableSlots) :
+    sourceResultMatchesNativeOn observableSlots source
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        fuel contract tx state observableSlots) :=
+  sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
+    hSourceIR hNativeIR
 
 /-- Positive-fuel raw native dispatcher-exec target against IR directly. -/
 private def nativeDispatcherExecMatchesIRPositive
