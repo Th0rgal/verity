@@ -22,7 +22,7 @@ GitHub Actions for lfglabs-dev/verity
   |
   |-- dgx-spark-gpu-1
         host: spark-de79 over Tailscale
-        role: trusted manual GPU jobs only
+        role: trusted manual GPU jobs and explicit ARM64 Lean validation
         labels: self-hosted, linux, ARM64, dgx, dgx-spark, gpu, nvidia
 ```
 
@@ -54,9 +54,9 @@ them only for temporary debugging or deliberate host pinning.
   Docker cache, and `/tmp/verity-main-test-*` directories must be pruned.
 - Do not run untrusted public fork PRs on these machines. Self-hosted runners
   execute repository code on owned hosts.
-- The DGX is especially sensitive. Keep it off `pull_request` workflows for
-  this public repository; use `workflow_dispatch`, trusted branches, or a
-  restricted private repository.
+- The DGX is especially sensitive. Keep it off normal `pull_request` workflows
+  for this public repository; use `workflow_dispatch`, scheduled trusted-branch
+  validation, or a restricted private repository.
 
 ## Adding A CPU Server
 
@@ -84,9 +84,9 @@ you intentionally want to require that capacity.
 
 ## Adding The DGX Spark
 
-The DGX should be isolated from normal Verity CI. Register it only for trusted
-GPU workflows and, at organization level, place it in a restricted runner group
-instead of the default group.
+The DGX should be isolated from normal Verity CI. Register it for trusted GPU
+workflows and explicit ARM64 Lean validation. At organization level, place it
+in a restricted runner group instead of the default group.
 
 ```bash
 RUNNER_URL=https://github.com/lfglabs-dev/verity \
@@ -99,7 +99,7 @@ RUNNER_LABELS_1=dgx,dgx-spark,gpu,nvidia,home,arm64-gb10 \
 scripts/install_self_hosted_runner.sh
 ```
 
-GPU jobs should route explicitly:
+GPU and ARM64 Lean validation jobs should route explicitly:
 
 ```yaml
 runs-on: [self-hosted, linux, ARM64, dgx-spark, gpu]
@@ -109,6 +109,11 @@ Do not let ordinary Verity `build` or `fastlane` jobs use the DGX labels.
 Do not add the `verity`, `build`, or `fastlane` labels to the DGX runner unless
 you have separately proven the ARM64 Lean build is reliable and intentionally
 want general Verity CI to schedule there.
+
+If DGX Lean validation becomes a regular lane, prefer adding a dedicated label
+such as `dgx-lean` or `verity-arm64` instead of reusing `verity,build`. That
+keeps x64 production proof CI separate from ARM64 validation and avoids routing
+jobs with x64-only `solc`, Foundry, or artifact assumptions to the DGX.
 
 The repository includes a manual-only smoke test:
 
@@ -127,6 +132,18 @@ gh workflow run runner-benchmark.yml \
 
 Use it when adding a new host or comparing runner profiles. Keep it
 `workflow_dispatch` only.
+
+For deeper runner qualification, use the manual Lean validation workflow:
+
+```bash
+gh workflow run runner-lean-validation.yml \
+  -f runner_labels_json='["self-hosted","linux","ARM64","dgx-spark","gpu"]' \
+  -f include_compiler_core=true
+```
+
+This runs `make check`, full `lake build`, PrintAxioms/audit checks, and
+compiler-core validation. On ARM64 it skips x64-only `solc` validation and runs
+portable generated-Yul checks instead.
 
 The latest benchmark report is in
 [`docs/CI_RUNNER_BENCHMARK_REPORT.md`](CI_RUNNER_BENCHMARK_REPORT.md).
