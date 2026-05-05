@@ -1,7 +1,6 @@
 import Compiler.Proofs.YulGeneration.Codegen
 import Compiler.Proofs.YulGeneration.Equivalence
 import Compiler.Proofs.YulGeneration.RuntimeTypes
-import Compiler.Proofs.YulGeneration.StatementEquivalence
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Compiler.Proofs.IRGeneration.IRInterpreter
 
