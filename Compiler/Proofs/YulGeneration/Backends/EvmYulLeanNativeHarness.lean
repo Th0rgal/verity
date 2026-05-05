@@ -1,8 +1,7 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
 import Compiler.Proofs.YulGeneration.Codegen
-import Compiler.Proofs.YulGeneration.Equivalence
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
+import Compiler.Proofs.YulGeneration.RuntimeTypes
 import Compiler.Codegen
 import EvmYul.Yul.Interpreter
 import Lean
@@ -17508,7 +17507,12 @@ def nativeResultsMatch
     (native : Except AdapterError YulResult) :
     Prop :=
   match native with
-  | .ok yul => Compiler.Proofs.YulGeneration.resultsMatch ir yul
+  | .ok yul =>
+      ir.success = yul.success ∧
+      ir.returnValue = yul.returnValue ∧
+      (∀ slot, ir.finalStorage slot = yul.finalStorage slot) ∧
+      (∀ base key, ir.finalMappings base key = yul.finalMappings base key) ∧
+      ir.events = yul.events
   | .error _ => False
 
 /-- Observable result comparison surface for native EVMYulLean execution. -/
