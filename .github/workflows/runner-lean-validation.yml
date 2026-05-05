@@ -1,0 +1,230 @@
+name: Runner Lean validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_labels_json:
+        description: 'JSON array of runs-on labels to pin the validation runner'
+        required: true
+        default: '["self-hosted","linux","ARM64","dgx-spark","gpu"]'
+        type: string
+      lean_num_threads:
+        description: 'LEAN_NUM_THREADS for Lean validation tasks'
+        required: false
+        default: '8'
+        type: string
+      include_compiler_core:
+        description: 'Also build core compiler binaries and generate Yul/gas artifacts'
+        required: false
+        default: true
+        type: boolean
+      use_sticky_disks:
+        description: 'Use host-local Lean caches'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runner-lean-validation-${{ github.ref }}-${{ inputs.runner_labels_json }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Lean validation
+    runs-on: ${{ fromJSON(inputs.runner_labels_json) }}
+    timeout-minutes: 240
+    env:
+      LEAN_NUM_THREADS: ${{ inputs.lean_num_threads }}
+      CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_COMPILERCHECK: content
+      CCACHE_MAXSIZE: 2G
+    steps:
+      - name: Show runner state
+        run: |
+          {
+            echo "## Runner state"
+            echo
+            echo "- Host: $(hostname)"
+            echo "- Kernel: $(uname -srmo)"
+            echo "- Runner OS: $RUNNER_OS"
+            echo "- Runner arch: $RUNNER_ARCH"
+            echo "- Labels JSON: ${{ inputs.runner_labels_json }}"
+            echo "- LEAN_NUM_THREADS: $LEAN_NUM_THREADS"
+            echo "- Include compiler core: ${{ inputs.include_compiler_core }}"
+            echo
+            echo "### CPU"
+            lscpu | sed -n '1,28p'
+            echo
+            echo "### Memory"
+            free -h
+            echo
+            echo "### Disk"
+            df -h / /srv/verity-ci-cache 2>/dev/null || df -h /
+            echo
+            echo "### Load"
+            uptime
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Cleanup stale local artifacts
+        run: scripts/ci_local_persistence.sh cleanup --max-age-hours 24
+
+      - name: Setup Lean
+        uses: ./.github/actions/setup-lean
+        with:
+          cache-key-prefix: runner-lean-validation
+          use-sticky-disks: ${{ inputs.use_sticky_disks }}
+          sticky-disk-key-prefix: runner-lean-validation
+          lake-packages-sticky-key: runner-lean-validation-lake-packages-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          use-build-sticky-disk: ${{ inputs.use_sticky_disks }}
+          build-sticky-disk-key: runner-lean-validation-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
+          disable-lake-cache-restore: "true"
+
+      - name: Define timing helper
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/time-step" <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          name="$1"
+          shift
+          log_name="$(printf '%s' "$name" | tr -c 'A-Za-z0-9_.-' '-')"
+          log_path="validation-${log_name}.log"
+          start_epoch="$(date +%s)"
+          start_iso="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "::group::$name"
+          echo "Running: $*"
+          if command -v /usr/bin/time >/dev/null 2>&1; then
+            /usr/bin/time -f "elapsed=%E user=%U system=%S max_rss_kb=%M" "$@" 2>&1 | tee "$log_path"
+          else
+            "$@" 2>&1 | tee "$log_path"
+          fi
+          end_epoch="$(date +%s)"
+          end_iso="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          elapsed="$((end_epoch - start_epoch))"
+          echo "::endgroup::"
+          {
+            echo "| \`$name\` | \`$*\` | \`$elapsed\` | \`$start_iso\` | \`$end_iso\` |"
+          } >> validation-results.md
+          tail -n 5 "$log_path" >> validation-tail.log
+          SH
+          chmod +x "$RUNNER_TEMP/time-step"
+          {
+            echo "## Validation results"
+            echo
+            echo "| Step | Command | Elapsed seconds | Start UTC | End UTC |"
+            echo "| --- | --- | ---: | --- | --- |"
+          } > validation-results.md
+          : > validation-tail.log
+
+      - name: Run repository checks
+        run: >-
+          "$RUNNER_TEMP/time-step" "make check" make check
+
+      - name: Full Lake build
+        run: >-
+          "$RUNNER_TEMP/time-step" "lake build" bash -lc "set -o pipefail; lake build 2>&1 | tee lake-build.log"
+
+      - name: Check Lean warning non-regression
+        run: >-
+          "$RUNNER_TEMP/time-step" "check Lean warnings" python3 scripts/check_lean_warning_regression.py --log lake-build.log
+
+      - name: Build PrintAxioms
+        run: >-
+          "$RUNNER_TEMP/time-step" "lake build PrintAxioms" lake build PrintAxioms
+
+      - name: Run Lean audit checks
+        run: |
+          "$RUNNER_TEMP/time-step" "split package builds" python3 scripts/check_split_package_builds.py
+          "$RUNNER_TEMP/time-step" "macro fuzz coverage check" python3 scripts/check_macro_roundtrip_fuzz_coverage.py
+          "$RUNNER_TEMP/time-step" "PrintAxioms report" bash -lc "set -o pipefail; lake env lean PrintAxioms.lean 2>&1 | tee axiom-report-raw.log"
+          "$RUNNER_TEMP/time-step" "axiom report check" bash -lc "AXIOM_REPORT_FILE=axiom-report.md python3 scripts/check_axioms.py --log axiom-report-raw.log"
+          "$RUNNER_TEMP/time-step" "proof length report" python3 scripts/check_proof_length.py --format=markdown
+          "$RUNNER_TEMP/time-step" "property coverage report" python3 scripts/report_property_coverage.py --format=markdown
+          "$RUNNER_TEMP/time-step" "storage layout report" python3 scripts/check_storage_layout.py --format=markdown
+
+      - name: Ensure compiler acceleration toolchain
+        if: inputs.include_compiler_core
+        run: |
+          if \
+            command -v clang >/dev/null && \
+            command -v clang++ >/dev/null && \
+            command -v ld.lld >/dev/null && \
+            command -v ccache >/dev/null && \
+            printf 'int main() { return 0; }\n' | clang++ -x c++ - -fuse-ld=lld -stdlib=libc++ -lc++abi -o /tmp/verity-clang-smoke >/dev/null 2>&1 && \
+            printf 'int main() { return 0; }\n' | clang -x c - -fuse-ld=lld -luv -o /tmp/verity-libuv-smoke >/dev/null 2>&1
+          then
+            clang --version
+            ld.lld --version
+            ccache --version
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install -y clang lld ccache libc++-dev libc++abi-dev libgmp-dev libuv1-dev
+
+      - name: Run compiler-core CI subset
+        if: inputs.include_compiler_core
+        env:
+          LEAN_CC: ${{ github.workspace }}/scripts/lean_cc_ccache_clang.sh
+        run: |
+          mkdir -p "$CCACHE_DIR" compiler/bin compiler/yul compiler/yul-patched
+          ccache -z || true
+          "$RUNNER_TEMP/time-step" "build verity-compiler" lake build verity-compiler
+          "$RUNNER_TEMP/time-step" "build verity-compiler-patched" lake build verity-compiler-patched
+          "$RUNNER_TEMP/time-step" "build difftest-interpreter" lake build difftest-interpreter
+          "$RUNNER_TEMP/time-step" "build gas-report" lake build gas-report
+
+          cp ./.lake/build/bin/verity-compiler compiler/bin/
+          cp ./.lake/build/bin/verity-compiler-patched compiler/bin/
+          cp ./.lake/build/bin/difftest-interpreter compiler/bin/
+
+          "$RUNNER_TEMP/time-step" "generate Yul" ./compiler/bin/verity-compiler \
+            --manifest packages/verity-examples/contracts.manifest \
+            --output compiler/yul \
+            --link examples/external-libs/PoseidonT3.yul \
+            --link examples/external-libs/PoseidonT4.yul
+
+          "$RUNNER_TEMP/time-step" "generate patched Yul" ./compiler/bin/verity-compiler-patched \
+            --manifest packages/verity-examples/contracts.manifest \
+            --enable-patches \
+            --patch-report compiler/patch-report.tsv \
+            --output compiler/yul-patched \
+            --link examples/external-libs/PoseidonT3.yul \
+            --link examples/external-libs/PoseidonT4.yul
+
+          "$RUNNER_TEMP/time-step" "static gas report" lake exe gas-report --manifest packages/verity-examples/contracts.manifest
+          "$RUNNER_TEMP/time-step" "patched static gas report" lake exe gas-report --manifest packages/verity-examples/contracts.manifest --enable-patches --patch-max-iterations 2
+          "$RUNNER_TEMP/time-step" "check generated Yul" python3 scripts/check_yul.py --dir compiler/yul --dir compiler/yul-patched --require-same-files compiler/yul compiler/yul-patched
+          ccache -s || true
+
+      - name: Publish validation summary
+        if: always()
+        run: |
+          cat validation-results.md >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo
+            echo "### Log tails"
+            echo
+            sed 's/^/    /' validation-tail.log
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload validation logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runner-lean-validation-${{ runner.arch }}-${{ github.run_id }}
+          path: |
+            validation-*.log
+            validation-results.md
+            lake-build.log
+            axiom-report-raw.log
+            axiom-report.md
+          if-no-files-found: ignore
