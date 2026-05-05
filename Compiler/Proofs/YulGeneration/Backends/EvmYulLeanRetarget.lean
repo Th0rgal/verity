@@ -5,18 +5,17 @@
   `.evmYulLean` builtin backend are equivalent for programs that use only
   bridged builtins.
 
-  **Key theorem**: `backends_agree_on_bridged_builtins` shows that
+  **Key transition theorem**: the file-local
+  `backends_agree_on_bridged_builtins` shows that
   `evalBuiltinCallWithBackendContext .verity ... func args =
    evalBuiltinCallWithBackendContext .evmYulLean ... func args`
   for every `func ∈ bridgedBuiltins`.
 
-  This module also proves the expression-level lift for `BridgedExpr`:
-  `evalYulExpr_evmYulLean_eq_on_bridged`, plus the recursive target lift
-  `execYulFuelWithBackend_eq_on_bridged_target` for `BridgedTarget`
-  executions. The Layer-3 runtime-code lift in this module remains parameterized
-  by embedded-body `BridgedStmts` witnesses; `EvmYulLeanBodyClosure.lean` and
-  `EndToEnd.lean` discharge those witnesses for the supported safe source-body
-  fragment.
+  This module also proves file-local expression and recursive target lifts for
+  `BridgedExpr` and `BridgedTarget` executions. The Layer-3 runtime-code lift
+  remains parameterized by embedded-body `BridgedStmts` witnesses;
+  `EvmYulLeanBodyClosure.lean` and `EndToEnd.lean` discharge those witnesses for
+  the supported safe source-body fragment.
 
   **Trust boundary shift (pointwise)**: For any builtin call using a bridged
   name, the trust boundary moves from "Verity's custom Yul builtin semantics
@@ -1061,7 +1060,7 @@ expression dependency must satisfy `BridgedExpr`, and every nested statement
 list must recursively satisfy `BridgedStmt`.
 -/
 
-inductive BridgedTarget : YulExecTarget → Prop
+private inductive BridgedTarget : YulExecTarget → Prop
   | stmt (stmt : Compiler.Yul.YulStmt) (hStmt : BridgedStmt stmt) :
       BridgedTarget (.stmt stmt)
   | stmts (stmts : List Compiler.Yul.YulStmt) (hStmts : BridgedStmts stmts) :

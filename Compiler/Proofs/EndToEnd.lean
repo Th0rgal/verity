@@ -9883,12 +9883,12 @@ dispatcher execution through `nativeIRRuntimeMatchesIR` and the generated
 dispatcher theorem family. EndToEnd no longer defines compatibility wrappers
 over the older backend-parameterized proof-interpreter surface.
 
-The retargeting module (`EvmYulLeanRetarget.lean`) still records the
+The retargeting module (`EvmYulLeanRetarget.lean`) still internally records the
 bridge-history facts: `backends_agree_on_bridged_builtins`, `BridgedExpr`
 expression lifting, statement-fragment helpers for straight-line, block, if,
 switch, and for cases, and recursive `BridgedTarget` execution equivalence.
-Those facts remain useful as transition evidence for the bridged fragment, but
-they are no longer composed into this file's compiler-correctness theorems. The
+Those file-local facts remain useful as transition evidence for the bridged
+fragment, but they are no longer composed into this file's compiler-correctness theorems. The
 retargeting module also proves
 `emitYul_runtimeCode_bridged`, the emitted-runtime closure witness conditional
 on bridged IR function, entrypoint, and internal helper bodies, and
