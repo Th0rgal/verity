@@ -107,6 +107,17 @@ abbrev nativeContractOfDispatcher
     functions :=
       (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap) }
 
+/-- Native contract value produced by dispatcher lowering when the generated
+runtime also includes the native `mappingSlot` helper. -/
+abbrev nativeContractOfDispatcherWithMapping
+    (dispatcher : List EvmYul.Yul.Ast.Stmt) :
+    EvmYul.Yul.Ast.YulContract :=
+  { dispatcher := .Block dispatcher
+    functions :=
+      ((∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap).insert
+        "mappingSlot"
+        Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition) }
+
 /-! ## Layer 3: IR → Yul (Generic) -/
 
 /-- Layer 3 function-level preservation: any IR function body produces equivalent
@@ -923,6 +934,40 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping
     (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
       spec selectors hSupported irContract hCompile)
 
+/-- Supported compiler output with the mapping helper reduces native runtime
+lowering to the generated dispatcher shell plus the lowered native
+`mappingSlot` helper. The dispatcher is lowered under the same reserved-name
+context as the full emitted runtime, because native switch lowering allocates
+fresh temporaries from that context. -/
+theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hMapping : irContract.usesMapping = true) :
+    Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+        (Compiler.emitYul irContract).runtimeCode =
+      match Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+          (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+            (Compiler.emitYul irContract).runtimeCode)
+          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] with
+      | .ok (dispatcher, _) =>
+          .ok { dispatcher := .Block dispatcher
+                functions := ((∅ :
+                  Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap).insert
+                  "mappingSlot"
+                  Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition) }
+      | .error err => .error err :=
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved
+    irContract hMapping
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+      (model := spec) (selectors := selectors) (hSupported := hSupported)
+      (ir := irContract) (hcompile := hCompile))
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+      spec selectors hSupported irContract hCompile)
+    (Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
+      spec selectors hSupported irContract hCompile)
+
 theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
@@ -1154,6 +1199,69 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
     hCompile hSupported hStaticParams hSafeBodies
   · rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
       hCompile hSupported hNoMapping, hLowerDispatcher]
+  · exact hEnv
+  · exact hProject
+  · exact hMatch
+
+theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {dispatcher : List EvmYul.Yul.Ast.Stmt} {nextSwitchId : Nat}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hMapping : irContract.usesMapping = true)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+      (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        (Compiler.emitYul irContract).runtimeCode)
+      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok (dispatcher, nextSwitchId))
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hMatch : nativeDispatcherExecMatchesIRPositive fuel' irContract tx state
+      observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
+    nativeIRRuntimeMatchesIR (Nat.succ fuel') irContract tx state observableSlots := by
+  apply nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
+    hCompile hSupported hStaticParams hSafeBodies
+  · rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
+      hCompile hSupported hMapping, hLowerDispatcher]
+  · exact hEnv
+  · exact hMatch
+
+theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {dispatcher : List EvmYul.Yul.Ast.Stmt} {nextSwitchId : Nat}
+    {nativeYul : YulResult}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hMapping : irContract.usesMapping = true)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+      (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        (Compiler.emitYul irContract).runtimeCode)
+      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok (dispatcher, nextSwitchId))
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
+    (hProject : nativeProjectedDispatcherResultEq fuel' irContract tx state
+      observableSlots (nativeContractOfDispatcherWithMapping dispatcher) nativeYul)
+    (hMatch :
+      nativeResultsMatchOn observableSlots (interpretIR irContract tx state)
+        (.ok nativeYul)) :
+    nativeIRRuntimeMatchesIR (Nat.succ fuel') irContract tx state observableSlots := by
+  apply nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure
+    hCompile hSupported hStaticParams hSafeBodies
+  · rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
+      hCompile hSupported hMapping, hLowerDispatcher]
   · exact hEnv
   · exact hProject
   · exact hMatch

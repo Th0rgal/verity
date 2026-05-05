@@ -573,6 +573,37 @@ theorem lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
         simp [Bind.bind, Except.bind]
   · exact hNoFunc
 
+/-- Singleton non-`funcDef` runtime lowering, preserving the caller's
+reserved-name context and native function table. This is the form needed after
+runtime helper definitions have already populated the native function map. -/
+theorem lowerRuntimeContractNativeAux_single_stmt_eq_lowerStmtsNativeWithSwitchIds
+    (reservedNames : List String)
+    (stmt : YulStmt)
+    (functions : Backends.NativeFunctionMap)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    (Backends.lowerRuntimeContractNativeAux reservedNames [stmt] [] functions 0 >>=
+      fun a =>
+        pure ({ dispatcher := EvmYul.Yul.Ast.Stmt.Block a.1
+                functions := a.2.1 } : EvmYul.Yul.Ast.YulContract)) =
+      match Backends.lowerStmtsNativeWithSwitchIds reservedNames 0 [stmt] with
+      | .ok (dispatcher, _) =>
+          .ok ({ dispatcher := EvmYul.Yul.Ast.Stmt.Block dispatcher
+                 functions := functions } : EvmYul.Yul.Ast.YulContract)
+      | .error err => .error err := by
+  rw [Backends.lowerRuntimeContractNativeAux_stmt_cons]
+  · rw [Backends.lowerStmtsNativeWithSwitchIds_cons]
+    cases hLower :
+        Backends.lowerStmtGroupNativeWithSwitchIds reservedNames 0 stmt with
+    | ok pair =>
+        cases pair with
+        | mk lowered next =>
+            simp [Bind.bind, Except.bind, Pure.pure, Except.pure,
+              Backends.lowerRuntimeContractNativeAux]
+    | error err =>
+        simp [Bind.bind, Except.bind]
+  · exact hNoFunc
+
 /-- Helper-free, no-fallback/no-receive emitted runtimes are exactly the
 single generated dispatcher shell. -/
 theorem emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive
@@ -1162,6 +1193,60 @@ theorem lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero
     Backends.lowerAssignNative, Backends.lookupRuntimePrimOp,
     nativeMappingSlotFunctionDefinition, Bind.bind, Except.bind, Pure.pure,
     Except.pure]
+
+/-- Body-form variant of
+`lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero`, for proof
+sites that have already unfolded the generated helper. -/
+theorem lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero_body
+    (globalReservedNames : List String) :
+    Backends.lowerFunctionDefinitionNativeWithReserved
+      globalReservedNames ["baseSlot", "key"] ["slot"]
+      [YulStmt.expr
+        (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.ident "key"]),
+       YulStmt.expr
+        (YulExpr.call "mstore"
+          [YulExpr.lit (0 + 32), YulExpr.ident "baseSlot"]),
+       YulStmt.assign "slot"
+        (YulExpr.call "keccak256" [YulExpr.lit 0, YulExpr.lit 64])] =
+      .ok nativeMappingSlotFunctionDefinition := by
+  simp [Backends.lowerFunctionDefinitionNativeWithReserved,
+    Backends.lowerStmtsNativeWithSwitchIds, Backends.lowerExprNative,
+    Backends.lowerAssignNative, Backends.lookupRuntimePrimOp,
+    nativeMappingSlotFunctionDefinition, Bind.bind, Except.bind, Pure.pure,
+    Except.pure]
+
+/-- Mapping-helper, no-internal/no-fallback/no-receive emitted runtimes lower
+by first packaging the generated `mappingSlot` helper into the native function
+map, then lowering the dispatcher in the full emitted-runtime reserved-name
+context. -/
+theorem lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved
+    (contract : IRContract)
+    (hMapping : contract.usesMapping = true)
+    (hInternals : contract.internalFunctions = [])
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none) :
+    Backends.lowerRuntimeContractNative (Compiler.emitYul contract).runtimeCode =
+      match Backends.lowerStmtsNativeWithSwitchIds
+          (Backends.yulStmtsIdentifierNames
+            (Compiler.emitYul contract).runtimeCode)
+          0 [Compiler.CodegenCommon.buildSwitch contract.functions none none] with
+      | .ok (dispatcher, _) =>
+          .ok { dispatcher := .Block dispatcher
+                functions := ((∅ : Backends.NativeFunctionMap).insert
+                  "mappingSlot" nativeMappingSlotFunctionDefinition) }
+      | .error err => .error err := by
+  unfold Backends.lowerRuntimeContractNative
+  simp only [Compiler.emitYul, Compiler.CodegenCommon.emitYul,
+    Compiler.CodegenCommon.runtimeCode, hMapping, hInternals, hNoFallback,
+    hNoReceive, if_true]
+  simp only [List.singleton_append, List.append_nil]
+  simp only [Compiler.CodegenCommon.mappingSlotFuncAt]
+  rw [Backends.lowerRuntimeContractNativeAux_funcDef_cons_empty_of_lowerFunctionDefinition
+    (definition := nativeMappingSlotFunctionDefinition)]
+  · rw [lowerRuntimeContractNativeAux_single_stmt_eq_lowerStmtsNativeWithSwitchIds]
+    intro name params rets body h
+    simp [Compiler.CodegenCommon.buildSwitch] at h
+  · exact lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero_body _
 
 theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
     (left right : List YulStmt)

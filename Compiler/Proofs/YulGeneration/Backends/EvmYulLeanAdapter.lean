@@ -912,6 +912,27 @@ theorem lowerRuntimeContractNativeAux_funcDef_cons
         lowerRuntimeContractNativeAux reservedNames rest dispatcherAcc functionsAcc nextSwitchId) := by
   rw [lowerRuntimeContractNativeAux.eq_2]
 
+/-- Specialization of `lowerRuntimeContractNativeAux_funcDef_cons` for the
+first helper definition in a runtime: once the helper body lowers, inserting it
+into the empty native function map cannot hit the duplicate-definition guard. -/
+theorem lowerRuntimeContractNativeAux_funcDef_cons_empty_of_lowerFunctionDefinition
+    (reservedNames : List String)
+    (dispatcherAcc : List EvmYul.Yul.Ast.Stmt)
+    (nextSwitchId : Nat)
+    (name : String)
+    (params rets : List String)
+    (body rest : List YulStmt)
+    (definition : EvmYul.Yul.Ast.FunctionDefinition)
+    (hLower : lowerFunctionDefinitionNativeWithReserved
+      reservedNames params rets body = .ok definition) :
+    lowerRuntimeContractNativeAux reservedNames
+        (YulStmt.funcDef name params rets body :: rest)
+        dispatcherAcc (∅ : NativeFunctionMap) nextSwitchId =
+      lowerRuntimeContractNativeAux reservedNames rest dispatcherAcc
+        ((∅ : NativeFunctionMap).insert name definition) nextSwitchId := by
+  rw [lowerRuntimeContractNativeAux_funcDef_cons, hLower]
+  simp [insertNativeFunction, Bind.bind, Except.bind, Pure.pure, Except.pure]
+
 /-- Top-level native runtime lowering appends non-`funcDef` statements to the
 dispatcher accumulator after statement lowering.
 
