@@ -155,11 +155,12 @@ materializes pre-state storage for those slots.
   `layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
   wrapper family, and to the Layers 2+3 composition by the
   `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_*`
-  wrappers. The public Layers 2+3 full-runtime dispatcher-statement wrappers
-  also expose `_ofIR_environment` and `_ofIR_globalDefaults` variants for both
-  no-mapping and `_mapping_reserved` paths, matching the narrower
-  dispatcher-statement environment-discharge surface while keeping callers at
-  the full emitted-runtime lowering boundary.
+  wrapper family. The public Layers 2+3 full-runtime dispatcher-statement
+  wrappers also expose canonical-fuel `_canonicalFuel` aliases plus
+  `_ofIR_environment` and `_ofIR_globalDefaults` variants for both no-mapping
+  and `_mapping_reserved` paths, matching the narrower dispatcher-statement
+  environment-discharge surface while keeping callers at the full
+  emitted-runtime lowering boundary.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with
