@@ -77,7 +77,12 @@ N8 public Layer 3 theorem flip
   mapping-helper lowering is named by `nativeMappingSlotFunctionDefinition` and
   `lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero`, pinning
   the concrete native EVMYulLean function body for `mappingSlot` at scratch
-  base zero. EndToEnd also
+  base zero. Mapping-enabled emitted-runtime lowering is now packaged by
+  `lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved`
+  and the compiled supported wrapper
+  `lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved`; the
+  dispatcher is lowered under the full emitted-runtime reserved-name context so
+  native switch temporary allocation remains faithful. EndToEnd also
   names the positive/projected no-mapping dispatcher-statement wrappers
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping`
   and
@@ -86,7 +91,12 @@ N8 public Layer 3 theorem flip
   corresponding direct
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_*`
   and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
-  wrappers.
+  wrappers. The same native dispatcher-statement surface now exists for
+  mapping-enabled generated runtimes under the `_mapping_reserved` names,
+  including `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_*`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_*`,
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
+  `_ofIR_environment` / `_ofIR_globalDefaults` variants.
   Generic `.block` lowering shape also lives in the native harness via
   `lowerStmtsNative_single_block_ok_singleton` and
   `lowerStmtsNative_block_stmts_eq`; let/if/switch dispatcher statement peels

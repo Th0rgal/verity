@@ -94,7 +94,14 @@ materializes pre-state storage for those slots.
   by `nativeMappingSlotFunctionDefinition` and
   `lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero`, which
   package the concrete native lowering of the generated `mappingSlot` helper at
-  scratch base zero. The no-mapping positive/projected native wrappers
+  scratch base zero. Mapping-enabled emitted runtime lowering is now packaged
+  by
+  `lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved`
+  in the native harness and by
+  `lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved` for
+  compiled supported contracts, with the generated dispatcher lowered under the
+  full emitted-runtime reserved-name context. The no-mapping positive/projected
+  native wrappers
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping`
   and
   `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping`
@@ -104,7 +111,11 @@ materializes pre-state storage for those slots.
   while the matching
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_*`
   and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
-  wrappers expose the direct native-vs-IR result surface.
+  wrappers expose the direct native-vs-IR result surface. The mapping-enabled
+  equivalents are exposed under the `_mapping_reserved` suffix for the
+  `nativeIRRuntimeMatchesIR`, `layer3_contract_preserves_semantics_native`, and
+  `layers2_3_ir_matches_native_evmYulLean` dispatcher-statement wrapper
+  families.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with
