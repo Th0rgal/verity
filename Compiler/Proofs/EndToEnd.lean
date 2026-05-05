@@ -76,6 +76,29 @@ abbrev nativeIRRuntimeMatchesIR :=
 abbrev nativeDispatcherExecMatchesIRPositive :=
   Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive
 
+/-- Projected native dispatcher-exec result equality used by the public native
+EndToEnd seams. -/
+abbrev nativeProjectedDispatcherResultEq
+    (fuel' : Nat) (contract : IRContract) (tx : IRTransaction)
+    (state : IRState) (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract) (nativeYul : YulResult) :
+    Prop :=
+  let initial :=
+    Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      nativeContract (YulTransaction.ofIR tx) state.storage
+      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode contract) observableSlots)
+  let nativeResult :=
+    match Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial with
+    | .error err => .error err
+    | .ok finalState =>
+        let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+        .ok (restored, [])
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+      (YulTransaction.ofIR tx) state.storage state.events nativeResult =
+    nativeYul
+
 /-! ## Layer 3: IR → Yul (Generic) -/
 
 /-- Layer 3 function-level preservation: any IR function body produces equivalent
@@ -872,6 +895,38 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_po
       hCompile hSupported hStaticParams hSafeBodies)
     hLower hEnv hMatch
 
+theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hChainId :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
+        tx.chainId = true)
+    (hBlobBaseFee :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable
+        tx.blobBaseFee = true)
+    (hNoHeader :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        false)
+    (hMatch : nativeDispatcherExecMatchesIRPositive fuel' irContract tx state observableSlots nativeContract) :
+    nativeIRRuntimeMatchesIR (Nat.succ fuel') irContract tx state observableSlots :=
+  nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
+    hCompile hSupported hStaticParams hSafeBodies hLower
+    (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+      (Compiler.emitYul irContract).runtimeCode tx hChainId hBlobBaseFee
+      hNoHeader)
+    hMatch
+
 theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
@@ -885,22 +940,8 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_pr
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hProject :
-      let initial :=
-        Compiler.Proofs.YulGeneration.Backends.Native.initialState
-          nativeContract (YulTransaction.ofIR tx) state.storage
-          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-            (Compiler.runtimeCode irContract) observableSlots)
-      let nativeResult :=
-        match Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-            fuel' nativeContract initial with
-        | .error err => .error err
-        | .ok finalState =>
-            let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
-            .ok (restored, [])
-      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
-          (YulTransaction.ofIR tx) state.storage state.events nativeResult =
-        nativeYul)
+    (hProject : nativeProjectedDispatcherResultEq fuel' irContract tx state
+      observableSlots nativeContract nativeYul)
     (hMatch :
       nativeResultsMatchOn observableSlots (interpretIR irContract tx state)
         (.ok nativeYul)) :
@@ -934,22 +975,8 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_pr
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hProject :
-      let initial :=
-        Compiler.Proofs.YulGeneration.Backends.Native.initialState
-          nativeContract (YulTransaction.ofIR tx) state.storage
-          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-            (Compiler.runtimeCode irContract) observableSlots)
-      let nativeResult :=
-        match Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-            fuel' nativeContract initial with
-        | .error err => .error err
-        | .ok finalState =>
-            let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
-            .ok (restored, [])
-      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
-          (YulTransaction.ofIR tx) state.storage state.events nativeResult =
-        nativeYul)
+    (hProject : nativeProjectedDispatcherResultEq fuel' irContract tx state
+      observableSlots nativeContract nativeYul)
     (hMatch :
       nativeResultsMatchOn observableSlots (interpretIR irContract tx state)
         (.ok nativeYul)) :
@@ -959,6 +986,42 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_pr
     (generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
       hCompile hSupported hStaticParams hSafeBodies)
     hLower hEnv hProject hMatch
+
+theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {nativeContract : EvmYul.Yul.Ast.YulContract} {nativeYul : YulResult}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hChainId :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
+        tx.chainId = true)
+    (hBlobBaseFee :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable
+        tx.blobBaseFee = true)
+    (hNoHeader :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        false)
+    (hProject : nativeProjectedDispatcherResultEq fuel' irContract tx state
+      observableSlots nativeContract nativeYul)
+    (hMatch :
+      nativeResultsMatchOn observableSlots (interpretIR irContract tx state)
+        (.ok nativeYul)) :
+    nativeIRRuntimeMatchesIR (Nat.succ fuel') irContract tx state observableSlots :=
+  nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure
+    hCompile hSupported hStaticParams hSafeBodies hLower
+    (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+      (Compiler.emitYul irContract).runtimeCode tx hChainId hBlobBaseFee
+      hNoHeader)
+    hProject hMatch
 
 /-- Compiler-produced Layer 3 native theorem with an already-closed external
 native body-shape witness. -/
@@ -1000,22 +1063,8 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hProject :
-      let initial :=
-        Compiler.Proofs.YulGeneration.Backends.Native.initialState
-          nativeContract (YulTransaction.ofIR tx) initialState.storage
-          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-            (Compiler.runtimeCode irContract) observableSlots)
-      let nativeResult :=
-        match Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-            fuel' nativeContract initial with
-        | .error err => .error err
-        | .ok finalState =>
-            let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
-            .ok (restored, [])
-      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
-          (YulTransaction.ofIR tx) initialState.storage initialState.events nativeResult =
-        nativeYul)
+    (hProject : nativeProjectedDispatcherResultEq fuel' irContract tx initialState
+      observableSlots nativeContract nativeYul)
     (hMatch :
       nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
         (.ok nativeYul)) :
@@ -1073,22 +1122,8 @@ theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatc
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hProject :
-      let initial :=
-        Compiler.Proofs.YulGeneration.Backends.Native.initialState
-          nativeContract (YulTransaction.ofIR tx) initialState.storage
-          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-            (Compiler.runtimeCode irContract) observableSlots)
-      let nativeResult :=
-        match Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-            fuel' nativeContract initial with
-        | .error err => .error err
-        | .ok finalState =>
-            let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
-            .ok (restored, [])
-      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
-          (YulTransaction.ofIR tx) initialState.storage initialState.events nativeResult =
-        nativeYul)
+    (hProject : nativeProjectedDispatcherResultEq fuel' irContract tx initialState
+      observableSlots nativeContract nativeYul)
     (hMatch :
       nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
         (.ok nativeYul)) :
@@ -1142,22 +1177,8 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hProject :
-      let initial :=
-        Compiler.Proofs.YulGeneration.Backends.Native.initialState
-          nativeContract (YulTransaction.ofIR tx) initialState.storage
-          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-            (Compiler.runtimeCode irContract) observableSlots)
-      let nativeResult :=
-        match Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-            fuel' nativeContract initial with
-        | .error err => .error err
-        | .ok finalState =>
-            let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
-            .ok (restored, [])
-      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
-          (YulTransaction.ofIR tx) initialState.storage initialState.events nativeResult =
-        nativeYul)
+    (hProject : nativeProjectedDispatcherResultEq fuel' irContract tx initialState
+      observableSlots nativeContract nativeYul)
     (hMatch :
       nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
         (.ok nativeYul)) :
@@ -1209,22 +1230,8 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hProject :
-      let initial :=
-        Compiler.Proofs.YulGeneration.Backends.Native.initialState
-          nativeContract (YulTransaction.ofIR tx) initialState.storage
-          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-            (Compiler.runtimeCode irContract) observableSlots)
-      let nativeResult :=
-        match Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-            fuel' nativeContract initial with
-        | .error err => .error err
-        | .ok finalState =>
-            let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
-            .ok (restored, [])
-      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
-          (YulTransaction.ofIR tx) initialState.storage initialState.events nativeResult =
-        nativeYul)
+    (hProject : nativeProjectedDispatcherResultEq fuel' irContract tx initialState
+      observableSlots nativeContract nativeYul)
     (hMatch :
       nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
         (.ok nativeYul)) :
@@ -1260,6 +1267,45 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_posit
     fuel' spec selectors irContract tx initialState observableSlots nativeContract
     hCompile hSupported hStaticParams hSafeBodies hLower hEnv hNativeDispatcherExec
 
+/-- Supported compiler-produced positive dispatcher-exec theorem with
+`YulTransaction.ofIR` environment validation discharged from representable
+environment facts. -/
+theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment
+    (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hChainId :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
+        tx.chainId = true)
+    (hBlobBaseFee :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable
+        tx.blobBaseFee = true)
+    (hNoHeader :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        false)
+    (hNativeDispatcherExec :
+      nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
+        observableSlots nativeContract) :
+    nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (Nat.succ fuel') irContract tx initialState observableSlots) :=
+  layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure
+    fuel' spec selectors irContract tx initialState observableSlots nativeContract
+    hCompile hSupported hStaticParams hSafeBodies hLower
+    (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+      (Compiler.emitYul irContract).runtimeCode tx hChainId hBlobBaseFee
+      hNoHeader)
+    hNativeDispatcherExec
+
 /-- Supported compiler-produced projected-result theorem on the direct
 native-vs-IR target, with source-level body closure named explicitly. -/
 theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure
@@ -1277,22 +1323,8 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hProject :
-      let initial :=
-        Compiler.Proofs.YulGeneration.Backends.Native.initialState
-          nativeContract (YulTransaction.ofIR tx) initialState.storage
-          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-            (Compiler.runtimeCode irContract) observableSlots)
-      let nativeResult :=
-        match Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-            fuel' nativeContract initial with
-        | .error err => .error err
-        | .ok finalState =>
-            let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
-            .ok (restored, [])
-      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
-          (YulTransaction.ofIR tx) initialState.storage initialState.events nativeResult =
-        nativeYul)
+    (hProject : nativeProjectedDispatcherResultEq fuel' irContract tx initialState
+      observableSlots nativeContract nativeYul)
     (hMatch :
       nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
         (.ok nativeYul)) :
@@ -1302,6 +1334,48 @@ theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_proje
   layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match
     fuel' spec selectors irContract tx initialState observableSlots nativeContract nativeYul
     hCompile hSupported hStaticParams hSafeBodies hLower hEnv hProject hMatch
+
+/-- Supported compiler-produced projected-result theorem with
+`YulTransaction.ofIR` environment validation discharged from representable
+environment facts. -/
+theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment
+    (fuel' : Nat) (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
+    (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (nativeYul : YulResult)
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hChainId :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
+        tx.chainId = true)
+    (hBlobBaseFee :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable
+        tx.blobBaseFee = true)
+    (hNoHeader :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        false)
+    (hProject : nativeProjectedDispatcherResultEq fuel' irContract tx initialState
+      observableSlots nativeContract nativeYul)
+    (hMatch :
+      nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+        (.ok nativeYul)) :
+    nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (Nat.succ fuel') irContract tx initialState observableSlots) :=
+  layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure
+    fuel' spec selectors irContract tx initialState observableSlots nativeContract nativeYul
+    hCompile hSupported hStaticParams hSafeBodies hLower
+    (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+      (Compiler.emitYul irContract).runtimeCode tx hChainId hBlobBaseFee
+      hNoHeader)
+    hProject hMatch
 
 /-! ## Concrete Instantiation: SimpleStorage -/
 
