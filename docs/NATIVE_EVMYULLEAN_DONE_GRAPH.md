@@ -102,7 +102,11 @@ N8 public Layer 3 theorem flip
   including `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_*`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_*`,
   and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
-  `_ofIR_environment` / `_ofIR_globalDefaults` variants.
+  `_ofIR_environment` / `_ofIR_globalDefaults` variants. The
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
+  wrappers compose successful full runtime lowering with the concrete
+  dispatcher-statement surfaces, keeping callers at the emitted-runtime
+  boundary while the exact dispatcher lowering is extracted internally.
   Generic `.block` lowering shape also lives in the native harness via
   `lowerStmtsNative_single_block_ok_singleton` and
   `lowerStmtsNative_block_stmts_eq`; let/if/switch dispatcher statement peels
