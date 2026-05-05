@@ -44,12 +44,15 @@ materializes pre-state storage for those slots.
 - The EndToEnd layer now exposes a small native result surface:
   `nativeResultsMatchOn`, `sourceResultMatchesNativeOn`, the source/native
   composition theorem over that result surface,
-  `compile_preserves_native_evmYulLean_of_nativeResultsMatchOn` for supported
-  compiler output at canonical generated-runtime fuel, and the concrete
-  SimpleStorage native theorem. The opaque arbitrary-fuel identity seams, generated
-  dispatcher-exec lift facts, and fuel-indexed `nativeIRRuntimeMatchesIR`
-  targets are file-local, and the older proof-interpreter bridge signature has
-  been removed from EndToEnd. The public generated target is native
+  `compile_preserves_native_evmYulLean_of_nativeResultsMatchOn`,
+  `nativeGeneratedDispatcherExecMatchesIROn`, the supported-compiler
+  dispatcher-exec wrapper
+  `compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match` at
+  canonical generated-runtime fuel, and the concrete SimpleStorage native
+  theorem. The opaque arbitrary-fuel identity seams, generated dispatcher-exec
+  lift facts, and fuel-indexed `nativeIRRuntimeMatchesIR` targets are
+  file-local, and the older proof-interpreter bridge signature has been removed
+  from EndToEnd. The public generated target is native
   `Native.interpretIRRuntimeNative` through `nativeResultsMatchOn`, comparing
   success, return value, events, and the explicitly observable final-storage
   slots. The backend-parameterized safe-body Yul target is now isolated

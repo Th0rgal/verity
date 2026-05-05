@@ -211,6 +211,38 @@ private def nativeDispatcherExecMatchesIRPositive
       (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
         (YulTransaction.ofIR tx) state.storage state.events nativeResult))
 
+/-- Public canonical generated-runtime dispatcher-exec target against IR.
+
+This is the source-level theorem's direct native execution premise: the
+generated runtime is lowered to an EVMYulLean contract, then its dispatcher is
+executed with canonical generated-runtime fuel and projected onto Verity's
+observable result surface. -/
+def nativeGeneratedDispatcherExecMatchesIROn
+    (contract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract) :
+    Prop :=
+  let fuel' := sizeOf (Compiler.emitYul contract).runtimeCode
+  let initial :=
+    Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+      (YulTransaction.ofIR tx) state.storage
+      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode contract) observableSlots)
+  let nativeResult :=
+    match
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+        fuel' nativeContract initial with
+    | .error err => .error err
+    | .ok finalState =>
+        let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+        .ok (restored, [])
+  nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+    (.ok
+      (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+        (YulTransaction.ofIR tx) state.storage state.events nativeResult))
+
 /-- Canonical native dispatcher fuel for the generated runtime surface. -/
 private noncomputable abbrev nativeRuntimeDispatcherFuel (contract : IRContract) : Nat :=
   sizeOf (Compiler.emitYul contract).runtimeCode
@@ -3944,6 +3976,87 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherEx
     (nativeRuntimeDispatcherFuel irContract) spec selectors irContract tx
     initialState observableSlots nativeContract hCompile hSupported hStaticParams
     hSafeBodies hLower hEnv hNativeDispatcherExec
+
+/-- Public supported-compiler correctness theorem over the generated native
+dispatcher-exec target.
+
+Unlike `compile_preserves_native_evmYulLean_of_nativeResultsMatchOn`, this
+wrapper does not ask callers to provide the final native/IR result match for
+`interpretIRRuntimeNative`. It consumes the canonical generated-runtime
+dispatcher execution premise directly, then discharges the runtime-harness
+shape obligations from supported compiler output. -/
+theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
+    (model : CompilationModel.CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hcompile : CompilationModel.compile model selectors = Except.ok irContract)
+    (hStaticParams : ∀ entry,
+      entry ∈ SourceSemantics.selectorFunctionPairs model selectors →
+        Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams
+          entry.1.params)
+    (hSafeBodies : ∀ entry,
+      entry ∈ SourceSemantics.selectorFunctionPairs model selectors →
+        Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+          model.fields model.errors .calldata [] false entry.1.body)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ())
+    (hNativeDispatcherExec :
+      nativeGeneratedDispatcherExecMatchesIROn irContract tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        observableSlots nativeContract) :
+    sourceResultMatchesNativeOn observableSlots
+      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (Nat.succ (sizeOf (Compiler.emitYul irContract).runtimeCode))
+        irContract tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        observableSlots) := by
+  have hNativeDispatcherExec' :
+      nativeDispatcherExecMatchesIRPositive
+        (nativeRuntimeDispatcherFuel irContract) irContract tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        observableSlots nativeContract := by
+    simpa [
+      nativeGeneratedDispatcherExecMatchesIROn,
+      nativeDispatcherExecMatchesIRPositive,
+      nativeRuntimeDispatcherFuel
+    ] using hNativeDispatcherExec
+  have hLayer3 :
+      nativeResultsMatchOn observableSlots
+        (interpretIR irContract tx
+          (FunctionBody.initialIRStateForTx model tx initialWorld))
+        (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+          (nativeRuntimeFuel irContract) irContract tx
+          (FunctionBody.initialIRStateForTx model tx initialWorld)
+          observableSlots) :=
+    layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match_canonicalFuel
+      model selectors irContract tx
+      (FunctionBody.initialIRStateForTx model tx initialWorld)
+      observableSlots nativeContract hcompile hSupported hStaticParams
+      hSafeBodies hLower hEnv hNativeDispatcherExec'
+  have hSourceIR :
+      Compiler.Proofs.IRGeneration.FunctionBody.sourceResultMatchesIRResult
+        (supportedSourceContractSemantics model selectors hSupported tx
+          initialWorld)
+        (interpretIR irContract tx
+          (FunctionBody.initialIRStateForTx model tx initialWorld)) :=
+    Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
+      model selectors hSupported irContract tx initialWorld htxNormalized
+      hcalldataSizeFits hcompile
+  simpa [nativeRuntimeFuel] using
+    sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
+      hSourceIR hLayer3
 
 /-- Supported compiler-produced projected-result theorem on the direct
 native-vs-IR target. -/
