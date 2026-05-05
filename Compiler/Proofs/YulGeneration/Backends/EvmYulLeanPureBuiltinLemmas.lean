@@ -1,5 +1,7 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Mathlib.Data.Nat.Bitwise
+import Verity.Core.Int256
+import Verity.Core.Uint256
 
 namespace Compiler.Proofs.YulGeneration.Backends
 
@@ -100,6 +102,143 @@ private theorem word_lt_uint256_size (x : Nat) :
       some (if b % Compiler.Constants.evmModulus < a % Compiler.Constants.evmModulus then 1 else 0) := by
   rw [← uint256_size_eq_evmModulus]
   rfl
+
+private theorem toNat_fromBool (b : Bool) :
+    EvmYul.UInt256.toNat (Bool.toUInt256 b) = if b then 1 else 0 := by
+  cases b <;> rfl
+
+private theorem uint256_lt_iff_nat_lt {a b : Nat}
+    (ha : a < EvmYul.UInt256.size) (hb : b < EvmYul.UInt256.size) :
+    ((⟨⟨a, ha⟩⟩ : EvmYul.UInt256) < ⟨⟨b, hb⟩⟩) ↔ (a < b) :=
+  Iff.rfl
+
+private theorem slt_int256_eq_sltBool (a b : Nat)
+    (ha : a < Compiler.Constants.evmModulus)
+    (hb : b < Compiler.Constants.evmModulus) :
+    (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨a, ha⟩) <
+        Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨b, hb⟩)
+     then (1 : Nat) else 0) =
+    (EvmYul.UInt256.toNat
+      (EvmYul.UInt256.slt ⟨⟨a, by simpa [uint256_size_eq_evmModulus] using ha⟩⟩
+        ⟨⟨b, by simpa [uint256_size_eq_evmModulus] using hb⟩⟩)) := by
+  unfold EvmYul.UInt256.slt
+  rw [toNat_fromBool]
+  unfold EvmYul.UInt256.sltBool
+  simp only [EvmYul.UInt256.toNat, ge_iff_le]
+  have ha' : a < EvmYul.UInt256.size := by simpa [uint256_size_eq_evmModulus] using ha
+  have hb' : b < EvmYul.UInt256.size := by simpa [uint256_size_eq_evmModulus] using hb
+  simp only [uint256_lt_iff_nat_lt ha' hb']
+  simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
+    Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+  split_ifs <;> simp_all [Compiler.Constants.evmModulus, EvmYul.UInt256.size] <;> omega
+
+@[simp] theorem evalPureBuiltinViaEvmYulLean_slt_native (a b : Nat) :
+    evalPureBuiltinViaEvmYulLean "slt" [a, b] =
+      some (if Verity.Core.Int256.toInt
+              (Verity.Core.Int256.ofUint256
+                (Verity.Core.Uint256.ofNat (a % Compiler.Constants.evmModulus))) <
+            Verity.Core.Int256.toInt
+              (Verity.Core.Int256.ofUint256
+                (Verity.Core.Uint256.ofNat (b % Compiler.Constants.evmModulus)))
+           then 1 else 0) := by
+  have ha : a % Compiler.Constants.evmModulus < Compiler.Constants.evmModulus :=
+    Nat.mod_lt a (by unfold Compiler.Constants.evmModulus; omega)
+  have hb : b % Compiler.Constants.evmModulus < Compiler.Constants.evmModulus :=
+    Nat.mod_lt b (by unfold Compiler.Constants.evmModulus; omega)
+  change some (EvmYul.UInt256.toNat
+      (EvmYul.UInt256.slt (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) =
+    some (if Verity.Core.Int256.toInt
+              (Verity.Core.Int256.ofUint256
+                (Verity.Core.Uint256.ofNat (a % Compiler.Constants.evmModulus))) <
+            Verity.Core.Int256.toInt
+              (Verity.Core.Int256.ofUint256
+                (Verity.Core.Uint256.ofNat (b % Compiler.Constants.evmModulus)))
+           then 1 else 0)
+  congr 1
+  rw [show EvmYul.UInt256.ofNat a =
+      (⟨⟨a % Compiler.Constants.evmModulus, by
+        simpa [uint256_size_eq_evmModulus] using ha⟩⟩ : EvmYul.UInt256) by
+        simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  rw [show EvmYul.UInt256.ofNat b =
+      (⟨⟨b % Compiler.Constants.evmModulus, by
+        simpa [uint256_size_eq_evmModulus] using hb⟩⟩ : EvmYul.UInt256) by
+        simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  have hmod_a :
+      (a % Compiler.Constants.evmModulus) % Verity.Core.UINT256_MODULUS =
+        a % Compiler.Constants.evmModulus := by
+    exact Nat.mod_eq_of_lt (by simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using ha)
+  have hmod_b :
+      (b % Compiler.Constants.evmModulus) % Verity.Core.UINT256_MODULUS =
+        b % Compiler.Constants.evmModulus := by
+    exact Nat.mod_eq_of_lt (by simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using hb)
+  simp only [Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus, hmod_a, hmod_b]
+  exact (slt_int256_eq_sltBool
+    (a % Compiler.Constants.evmModulus) (b % Compiler.Constants.evmModulus) ha hb).symm
+
+private theorem sgt_int256_eq_sgtBool (a b : Nat)
+    (ha : a < Compiler.Constants.evmModulus)
+    (hb : b < Compiler.Constants.evmModulus) :
+    (if Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨b, hb⟩) <
+        Verity.Core.Int256.toInt (Verity.Core.Int256.ofUint256 ⟨a, ha⟩)
+     then (1 : Nat) else 0) =
+    (EvmYul.UInt256.toNat
+      (EvmYul.UInt256.sgt ⟨⟨a, by simpa [uint256_size_eq_evmModulus] using ha⟩⟩
+        ⟨⟨b, by simpa [uint256_size_eq_evmModulus] using hb⟩⟩)) := by
+  unfold EvmYul.UInt256.sgt
+  rw [toNat_fromBool]
+  unfold EvmYul.UInt256.sgtBool
+  simp only [EvmYul.UInt256.toNat, ge_iff_le]
+  have ha' : a < EvmYul.UInt256.size := by simpa [uint256_size_eq_evmModulus] using ha
+  have hb' : b < EvmYul.UInt256.size := by simpa [uint256_size_eq_evmModulus] using hb
+  simp only [uint256_lt_iff_nat_lt hb' ha']
+  simp only [Verity.Core.Int256.toInt, Verity.Core.Int256.ofUint256,
+    Verity.Core.Int256.signBit, Verity.Core.Int256.modulus,
+    Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS]
+  split_ifs <;> simp_all [Compiler.Constants.evmModulus, EvmYul.UInt256.size] <;> omega
+
+@[simp] theorem evalPureBuiltinViaEvmYulLean_sgt_native (a b : Nat) :
+    evalPureBuiltinViaEvmYulLean "sgt" [a, b] =
+      some (if Verity.Core.Int256.toInt
+              (Verity.Core.Int256.ofUint256
+                (Verity.Core.Uint256.ofNat (b % Compiler.Constants.evmModulus))) <
+            Verity.Core.Int256.toInt
+              (Verity.Core.Int256.ofUint256
+                (Verity.Core.Uint256.ofNat (a % Compiler.Constants.evmModulus)))
+           then 1 else 0) := by
+  have ha : a % Compiler.Constants.evmModulus < Compiler.Constants.evmModulus :=
+    Nat.mod_lt a (by unfold Compiler.Constants.evmModulus; omega)
+  have hb : b % Compiler.Constants.evmModulus < Compiler.Constants.evmModulus :=
+    Nat.mod_lt b (by unfold Compiler.Constants.evmModulus; omega)
+  change some (EvmYul.UInt256.toNat
+      (EvmYul.UInt256.sgt (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) =
+    some (if Verity.Core.Int256.toInt
+              (Verity.Core.Int256.ofUint256
+                (Verity.Core.Uint256.ofNat (b % Compiler.Constants.evmModulus))) <
+            Verity.Core.Int256.toInt
+              (Verity.Core.Int256.ofUint256
+                (Verity.Core.Uint256.ofNat (a % Compiler.Constants.evmModulus)))
+           then 1 else 0)
+  congr 1
+  rw [show EvmYul.UInt256.ofNat a =
+      (⟨⟨a % Compiler.Constants.evmModulus, by
+        simpa [uint256_size_eq_evmModulus] using ha⟩⟩ : EvmYul.UInt256) by
+        simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  rw [show EvmYul.UInt256.ofNat b =
+      (⟨⟨b % Compiler.Constants.evmModulus, by
+        simpa [uint256_size_eq_evmModulus] using hb⟩⟩ : EvmYul.UInt256) by
+        simp only [EvmYul.UInt256.ofNat, Id.run]; congr 1]
+  have hmod_a :
+      (a % Compiler.Constants.evmModulus) % Verity.Core.UINT256_MODULUS =
+        a % Compiler.Constants.evmModulus := by
+    exact Nat.mod_eq_of_lt (by simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using ha)
+  have hmod_b :
+      (b % Compiler.Constants.evmModulus) % Verity.Core.UINT256_MODULUS =
+        b % Compiler.Constants.evmModulus := by
+    exact Nat.mod_eq_of_lt (by simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using hb)
+  simp only [Verity.Core.Uint256.ofNat, Verity.Core.Uint256.modulus, hmod_a, hmod_b]
+  exact (sgt_int256_eq_sgtBool
+    (a % Compiler.Constants.evmModulus) (b % Compiler.Constants.evmModulus) ha hb).symm
 
 @[simp] theorem evalPureBuiltinViaEvmYulLean_and_native (a b : Nat) :
     evalPureBuiltinViaEvmYulLean "and" [a, b] =
