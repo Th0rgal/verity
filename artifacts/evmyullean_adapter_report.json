@@ -248,8 +248,10 @@
     "genParamLoads_scalar_bridged": "proven (scalar calldata parameters)",
     "genParamLoads_static_scalar_bridged": "proven (static scalar calldata parameters)",
     "genStaticTypeLoads_calldataload_bridged": "proven (static scalar calldata leaves)",
-    "layers2_3_ir_matches_yul_evmYulLeanBackend": "private transition lemma (body hypotheses discharged)",
-    "remaining_for_whole_program_retargeting": [],
+    "layers2_3_ir_matches_yul_evmYulLeanBackend": "removed from EndToEnd surface (retarget evidence isolated in EvmYulLeanRetarget.lean)",
+    "remaining_for_whole_program_retargeting": [
+      "discharge the conditional EndToEnd theorem's bridged-body hypotheses for full compiler-produced contracts"
+    ],
     "retarget_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
     "status": "universal-safe-body-closure",
     "trust_boundary": "recursive BridgedTarget statement fragment: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr expressions, BridgedStraightStmts (including mapping-slot, literal-slot, and identifier-slot sstore), and recursively nested BridgedStmt targets; generated runtime-code closure, emitted-runtime backend equality, and the lower-level Layer-3 EVMYulLean retarget theorem are proven under bridged IR-body witnesses; the EndToEnd safe-body backend-wrapper lemma is private transition plumbing, while public EndToEnd targets use native dispatcher execution through interpretIRRuntimeNative; compileStmtList_always_bridged proves a universal BridgedSafeStmts aggregation theorem with the external-call family carved out behind explicit function-table hypotheses",

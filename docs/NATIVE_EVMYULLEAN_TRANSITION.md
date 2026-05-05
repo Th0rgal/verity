@@ -42,17 +42,15 @@ materializes pre-state storage for those slots.
   native EVMYulLean logs, matching the observable shape expected by the current
   proof-side `YulResult`.
 - The EndToEnd layer now exposes the native-facing theorem seam
-  `layers2_3_ir_matches_native_evmYulLean`; the older
-  `layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge` signature is
-  private transition plumbing for proof shapes that still carry the old
-  proof-interpreter bridge hypotheses.
+  `layers2_3_ir_matches_native_evmYulLean`; the older proof-interpreter bridge
+  signature has been removed from EndToEnd.
   Its conclusion targets `Native.interpretIRRuntimeNative` through
   `nativeResultsMatchOn`, comparing success, return value, events, and the
   explicitly observable final-storage slots. The result-surface definitions and
   positive dispatcher-exec intro/lift facts now live in the native harness, and
   EndToEnd consumes the direct `nativeIRRuntimeMatchesIR` target instead of the older
   reference-oracle/fuel-wrapper wrapper alias. The backend-parameterized
-  safe-body Yul target is now private transition plumbing; the generated native
+  safe-body Yul target is now isolated lower-level transition evidence; the generated native
   fragment still needs broader direct match proofs before that transition
   plumbing can be removed completely.
 - The same module also exposes
@@ -1032,9 +1030,9 @@ scope so the native path does not look more complete than it is:
 6. Flip the trust boundary only after the theorem target moves.
 
    Documentation should say EVMYulLean is the authoritative public semantic
-   target, while making clear that private transition lemmas still route
-   through `execYulFuelWithBackend` until the generic native proof stack
-   replaces them.
+   target, while making clear that retargeting evidence remains isolated in
+   `EvmYulLeanRetarget.lean` and still routes through `execYulFuelWithBackend`
+   until the generic native proof stack replaces it.
 
    The direct native target is now named `nativeIRRuntimeMatchesIR`: it compares
    `Native.interpretIRRuntimeNative` against `interpretIR` on the observable
@@ -1096,7 +1094,7 @@ scope so the native path does not look more complete than it is:
 ## Cleanup After the Flip
 
 - Keep `legacyExecYulFuel` and `execYulFuelWithBackend` in reference-oracle or
-  private transition status.
+  isolated lower-level transition status.
 - Remove bridge-only docs that describe the custom interpreter as the active
   semantic target.
 - Keep cross-check tests between the old oracle and native EVMYulLean for one

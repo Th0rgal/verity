@@ -813,7 +813,10 @@ def build_report() -> dict[str, object]:
         else:
             layer3_evm_retarget_status = "proven (conditional on bridged IR bodies)"
         if not has_end_to_end_evm_retarget:
-            end_to_end_evm_retarget_status = "missing"
+            end_to_end_evm_retarget_status = (
+                "removed from EndToEnd surface "
+                "(retarget evidence isolated in EvmYulLeanRetarget.lean)"
+            )
         elif end_to_end_evm_retarget_has_sorry:
             end_to_end_evm_retarget_status = "sorry"
         elif admitted_deps:
@@ -1182,8 +1185,6 @@ def build_report() -> dict[str, object]:
         elif (
             has_universal_body_closure
             and not universal_body_closure_has_sorry
-            and has_end_to_end_evm_retarget
-            and not end_to_end_evm_retarget_has_sorry
             and has_layer3_evm_retarget
             and not layer3_evm_retarget_has_sorry
             and has_runtime_backend_eq

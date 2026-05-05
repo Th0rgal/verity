@@ -1107,7 +1107,8 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertEqual(phase4["status"], "universal-safe-body-closure")
         self.assertEqual(
             phase4["layers2_3_ir_matches_yul_evmYulLeanBackend"],
-            "private transition lemma (body hypotheses discharged)",
+            "removed from EndToEnd surface "
+            "(retarget evidence isolated in EvmYulLeanRetarget.lean)",
         )
 
     def _retarget_all_proven(self) -> str:
@@ -1273,6 +1274,49 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertEqual(
             phase4["layers2_3_ir_matches_yul_evmYulLeanBackend"],
             "proven (conditional on bridged IR bodies)",
+        )
+
+    def test_body_closure_without_end_to_end_backend_wrapper_stays_universal(self) -> None:
+        """EndToEnd no longer needs the backend-wrapper theorem for the
+        universal safe-body closure milestone."""
+        with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
+            tmp_path = Path(tmp)
+            retarget = tmp_path / "EvmYulLeanRetarget.lean"
+            retarget.write_text(self._retarget_all_proven(), encoding="utf-8")
+
+            end_to_end = tmp_path / "EndToEnd.lean"
+            end_to_end.write_text(
+                textwrap.dedent("""\
+                    theorem layers2_3_ir_matches_native_evmYulLean : True := by
+                      trivial
+                """),
+                encoding="utf-8",
+            )
+
+            body_closure = tmp_path / "EvmYulLeanBodyClosure.lean"
+            body_closure.write_text(
+                textwrap.dedent("""\
+                    theorem compileStmtList_always_bridged : True := by
+                      trivial
+                """),
+                encoding="utf-8",
+            )
+
+            with patch.object(gen, "RETARGET_FILE", retarget), \
+                 patch.object(gen, "END_TO_END_FILE", end_to_end), \
+                 patch.object(gen, "BODY_CLOSURE_FILE", body_closure), \
+                 patch.object(
+                     gen,
+                     "_parse_bridge_lemmas",
+                     return_value=(["add"], []),
+                 ):
+                report = gen.build_report()
+        phase4 = report["phase4_retarget"]
+        self.assertEqual(phase4["status"], "universal-safe-body-closure")
+        self.assertEqual(
+            phase4["layers2_3_ir_matches_yul_evmYulLeanBackend"],
+            "removed from EndToEnd surface "
+            "(retarget evidence isolated in EvmYulLeanRetarget.lean)",
         )
 
     def test_universal_body_closure_with_admitted_deps_does_not_flip(self) -> None:

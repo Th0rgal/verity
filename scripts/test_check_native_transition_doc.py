@@ -108,10 +108,10 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertEqual(errors, [])
 
-    def test_public_theorem_target_guard_rejects_missing_current_target(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "interpretYulRuntimeWithBackend .evmYulLean",
-            "interpretYulRuntimeWithBackend .verity",
+    def test_public_theorem_target_guard_rejects_legacy_backend_target(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\n-- stale target: interpretYulRuntimeWithBackend .evmYulLean\n"
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
@@ -166,9 +166,9 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
 
     def test_public_theorem_target_guard_rejects_direct_wrapper_fuel_bridge_obligation(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "nativeIRRuntimeMatchesIR fuel contract tx initialState observableSlots",
-            "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper fuel contract tx initialState observableSlots",
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ndef nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper : Prop := True\n"
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
@@ -176,7 +176,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("nativeIRRuntimeMatchesIR" in error for error in errors),
+            any("nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper" in error for error in errors),
             errors,
         )
 
@@ -352,22 +352,18 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertTrue(any("callDispatcher" in error for error in errors), errors)
 
-    def test_public_theorem_target_guard_rejects_missing_evmyullean_backend_target(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "interpretYulRuntimeWithBackend .evmYulLean",
-            "interpretYulRuntimeEvmYulLeanHiddenFuel",
-        )
-        retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
-            "interpretYulRuntimeWithBackend .evmYulLean",
-            "interpretYulRuntimeEvmYulLeanHiddenFuel",
+    def test_public_theorem_target_guard_rejects_removed_backend_wrapper(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\nprivate theorem layers2_3_ir_matches_yul_evmYulLeanBackend : True := by trivial\n"
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),
-            retarget_text,
+            check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("interpretYulRuntimeWithBackend .evmYulLean" in error for error in errors),
+            any("layers2_3_ir_matches_yul_evmYulLeanBackend" in error for error in errors),
             errors,
         )
 
@@ -470,13 +466,13 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
 
     def test_reference_oracle_names_guard_rejects_missing_explicit_evmyullean_fuel_wrapper_retarget(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+        retarget_text = check.RETARGET.read_text(encoding="utf-8").replace(
             "yulCodegen_preserves_semantics_evmYulLeanBackend",
             "yulCodegen_preserves_semantics_evmYulLeanFuelWrapper_reference_hidden",
         )
         errors = check.check_reference_oracle_names(
-            end_to_end_text,
-            check.RETARGET.read_text(encoding="utf-8"),
+            check.END_TO_END.read_text(encoding="utf-8"),
+            retarget_text,
             check.PRESERVATION.read_text(encoding="utf-8"),
         )
         self.assertTrue(
