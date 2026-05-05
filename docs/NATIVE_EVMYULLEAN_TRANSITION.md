@@ -151,7 +151,7 @@ materializes pre-state storage for those slots.
   statement surfaces and expose canonical-fuel `_canonicalFuel` variants, so
   callers can remain at the emitted-runtime lowering boundary while proving
   the exact extracted dispatcher match. The same
-  full-runtime boundary is lifted to Layer 3 by the
+  full-runtime boundary and canonical-fuel variants are lifted to Layer 3 by the
   `layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
   wrapper family, and to the Layers 2+3 composition by the
   `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_*`
