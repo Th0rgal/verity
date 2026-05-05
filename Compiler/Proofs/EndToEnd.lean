@@ -10120,6 +10120,9 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   discharged from their compile-core and field-layout witnesses.
 - Scalar-leaf and pure-expression `letVar`/`assignVar` statement lists are now
   known to compile to `BridgedStmts`.
+- External `StmtListCompileCore` and `StmtListTerminalCore` bodies now have
+  direct `BridgedSafeStmts` packagers through the native recursive raw-log
+  source fragment.
 - Pure-binding plus unpacked single-slot `setStorage` statement lists and
   external `stop`/`return` terminators are now known to compile to
   `BridgedStmts`.

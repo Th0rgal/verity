@@ -15794,6 +15794,191 @@ theorem bridgedSafeStmts_requireGuardFamilyClause
     subst stmt
     exact bridgedSourceRequireStmt_of_guardFamilyClause clause)
 
+private def bridgedExternalRawLogLetVar
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {name : String} {value : Expr}
+    (hValue :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value) :
+    BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+      dynamicSource (.letVar name value) :=
+  .base (.base (.base (.storage (.pureBinding
+    (.letVar _ _ (bridgedSourceExpr_of_exprCompileCore hValue))))))
+
+private def bridgedExternalRawLogAssignVar
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {name : String} {value : Expr}
+    (hValue :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value) :
+    BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+      dynamicSource (.assignVar name value) :=
+  .base (.base (.base (.storage (.pureBinding
+    (.assignVar _ _ (bridgedSourceExpr_of_exprCompileCore hValue))))))
+
+private def bridgedExternalRawLogRequire
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {cond : Expr} {message : String}
+    (hCond :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore cond) :
+    BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+      dynamicSource (.require cond message) :=
+  .base (.base (.base (.require
+    (bridgedSourceRequireStmt_of_exprCompileCore hCond))))
+
+private def bridgedExternalRawLogReturn
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {value : Expr}
+    (hValue :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value) :
+    BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+      dynamicSource (.return value) :=
+  .base (.base (.base (.terminator
+    (.returnExternal _ (bridgedSourceExpr_of_exprCompileCore hValue)))))
+
+private def bridgedExternalRawLogStop
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} :
+    BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+      dynamicSource .stop :=
+  .base (.base (.base (.terminator .stop)))
+
+private def bridgedExternalRawLogMstore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {offset value : Expr}
+    (hOffset :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore offset)
+    (hValue :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value) :
+    BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+      dynamicSource (.mstore offset value) :=
+  .base (.base (.memoryWrite
+    (.mstore _ _ (bridgedSourceExpr_of_exprCompileCore hOffset)
+      (bridgedSourceExpr_of_exprCompileCore hValue))))
+
+private def bridgedExternalRawLogTstore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {offset value : Expr}
+    (hOffset :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore offset)
+    (hValue :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore value) :
+    BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+      dynamicSource (.tstore offset value) :=
+  .base (.base (.memoryWrite
+    (.tstore _ _ (bridgedSourceExpr_of_exprCompileCore hOffset)
+      (bridgedSourceExpr_of_exprCompileCore hValue))))
+
+private def bridgedExternalRawLogIte
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource}
+    {cond : Expr} {thenBranch elseBranch : List Stmt}
+    (hCond :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore cond)
+    (hThen :
+      BridgedSourceExternalRecursiveBodyWithRawLogStmts fields errors
+        dynamicSource thenBranch)
+    (hElse :
+      BridgedSourceExternalRecursiveBodyWithRawLogStmts fields errors
+        dynamicSource elseBranch) :
+    BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+      dynamicSource (.ite cond thenBranch elseBranch) :=
+  .ite _ _ _ (bridgedSourceExpr_of_exprCompileCore hCond) hThen hElse
+
+/-- Source compile-core statement lists are covered by the recursive external
+    raw-log fragment: pure bindings route through the storage/body base
+    predicate, requires and terminators are direct body cases, and direct
+    memory/transient writes route through the memory-write extension. -/
+theorem bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListCompileCore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {scope : List String}
+    {stmts : List Stmt}
+    (hCore : _root_.Compiler.Proofs.IRGeneration.FunctionBody.StmtListCompileCore
+      scope stmts) :
+    BridgedSourceExternalRecursiveBodyWithRawLogStmts fields errors
+      dynamicSource stmts := by
+  induction hCore with
+  | nil =>
+      exact .nil
+  | letVar hValue _hScope _hRest ih =>
+      exact .cons (bridgedExternalRawLogLetVar hValue) ih
+  | assignVar hValue _hScope _hRest ih =>
+      exact .cons (bridgedExternalRawLogAssignVar hValue) ih
+  | require_ hCond _hScope _hRest ih =>
+      exact .cons (bridgedExternalRawLogRequire hCond) ih
+  | return_ hValue _hScope _hRest ih =>
+      exact .cons (bridgedExternalRawLogReturn hValue) ih
+  | stop _hRest ih =>
+      exact .cons bridgedExternalRawLogStop ih
+  | mstore hOffset _hOffsetScope hValue _hValueScope _hRest ih =>
+      exact .cons (bridgedExternalRawLogMstore hOffset hValue) ih
+  | tstore hOffset _hOffsetScope hValue _hValueScope _hRest ih =>
+      exact .cons (bridgedExternalRawLogTstore hOffset hValue) ih
+
+/-- Terminal compile-core statement lists have the same external native source
+    coverage as ordinary compile-core lists. The terminal `return`/`stop` cases
+    delegate their tails to the compile-core bridge exposed by the terminal
+    grammar. -/
+theorem bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListTerminalCore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {scope : List String}
+    {stmts : List Stmt}
+    (hTerminal :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.StmtListTerminalCore
+        scope stmts) :
+    BridgedSourceExternalRecursiveBodyWithRawLogStmts fields errors
+      dynamicSource stmts := by
+  induction hTerminal with
+  | letVar hValue _hScope _hRest ih =>
+      exact .cons (bridgedExternalRawLogLetVar hValue) ih
+  | assignVar hValue _hScope _hRest ih =>
+      exact .cons (bridgedExternalRawLogAssignVar hValue) ih
+  | require_ hCond _hScope _hRest ih =>
+      exact .cons (bridgedExternalRawLogRequire hCond) ih
+  | return_ hValue _hScope hRest =>
+      exact .cons (bridgedExternalRawLogReturn hValue)
+        (bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListCompileCore
+          hRest)
+  | stop hRest =>
+      exact .cons bridgedExternalRawLogStop
+        (bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListCompileCore
+          hRest)
+  | mstore hOffset _hOffsetScope hValue _hValueScope _hRest ih =>
+      exact .cons (bridgedExternalRawLogMstore hOffset hValue) ih
+  | tstore hOffset _hOffsetScope hValue _hValueScope _hRest ih =>
+      exact .cons (bridgedExternalRawLogTstore hOffset hValue) ih
+  | ite hCond _hScope hThen hElse hRest ihThen ihElse =>
+      exact .cons (bridgedExternalRawLogIte hCond ihThen ihElse)
+        (bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListCompileCore
+          hRest)
+
+/-- External source bodies accepted by the compile-core grammar are native safe
+    bodies, so callers do not need to manually rebuild the raw-log recursive
+    source predicate. -/
+theorem bridgedSafeStmts_externalCompileCore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {scope : List String} {stmts : List Stmt}
+    (hCore :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.StmtListCompileCore
+        scope stmts) :
+    BridgedSafeStmts fields errors dynamicSource internalRetNames false stmts :=
+  BridgedSafeStmts.externalRecursiveRawLog
+    (bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListCompileCore
+      hCore)
+
+/-- External source bodies accepted by the terminal-core grammar are native safe
+    bodies. -/
+theorem bridgedSafeStmts_externalTerminalCore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {scope : List String} {stmts : List Stmt}
+    (hTerminal :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.StmtListTerminalCore
+        scope stmts) :
+    BridgedSafeStmts fields errors dynamicSource internalRetNames false stmts :=
+  BridgedSafeStmts.externalRecursiveRawLog
+    (bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListTerminalCore
+      hTerminal)
+
 /-- The singleton `tstore` shape exposed by `SupportedFragment.tstoreSingle`
     is a native safe body whenever its offset and value are compile-core
     expressions. -/

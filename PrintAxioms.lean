@@ -3098,6 +3098,10 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setStorageAddrSingleSlot_of_exprCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_requireSingle_of_exprCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_requireGuardFamilyClause
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListCompileCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListTerminalCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_externalCompileCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_externalTerminalCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_tstoreSingle_of_exprCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_noFuncDefs
@@ -4480,4 +4484,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4286 theorems/lemmas (2886 public, 1400 private, 0 sorry'd)
+-- Total: 4290 theorems/lemmas (2890 public, 1400 private, 0 sorry'd)
