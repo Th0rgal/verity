@@ -6906,6 +6906,60 @@ theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_matc
       hEnv
       hNativeDispatcherExec
 
+/-- The concrete SimpleStorage native witness is the helper-free native
+contract produced by any successful lowering of the generated dispatcher. -/
+theorem simpleStorageNativeContract_eq_nativeContractOfDispatcher_of_lowerStmtsNative
+    {dispatcher : List EvmYul.Yul.Ast.Stmt}
+    (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+      [Compiler.CodegenCommon.buildSwitch simpleStorageIRContract.functions none none] =
+        .ok dispatcher) :
+    Compiler.SimpleStorageNativeWitness.nativeContract =
+      nativeContractOfDispatcher dispatcher := by
+  rcases
+    Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher
+      simpleStorageIRContract Compiler.SimpleStorageNativeWitness.nativeContract
+      rfl rfl rfl rfl
+      Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq with
+    ⟨dispatcher', hLowerDispatcher', hNative⟩
+  rw [hLowerDispatcher] at hLowerDispatcher'
+  simp only [Except.ok.injEq] at hLowerDispatcher'
+  subst dispatcher'
+  exact hNative
+
+/-- Native SimpleStorage wrapper starting from the successful full-runtime
+lowering boundary and exposing the generated dispatcher-statement lowering
+internally. -/
+theorem simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match
+    (tx : IRTransaction) (initialState : IRState) (observableSlots : List Nat)
+    (hEnv :
+        Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+          (Compiler.emitYul simpleStorageIRContract).runtimeCode
+        (YulTransaction.ofIR tx) = .ok ())
+    (hNativeDispatcherExec :
+      ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
+        Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch simpleStorageIRContract.functions none none] =
+          .ok dispatcher →
+        nativeDispatcherExecMatchesIRPositive
+          simpleStorageNativeDispatcherFuel simpleStorageIRContract tx initialState
+          observableSlots (nativeContractOfDispatcher dispatcher)) :
+    nativeResultsMatchOn observableSlots
+      (interpretIR simpleStorageIRContract tx initialState)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
+        simpleStorageIRContract tx initialState observableSlots) := by
+  apply simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match
+    tx initialState observableSlots hEnv
+  rcases
+    Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher
+      simpleStorageIRContract
+      Compiler.SimpleStorageNativeWitness.nativeContract
+      rfl rfl rfl rfl
+      Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq with
+    ⟨dispatcher, hLowerDispatcher, hNative⟩
+  have hMatch := hNativeDispatcherExec dispatcher hLowerDispatcher
+  simpa [hNative] using hMatch
+
 /-- Native SimpleStorage end-to-end theorem with the concrete native dispatcher
 bridge fully discharged for retrieve hit, store hit, and selector miss. -/
 theorem simpleStorage_endToEnd_native_evmYulLean
@@ -6933,16 +6987,26 @@ theorem simpleStorage_endToEnd_native_evmYulLean
       (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
         (sizeOf (Compiler.emitYul simpleStorageIRContract).runtimeCode + 1)
         simpleStorageIRContract tx initialState observableSlots) :=
-  simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match
+  simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match
     tx initialState observableSlots hEnv
-    (simpleStorageNativeCallDispatcherMatchBridge_of_per_case
-      tx initialState observableSlots
-      (simpleStorageNativeRetrieveHitMatchBridge_proved tx initialState
-        observableSlots hselector hNoWrap hdispatchGuardSafe)
-      (simpleStorageNativeStoreHitMatchBridge_proved tx initialState
-        observableSlots hselector hNoWrap hdispatchGuardSafe)
-      (simpleStorageNativeSelectorMissMatchBridge_proved tx initialState
-        observableSlots hselector hNoWrap))
+    (by
+      intro dispatcher hLowerDispatcher
+      have hConcrete :
+          simpleStorageNativeCallDispatcherMatchBridge tx initialState
+            observableSlots :=
+        simpleStorageNativeCallDispatcherMatchBridge_of_per_case
+          tx initialState observableSlots
+          (simpleStorageNativeRetrieveHitMatchBridge_proved tx initialState
+            observableSlots hselector hNoWrap hdispatchGuardSafe)
+          (simpleStorageNativeStoreHitMatchBridge_proved tx initialState
+            observableSlots hselector hNoWrap hdispatchGuardSafe)
+          (simpleStorageNativeSelectorMissMatchBridge_proved tx initialState
+            observableSlots hselector hNoWrap)
+      have hNativeEq :=
+        simpleStorageNativeContract_eq_nativeContractOfDispatcher_of_lowerStmtsNative
+          hLowerDispatcher
+      simpa [simpleStorageNativeCallDispatcherMatchBridge, hNativeEq] using
+        hConcrete)
 
 /-! ## Universal Pure Arithmetic Bridge
 

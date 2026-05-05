@@ -1055,11 +1055,14 @@ scope so the native path does not look more complete than it is:
    Normal selector-hit execution has the matching raw dispatcher lift
    `contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq`.
    SimpleStorage also exposes the direct positive-dispatcher seam
-   `simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match`
+   `simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match`,
+   the full-runtime dispatcher-statement seam
+   `simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match`,
    and a direct per-case splitter
    `simpleStorageNativeCallDispatcherMatchBridge_of_per_case`. The public
-   `simpleStorage_endToEnd_native_evmYulLean` theorem now consumes this direct
-   splitter. The selector-miss revert arm is discharged by
+   `simpleStorage_endToEnd_native_evmYulLean` theorem now consumes the
+   full-runtime seam and discharges its callback with this direct splitter. The
+   selector-miss revert arm is discharged by
    `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`
    and its contract-dispatcher boundary lift
    `contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`

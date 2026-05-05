@@ -324,6 +324,7 @@ def check_public_theorem_target(
         "theorem layer3_contract_preserves_semantics_evmYulLeanBackend ",
         "theorem layers2_3_ir_matches_yul_evmYulLeanBackend ",
         "theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match",
+        "theorem simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match",
         "theorem simpleStorageNativeCallDispatcherMatchBridge_of_per_case",
         "theorem simpleStorageNativeRetrieveHitMatchBridge_proved",
         "theorem simpleStorageNativeStoreHitMatchBridge_proved",
@@ -510,13 +511,13 @@ def check_public_theorem_target(
             else normalized_end_to_end[simple_storage_native_start:next_theorem]
         )
         for required_direct_target in (
-            "simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match",
+            "simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match",
             "simpleStorageNativeCallDispatcherMatchBridge_of_per_case",
         ):
             if required_direct_target not in simple_storage_native_span:
                 errors.append(
                     "Compiler/Proofs/EndToEnd.lean public native SimpleStorage "
-                    "theorem must consume the direct native-vs-IR dispatcher "
+                    "theorem must consume the full-runtime native dispatcher "
                     f"target `{required_direct_target}`"
                 )
         for forbidden_compat_target in (

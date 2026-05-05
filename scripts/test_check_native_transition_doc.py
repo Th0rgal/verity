@@ -197,7 +197,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
 
     def test_public_theorem_target_guard_rejects_simple_storage_native_compat_wrapper(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match\n"
+            "simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match\n"
             "    tx initialState observableSlots hEnv",
             "simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_bridge\n"
             "    tx initialState observableSlots hselector hNoWrap _hvars _hmemory",
@@ -208,7 +208,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("positive_dispatcherExec_match" in error for error in errors),
+            any("lowered_runtime_dispatcherStmts_match" in error for error in errors),
             errors,
         )
         self.assertTrue(
@@ -219,9 +219,9 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
     def test_public_theorem_target_guard_rejects_simple_storage_native_compat_splitter(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
             "simpleStorageNativeCallDispatcherMatchBridge_of_per_case\n"
-            "      tx initialState observableSlots",
+            "          tx initialState observableSlots",
             "simpleStorageNativeCallDispatcherBridge_of_per_case\n"
-            "      tx initialState observableSlots",
+            "          tx initialState observableSlots",
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
