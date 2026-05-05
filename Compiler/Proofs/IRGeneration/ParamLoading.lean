@@ -116,7 +116,7 @@ theorem exec_genScalarLoad_supported
         Verity.Core.UINT256_MODULUS, uint256_modulus_eq_evm] using hdecode.symm
     cases hvalue
     simp [genScalarLoad, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned]
   case uint8 =>
     simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize,
@@ -125,7 +125,7 @@ theorem exec_genScalarLoad_supported
     have h255 : (255 : Nat) % Compiler.Constants.evmModulus = 255 := by
       norm_num [Compiler.Constants.evmModulus]
     simp [genScalarLoad, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned, h255]
   case address =>
     simp [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize] at hdecode
@@ -137,14 +137,14 @@ theorem exec_genScalarLoad_supported
         omega
       exact Nat.mod_eq_of_lt hlt
     simp [genScalarLoad, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned, hmask]
   case bool =>
     simp only [SourceSemantics.decodeSupportedParamWord, SourceSemantics.wordNormalize,
       Option.some.injEq] at hdecode
     subst value
     simp [genScalarLoad, execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned]
     split <;> simp_all
 
@@ -206,7 +206,7 @@ private theorem exec_genScalarLoad_supported_then_word_passthrough
             Verity.Core.UINT256_MODULUS, uint256_modulus_eq_evm] using hdecode.symm
         cases hvalue
         simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-          Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+          Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
           Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned]
     simpa [genScalarLoad, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
       execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state (state.setVar name value)
@@ -232,7 +232,7 @@ private theorem exec_genScalarLoad_supported_then_uint8
       have h255 : (255 : Nat) % Compiler.Constants.evmModulus = 255 := by
         norm_num [Compiler.Constants.evmModulus]
       simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-        Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+        Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
         Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned, h255]
   simpa [genScalarLoad, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
     execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state (state.setVar name value)
@@ -262,7 +262,7 @@ private theorem exec_genScalarLoad_supported_then_address
           omega
         exact Nat.mod_eq_of_lt hlt
       simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-        Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+        Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
         Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned, hmask]
   simpa [genScalarLoad, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
     execIRStmts_cons_of_execIRStmt_continue_extraFuel extraFuel state (state.setVar name value)
@@ -288,7 +288,7 @@ private theorem exec_genScalarLoad_supported_then_bool
         Option.some.injEq] at hdecode
       subst value
       simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-        Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+        Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
         Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, calldataloadWord_aligned]
       split <;> simp_all
   simpa [genScalarLoad, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
@@ -363,7 +363,7 @@ private theorem exec_minInputSizeCheck_supported_noop
   have hnotlt : ¬ 4 + state.calldata.length * 32 < 4 + 32 * params.length := by
     omega
   simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
     Nat.mod_eq_of_lt hcalldataSizeFits, Nat.mod_eq_of_lt hrhs_lt_modulus, hnotlt]
 

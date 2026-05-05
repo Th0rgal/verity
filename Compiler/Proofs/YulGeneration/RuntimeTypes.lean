@@ -1,4 +1,5 @@
 import Compiler.Yul.Ast
+import Compiler.Constants
 import Compiler.Proofs.IRGeneration.IRInterpreter
 
 namespace Compiler.Proofs.YulGeneration
@@ -6,6 +7,7 @@ namespace Compiler.Proofs.YulGeneration
 open Compiler
 open Compiler.Yul
 open Compiler.Proofs.IRGeneration
+export Compiler.Constants (evmModulus selectorModulus selectorShift)
 
 /-!
 Shared Yul runtime data structures.

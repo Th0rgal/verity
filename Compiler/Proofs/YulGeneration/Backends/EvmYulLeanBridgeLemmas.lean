@@ -446,105 +446,105 @@ EVMYulLean UInt256 semantics on all inputs. -/
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "add" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "add" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_add_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_sub_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "sub" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "sub" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_sub_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_mul_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "mul" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "mul" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_mul_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_div_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "div" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "div" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_div_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_mod_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "mod" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "mod" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_mod_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_eq_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "eq" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "eq" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_eq_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_iszero_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "iszero" [a] =
       legacyEvalBuiltinCall storage sender selector calldata "iszero" [a] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_iszero_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_lt_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "lt" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "lt" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_lt_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_gt_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "gt" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "gt" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_gt_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_and_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "and" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "and" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_and_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_or_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "or" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "or" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_or_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_xor_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "xor" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "xor" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_xor_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_not_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "not" [a] =
       legacyEvalBuiltinCall storage sender selector calldata "not" [a] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_not_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_shl_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "shl" [shift, value] =
       legacyEvalBuiltinCall storage sender selector calldata "shl" [shift, value] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_shl_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_shr_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "shr" [shift, value] =
       legacyEvalBuiltinCall storage sender selector calldata "shr" [shift, value] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_shr_bridge]
 
 /-! ## Addmod / Mulmod Bridge Lemmas
@@ -667,14 +667,14 @@ EVMYulLean UInt256 semantics on all inputs. -/
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b n : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "addmod" [a, b, n] =
       legacyEvalBuiltinCall storage sender selector calldata "addmod" [a, b, n] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_addmod_bridge]
 
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_mulmod_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b n : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "mulmod" [a, b, n] =
       legacyEvalBuiltinCall storage sender selector calldata "mulmod" [a, b, n] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_mulmod_bridge]
 
 
@@ -773,7 +773,7 @@ EVMYulLean UInt256 semantics on all inputs. -/
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (i x : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "byte" [i, x] =
       legacyEvalBuiltinCall storage sender selector calldata "byte" [i, x] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_byte_bridge]
 
 /-! ## Signed Comparison Bridge Proofs (slt, sgt)
@@ -921,7 +921,7 @@ EVMYulLean UInt256 semantics on all inputs. -/
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "slt" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "slt" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_slt_bridge]
 
 set_option maxHeartbeats 32000000 in
@@ -982,7 +982,7 @@ EVMYulLean UInt256 semantics on all inputs. -/
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "sgt" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "sgt" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_sgt_bridge]
 
 /-! ## Exp Bridge Proof
@@ -1125,7 +1125,7 @@ EVMYulLean UInt256 semantics on all inputs. -/
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "exp" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "exp" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_exp_bridge]
 
 /-! ## Sdiv Bridge Proof
@@ -1391,7 +1391,7 @@ private theorem sdiv_int256_eq_uint256Sdiv (a b : Nat)
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "sdiv" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "sdiv" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_sdiv_bridge]
 
 /-! ## Smod Bridge Proof
@@ -1938,7 +1938,7 @@ private theorem smod_int256_eq_uint256Smod (a b : Nat)
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "smod" [a, b] =
       legacyEvalBuiltinCall storage sender selector calldata "smod" [a, b] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_smod_bridge]
 
 /-! ## SAR (Signed Arithmetic Right Shift) Bridge Proof
@@ -2313,7 +2313,7 @@ private theorem sar_int256_eq_uint256Sar (shift value : Nat)
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "sar" [shift, value] =
       legacyEvalBuiltinCall storage sender selector calldata "sar" [shift, value] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_sar_bridge]
 
 /-! ## Signextend Bridge Proof
@@ -2637,7 +2637,7 @@ private theorem signextend_uint256_eq (byteIdx value : Nat)
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (byteIdx value : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "signextend" [byteIdx, value] =
       legacyEvalBuiltinCall storage sender selector calldata "signextend" [byteIdx, value] := by
-  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean,
+  simp [evalBuiltinCallWithBackend, evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean,
     evalBuiltinCall_signextend_bridge]
 
 /-! ## State-dependent Builtin Fallthrough Lemmas
@@ -2806,7 +2806,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "add" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "add" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_add_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2817,7 +2817,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sub" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sub" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_sub_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2828,7 +2828,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mul" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mul" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_mul_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2839,7 +2839,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "div" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "div" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_div_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2850,7 +2850,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mod" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mod" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_mod_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2861,7 +2861,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "eq" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "eq" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_eq_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2872,7 +2872,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "iszero" [a] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "iszero" [a] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_iszero_bridge storage sender selector calldata a]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2883,7 +2883,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "lt" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "lt" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_lt_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2894,7 +2894,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "gt" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "gt" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_gt_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2905,7 +2905,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "slt" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "slt" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_slt_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2916,7 +2916,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sgt" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sgt" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_sgt_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2927,7 +2927,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "and" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "and" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_and_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2938,7 +2938,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "or" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "or" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_or_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2949,7 +2949,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "xor" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "xor" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_xor_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2960,7 +2960,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "not" [a] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "not" [a] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_not_bridge storage sender selector calldata a]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2971,7 +2971,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "shl" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "shl" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_shl_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2982,7 +2982,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "shr" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "shr" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_shr_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -2993,7 +2993,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "addmod" [a, b, c] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "addmod" [a, b, c] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_addmod_bridge storage sender selector calldata a b c]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -3004,7 +3004,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mulmod" [a, b, c] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mulmod" [a, b, c] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_mulmod_bridge storage sender selector calldata a b c]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -3015,7 +3015,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "byte" [i, x] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "byte" [i, x] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_byte_bridge storage sender selector calldata i x]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -3026,7 +3026,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "exp" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "exp" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_exp_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -3037,7 +3037,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sdiv" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sdiv" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_sdiv_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -3048,7 +3048,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "smod" [a, b] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "smod" [a, b] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_smod_bridge storage sender selector calldata a b]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -3059,7 +3059,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sar" [shift, value] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sar" [shift, value] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_sar_bridge storage sender selector calldata shift value]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -3070,7 +3070,7 @@ stack to EVMYulLean). -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "signextend" [byteIdx, value] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "signextend" [byteIdx, value] := by
-  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallViaEvmYulLean]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, evalBuiltinCallViaEvmYulLean]
   rw [← evalBuiltinCall_signextend_bridge storage sender selector calldata byteIdx value]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -3098,7 +3098,7 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sload" [slot] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "sload" [slot] := by
-  simp [evalBuiltinCallWithBackendContext, legacyEvalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, legacyEvalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_caller_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -3107,7 +3107,7 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "caller" [] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "caller" [] := by
-  simp [evalBuiltinCallWithBackendContext, legacyEvalBuiltinCallWithContext]
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, legacyEvalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_address_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -3116,7 +3116,7 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "address" [] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "address" [] := by
-  simp [evalBuiltinCallWithBackendContext, legacyEvalBuiltinCallWithContext]
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, legacyEvalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_callvalue_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -3125,7 +3125,7 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "callvalue" [] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "callvalue" [] := by
-  simp [evalBuiltinCallWithBackendContext, legacyEvalBuiltinCallWithContext]
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, legacyEvalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_timestamp_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -3134,7 +3134,7 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "timestamp" [] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "timestamp" [] := by
-  simp [evalBuiltinCallWithBackendContext, legacyEvalBuiltinCallWithContext]
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, legacyEvalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_number_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -3143,7 +3143,7 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "number" [] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "number" [] := by
-  simp [evalBuiltinCallWithBackendContext, legacyEvalBuiltinCallWithContext]
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, legacyEvalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_blobbasefee_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -3152,7 +3152,7 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "blobbasefee" [] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "blobbasefee" [] := by
-  simp [evalBuiltinCallWithBackendContext, legacyEvalBuiltinCallWithContext]
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, legacyEvalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_chainid_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -3161,7 +3161,7 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "chainid" [] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "chainid" [] := by
-  simp [evalBuiltinCallWithBackendContext, legacyEvalBuiltinCallWithContext]
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, legacyEvalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_calldataload_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -3170,7 +3170,7 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "calldataload" [offset] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "calldataload" [offset] := by
-  simp only [evalBuiltinCallWithBackendContext]
+  simp only [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext]
   rw [← evalBuiltinCall_calldataload_bridge storage sender selector calldata offset]
   simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
 
@@ -3181,7 +3181,7 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "calldatasize" [] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "calldatasize" [] := by
-  simp [evalBuiltinCallWithBackendContext, legacyEvalBuiltinCallWithContext]
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, legacyEvalBuiltinCallWithContext]
 
 @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_mappingSlot_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
@@ -3190,7 +3190,7 @@ can rewrite against. -/
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mappingSlot" [base, key] =
     legacyEvalBuiltinCallWithContext storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata "mappingSlot" [base, key] := by
-  simp [evalBuiltinCallWithBackendContext, legacyEvalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, legacyEvalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
 
 /-! ## Composite Backend Equivalence Theorem
 
@@ -3230,7 +3230,7 @@ theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
     evalBuiltinCallWithBackendContext .evmYulLean storage sender msgValue thisAddress
       blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals =
     evalBuiltinCallViaEvmYulLean storage sender selector calldata func argVals := by
-  simp [evalBuiltinCallWithBackendContext, hCaller, hAddress, hCallvalue, hTimestamp, hNumber,
+  simp [evalBuiltinCallWithBackendContext, evalBuiltinCallWithEvmYulLeanContext, hCaller, hAddress, hCallvalue, hTimestamp, hNumber,
     hChainid, hBlobbasefee, hCalldatasize]
 
 /-! ## Phase 4 Backend Equivalence Surface

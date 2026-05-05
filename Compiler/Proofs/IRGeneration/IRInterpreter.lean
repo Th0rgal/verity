@@ -17,7 +17,7 @@ import Compiler.IR
 import Compiler.CompilationModel
 import Compiler.Proofs.IRGeneration.IRStorageWord
 import Compiler.Proofs.MappingSlot
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Verity.Core
 
@@ -335,8 +335,7 @@ def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
       | [offset, size] => some (abstractKeccakMemorySlice state.memory offset size)
       | _ => none
     else
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-        Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
         state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
         state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
@@ -386,7 +385,7 @@ end -- mutual
         (fun offset => some (Compiler.Proofs.YulGeneration.calldataloadWord
           state.selector state.calldata offset)) := by
   simp [evalIRCall, evalIRExprs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
   cases evalIRExpr state argExpr with
   | none => simp
@@ -398,7 +397,7 @@ end -- mutual
       (evalIRExpr state argExpr).bind
         (fun slot => some (Compiler.Proofs.abstractLoadStorageOrMapping state.storage slot).toNat) := by
   simp [evalIRCall, evalIRExprs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
     Compiler.Proofs.abstractLoadStorageOrMapping]
   cases evalIRExpr state argExpr with
@@ -549,8 +548,7 @@ def evalIRCallWithInternals
             | [offset, size] => .values [abstractKeccakMemorySlice state'.memory offset size] state'
             | _ => .revert state'
           else
-            match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+            match Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                 state'.storage state'.sender state'.msgValue state'.thisAddress
                 state'.blockTimestamp state'.blockNumber state'.chainId state'.blobBaseFee
                 state'.selector state'.calldata func argVals with
@@ -1433,8 +1431,7 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_no_internal
                         cases rest <;> simp
               · simp only [htload, hmload, hkeccak, ↓reduceIte]
                 cases hbuiltin :
-                    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                       state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                       state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
                 | none => simp [hbuiltin]
@@ -1597,8 +1594,7 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint
                         cases rest <;> simp
               · simp only [htload, hmload, hkeccak, ↓reduceIte]
                 cases hbuiltin :
-                    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                       state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                       state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
                 | none => simp [hbuiltin]
@@ -1766,8 +1762,7 @@ theorem evalIRCallWithInternals_stmt_eq_of_callsDisjoint
                     cases rest <;> simp
           · simp only [htload, hmload, hkeccak, ↓reduceIte]
             cases hbuiltin :
-                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                  Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                   state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                   state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
             | none => simp [hbuiltin]
@@ -1819,8 +1814,7 @@ theorem evalIRCallWithInternals_stmt_eq_of_no_internal
                     cases rest <;> simp
           · simp only [htload, hmload, hkeccak, ↓reduceIte]
             cases hbuiltin :
-                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                  Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                   state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                   state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
             | none => simp [hbuiltin]
@@ -3616,8 +3610,7 @@ theorem evalIRCallWithInternals_of_builtin
     (hnotMload : func ≠ "mload")
     (hnotKeccak : func ≠ "keccak256") :
     evalIRCallWithInternals contract fuel state func args =
-      match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-          Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+      match Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
           state'.storage state'.sender state'.msgValue state'.thisAddress
           state'.blockTimestamp state'.blockNumber state'.chainId state'.blobBaseFee
           state'.selector state'.calldata func argVals with

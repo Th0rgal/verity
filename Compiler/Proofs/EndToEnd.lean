@@ -39,7 +39,7 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.YulGeneration.RuntimeTypes
 import Compiler.Proofs.IRGeneration.Contract
-import Compiler.Proofs.IRGeneration.Function
+import Compiler.Proofs.IRGeneration.FunctionShape
 import Compiler.Proofs.IRGeneration.Expr
 import Compiler.SimpleStorageNativeWitness
 
@@ -142,7 +142,7 @@ theorem compileFunctionSpec_noFuncDefs_of_static_params_and_body
         Except.ok irFn) :
     Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
       irFn.body = false := by
-  rcases Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_components
+  rcases Compiler.Proofs.IRGeneration.FunctionShape.compileFunctionSpec_ok_components
       fields events errors selector spec irFn hcompile with
     ⟨returns, bodyStmts, _hvalidate, _hreturns, hbody, hirFn⟩
   subst irFn
@@ -170,7 +170,7 @@ theorem compileFunctionSpec_noFuncDefs_of_safe_static_params
         Except.ok irFn) :
     Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
       irFn.body = false := by
-  rcases Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_components
+  rcases Compiler.Proofs.IRGeneration.FunctionShape.compileFunctionSpec_ok_components
       fields events errors selector spec irFn hcompile with
     ⟨returns, bodyStmts, _hvalidate, _hreturns, hbody, hirFn⟩
   subst irFn
@@ -205,7 +205,7 @@ theorem compileFunctionSpec_bridged_of_safe_static_params
       CompilationModel.compileFunctionSpec fields events errors [] selector spec =
         Except.ok irFn) :
     Compiler.Proofs.YulGeneration.Backends.BridgedStmts irFn.body := by
-  rcases Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_components
+  rcases Compiler.Proofs.IRGeneration.FunctionShape.compileFunctionSpec_ok_components
       fields events errors selector spec irFn hcompile with
     ⟨returns, bodyStmts, _hvalidate, _hreturns, hbody, hirFn⟩
   subst irFn

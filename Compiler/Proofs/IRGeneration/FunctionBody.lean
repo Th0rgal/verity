@@ -207,7 +207,7 @@ theorem evalIRExpr_caller_of_runtimeStateMatchesIR
     evalIRExpr state (YulExpr.call "caller" []) =
       some (SourceSemantics.evalExpr fields runtime (.caller)) := by
   rcases hmatch with ⟨_, _, hsender, _, _, _, _, _, _, _, _, _⟩
-  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, hsender]
   rfl
 
@@ -226,7 +226,7 @@ theorem evalIRExpr_contractAddress_of_runtimeStateMatchesIR
     omega
   have hthisMod : runtime.world.thisAddress.val % Compiler.Constants.evmModulus =
       runtime.world.thisAddress.val := Nat.mod_eq_of_lt hthisLt
-  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, hthisAddress, hthisMod]
   rfl
 
@@ -242,7 +242,7 @@ theorem evalIRExpr_msgValue_of_runtimeStateMatchesIR
     simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.msgValue.isLt
   have hmsgMod : runtime.world.msgValue.val % Compiler.Constants.evmModulus =
       runtime.world.msgValue.val := Nat.mod_eq_of_lt hmsgLt
-  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, hmsgValue, hmsgMod]
   rfl
 
@@ -258,7 +258,7 @@ theorem evalIRExpr_blockTimestamp_of_runtimeStateMatchesIR
     simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.blockTimestamp.isLt
   have htimeMod : runtime.world.blockTimestamp.val % Compiler.Constants.evmModulus =
       runtime.world.blockTimestamp.val := Nat.mod_eq_of_lt htimeLt
-  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, hblockTimestamp, htimeMod]
   rfl
 
@@ -274,7 +274,7 @@ theorem evalIRExpr_blockNumber_of_runtimeStateMatchesIR
     simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.blockNumber.isLt
   have hnumberMod : runtime.world.blockNumber.val % Compiler.Constants.evmModulus =
       runtime.world.blockNumber.val := Nat.mod_eq_of_lt hnumberLt
-  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, hblockNumber, hnumberMod]
   rfl
 
@@ -290,7 +290,7 @@ theorem evalIRExpr_chainid_of_runtimeStateMatchesIR
     simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.chainId.isLt
   have hchainMod : runtime.world.chainId.val % Compiler.Constants.evmModulus =
       runtime.world.chainId.val := Nat.mod_eq_of_lt hchainLt
-  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, hchainId, hchainMod]
   rfl
 
@@ -306,7 +306,7 @@ theorem evalIRExpr_blobbasefee_of_runtimeStateMatchesIR
     simpa [Compiler.Constants.evmModulus, Verity.Core.UINT256_MODULUS] using runtime.world.blobBaseFee.isLt
   have hblobMod : runtime.world.blobBaseFee.val % Compiler.Constants.evmModulus =
       runtime.world.blobBaseFee.val := Nat.mod_eq_of_lt hblobLt
-  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+  simp [evalIRExpr, evalIRCall, evalIRExprs, Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, hblobBaseFee, hblobMod]
   rfl
 
@@ -397,7 +397,7 @@ theorem evalIRExpr_calldatasize_of_runtimeStateMatchesIR
     exact Nat.mod_eq_of_lt runtime.world.calldataSize.isLt
   rw [heval]
   simp [evalIRExpr, evalIRCall, evalIRExprs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, hcalldataSizeMod]
 
 theorem eval_compileExpr_calldatasize
@@ -437,12 +437,12 @@ theorem evalIRExpr_iszero_of_lt
   by_cases hzero : value = 0
   · subst hzero
     simp [evalIRExpr, evalIRCall, evalIRExprs, heval,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       SourceSemantics.boolWord]
   · have hmod : value % Compiler.Constants.evmModulus = value := Nat.mod_eq_of_lt hvalueLt
     simp [evalIRExpr, evalIRCall, evalIRExprs, heval, hmod, hzero,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       SourceSemantics.boolWord]
 
@@ -457,12 +457,12 @@ theorem evalIRExpr_yulToBool_of_lt
   by_cases hzero : value = 0
   · subst hzero
     simp [CompilationModel.yulToBool, evalIRExpr, evalIRCall, evalIRExprs, heval,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       SourceSemantics.boolWord]
   · have hmod : value % Compiler.Constants.evmModulus = value := Nat.mod_eq_of_lt hvalueLt
     simp [CompilationModel.yulToBool, evalIRExpr, evalIRCall, evalIRExprs, heval, hmod, hzero,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       SourceSemantics.boolWord]
 
@@ -475,7 +475,7 @@ theorem evalIRExpr_add_of_eval
     evalIRExpr state (YulExpr.call "add" [lhs, rhs]) =
       some ((a + b) % Compiler.Constants.evmModulus) := by
   simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
 
 theorem evalIRExpr_sub_of_eval
@@ -488,7 +488,7 @@ theorem evalIRExpr_sub_of_eval
       some ((Compiler.Constants.evmModulus + (a % Compiler.Constants.evmModulus) -
         (b % Compiler.Constants.evmModulus)) % Compiler.Constants.evmModulus) := by
   simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
 
 theorem evalIRExpr_mul_of_eval
@@ -500,7 +500,7 @@ theorem evalIRExpr_mul_of_eval
     evalIRExpr state (YulExpr.call "mul" [lhs, rhs]) =
       some ((a * b) % Compiler.Constants.evmModulus) := by
   simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
 
 theorem evalIRExpr_div_of_eval
@@ -514,10 +514,10 @@ theorem evalIRExpr_div_of_eval
         (a % Compiler.Constants.evmModulus) / (b % Compiler.Constants.evmModulus)) := by
   by_cases hzero : b % Compiler.Constants.evmModulus = 0
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hzero,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hzero,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
 
 theorem evalIRExpr_mod_of_eval
@@ -531,10 +531,10 @@ theorem evalIRExpr_mod_of_eval
         (a % Compiler.Constants.evmModulus) % (b % Compiler.Constants.evmModulus)) := by
   by_cases hzero : b % Compiler.Constants.evmModulus = 0
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hzero,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hzero,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
 
 theorem evalIRExpr_eq_of_eval
@@ -548,11 +548,11 @@ theorem evalIRExpr_eq_of_eval
         b % Compiler.Constants.evmModulus)) := by
   by_cases heq : a % Compiler.Constants.evmModulus = b % Compiler.Constants.evmModulus
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, heq,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       SourceSemantics.boolWord]
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, heq,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       SourceSemantics.boolWord]
 
@@ -567,11 +567,11 @@ theorem evalIRExpr_lt_of_eval
         b % Compiler.Constants.evmModulus)) := by
   by_cases hlt : a % Compiler.Constants.evmModulus < b % Compiler.Constants.evmModulus
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hlt,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       SourceSemantics.boolWord]
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hlt,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       SourceSemantics.boolWord]
 
@@ -588,13 +588,13 @@ theorem evalIRExpr_gt_of_eval
   · have hcmp : ¬ a % Compiler.Constants.evmModulus ≤ b % Compiler.Constants.evmModulus := by
       exact Nat.not_le_of_gt hgt
     simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hgt,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       SourceSemantics.boolWord]
   · have hcmp : a % Compiler.Constants.evmModulus ≤ b % Compiler.Constants.evmModulus := by
       exact Nat.le_of_not_gt hgt
     simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hgt,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       SourceSemantics.boolWord]
 
@@ -611,12 +611,12 @@ theorem evalIRExpr_slt_of_eval
   by_cases hslt : (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % Compiler.Constants.evmModulus)) : Int) <
       (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % Compiler.Constants.evmModulus)) : Int)
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hslt,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       Verity.Core.Int256.toInt,
       SourceSemantics.boolWord]
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hslt,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       Verity.Core.Int256.toInt,
       SourceSemantics.boolWord]
@@ -634,12 +634,12 @@ theorem evalIRExpr_sgt_of_eval
   by_cases hsgt : (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % Compiler.Constants.evmModulus)) : Int) <
       (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % Compiler.Constants.evmModulus)) : Int)
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hsgt,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       Verity.Core.Int256.toInt,
       SourceSemantics.boolWord]
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs, hsgt,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
       Verity.Core.Int256.toInt,
       SourceSemantics.boolWord]
@@ -655,7 +655,7 @@ theorem evalIRExpr_sdiv_of_eval
         (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % Compiler.Constants.evmModulus)))
         (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % Compiler.Constants.evmModulus)))).toUint256.val := by
   simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
     Verity.Core.Int256.toUint256]
 
@@ -670,7 +670,7 @@ theorem evalIRExpr_smod_of_eval
         (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % Compiler.Constants.evmModulus)))
         (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % Compiler.Constants.evmModulus)))).toUint256.val := by
   simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
     Verity.Core.Int256.toUint256]
 
@@ -685,7 +685,7 @@ theorem evalIRExpr_sar_of_eval
         (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (a % Compiler.Constants.evmModulus)))
         (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat (b % Compiler.Constants.evmModulus)))).toUint256.val := by
   simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
     Verity.Core.Int256.toUint256]
 
@@ -700,7 +700,7 @@ theorem evalIRExpr_signextend_of_eval
         (Verity.Core.Uint256.ofNat (a % Compiler.Constants.evmModulus))
         (Verity.Core.Uint256.ofNat (b % Compiler.Constants.evmModulus))).val := by
   simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
     Verity.Core.Uint256.signextend]
 
@@ -713,7 +713,7 @@ theorem evalIRExpr_and_of_eval
     evalIRExpr state (YulExpr.call "and" [lhs, rhs]) =
       some ((a % Compiler.Constants.evmModulus) &&& (b % Compiler.Constants.evmModulus)) := by
   simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
 
 theorem evalIRExpr_or_of_eval
@@ -725,7 +725,7 @@ theorem evalIRExpr_or_of_eval
     evalIRExpr state (YulExpr.call "or" [lhs, rhs]) =
       some ((a % Compiler.Constants.evmModulus) ||| (b % Compiler.Constants.evmModulus)) := by
   simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
 
 theorem evalIRExpr_xor_of_eval
@@ -737,7 +737,7 @@ theorem evalIRExpr_xor_of_eval
     evalIRExpr state (YulExpr.call "xor" [lhs, rhs]) =
       some (Nat.xor (a % Compiler.Constants.evmModulus) (b % Compiler.Constants.evmModulus)) := by
   simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
 
 theorem evalIRExpr_not_of_eval
@@ -749,7 +749,7 @@ theorem evalIRExpr_not_of_eval
       some (Nat.xor (value % Compiler.Constants.evmModulus)
         (Compiler.Constants.evmModulus - 1)) := by
   simp [evalIRExpr, evalIRCall, evalIRExprs, heval,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
 
 theorem evalIRExpr_shl_of_eval
@@ -766,10 +766,10 @@ theorem evalIRExpr_shl_of_eval
         0) := by
   by_cases hlt : shift % Compiler.Constants.evmModulus < 256
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hshift, hvalue, hlt,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hshift, hvalue, hlt,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
 
 theorem evalIRExpr_shr_of_eval
@@ -786,10 +786,10 @@ theorem evalIRExpr_shr_of_eval
         0) := by
   by_cases hlt : shift % Compiler.Constants.evmModulus < 256
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hshift, hvalue, hlt,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
   · simp [evalIRExpr, evalIRCall, evalIRExprs, hshift, hvalue, hlt,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
       Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
 
 private theorem findEntry_filter_ne_eq_findEntry
@@ -1234,7 +1234,7 @@ theorem evalIRExpr_sload_of_runtimeStateMatchesIR
         % EvmYul.UInt256.size) := by
   rcases hmatch with ⟨hstorage, _, _, _, _, _, _, _, _, _, _⟩
   simp [evalIRExpr, evalIRCall, evalIRExprs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, hstorage]
 
 theorem eval_compileExpr_param_of_exact_bindings
@@ -11026,7 +11026,7 @@ private theorem evalIRExpr_compiled_terminal_ite_elseCond_of_zero
     evalIRExpr (state.setVar tempName condValue)
       (YulExpr.call "iszero" [YulExpr.ident tempName]) = some 1 := by
   simp [evalIRExpr, evalIRCall, evalIRExprs, hcondZero,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
     Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
 
 /-- Entering the taken `then` branch of a compiled terminal `ite` re-expresses

@@ -855,7 +855,8 @@ example : backendEvalWithContext "sload" [42] =
 example : backendEvalWithContext "mappingSlot" [0, 1] =
           verityEvalWithContext "mappingSlot" [0, 1] := by
   simp [backendEvalWithContext, verityEvalWithContext, evalBuiltinCallWithBackendContext,
-    legacyEvalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
+    evalBuiltinCallWithEvmYulLeanContext, legacyEvalBuiltinCallWithContext,
+    evalBuiltinCallViaEvmYulLean]
 
 /-- Context-lifted bridge: caller now reads the bridged execution context. -/
 example : backendEvalWithContext "caller" [] = verityEvalWithContext "caller" [] := by native_decide

@@ -42,7 +42,8 @@ set_option maxHeartbeats 1000000 in
         (state.selector % selectorModulus) * 2 ^ selectorShift := by
     exact Nat.mod_eq_of_lt hSelectorWordLt
   simp [selectorExpr, evalYulExpr, evalYulCall, evalYulExprs,
-    evalBuiltinCallWithBackendContext, Backends.evalBuiltinCallViaEvmYulLean,
+    evalBuiltinCallWithBackendContext, Backends.evalBuiltinCallWithEvmYulLeanContext,
+    Backends.evalBuiltinCallViaEvmYulLean,
     calldataloadWord, selectorWord,
     hShiftModEq, hSelectorWordMod, hSelectorShiftNotGe256]
 
