@@ -14,8 +14,8 @@ are aligned. Uses `mutual` recursion between `conditional_equiv` and
 `all_stmts_equiv` to handle the circular dependency.
 
 Individual statement proofs feed the file-local sequence/function lifting
-helpers in `Equivalence.lean`; the exported result here remains the
-statement-level legacy equivalence theorem `all_stmts_equiv`.
+helpers in `Equivalence.lean`; the statement-level legacy equivalence theorem
+`all_stmts_equiv` remains file-local transition evidence.
 -/
 
 /-! ### Expression Equivalence
@@ -29,7 +29,7 @@ mutual
 
 /-- IR and Yul expression evaluation are identical when states are aligned.
 Proved by mutual structural induction on expression size. -/
-theorem evalIRExpr_eq_evalYulExpr (selector : Nat) (irState : IRState) (expr : YulExpr) :
+private theorem evalIRExpr_eq_evalYulExpr (selector : Nat) (irState : IRState) (expr : YulExpr) :
     evalIRExpr irState expr = evalYulExpr (yulStateOfIR selector irState) expr := by
   match expr with
   | .lit n => simp only [evalIRExpr, evalYulExpr]
@@ -46,7 +46,7 @@ decreasing_by
 
 /-- List version: IR and Yul list evaluation are identical when states are aligned.
 Follows from `evalIRExpr_eq_evalYulExpr` by structural induction on the list. -/
-theorem evalIRExprs_eq_evalYulExprs (selector : Nat) (irState : IRState) (exprs : List YulExpr) :
+private theorem evalIRExprs_eq_evalYulExprs (selector : Nat) (irState : IRState) (exprs : List YulExpr) :
     evalIRExprs irState exprs = evalYulExprs (yulStateOfIR selector irState) exprs := by
   match exprs with
   | [] => simp only [evalIRExprs, evalYulExprs]
@@ -61,7 +61,7 @@ decreasing_by
     omega
 
 /-- Call version: IR and Yul call evaluation are identical when states are aligned. -/
-theorem evalIRCall_eq_evalYulCall (selector : Nat) (irState : IRState) (func : String) (args : List YulExpr) :
+private theorem evalIRCall_eq_evalYulCall (selector : Nat) (irState : IRState) (func : String) (args : List YulExpr) :
     evalIRCall irState func args = evalYulCall (yulStateOfIR selector irState) func args := by
   simp only [evalIRCall, evalYulCall]
   rw [evalIRExprs_eq_evalYulExprs selector irState args]
@@ -132,7 +132,7 @@ private theorem execResultsAligned_log_call
   cases IRGeneration.applyYulLogCall? irState func argVals <;>
     simp [execResultsAligned, statesAligned]
 
-theorem assign_equiv (selector : Nat) (fuel : Nat) (varName : String) (valueExpr : YulExpr)
+private theorem assign_equiv (selector : Nat) (fuel : Nat) (varName : String) (valueExpr : YulExpr)
     (irState : IRState) (yulState : YulState)
     (halign : statesAligned selector irState yulState)
     (hfuel : fuel > 0) :
@@ -624,12 +624,12 @@ private theorem stmt_and_stmts_equiv :
                 | «stop» _ =>
                     exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp only [execResultsAligned, not_false_eq_true]))
 
-theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
+private theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
     execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState := by
   intro selector fuel stmt irState yulState
   exact (stmt_and_stmts_equiv fuel).1 selector stmt irState yulState
 
-theorem conditional_equiv (selector : Nat) (fuel : Nat)
+private theorem conditional_equiv (selector : Nat) (fuel : Nat)
     (condExpr : YulExpr) (body : List YulStmt)
     (irState : IRState) (yulState : YulState)
     (halign : statesAligned selector irState yulState)
@@ -640,7 +640,7 @@ theorem conditional_equiv (selector : Nat) (fuel : Nat)
   simpa only [execIRStmt_equiv_execYulStmt_goal] using
     (all_stmts_equiv selector fuel (YulStmt.if_ condExpr body) irState yulState halign)
 
-theorem return_equiv (selector : Nat) (fuel : Nat)
+private theorem return_equiv (selector : Nat) (fuel : Nat)
     (offsetExpr sizeExpr : YulExpr)
     (irState : IRState) (yulState : YulState)
     (halign : statesAligned selector irState yulState)
@@ -651,7 +651,7 @@ theorem return_equiv (selector : Nat) (fuel : Nat)
   simpa only [execIRStmt_equiv_execYulStmt_goal] using
     (all_stmts_equiv selector fuel (YulStmt.expr (.call "return" [offsetExpr, sizeExpr])) irState yulState halign)
 
-theorem revert_equiv (selector : Nat) (fuel : Nat)
+private theorem revert_equiv (selector : Nat) (fuel : Nat)
     (offsetExpr sizeExpr : YulExpr)
     (irState : IRState) (yulState : YulState)
     (halign : statesAligned selector irState yulState)
@@ -662,7 +662,7 @@ theorem revert_equiv (selector : Nat) (fuel : Nat)
   simpa only [execIRStmt_equiv_execYulStmt_goal] using
     (all_stmts_equiv selector fuel (YulStmt.expr (.call "revert" [offsetExpr, sizeExpr])) irState yulState halign)
 
-theorem storageStore_equiv (selector : Nat) (fuel : Nat)
+private theorem storageStore_equiv (selector : Nat) (fuel : Nat)
     (slotExpr valExpr : YulExpr)
     (irState : IRState) (yulState : YulState)
     (halign : statesAligned selector irState yulState)
