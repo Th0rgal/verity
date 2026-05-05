@@ -391,6 +391,18 @@ end -- mutual
   | none => simp
   | some val => simp
 
+@[simp] theorem evalIRCall_sload_singleton
+    (state : IRState) (argExpr : YulExpr) :
+    evalIRCall state "sload" [argExpr] =
+      (evalIRExpr state argExpr).bind
+        (fun slot => some (Compiler.Proofs.abstractLoadStorageOrMapping state.storage slot).toNat) := by
+  simp [evalIRCall, evalIRExprs,
+    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
+    Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext]
+  cases evalIRExpr state argExpr with
+  | none => simp
+  | some val => simp
+
 private def restoreCallerVars (callerState calleeState : IRState) : IRState :=
   { calleeState with vars := callerState.vars }
 

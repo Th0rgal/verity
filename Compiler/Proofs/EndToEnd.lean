@@ -8286,11 +8286,9 @@ theorem interpretIR_simpleStorage_retrieveHit
     obtain ⟨k, rfl⟩ : ∃ k, n = k + 2 := ⟨n - 2, by omega⟩
     -- Fuel `k + 2 + 1 = k + 3` is `Nat.succ (Nat.succ (Nat.succ k))`, allowing
     -- both the outer `execIRStmts` and the inner `execIRStmt` to step.
-    simp +decide only [execIRStmts, execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-      Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext,
+    simp +decide only [execIRStmts, execIRStmt, evalIRExpr, evalIRCall_sload_singleton,
       Compiler.Proofs.abstractLoadStorageOrMapping,
-      Option.bind_some, bind, pure, ↓reduceIte]
+      Option.bind_some, ↓reduceIte]
   -- The retrieve body has at least 2 statements, so `sizeOf body ≥ 2` by
   -- direct computation on the auto-derived size measure.
   have hsize : 2 ≤ sizeOf
