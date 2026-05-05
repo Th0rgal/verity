@@ -1,5 +1,6 @@
 import Compiler.Codegen
 import Compiler.Proofs.IRGeneration.IRInterpreter
+import Compiler.Proofs.YulGeneration.IRFuel
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 
 namespace Compiler.Proofs.YulGeneration
@@ -237,15 +238,6 @@ theorem execYulStmtFuel_for
       | other => other := by
   rfl
 
-/-! ## Fuel-Parametric Aliases
-
-`execIRStmtFuel`/`execIRStmtsFuel` are aliases for the total IR executors
-in IRInterpreter.lean. Downstream proofs use these names.
--/
-
-abbrev execIRStmtFuel := @execIRStmt
-abbrev execIRStmtsFuel := @execIRStmts
-
 /-- Instruction-level equivalence goal: single IR statement matches Yul statement (fuel-parametric). -/
 def execIRStmt_equiv_execYulStmt_goal
     (selector : Nat) (fuel : Nat) (stmt : YulStmt) (irState : IRState) (yulState : YulState) : Prop :=
@@ -269,52 +261,6 @@ private theorem stmt_align_contra
     (hImpossible : ¬ execResultsAligned selector irExec yulExec) : False := by
   apply hImpossible
   simpa [hIR, hYul] using hStmt
-
-theorem execIRStmtsFuel_nil (fuel : Nat) (state : IRState) :
-    execIRStmtsFuel fuel state [] = .continue state := by
-  simp [execIRStmtsFuel, execIRStmts]
-
-theorem execIRStmtsFuel_cons
-    (fuel : Nat) (state : IRState) (stmt : YulStmt) (rest : List YulStmt) :
-    execIRStmtsFuel (Nat.succ fuel) state (stmt :: rest) =
-      match execIRStmtFuel fuel state stmt with
-      | .continue s' => execIRStmtsFuel fuel s' rest
-      | .return v s => .return v s
-      | .stop s => .stop s
-      | .revert s => .revert s := by
-  -- The mutual definition unfolds directly
-  rfl
-
-def execIRFunctionFuel (fuel : Nat) (fn : IRFunction) (args : List Nat) (initialState : IRState) :
-    IRResult :=
-  let stateWithParams := fn.params.zip args |>.foldl
-    (fun s (p, v) => s.setVar p.name v)
-    initialState
-  match execIRStmtsFuel fuel stateWithParams fn.body with
-  | .continue s =>
-      { success := true
-        returnValue := s.returnValue
-        finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage
-        events := s.events }
-  | .return v s =>
-      { success := true
-        returnValue := some v
-        finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage
-        events := s.events }
-  | .stop s =>
-      { success := true
-        returnValue := none
-        finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage
-        events := s.events }
-  | .revert _ =>
-      { success := false
-        returnValue := none
-        finalStorage := initialState.storage
-        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
-        events := initialState.events }
 
 def ir_yul_function_equiv_fuel_goal
     (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState) : Prop :=
@@ -454,24 +400,6 @@ theorem ir_yul_function_equiv_fuel_goal_of_stmt_equiv
   simpa [ir_yul_function_equiv_fuel_goal] using
     (execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv stmt_equiv
       selector fn args initialState)
-
-/-! ## Fuel Adequacy
-
-The IR executors are total (fuel-parametric) and the fuel aliases
-resolve by `rfl`. No axiom needed.
--/
-
-def execIRFunctionFuel_adequate_goal
-    (fn : IRFunction) (args : List Nat) (initialState : IRState) : Prop :=
-  execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState =
-    execIRFunction fn args initialState
-
-/-- Fuel adequacy holds by `rfl` (fuel aliases resolve to total executors). -/
-theorem execIRFunctionFuel_adequate
-    (fn : IRFunction) (args : List Nat) (initialState : IRState) :
-    execIRFunctionFuel_adequate_goal fn args initialState := by
-  unfold execIRFunctionFuel_adequate_goal execIRFunctionFuel execIRFunction execIRStmtsFuel
-  rfl
 
 theorem ir_yul_function_equiv_from_state_of_fuel_goal
     (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState)
