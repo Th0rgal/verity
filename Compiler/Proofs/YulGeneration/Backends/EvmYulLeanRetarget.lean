@@ -452,7 +452,7 @@ private theorem backends_agree_on_keccak256
 
 mutual
 
-def evalYulExprsWithBackend (backend : BuiltinBackend) (state : YulState) :
+private def evalYulExprsWithBackend (backend : BuiltinBackend) (state : YulState) :
     List Compiler.Yul.YulExpr → Option (List Nat)
   | [] => some []
   | e :: es => do
@@ -465,7 +465,7 @@ decreasing_by
     simp [exprsSize]
     omega
 
-def evalYulCallWithBackend (backend : BuiltinBackend) (state : YulState)
+private def evalYulCallWithBackend (backend : BuiltinBackend) (state : YulState)
     (func : String) : List Compiler.Yul.YulExpr → Option Nat
   | args => do
     let argVals ← evalYulExprsWithBackend backend state args
@@ -489,7 +489,7 @@ termination_by args => exprsSize args + 1
 decreasing_by
   omega
 
-def evalYulExprWithBackend (backend : BuiltinBackend) (state : YulState) :
+private def evalYulExprWithBackend (backend : BuiltinBackend) (state : YulState) :
     Compiler.Yul.YulExpr → Option Nat
   | .lit n => some n
   | .hex n => some n
