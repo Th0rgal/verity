@@ -3291,6 +3291,9 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchCases_noFuncDefs
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFuncDefs_noFallback_noReceive
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases_eq_switchCases
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.find_switch_case_of_find_function
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.find_switch_case_of_find_function_eq_selector
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.find_switch_case_of_find_function_none
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function
@@ -4273,12 +4276,6 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte2
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte3
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_arg0Byte
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.callvalue_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.timestamp_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.number_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.calldatasize_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.caller_bridge
-#print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.address_bridge
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.ordering_then_eq  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.UInt256_compare_eq_fin  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.StateBridge.UInt256_eq_of_compare_eq
@@ -4332,4 +4329,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4156 theorems/lemmas (3148 public, 1008 private, 0 sorry'd)
+-- Total: 4153 theorems/lemmas (3145 public, 1008 private, 0 sorry'd)
