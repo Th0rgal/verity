@@ -121,13 +121,6 @@ def applyYulLogCall? (state : YulState) (func : String)
       some (state.appendYulLog offset size [topic0, topic1, topic2, topic3])
   | _, _ => none
 
-inductive YulExecResult
-  | continue (state : YulState)
-  | return (value : Nat) (state : YulState)
-  | stop (state : YulState)
-  | revert (state : YulState)
-  deriving Nonempty
-
 inductive YulExecTarget
   | stmt (s : YulStmt)
   | stmts (ss : List YulStmt)

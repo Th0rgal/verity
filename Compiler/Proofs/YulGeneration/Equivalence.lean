@@ -79,32 +79,6 @@ private def irResultOfExecWithRollback (rollback : IRState) : IRExecResult → I
         finalMappings := Compiler.Proofs.storageAsMappings rollback.storage
         events := rollback.events }
 
-def yulResultOfExecWithRollback (rollback : YulState) : YulExecResult → YulResult
-  | .continue s =>
-      { success := true
-        returnValue := s.returnValue
-        finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage
-        events := s.events }
-  | .return v s =>
-      { success := true
-        returnValue := some v
-        finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage
-        events := s.events }
-  | .stop s =>
-      { success := true
-        returnValue := none
-        finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage
-        events := s.events }
-  | .revert _ =>
-      { success := false
-        returnValue := none
-        finalStorage := rollback.storage
-        finalMappings := Compiler.Proofs.storageAsMappings rollback.storage
-        events := rollback.events }
-
 /-- Interpret a function body starting from an aligned IR-derived state. -/
 private noncomputable def interpretYulBodyFromState
     (fn : IRFunction) (selector : Nat) (state rollback : IRState) : YulResult :=

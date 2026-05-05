@@ -140,4 +140,37 @@ structure YulResult where
   finalMappings : Nat → Nat → IRStorageWord
   events : List (List Nat)
 
+inductive YulExecResult
+  | continue (state : YulState)
+  | return (value : Nat) (state : YulState)
+  | stop (state : YulState)
+  | revert (state : YulState)
+  deriving Nonempty
+
+def yulResultOfExecWithRollback (rollback : YulState) : YulExecResult → YulResult
+  | .continue s =>
+      { success := true
+        returnValue := s.returnValue
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .return v s =>
+      { success := true
+        returnValue := some v
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .stop s =>
+      { success := true
+        returnValue := none
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .revert _ =>
+      { success := false
+        returnValue := none
+        finalStorage := rollback.storage
+        finalMappings := Compiler.Proofs.storageAsMappings rollback.storage
+        events := rollback.events }
+
 end Compiler.Proofs.YulGeneration
