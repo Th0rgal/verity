@@ -320,7 +320,13 @@ scope so the native path does not look more complete than it is:
   lookup with `lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function`
   and `lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function`, so an
   `IRFunction` selector hit or miss now produces the corresponding lowered
-  native case lookup fact directly. The native harness also owns the generic
+  native case lookup fact directly. It also exposes `buildSwitchSourceCases`
+  and `buildSwitchSourceCases_eq_switchCases`, plus the actual-`buildSwitch`
+  wrappers `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function`
+  and `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function`,
+  so generated dispatcher proofs can consume the source case list emitted by
+  `Compiler.CodegenCommon.buildSwitch` without first rewriting manually to
+  `switchCases`. The native harness also owns the generic
   block-lowering shape lemmas `lowerStmtsNative_single_block_ok_singleton` and
   `lowerStmtsNative_block_stmts_eq`, plus the generated-dispatcher peel facts
   `lowerStmtsNativeWithSwitchIds_let_head_eq`,
@@ -700,6 +706,10 @@ scope so the native path does not look more complete than it is:
    `lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function` for
    generated dispatcher function-lookup facts lifted through native case
    lowering,
+   `buildSwitchSourceCases_eq_switchCases`,
+   `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function`,
+   and `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function`
+   for the actual `buildSwitch` source case list,
    `lowerStmtsNative_single_block_ok_singleton` and
    `lowerStmtsNative_block_stmts_eq` for generic `.block` lowering shape,
    `lowerStmtsNativeWithSwitchIds_let_head_eq`,

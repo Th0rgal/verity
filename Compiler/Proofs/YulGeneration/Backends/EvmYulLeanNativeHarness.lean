@@ -434,6 +434,31 @@ theorem buildSwitch_noFuncDefs_noFallback_noReceive
     Compiler.CodegenCommon.callvalueGuard, yulStmtContainsFuncDef,
     yulStmtsContainFuncDef, yulSwitchCasesContainFuncDef] using hCases
 
+/-- Source case list emitted inside `buildSwitch` before the optional default
+case is attached. Kept explicit so native lowering lemmas can speak about the
+actual generated dispatcher source list, not only the proof-side `switchCases`
+abbreviation. -/
+def buildSwitchSourceCases (funcs : List IRFunction) :
+    List (Nat × List YulStmt) :=
+  funcs.map (fun fn =>
+    (fn.selector,
+      Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
+        ([Compiler.CodegenCommon.calldatasizeGuard fn.params.length] ++ fn.body)))
+
+/-- The case list emitted by `buildSwitch` is the proof-side `switchCases`
+abbreviation used by the IR/Yul preservation lemmas. -/
+theorem buildSwitchSourceCases_eq_switchCases (funcs : List IRFunction) :
+    buildSwitchSourceCases funcs = switchCases funcs := by
+  induction funcs with
+  | nil =>
+      simp [buildSwitchSourceCases, switchCases]
+  | cons fn rest ih =>
+      cases hpay : fn.payable <;>
+        simp [buildSwitchSourceCases, switchCases, switchCaseBody,
+          Compiler.CodegenCommon.dispatchBody, Compiler.callvalueGuard,
+          Compiler.calldatasizeGuard, Compiler.CodegenCommon.callvalueGuard,
+          Compiler.CodegenCommon.calldatasizeGuard, hpay]
+
 /-- Generated-dispatcher selector hit specialized to `IRFunction` lookup.
 
 This composes the source `buildSwitch` case lookup theorem with native switch
@@ -481,6 +506,38 @@ theorem lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function
   exact Backends.lowerSwitchCasesNativeWithSwitchIds_find?_none
     reservedNames nextSwitchId final selector (switchCases funcs) cases'
     hLower hCase
+
+/-- `buildSwitch`-source variant of
+`lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function`. -/
+theorem lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function
+    (reservedNames : List String) (nextSwitchId final selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId
+      (buildSwitchSourceCases funcs) = .ok (cases', final))
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn) :
+    ∃ body' bodyStart bodyEnd,
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) := by
+  rw [buildSwitchSourceCases_eq_switchCases] at hLower
+  exact lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function
+    reservedNames nextSwitchId final selector funcs fn cases' hLower hFind
+
+/-- `buildSwitch`-source variant of
+`lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function`. -/
+theorem lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+    (reservedNames : List String) (nextSwitchId final selector : Nat)
+    (funcs : List IRFunction)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId
+      (buildSwitchSourceCases funcs) = .ok (cases', final))
+    (hFind : funcs.find? (fun f => f.selector == selector) = none) :
+    cases'.find? (fun entry => entry.1 == selector) = none := by
+  rw [buildSwitchSourceCases_eq_switchCases] at hLower
+  exact lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function
+    reservedNames nextSwitchId final selector funcs cases' hLower hFind
 
 /-- A `.block` head in native lowering surfaces as a singleton `.Block` output
 when the lowering succeeds. -/
