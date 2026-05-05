@@ -243,6 +243,32 @@ def nativeGeneratedDispatcherExecMatchesIROn
       (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
         (YulTransaction.ofIR tx) state.storage state.events nativeResult))
 
+/-- Public canonical generated-runtime `EvmYul.Yul.callDispatcher` target
+against IR.
+
+This is the direct native entrypoint-facing form of
+`nativeGeneratedDispatcherExecMatchesIROn`: the lowered generated runtime is
+installed in an EVMYulLean state and run through `callDispatcher` at canonical
+generated-runtime fuel. -/
+def nativeGeneratedCallDispatcherMatchesIROn
+    (contract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract) :
+    Prop :=
+  let fuel := Nat.succ (sizeOf (Compiler.emitYul contract).runtimeCode)
+  let initial :=
+    Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
+      (YulTransaction.ofIR tx) state.storage
+      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode contract) observableSlots)
+  nativeResultsMatchOn observableSlots (interpretIR contract tx state)
+    (.ok
+      (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+        (YulTransaction.ofIR tx) state.storage state.events
+        (EvmYul.Yul.callDispatcher fuel (some nativeContract) initial)))
+
 /-- Public native contract shell produced by helper-free generated dispatcher
 lowering. -/
 def nativeGeneratedDispatcherContractOf
@@ -4146,6 +4172,62 @@ theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
   simpa [nativeRuntimeFuel] using
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
       hSourceIR hLayer3
+
+/-- Public supported-compiler correctness theorem over the generated native
+`EvmYul.Yul.callDispatcher` target.
+
+This is the callDispatcher-facing sibling of
+`compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match`; it
+keeps the public premise at the native EVMYulLean entrypoint and converts to
+the file-local dispatcher-exec projection internally. -/
+theorem compile_preserves_native_evmYulLean_of_generated_callDispatcher_match
+    (model : CompilationModel.CompilationModel) (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (initialWorld : Verity.ContractState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (htxNormalized : Function.TxContextNormalized tx)
+    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
+    (hcompile : CompilationModel.compile model selectors = Except.ok irContract)
+    (hBodies : SourceBodyNativeClosure model selectors)
+    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
+    (hChainId :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
+        tx.chainId = true)
+    (hBlobBaseFee :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable
+        tx.blobBaseFee = true)
+    (hNoHeader :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        false)
+    (hNativeCallDispatcher :
+      nativeGeneratedCallDispatcherMatchesIROn irContract tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        observableSlots nativeContract) :
+    sourceResultMatchesNativeOn observableSlots
+      (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (Nat.succ (sizeOf (Compiler.emitYul irContract).runtimeCode))
+        irContract tx
+        (FunctionBody.initialIRStateForTx model tx initialWorld)
+        observableSlots) := by
+  apply compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
+    model selectors hSupported irContract tx initialWorld observableSlots
+    nativeContract htxNormalized hcalldataSizeFits hcompile hBodies hLower
+    hChainId hBlobBaseFee hNoHeader
+  unfold nativeGeneratedCallDispatcherMatchesIROn at hNativeCallDispatcher
+  unfold nativeGeneratedDispatcherExecMatchesIROn
+  dsimp at hNativeCallDispatcher ⊢
+  rw [
+    Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_succ_eq_callDispatcherBlockResult,
+    Compiler.Proofs.YulGeneration.Backends.Native.callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult,
+    Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherBlockResult_eq_execResult
+  ] at hNativeCallDispatcher
+  simpa using hNativeCallDispatcher
 
 /-- Helper-free generated dispatcher wrapper over concrete dispatcher lowering. -/
 theorem compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping
