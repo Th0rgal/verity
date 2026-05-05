@@ -1404,6 +1404,154 @@ theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_b
       hNoHeader)
     hProject hMatch
 
+theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {dispatcher : List EvmYul.Yul.Ast.Stmt} {nextSwitchId : Nat}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hMapping : irContract.usesMapping = true)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+      (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        (Compiler.emitYul irContract).runtimeCode)
+      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok (dispatcher, nextSwitchId))
+    (hChainId :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
+        tx.chainId = true)
+    (hBlobBaseFee :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable
+        tx.blobBaseFee = true)
+    (hNoHeader :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        false)
+    (hMatch : nativeDispatcherExecMatchesIRPositive fuel' irContract tx state
+      observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
+    nativeIRRuntimeMatchesIR (Nat.succ fuel') irContract tx state observableSlots :=
+  nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved
+    hCompile hSupported hMapping hStaticParams hSafeBodies hLowerDispatcher
+    (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+      (Compiler.emitYul irContract).runtimeCode tx hChainId hBlobBaseFee
+      hNoHeader)
+    hMatch
+
+theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {dispatcher : List EvmYul.Yul.Ast.Stmt} {nextSwitchId : Nat}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hMapping : irContract.usesMapping = true)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+      (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        (Compiler.emitYul irContract).runtimeCode)
+      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok (dispatcher, nextSwitchId))
+    (hChainId : tx.chainId = EvmYul.chainId)
+    (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
+    (hNoHeader :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        false)
+    (hMatch : nativeDispatcherExecMatchesIRPositive fuel' irContract tx state
+      observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
+    nativeIRRuntimeMatchesIR (Nat.succ fuel') irContract tx state observableSlots :=
+  nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved
+    hCompile hSupported hMapping hStaticParams hSafeBodies hLowerDispatcher
+    (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_globalDefaults
+      (Compiler.emitYul irContract).runtimeCode tx hChainId hBlobBaseFee
+      hNoHeader)
+    hMatch
+
+theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {dispatcher : List EvmYul.Yul.Ast.Stmt} {nextSwitchId : Nat}
+    {nativeYul : YulResult}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hMapping : irContract.usesMapping = true)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+      (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        (Compiler.emitYul irContract).runtimeCode)
+      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok (dispatcher, nextSwitchId))
+    (hChainId :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
+        tx.chainId = true)
+    (hBlobBaseFee :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable
+        tx.blobBaseFee = true)
+    (hNoHeader :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        false)
+    (hProject : nativeProjectedDispatcherResultEq fuel' irContract tx state
+      observableSlots (nativeContractOfDispatcherWithMapping dispatcher) nativeYul)
+    (hMatch :
+      nativeResultsMatchOn observableSlots (interpretIR irContract tx state)
+        (.ok nativeYul)) :
+    nativeIRRuntimeMatchesIR (Nat.succ fuel') irContract tx state observableSlots :=
+  nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved
+    hCompile hSupported hMapping hStaticParams hSafeBodies hLowerDispatcher
+    (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+      (Compiler.emitYul irContract).runtimeCode tx hChainId hBlobBaseFee
+      hNoHeader)
+    hProject hMatch
+
+theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults
+    {fuel' : Nat} {spec : CompilationModel.CompilationModel}
+    {selectors : List Nat} {irContract : IRContract}
+    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
+    {dispatcher : List EvmYul.Yul.Ast.Stmt} {nextSwitchId : Nat}
+    {nativeYul : YulResult}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hMapping : irContract.usesMapping = true)
+    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
+    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
+      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
+        spec.fields spec.errors .calldata [] false entry.1.body)
+    (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+      (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        (Compiler.emitYul irContract).runtimeCode)
+      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok (dispatcher, nextSwitchId))
+    (hChainId : tx.chainId = EvmYul.chainId)
+    (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
+    (hNoHeader :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        false)
+    (hProject : nativeProjectedDispatcherResultEq fuel' irContract tx state
+      observableSlots (nativeContractOfDispatcherWithMapping dispatcher) nativeYul)
+    (hMatch :
+      nativeResultsMatchOn observableSlots (interpretIR irContract tx state)
+        (.ok nativeYul)) :
+    nativeIRRuntimeMatchesIR (Nat.succ fuel') irContract tx state observableSlots :=
+  nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved
+    hCompile hSupported hMapping hStaticParams hSafeBodies hLowerDispatcher
+    (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_globalDefaults
+      (Compiler.emitYul irContract).runtimeCode tx hChainId hBlobBaseFee
+      hNoHeader)
+    hProject hMatch
+
 theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
