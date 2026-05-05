@@ -3179,6 +3179,7 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_revert_zero_zero
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
+#print axioms Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_funcDef_prefix_append
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive
@@ -4184,4 +4185,4 @@ import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4008 theorems/lemmas (3020 public, 988 private, 0 sorry'd)
+-- Total: 4009 theorems/lemmas (3021 public, 988 private, 0 sorry'd)

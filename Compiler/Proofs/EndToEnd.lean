@@ -2027,22 +2027,10 @@ theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSinglet
               [Backends.Native.nativeRevertZeroZeroStmt]]] := by
   have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
   rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
-  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
-  obtain ⟨_, hLet, hRestLowering⟩ :=
-    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
-  obtain ⟨body1', _, _, hIf1, _, hRest1⟩ :=
-    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRestLowering
-  obtain ⟨_, _, _, hIf2, hBody2, hRest2⟩ :=
-    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRest1
-  rw [Backends.lowerStmtsNativeWithSwitchIds_nil,
-      Except.ok.injEq, Prod.mk.injEq] at hRest2
-  obtain ⟨hNil, _⟩ := hRest2
-  subst hNil
-  obtain ⟨cases', hBody2Eq⟩ :=
-    lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
-      _ _ _ _ _ _ hBody2
-  rw [hBody2Eq] at hIf2; rw [hIf2] at hIf1; rw [hIf1] at hLet
-  exact ⟨body1', _, cases', hLet⟩
+  obtain ⟨body1, reservedNames, n0, cases', _, hInner, _⟩ :=
+    Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered
+      simpleStorageIRContract.functions simpleStorageNativeDispatcherInnerStmts hOk
+  exact ⟨body1, Backends.freshNativeSwitchId reservedNames n0, cases', hInner⟩
 
 /-- The source-level switch cases that `buildSwitch` emits for SimpleStorage
 (one entry per source IR function, keyed by selector). Used by the
@@ -2085,22 +2073,9 @@ theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSinglet
         simpleStorageBuildSwitchSourceCases = .ok (cases', midN) := by
   have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
   rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
-  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
-  obtain ⟨_, hLet, hRestLowering⟩ :=
-    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
-  obtain ⟨body1', _, _, hIf1, _, hRest1⟩ :=
-    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRestLowering
-  obtain ⟨_, _, _, hIf2, hBody2, hRest2⟩ :=
-    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRest1
-  rw [Backends.lowerStmtsNativeWithSwitchIds_nil,
-      Except.ok.injEq, Prod.mk.injEq] at hRest2
-  obtain ⟨hNil, _⟩ := hRest2
-  subst hNil
-  obtain ⟨cases', midN, hBody2Eq, hLowerCases⟩ :=
-    lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
-      _ _ _ _ _ _ hBody2
-  rw [hBody2Eq] at hIf2; rw [hIf2] at hIf1; rw [hIf1] at hLet
-  exact ⟨body1', _, _, cases', midN, hLet, hLowerCases⟩
+  simpa [simpleStorageBuildSwitchSourceCases] using
+    (Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered
+      simpleStorageIRContract.functions simpleStorageNativeDispatcherInnerStmts hOk)
 
 /-- The `Classical.choose`-pinned let RHS of the SimpleStorage native dispatcher
 equals the lowered `iszero(lt(calldatasize(), 4))` Yul expression that

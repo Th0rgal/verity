@@ -794,6 +794,58 @@ theorem lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceL
         List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
       exact ⟨cases', midN, h.1.symm, rfl⟩
 
+/-- Generic native-lowering shape of the no-fallback/no-receive generated
+dispatcher.
+
+This theorem peels the actual `buildSwitch funcs none none` source emitted by
+codegen: the lowered inner block is the generated selector prologue, the
+selector-miss default lowers to native `revert(0,0)`, and the selector-hit
+switch is linked to the native lowering of the source case list emitted by
+`buildSwitch`. -/
+theorem buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered
+    (funcs : List IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (h : Backends.lowerStmtsNative
+            [Compiler.CodegenCommon.buildSwitch funcs none none] =
+          .ok [.Block inner]) :
+    ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      inner =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some (Backends.lowerExprNative (YulExpr.call "iszero"
+              [YulExpr.call "lt"
+                [YulExpr.call "calldatasize" [], YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (YulExpr.call "iszero" [YulExpr.ident "__has_selector"])) body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]]] ∧
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) := by
+  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ h
+  obtain ⟨_, hLet, hRestLowering⟩ :=
+    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
+  obtain ⟨body1', _, _, hIf1, _, hRest1⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRestLowering
+  obtain ⟨_, _, _, hIf2, hBody2, hRest2⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRest1
+  rw [Backends.lowerStmtsNativeWithSwitchIds_nil,
+      Except.ok.injEq, Prod.mk.injEq] at hRest2
+  obtain ⟨hNil, _⟩ := hRest2
+  subst hNil
+  obtain ⟨cases', midN, hBody2Eq, hLowerCases⟩ :=
+    lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
+      _ _ _ _ _ _ hBody2
+  rw [hBody2Eq] at hIf2; rw [hIf2] at hIf1; rw [hIf1] at hLet
+  exact ⟨body1', _, _, cases', midN, hLet, hLowerCases⟩
+
 theorem generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
     (funcs : List IRFunction)
     (hBodies : ∀ fn, fn ∈ funcs → yulStmtsContainFuncDef fn.body = false) :

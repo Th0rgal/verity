@@ -77,6 +77,8 @@ N8 public Layer 3 theorem flip
   lowering is pinned by `lowerStmtsNativeWithSwitchIds_revert_zero_zero`,
   `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq`, and
   `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered`.
+  The combined no-fallback/no-receive generated dispatcher lowering shape is
+  exposed as `buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered`.
 - **Definition of done**:
   - The compiler-emitted runtime Yul fragment is explicitly characterized.
   - Allowed statements, expressions, builtins, helper functions, dispatcher
