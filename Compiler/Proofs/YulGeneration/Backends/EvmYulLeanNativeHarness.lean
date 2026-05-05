@@ -654,6 +654,89 @@ theorem lowerStmtsNativeWithSwitchIds_singleton_switch_eq
                 List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
               exact ⟨cases', default', h.1.symm⟩
 
+def nativeRevertZeroZeroStmt : EvmYul.Yul.Ast.Stmt :=
+  .ExprStmtCall
+    (.Call (Sum.inl (EvmYul.Operation.REVERT : EvmYul.Operation .Yul))
+      [.Lit (EvmYul.UInt256.ofNat 0), .Lit (EvmYul.UInt256.ofNat 0)])
+
+/-- The singleton default-revert body lowers to the native `revert(0,0)` stmt
+without advancing the native switch counter. -/
+theorem lowerStmtsNativeWithSwitchIds_revert_zero_zero
+    (reservedNames : List String) (n : Nat) :
+    Backends.lowerStmtsNativeWithSwitchIds reservedNames n
+        [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])] =
+      .ok ([nativeRevertZeroZeroStmt], n) := by
+  simp [Backends.lowerStmtsNativeWithSwitchIds, nativeRevertZeroZeroStmt,
+    Backends.lowerExprNative, Backends.lookupRuntimePrimOp]
+  rfl
+
+set_option linter.unusedSimpArgs false in
+/-- A singleton switch whose default is `revert(0,0)` lowers to a singleton
+native switch block with concrete `[nativeRevertZeroZeroStmt]` default body. -/
+theorem lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
+    (reservedNames : List String) (n0 : Nat)
+    (expr : YulExpr) (cases : List (Nat × List YulStmt))
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            [YulStmt.switch expr cases
+              (some [YulStmt.expr (YulExpr.call "revert"
+                [YulExpr.lit 0, YulExpr.lit 0])])] = .ok (inner, next)) :
+    ∃ (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
+      inner = [Backends.lowerNativeSwitchBlock expr
+        (Backends.freshNativeSwitchId reservedNames n0) cases'
+        [nativeRevertZeroZeroStmt]] := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_switch] at h
+  dsimp only [] at h
+  cases hCases : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) cases with
+  | error _ =>
+      rw [hCases] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok casesPair =>
+      obtain ⟨cases', midN⟩ := casesPair
+      rw [hCases] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
+      rw [lowerStmtsNativeWithSwitchIds_revert_zero_zero] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+        Backends.lowerStmtsNativeWithSwitchIds_nil,
+        List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+      exact ⟨cases', h.1.symm⟩
+
+set_option linter.unusedSimpArgs false in
+/-- Source-lowered companion exposing the case-list lowering equation for a
+singleton switch whose default is `revert(0,0)`. -/
+theorem lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
+    (reservedNames : List String) (n0 : Nat)
+    (expr : YulExpr) (cases : List (Nat × List YulStmt))
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            [YulStmt.switch expr cases
+              (some [YulStmt.expr (YulExpr.call "revert"
+                [YulExpr.lit 0, YulExpr.lit 0])])] = .ok (inner, next)) :
+    ∃ (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      inner = [Backends.lowerNativeSwitchBlock expr
+        (Backends.freshNativeSwitchId reservedNames n0) cases'
+        [nativeRevertZeroZeroStmt]] ∧
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1) cases =
+          .ok (cases', midN) := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_switch] at h
+  dsimp only [] at h
+  cases hCases : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) cases with
+  | error _ =>
+      rw [hCases] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok casesPair =>
+      obtain ⟨cases', midN⟩ := casesPair
+      rw [hCases] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
+      rw [lowerStmtsNativeWithSwitchIds_revert_zero_zero] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+        Backends.lowerStmtsNativeWithSwitchIds_nil,
+        List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+      exact ⟨cases', midN, h.1.symm, rfl⟩
+
 theorem generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
     (funcs : List IRFunction)
     (hBodies : ∀ fn, fn ∈ funcs → yulStmtsContainFuncDef fn.body = false) :
@@ -3299,11 +3382,6 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
   all_goals
     cases EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmRevert
       state [offset, size] <;> rfl
-
-def nativeRevertZeroZeroStmt : EvmYul.Yul.Ast.Stmt :=
-  .ExprStmtCall
-    (.Call (Sum.inl (EvmYul.Operation.REVERT : EvmYul.Operation .Yul))
-      [.Lit (EvmYul.UInt256.ofNat 0), .Lit (EvmYul.UInt256.ofNat 0)])
 
 /-- The compiler's proof-side `revert(0, 0)` default lowers to the concrete
     native statement used by the selector-miss execution lemma. -/

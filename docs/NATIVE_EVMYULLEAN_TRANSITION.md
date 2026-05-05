@@ -326,8 +326,12 @@ scope so the native path does not look more complete than it is:
   `lowerStmtsNativeWithSwitchIds_let_head_eq`,
   `lowerStmtsNativeWithSwitchIds_if_head_eq`, and
   `lowerStmtsNativeWithSwitchIds_singleton_switch_eq`. That leaves the
-  concrete EndToEnd SimpleStorage dispatcher reduction as aliases over
-  native-harness facts. The
+  concrete default-revert switch lowering facts
+  `lowerStmtsNativeWithSwitchIds_revert_zero_zero`,
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq`, and
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered`
+  in the native harness as well, leaving the EndToEnd SimpleStorage dispatcher
+  reduction as aliases over native-harness facts. The
   remaining native dispatcher proof starts after that complete lazy-switch
   bridge, at proving `NativeBlockPreservesWord` for selected/default lowered
   bodies and threading the initialized prefix state plus the lowering lookup
@@ -702,6 +706,10 @@ scope so the native path does not look more complete than it is:
    `lowerStmtsNativeWithSwitchIds_if_head_eq`, and
    `lowerStmtsNativeWithSwitchIds_singleton_switch_eq` for generic dispatcher
    statement peels,
+   `lowerStmtsNativeWithSwitchIds_revert_zero_zero`,
+   `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq`, and
+   `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered`
+   for generated selector-miss default-revert lowering,
    `exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel` and
    `exec_nativeSwitchDefaultIf_matched_fuel` for optional generated defaults,
    `exec_block_append_ok`,

@@ -68,7 +68,10 @@ N8 public Layer 3 theorem flip
   `lowerStmtsNative_block_stmts_eq`; let/if/switch dispatcher statement peels
   are named by `lowerStmtsNativeWithSwitchIds_let_head_eq`,
   `lowerStmtsNativeWithSwitchIds_if_head_eq`, and
-  `lowerStmtsNativeWithSwitchIds_singleton_switch_eq`.
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_eq`; default-revert switch
+  lowering is pinned by `lowerStmtsNativeWithSwitchIds_revert_zero_zero`,
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq`, and
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered`.
 - **Definition of done**:
   - The compiler-emitted runtime Yul fragment is explicitly characterized.
   - Allowed statements, expressions, builtins, helper functions, dispatcher
