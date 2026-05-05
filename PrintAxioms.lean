@@ -4427,23 +4427,23 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.execIRFunctionFuel_adequate
 
 -- Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean
-#print axioms Compiler.Proofs.YulGeneration.defaultBuiltinBackend_eq_evmYulLean
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_context
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_calldatasize_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_caller_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_address_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_timestamp_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_number_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_chainid_nil
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_blobbasefee_nil
-#print axioms Compiler.Proofs.YulGeneration.calldataloadWord_offset4
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_calldataload_offset4_single
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_calldataload_offset4_single
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_sload_single
-#print axioms Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_sload_single
+-- #print axioms Compiler.Proofs.YulGeneration.defaultBuiltinBackend_eq_evmYulLean  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_nil  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_context  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_calldatasize_nil  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_caller_nil  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_address_nil  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_timestamp_nil  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_number_nil  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_chainid_nil  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_blobbasefee_nil  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.calldataloadWord_offset4  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_calldataload_offset4_single  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_calldataload_offset4_single  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCall_sload_single  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_sload_single  -- private
 
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4252 theorems/lemmas (2887 public, 1365 private, 0 sorry'd)
+-- Total: 4252 theorems/lemmas (2872 public, 1380 private, 0 sorry'd)
