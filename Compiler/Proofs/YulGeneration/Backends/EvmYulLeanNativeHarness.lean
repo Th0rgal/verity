@@ -17614,7 +17614,7 @@ def nativeDispatcherExecMatchesIRPositive
 
 /-- Lift a direct positive dispatcher-exec native-vs-IR proof through the native
 runtime harness. -/
-theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match
+private theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match
     {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -17637,7 +17637,7 @@ theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match
 
 /-- Generated-shape lift for the direct positive dispatcher-exec native-vs-IR
 target. -/
-theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match
+private theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match
     {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -17673,7 +17673,7 @@ target when a proof has already identified the projected native result.
 
 This keeps future generated-dispatch proofs from splitting on the native
 execution endpoint unless they need endpoint-specific facts. -/
-theorem nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+private theorem nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -17700,7 +17700,7 @@ theorem nativeDispatcherExecMatchesIRPositive_of_project_eq_match
 
 /-- Lift a projected native result equality and observable IR match through the
 native runtime harness. -/
-theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match
+private theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match
     {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -17733,7 +17733,7 @@ theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match
     (nativeDispatcherExecMatchesIRPositive_of_project_eq_match hProject hMatch)
 
 /-- Generated-shape lift for projected native result equality against IR. -/
-theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match
+private theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match
     {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -17779,7 +17779,7 @@ theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_
 
 /-- Intro form for the direct positive-fuel native-vs-IR dispatcher-exec target
 when native execution finishes normally. -/
-theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_match
+private theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_match
     {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -17808,7 +17808,7 @@ theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_match
 
 /-- Intro form for a direct positive-fuel normal finish when a concrete native
 execution lemma already packages the projected `YulResult`. -/
-theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match
+private theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match
     {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -17837,7 +17837,7 @@ theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match
 
 /-- Intro form for the direct positive-fuel native-vs-IR dispatcher-exec target
 when native execution halts through EVMYulLean's Yul halt channel. -/
-theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_match
+private theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_match
     {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -17861,7 +17861,7 @@ theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_match
 
 /-- Intro form for a direct positive-fuel Yul halt when a concrete native
 execution lemma already packages the projected `YulResult`. -/
-theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match
+private theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match
     {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -17889,7 +17889,7 @@ theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match
 
 /-- Intro form for the direct positive-fuel native-vs-IR dispatcher-exec target
 when native execution fails through a non-halt EVMYulLean exception. -/
-theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_match
+private theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_match
     {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -17913,7 +17913,7 @@ theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_match
 
 /-- Intro form for a direct positive-fuel error when a concrete native
 execution lemma already packages the projected `YulResult`. -/
-theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match
+private theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match
     {fuel' : Nat} {contract : IRContract} {tx : IRTransaction}
     {state : IRState} {observableSlots : List Nat}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
