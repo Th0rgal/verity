@@ -1,5 +1,4 @@
 import Compiler.Proofs.YulGeneration.Equivalence
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 import Compiler.Proofs.IRGeneration.IRInterpreter
 
 namespace Compiler.Proofs.YulGeneration

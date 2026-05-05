@@ -1,6 +1,5 @@
 import Compiler.Codegen
 import Compiler.Proofs.IRGeneration.IRInterpreter
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 import Compiler.Proofs.YulGeneration.Lemmas
 
 namespace Compiler.Proofs.YulGeneration
