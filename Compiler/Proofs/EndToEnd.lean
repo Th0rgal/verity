@@ -58,7 +58,7 @@ abbrev nativeResultsMatchOn :=
 
 /-- Native EVMYulLean execution matches the IR semantics on the observable
 result surface. -/
-abbrev nativeIRRuntimeMatchesIR :=
+private abbrev nativeIRRuntimeMatchesIR :=
   Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR
 
 /-- Observable source-result comparison surface for native EVMYulLean execution.
@@ -115,7 +115,7 @@ theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResu
 Callers can combine any source-to-IR compiler theorem with any native
 `nativeIRRuntimeMatchesIR` proof to obtain a source-facing theorem over
 `interpretIRRuntimeNative`. -/
-theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
+private theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
     {fuel : Nat}
     {contract : IRContract}
     {tx : IRTransaction}
@@ -161,12 +161,12 @@ private def nativeDispatcherExecMatchesIRPositive
         (YulTransaction.ofIR tx) state.storage state.events nativeResult))
 
 /-- Canonical native dispatcher fuel for the generated runtime surface. -/
-noncomputable abbrev nativeRuntimeDispatcherFuel (contract : IRContract) : Nat :=
+private noncomputable abbrev nativeRuntimeDispatcherFuel (contract : IRContract) : Nat :=
   sizeOf (Compiler.emitYul contract).runtimeCode
 
 /-- Canonical native runtime fuel. `interpretIRRuntimeNative` spends one fuel
 step before dispatching into the lowered runtime. -/
-noncomputable abbrev nativeRuntimeFuel (contract : IRContract) : Nat :=
+private noncomputable abbrev nativeRuntimeFuel (contract : IRContract) : Nat :=
   Nat.succ (nativeRuntimeDispatcherFuel contract)
 
 /-- Projected native dispatcher-exec result equality used by the public native
