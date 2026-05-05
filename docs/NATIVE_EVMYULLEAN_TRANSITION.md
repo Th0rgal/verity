@@ -56,9 +56,11 @@ materializes pre-state storage for those slots.
   `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
   `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure`,
@@ -70,8 +72,10 @@ materializes pre-state storage for those slots.
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match`,
   with `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure`
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure`,
-  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment`
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment`,
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`
   as the explicitly named safe-body wrapper aliases.
   These direct match seams keep the remaining proof obligation at concrete
   native lowering, selected-path environment validation, and either raw
@@ -124,12 +128,15 @@ materializes pre-state storage for those slots.
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
   and the `layer3_...project...` / `layers2_3_...project...` wrappers, so
   callers can provide one projected native result equality plus the observable
   match without first building the positive-dispatcher predicate.
   The `_ofIR_environment` variants discharge raw native environment validation
   from representable `tx.chainId`/`tx.blobBaseFee` facts plus the
-  selected-path unsupported-header check.
+  selected-path unsupported-header check. The `_ofIR_globalDefaults` variants
+  package the current EVMYulLean global-default transaction case behind the
+  same selected-path unsupported-header check.
 
 ## Clean Target Architecture
 
@@ -171,7 +178,12 @@ scope so the native path does not look more complete than it is:
   `validateNativeRuntimeEnvironment_ofIR_representableEnvironment` and
   `validateNativeRuntimeEnvironment_ofIR_globalDefaults` now package the common
   `YulTransaction.ofIR` validation cases once selected-path unsupported header
-  builtin use has been ruled out. The
+  builtin use has been ruled out. EndToEnd mirrors the global-default case with
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`.
+  The
   `verity_contract` surface now accepts monadic environment reads such as
   `let t <- blockTimestamp`, `let t <- Verity.blockTimestamp`, `blockNumber`,
   `chainid`, `blobbasefee`, `contractAddress`, `msgSender`, and `msgValue`, and the

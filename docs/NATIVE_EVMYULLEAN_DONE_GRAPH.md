@@ -108,7 +108,8 @@ N8 public Layer 3 theorem flip
   `validateNativeRuntimeEnvironment_ofIR_representableEnvironment` and
   `validateNativeRuntimeEnvironment_ofIR_globalDefaults` package the common
   `YulTransaction.ofIR` validation cases once unsupported selected-path header
-  builtin use has been ruled out.
+  builtin use has been ruled out. EndToEnd mirrors the global-default case for
+  the compiled native positive and projected-result seams.
 - **Definition of done**:
   - Every environment field reachable from generated Yul is bridged, explicitly
     defaulted under a theorem invariant, or rejected fail-closed.
@@ -164,12 +165,14 @@ N8 public Layer 3 theorem flip
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure`,
-  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment`.
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment`,
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`.
 - **Definition of done**:
   - Projection lemmas cover every native halt/error/result used by generated
     runtime execution.
