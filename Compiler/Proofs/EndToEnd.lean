@@ -4045,7 +4045,9 @@ wrapper does not ask callers to provide the final native/IR result match for
 `interpretIRRuntimeNative`. It consumes the canonical generated-runtime
 dispatcher execution premise directly, derives static-parameter closure from
 `SupportedSpec`, and packages compile-core/terminal-core source-body closure
-into the native safe-body predicate internally. -/
+into the native safe-body predicate internally. The native runtime environment
+validation is discharged from explicit representability/header-use facts rather
+than exposed as an opaque validator result. -/
 theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
     (model : CompilationModel.CompilationModel)
     (selectors : List Nat)
@@ -4061,10 +4063,16 @@ theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
     (hBodies : SourceBodyNativeClosure model selectors)
     (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
       (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
-    (hEnv :
-      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+    (hChainId :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
+        tx.chainId = true)
+    (hBlobBaseFee :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable
+        tx.blobBaseFee = true)
+    (hNoHeader :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
         (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
-          .ok ())
+        false)
     (hNativeDispatcherExec :
       nativeGeneratedDispatcherExecMatchesIROn irContract tx
         (FunctionBody.initialIRStateForTx model tx initialWorld)
@@ -4101,7 +4109,11 @@ theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
       (allStaticScalarParams_of_supportedSpec_selectorFunctionPairs
         model selectors hSupported)
       (safeBodies_of_sourceBodyNativeClosure model selectors hBodies)
-      hLower hEnv hNativeDispatcherExec'
+      hLower
+      (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+        (Compiler.emitYul irContract).runtimeCode tx hChainId hBlobBaseFee
+        hNoHeader)
+      hNativeDispatcherExec'
   have hSourceIR :
       Compiler.Proofs.IRGeneration.FunctionBody.sourceResultMatchesIRResult
         (supportedSourceContractSemantics model selectors hSupported tx

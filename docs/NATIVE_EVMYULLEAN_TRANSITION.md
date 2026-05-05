@@ -52,8 +52,10 @@ materializes pre-state storage for those slots.
   theorem. The dispatcher-exec wrapper derives static ABI parameter coverage
   from `SupportedSpec` and exposes source-body closure as
   `SourceBodyNativeClosure` (compile-core or terminal-core), packaging that
-  into the native body whitelist internally; only the concrete dispatcher
-  execution/result obligation remains explicit. The opaque arbitrary-fuel
+  into the native body whitelist internally. It also derives native runtime
+  environment validation from explicit chain-id, blob-base-fee, and unsupported
+  header-builtin facts; only the concrete dispatcher execution/result
+  obligation remains explicit. The opaque arbitrary-fuel
   identity seams, generated dispatcher-exec lift facts, and fuel-indexed
   `nativeIRRuntimeMatchesIR` targets are file-local, and the older
   proof-interpreter bridge signature has been removed from EndToEnd. The public
