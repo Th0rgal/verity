@@ -10,11 +10,12 @@
       `mod`, `smod`, `bitAnd`, `bitOr`, `bitXor`, `shl`, `shr`, `sar`,
       `signextend`, `eq`, `gt`, `sgt`, `lt`, `slt`
     - negated comparisons via `yulNegatedBinOp`: `ge`, `le`
+    - boolean-normalized operations: `logicalAnd`, `logicalOr`, `logicalNot`
+    - branchless arithmetic helpers: `ceilDiv`, `mulDivDown`, `mulDivUp`,
+      `wMulDown`, `wDivUp`, `min`, `max`, `ite`
 
-  Storage, mapping, calldata, call, keccak256, dynamic helpers,
-  `bitNot`/`logicalAnd`/`logicalOr`/`logicalNot`/`min`/`max`/`ceilDiv`/
-  `mulDivDown`/`mulDivUp`/`wMulDown`/`wDivUp`/`ite`/ABI casts are out
-  of scope and require dedicated closure proofs.
+  Storage, mapping, calldata, call, keccak256, dynamic helpers, ABI casts, and
+  environmental helpers are out of scope and require dedicated closure proofs.
 
   The scalar-leaf-only theorem `compileExpr_bridgedSource_leaf` is
   retained below as a specialization.
@@ -69,11 +70,10 @@ theorem compileExpr_bridgedSource_leaf
       exact BridgedExpr.ident name
 
 /-- Source EDSL expressions whose `compileExpr` output is a `BridgedExpr`.
-    Covers scalar leaves plus pure arithmetic/comparison/bit-op binops
-    that emit `yulBinOp NAME` for `NAME ∈ bridgedBuiltins`, plus `ge`/`le`
-    which emit `yulNegatedBinOp`. Storage, calldata, dynamic helpers, and
-    compound forms (bitNot/logicalAnd/logicalOr/logicalNot/min/max/
-    ceilDiv/mulDiv*/wMul*/wDiv*/ite) are out of scope. -/
+    Covers scalar leaves, pure arithmetic/comparison/bit-op binops,
+    boolean-normalization forms, branchless arithmetic helpers, and `ge`/`le`
+    negated comparisons. Storage, calldata, dynamic helpers, ABI casts, calls,
+    and environmental reads are out of scope. -/
 inductive BridgedSourceExpr : Expr → Prop
   -- scalar leaves
   | literal (n : Nat) : BridgedSourceExpr (.literal n)
@@ -131,6 +131,29 @@ inductive BridgedSourceExpr : Expr → Prop
       BridgedSourceExpr (.logicalOr a b)
   | logicalNot {a} (ha : BridgedSourceExpr a) :
       BridgedSourceExpr (.logicalNot a)
+  -- branchless arithmetic helpers
+  | ceilDiv {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
+      BridgedSourceExpr (.ceilDiv a b)
+  | mulDivDown {a b c}
+      (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b)
+      (hc : BridgedSourceExpr c) :
+      BridgedSourceExpr (.mulDivDown a b c)
+  | mulDivUp {a b c}
+      (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b)
+      (hc : BridgedSourceExpr c) :
+      BridgedSourceExpr (.mulDivUp a b c)
+  | wMulDown {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
+      BridgedSourceExpr (.wMulDown a b)
+  | wDivUp {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
+      BridgedSourceExpr (.wDivUp a b)
+  | min {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
+      BridgedSourceExpr (.min a b)
+  | max {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
+      BridgedSourceExpr (.max a b)
+  | ite {cond thenVal elseVal}
+      (hCond : BridgedSourceExpr cond) (hThen : BridgedSourceExpr thenVal)
+      (hElse : BridgedSourceExpr elseVal) :
+      BridgedSourceExpr (.ite cond thenVal elseVal)
   -- negated comparisons (yulNegatedBinOp)
   | ge {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
       BridgedSourceExpr (.ge a b)
@@ -187,6 +210,154 @@ private theorem bridgedExpr_yulToBool {e : YulExpr} (hE : BridgedExpr e) :
   unfold yulToBool
   exact bridgedExpr_unopBuiltin (by simp [bridgedBuiltins])
     (bridgedExpr_unopBuiltin (by simp [bridgedBuiltins]) hE)
+
+private theorem bridgedExpr_ceilDiv {a b : YulExpr}
+    (ha : BridgedExpr a) (hb : BridgedExpr b) :
+    BridgedExpr
+      (YulExpr.call "mul" [
+        YulExpr.call "iszero" [YulExpr.call "iszero" [a]],
+        YulExpr.call "add" [
+          YulExpr.call "div" [YulExpr.call "sub" [a, YulExpr.lit 1], b],
+          YulExpr.lit 1
+        ]
+      ]) := by
+  have hBool : BridgedExpr (YulExpr.call "iszero" [YulExpr.call "iszero" [a]]) :=
+    bridgedExpr_yulToBool ha
+  have hSub : BridgedExpr (YulExpr.call "sub" [a, YulExpr.lit 1]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) ha (BridgedExpr.lit 1)
+  have hDiv : BridgedExpr (YulExpr.call "div" [YulExpr.call "sub" [a, YulExpr.lit 1], b]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hSub hb
+  have hAdd :
+      BridgedExpr
+        (YulExpr.call "add" [
+          YulExpr.call "div" [YulExpr.call "sub" [a, YulExpr.lit 1], b],
+          YulExpr.lit 1]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hDiv (BridgedExpr.lit 1)
+  exact bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hBool hAdd
+
+private theorem bridgedExpr_mulDivDown {a b c : YulExpr}
+    (ha : BridgedExpr a) (hb : BridgedExpr b) (hc : BridgedExpr c) :
+    BridgedExpr (YulExpr.call "div" [YulExpr.call "mul" [a, b], c]) := by
+  exact bridgedExpr_binopBuiltin (by simp [bridgedBuiltins])
+    (bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) ha hb) hc
+
+private theorem bridgedExpr_mulDivUp {a b c : YulExpr}
+    (ha : BridgedExpr a) (hb : BridgedExpr b) (hc : BridgedExpr c) :
+    BridgedExpr
+      (YulExpr.call "div" [
+        YulExpr.call "add" [
+          YulExpr.call "mul" [a, b],
+          YulExpr.call "sub" [c, YulExpr.lit 1]
+        ],
+        c
+      ]) := by
+  have hMul : BridgedExpr (YulExpr.call "mul" [a, b]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) ha hb
+  have hSub : BridgedExpr (YulExpr.call "sub" [c, YulExpr.lit 1]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hc (BridgedExpr.lit 1)
+  have hAdd :
+      BridgedExpr
+        (YulExpr.call "add" [
+          YulExpr.call "mul" [a, b],
+          YulExpr.call "sub" [c, YulExpr.lit 1]]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hMul hSub
+  exact bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hAdd hc
+
+private theorem bridgedExpr_wMulDown {a b : YulExpr}
+    (ha : BridgedExpr a) (hb : BridgedExpr b) :
+    BridgedExpr
+      (YulExpr.call "div" [
+        YulExpr.call "mul" [a, b],
+        YulExpr.lit 1000000000000000000]) := by
+  exact bridgedExpr_binopBuiltin (by simp [bridgedBuiltins])
+    (bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) ha hb)
+    (BridgedExpr.lit 1000000000000000000)
+
+private theorem bridgedExpr_wDivUp {a b : YulExpr}
+    (ha : BridgedExpr a) (hb : BridgedExpr b) :
+    BridgedExpr
+      (YulExpr.call "div" [
+        YulExpr.call "add" [
+          YulExpr.call "mul" [a, YulExpr.lit 1000000000000000000],
+          YulExpr.call "sub" [b, YulExpr.lit 1]
+        ],
+        b
+      ]) := by
+  have hMul :
+      BridgedExpr
+        (YulExpr.call "mul" [a, YulExpr.lit 1000000000000000000]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) ha
+      (BridgedExpr.lit 1000000000000000000)
+  have hSub : BridgedExpr (YulExpr.call "sub" [b, YulExpr.lit 1]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hb (BridgedExpr.lit 1)
+  have hAdd :
+      BridgedExpr
+        (YulExpr.call "add" [
+          YulExpr.call "mul" [a, YulExpr.lit 1000000000000000000],
+          YulExpr.call "sub" [b, YulExpr.lit 1]]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hMul hSub
+  exact bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hAdd hb
+
+private theorem bridgedExpr_min {a b : YulExpr}
+    (ha : BridgedExpr a) (hb : BridgedExpr b) :
+    BridgedExpr
+      (YulExpr.call "sub" [a,
+        YulExpr.call "mul" [
+          YulExpr.call "sub" [a, b],
+          YulExpr.call "gt" [a, b]
+        ]
+      ]) := by
+  have hSub : BridgedExpr (YulExpr.call "sub" [a, b]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) ha hb
+  have hGt : BridgedExpr (YulExpr.call "gt" [a, b]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) ha hb
+  have hMul :
+      BridgedExpr
+        (YulExpr.call "mul" [YulExpr.call "sub" [a, b], YulExpr.call "gt" [a, b]]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hSub hGt
+  exact bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) ha hMul
+
+private theorem bridgedExpr_max {a b : YulExpr}
+    (ha : BridgedExpr a) (hb : BridgedExpr b) :
+    BridgedExpr
+      (YulExpr.call "add" [a,
+        YulExpr.call "mul" [
+          YulExpr.call "sub" [b, a],
+          YulExpr.call "gt" [b, a]
+        ]
+      ]) := by
+  have hSub : BridgedExpr (YulExpr.call "sub" [b, a]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hb ha
+  have hGt : BridgedExpr (YulExpr.call "gt" [b, a]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hb ha
+  have hMul :
+      BridgedExpr
+        (YulExpr.call "mul" [YulExpr.call "sub" [b, a], YulExpr.call "gt" [b, a]]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hSub hGt
+  exact bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) ha hMul
+
+private theorem bridgedExpr_ite {cond thenVal elseVal : YulExpr}
+    (hCond : BridgedExpr cond) (hThen : BridgedExpr thenVal)
+    (hElse : BridgedExpr elseVal) :
+    BridgedExpr
+      (YulExpr.call "add" [
+        YulExpr.call "mul" [
+          YulExpr.call "iszero" [YulExpr.call "iszero" [cond]], thenVal],
+        YulExpr.call "mul" [YulExpr.call "iszero" [cond], elseVal]
+      ]) := by
+  have hBool : BridgedExpr (YulExpr.call "iszero" [YulExpr.call "iszero" [cond]]) :=
+    bridgedExpr_yulToBool hCond
+  have hNeg : BridgedExpr (YulExpr.call "iszero" [cond]) :=
+    bridgedExpr_unopBuiltin (by simp [bridgedBuiltins]) hCond
+  have hThenTerm :
+      BridgedExpr
+        (YulExpr.call "mul" [
+          YulExpr.call "iszero" [YulExpr.call "iszero" [cond]], thenVal]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hBool hThen
+  have hElseTerm :
+      BridgedExpr (YulExpr.call "mul" [YulExpr.call "iszero" [cond], elseVal]) :=
+    bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hNeg hElse
+  exact bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hThenTerm hElseTerm
 
 /-- Destructure a `do`-block emission of `yulBinOp` into its sub-results.
     This shape matches what `simp only [compileExpr]` produces for every
@@ -264,6 +435,52 @@ private lemma compileExpr_unopBuiltin_ok
       refine ⟨ca, rfl, ?_⟩
       simp [hA, bind, Except.bind, Pure.pure, Except.pure] at hOk
       exact hOk.symm
+
+/-- Destructure a binary helper expression emission. -/
+private lemma compileExpr_binaryShape_ok
+    {fields : List CompilationModel.Field} {src : DynamicDataSource}
+    {shape : YulExpr → YulExpr → YulExpr} {a b : Expr} {out : YulExpr}
+    (hOk : (do let x ← compileExpr fields src a
+               let y ← compileExpr fields src b
+               pure (shape x y) : Except String YulExpr) = .ok out) :
+    ∃ ca cb, compileExpr fields src a = .ok ca
+           ∧ compileExpr fields src b = .ok cb
+           ∧ out = shape ca cb := by
+  cases hA : compileExpr fields src a with
+  | error e => simp [hA, bind, Except.bind] at hOk
+  | ok ca =>
+      cases hB : compileExpr fields src b with
+      | error e => simp [hA, hB, bind, Except.bind] at hOk
+      | ok cb =>
+          refine ⟨ca, cb, rfl, rfl, ?_⟩
+          simp [hA, hB, bind, Except.bind, Pure.pure, Except.pure] at hOk
+          exact hOk.symm
+
+/-- Destructure a ternary helper expression emission. -/
+private lemma compileExpr_ternaryShape_ok
+    {fields : List CompilationModel.Field} {src : DynamicDataSource}
+    {shape : YulExpr → YulExpr → YulExpr → YulExpr}
+    {a b c : Expr} {out : YulExpr}
+    (hOk : (do let x ← compileExpr fields src a
+               let y ← compileExpr fields src b
+               let z ← compileExpr fields src c
+               pure (shape x y z) : Except String YulExpr) = .ok out) :
+    ∃ ca cb cc, compileExpr fields src a = .ok ca
+              ∧ compileExpr fields src b = .ok cb
+              ∧ compileExpr fields src c = .ok cc
+              ∧ out = shape ca cb cc := by
+  cases hA : compileExpr fields src a with
+  | error e => simp [hA, bind, Except.bind] at hOk
+  | ok ca =>
+      cases hB : compileExpr fields src b with
+      | error e => simp [hA, hB, bind, Except.bind] at hOk
+      | ok cb =>
+          cases hC : compileExpr fields src c with
+          | error e => simp [hA, hB, hC, bind, Except.bind] at hOk
+          | ok cc =>
+              refine ⟨ca, cb, cc, rfl, rfl, rfl, ?_⟩
+              simp [hA, hB, hC, bind, Except.bind, Pure.pure, Except.pure] at hOk
+              exact hOk.symm
 
 /-- Main theorem: every `BridgedSourceExpr` compiles to a `BridgedExpr`.
     Structural induction on the source predicate. Binop cases delegate
@@ -432,6 +649,54 @@ theorem compileExpr_bridgedSource
       obtain ⟨ca, hA, hEq⟩ := compileExpr_unopBuiltin_ok hOk
       subst hEq
       exact bridgedExpr_unopBuiltin (by simp [bridgedBuiltins]) (iha hA)
+  | ceilDiv _ _ iha ihb =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_binaryShape_ok hOk
+      subst hEq
+      exact bridgedExpr_ceilDiv (iha hA) (ihb hB)
+  | mulDivDown _ _ _ iha ihb ihc =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨ca, cb, cc, hA, hB, hC, hEq⟩ := compileExpr_ternaryShape_ok hOk
+      subst hEq
+      exact bridgedExpr_mulDivDown (iha hA) (ihb hB) (ihc hC)
+  | mulDivUp _ _ _ iha ihb ihc =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨ca, cb, cc, hA, hB, hC, hEq⟩ := compileExpr_ternaryShape_ok hOk
+      subst hEq
+      exact bridgedExpr_mulDivUp (iha hA) (ihb hB) (ihc hC)
+  | wMulDown _ _ iha ihb =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_binaryShape_ok hOk
+      subst hEq
+      exact bridgedExpr_wMulDown (iha hA) (ihb hB)
+  | wDivUp _ _ iha ihb =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_binaryShape_ok hOk
+      subst hEq
+      exact bridgedExpr_wDivUp (iha hA) (ihb hB)
+  | min _ _ iha ihb =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_binaryShape_ok hOk
+      subst hEq
+      exact bridgedExpr_min (iha hA) (ihb hB)
+  | max _ _ iha ihb =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_binaryShape_ok hOk
+      subst hEq
+      exact bridgedExpr_max (iha hA) (ihb hB)
+  | ite _ _ _ ihc iht ihe =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨cc, ct, ce, hC, hT, hE, hEq⟩ := compileExpr_ternaryShape_ok hOk
+      subst hEq
+      exact bridgedExpr_ite (ihc hC) (iht hT) (ihe hE)
   | ge _ _ iha ihb =>
       intro out hOk
       simp only [compileExpr] at hOk
@@ -571,6 +836,30 @@ theorem compileRequireFailCond_bridgedSource
         (by simpa [compileRequireFailCond] using hOk)
   | logicalNot ha =>
       exact compileRequireFailCond_default_bridgedSource (.logicalNot ha)
+        (by simpa [compileRequireFailCond] using hOk)
+  | ceilDiv ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.ceilDiv ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | mulDivDown ha hb hc =>
+      exact compileRequireFailCond_default_bridgedSource (.mulDivDown ha hb hc)
+        (by simpa [compileRequireFailCond] using hOk)
+  | mulDivUp ha hb hc =>
+      exact compileRequireFailCond_default_bridgedSource (.mulDivUp ha hb hc)
+        (by simpa [compileRequireFailCond] using hOk)
+  | wMulDown ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.wMulDown ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | wDivUp ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.wDivUp ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | min ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.min ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | max ha hb =>
+      exact compileRequireFailCond_default_bridgedSource (.max ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | ite hCond hThen hElse =>
+      exact compileRequireFailCond_default_bridgedSource (.ite hCond hThen hElse)
         (by simpa [compileRequireFailCond] using hOk)
 
 /-- List-level closure: when every source expression in a list is

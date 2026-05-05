@@ -4364,10 +4364,20 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_yulBinOp  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_yulNegatedBinOp  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_yulToBool  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_ceilDiv  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_mulDivDown  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_mulDivUp  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_wMulDown  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_wDivUp  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_min  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_max  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_ite  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_yulBinOp_ok  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_yulNegatedBinOp_ok  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_yulBoolBinOp_ok  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_unopBuiltin_ok  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_binaryShape_ok  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_ternaryShape_ok  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_bridgedSource
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileRequireFailCond_default_bridgedSource  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileRequireFailCond_bridgedSource
@@ -4454,4 +4464,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4260 theorems/lemmas (2871 public, 1389 private, 0 sorry'd)
+-- Total: 4270 theorems/lemmas (2871 public, 1399 private, 0 sorry'd)
