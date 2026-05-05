@@ -56,20 +56,20 @@ private noncomputable def interpretYulBody
   simp [interpretYulBody]
 
 mutual
-def yulExprNoRef (name : String) : YulExpr → Prop
+private def yulExprNoRef (name : String) : YulExpr → Prop
   | .lit _ => True
   | .hex _ => True
   | .str _ => True
   | .ident ident => ident ≠ name
   | .call _ args => yulExprsNoRef name args
 
-def yulExprsNoRef (name : String) : List YulExpr → Prop
+private def yulExprsNoRef (name : String) : List YulExpr → Prop
   | [] => True
   | expr :: exprs => yulExprNoRef name expr ∧ yulExprsNoRef name exprs
 end
 
 mutual
-def yulStmtNoRef (name : String) : YulStmt → Prop
+private def yulStmtNoRef (name : String) : YulStmt → Prop
   | .comment _ => True
   | .let_ _ value => yulExprNoRef name value
   | .letMany _ value => yulExprNoRef name value
@@ -86,21 +86,21 @@ def yulStmtNoRef (name : String) : YulStmt → Prop
   | .block stmts => yulStmtsNoRef name stmts
   | .funcDef _ _ _ _ => True
 
-def yulStmtsNoRef (name : String) : List YulStmt → Prop
+private def yulStmtsNoRef (name : String) : List YulStmt → Prop
   | [] => True
   | stmt :: stmts => yulStmtNoRef name stmt ∧ yulStmtsNoRef name stmts
 
-def yulSwitchCasesNoRef (name : String) : List (Nat × List YulStmt) → Prop
+private def yulSwitchCasesNoRef (name : String) : List (Nat × List YulStmt) → Prop
   | [] => True
   | (_, body) :: rest => yulStmtsNoRef name body ∧ yulSwitchCasesNoRef name rest
 
-def yulOptionStmtsNoRef (name : String) : Option (List YulStmt) → Prop
+private def yulOptionStmtsNoRef (name : String) : Option (List YulStmt) → Prop
   | none => True
   | some body => yulStmtsNoRef name body
 end
 
 /-- Explicit theorem hypothesis used in place of the old kernel axiom. -/
-def HasSelectorDeadBridge (body : List YulStmt) : Prop :=
+private def HasSelectorDeadBridge (body : List YulStmt) : Prop :=
   ∀ state fuel,
     yulStmtsNoRef "__has_selector" body →
     yulResultOfExecWithRollback state
@@ -120,7 +120,7 @@ private theorem evalYulExpr_selectorExpr_initial
   simpa using (evalYulExpr_selectorExpr_eq (initialYulState tx state) hselector)
 
 /-- Well-formedness: all internalFunctions are funcDef statements. -/
-def ContractWF (contract : IRContract) : Prop :=
+private def ContractWF (contract : IRContract) : Prop :=
   ∀ s ∈ contract.internalFunctions, ∃ n p r b, s = YulStmt.funcDef n p r b
 
 private theorem runtimeCode_prefix_allFuncDefs (contract : IRContract)
