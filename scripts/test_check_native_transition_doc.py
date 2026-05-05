@@ -888,6 +888,40 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_legacy_proof_boundary_rejects_end_to_end_retarget_import(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\nimport Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget\n"
+        )
+        errors = check.check_legacy_proof_boundary(
+            [("Compiler/Proofs/EndToEnd.lean", end_to_end_text)],
+            [
+                (path.relative_to(check.ROOT).as_posix(), path.read_text(encoding="utf-8"))
+                for path in check.LEGACY_PROOF_FILES
+            ],
+        )
+        self.assertTrue(
+            any("EvmYulLeanRetarget" in error for error in errors),
+            errors,
+        )
+
+    def test_legacy_proof_boundary_rejects_root_retarget_import(self) -> None:
+        root_compiler_text = (
+            check.ROOT_COMPILER.read_text(encoding="utf-8")
+            + "\nimport Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget\n"
+        )
+        errors = check.check_legacy_proof_boundary(
+            [("Compiler.lean", root_compiler_text)],
+            [
+                (path.relative_to(check.ROOT).as_posix(), path.read_text(encoding="utf-8"))
+                for path in check.LEGACY_PROOF_FILES
+            ],
+        )
+        self.assertTrue(
+            any("EvmYulLeanRetarget" in error for error in errors),
+            errors,
+        )
+
     def test_legacy_proof_boundary_rejects_root_reference_oracle_import(self) -> None:
         root_compiler_text = (
             check.ROOT_COMPILER.read_text(encoding="utf-8")

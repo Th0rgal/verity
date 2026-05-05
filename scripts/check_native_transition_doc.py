@@ -90,6 +90,9 @@ LEGACY_PROOF_MODULES = (
     "Compiler.Proofs.YulGeneration.Preservation",
     "Compiler.Proofs.YulGeneration.Lemmas",
 )
+TRANSITION_ONLY_PUBLIC_FORBIDDEN_MODULES = LEGACY_PROOF_MODULES + (
+    "Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget",
+)
 LEGACY_PROOF_FILES = (
     ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Codegen.lean",
     ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Equivalence.lean",
@@ -1192,7 +1195,7 @@ def check_legacy_proof_boundary(
     errors: list[str] = []
 
     for label, text in public_boundary_files:
-        for module in LEGACY_PROOF_MODULES:
+        for module in TRANSITION_ONLY_PUBLIC_FORBIDDEN_MODULES:
             import_line = f"import {module}"
             if import_line in text:
                 errors.append(
