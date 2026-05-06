@@ -26,15 +26,15 @@
       bridge: `mapping`, `mappingWord`, `mappingUint`, `mapping2`,
       `mapping2Word`
     - single-mapping struct-member reads through the same `mappingSlot`
-      bridge: `structMember`
+      bridge: `structMember`, `structMember2`
     - unary calldata/memory/transient reads: `calldataload`, `mload`, `tload`
     - native syntactic memory-slice hashing: `keccak256`
 
-  General external/internal calls, double-mapping struct-member reads, packed
-  mapping entries, mapping chains, checked dynamic-array elements,
-  storage-array elements, ADT construction/matching, returndata, dynamic
-  helpers, ABI casts, `selfBalance`, and external account/state reads are out
-  of scope and require dedicated closure proofs.
+  General external/internal calls, packed mapping entries, mapping chains,
+  checked dynamic-array elements, storage-array elements, ADT
+  construction/matching, returndata, dynamic helpers, ABI casts,
+  `selfBalance`, and external account/state reads are out of scope and require
+  dedicated closure proofs.
 
   The scalar-leaf-only theorem `compileExpr_bridgedSource_leaf` is
   retained below as a specialization.
@@ -95,16 +95,15 @@ theorem compileExpr_bridgedSource_leaf
     succeeds, including dynamic-array length words and ADT tag/field reads,
     singleton and nested mapping reads through the abstract `mappingSlot`
     bridge,
-    single-mapping struct-member reads,
+    mapping struct-member reads,
     pure arithmetic/comparison/bit-op binops, boolean-normalization forms,
     branchless arithmetic helpers, the reserved exponentiation builtin surface,
     zero-argument environment/calldata-size reads, unary calldata/memory/
     transient reads, syntactic memory-slice `keccak256`, and `ge`/`le` negated
-    comparisons. General external/internal calls, double-mapping struct-member
-    reads, packed mapping entries, mapping chains, checked dynamic-array
-    elements, storage-array elements, ADT construction/matching, returndata,
-    dynamic helpers, ABI casts, `selfBalance`, and external account/state reads
-    are out of scope. -/
+    comparisons. General external/internal calls, packed mapping entries,
+    mapping chains, checked dynamic-array elements, storage-array elements, ADT
+    construction/matching, returndata, dynamic helpers, ABI casts,
+    `selfBalance`, and external account/state reads are out of scope. -/
 inductive BridgedSourceExpr : Expr → Prop
   -- scalar leaves
   | literal (n : Nat) : BridgedSourceExpr (.literal n)
@@ -140,6 +139,10 @@ inductive BridgedSourceExpr : Expr → Prop
   | structMember {key : Expr} (fieldName : String) (hKey : BridgedSourceExpr key)
       (memberName : String) :
       BridgedSourceExpr (.structMember fieldName key memberName)
+  | structMember2 {key1 key2 : Expr} (fieldName : String)
+      (hKey1 : BridgedSourceExpr key1) (hKey2 : BridgedSourceExpr key2)
+      (memberName : String) :
+      BridgedSourceExpr (.structMember2 fieldName key1 key2 memberName)
   -- zero-argument environment / calldata-size reads
   | caller : BridgedSourceExpr .caller
   | contractAddress : BridgedSourceExpr .contractAddress
@@ -994,6 +997,62 @@ theorem compileExpr_bridgedSource
                           (compileMappingSlotRead_bridged
                             (ihKey hCompiledKey) hSlotWord)
                           packed.offset (packedMaskNat packed)
+  | structMember2 fieldName hKey1 hKey2 memberName ihKey1 ihKey2 =>
+      intro out hOk
+      simp [compileExpr, bind, Except.bind] at hOk
+      split at hOk
+      · cases hOk
+      · split at hOk
+        · simp at hOk
+        · split at hOk
+          · simp at hOk
+          · rename_i member hMember
+            split at hOk
+            · rename_i slot hFindSlot
+              cases hCompiledKey1 : compileExpr fields src _ with
+              | error err =>
+                  rw [hCompiledKey1] at hOk
+                  cases hOk
+              | ok keyExpr1 =>
+                  rw [hCompiledKey1] at hOk
+                  cases hCompiledKey2 : compileExpr fields src _ with
+                  | error err =>
+                      rw [hCompiledKey2] at hOk
+                      cases hOk
+                  | ok keyExpr2 =>
+                      rw [hCompiledKey2] at hOk
+                      cases hPacked : member.packed with
+                      | none =>
+                          rw [hPacked] at hOk
+                          simp at hOk
+                          split at hOk
+                          · simp [Pure.pure, Except.pure] at hOk
+                            subst out
+                            exact bridgedExpr_sload_mappingSlot2_lit slot
+                              (ihKey1 hCompiledKey1) (ihKey2 hCompiledKey2)
+                          · simp [Pure.pure, Except.pure] at hOk
+                            subst out
+                            exact bridgedExpr_sload_mappingSlot2_lit_add slot
+                              member.wordOffset
+                              (ihKey1 hCompiledKey1) (ihKey2 hCompiledKey2)
+                      | some packed =>
+                          rw [hPacked] at hOk
+                          simp at hOk
+                          split at hOk
+                          · simp [Pure.pure, Except.pure] at hOk
+                            subst out
+                            exact bridgedExpr_packed_read
+                              (bridgedExpr_sload_mappingSlot2_lit slot
+                                (ihKey1 hCompiledKey1) (ihKey2 hCompiledKey2))
+                              packed.offset (packedMaskNat packed)
+                          · simp [Pure.pure, Except.pure] at hOk
+                            subst out
+                            exact bridgedExpr_packed_read
+                              (bridgedExpr_sload_mappingSlot2_lit_add slot
+                                member.wordOffset
+                                (ihKey1 hCompiledKey1) (ihKey2 hCompiledKey2))
+                              packed.offset (packedMaskNat packed)
+            · simp at hOk
   | caller =>
       intro out hOk
       simp [compileExpr, Pure.pure, Except.pure] at hOk
@@ -1354,6 +1413,9 @@ theorem compileRequireFailCond_bridgedSource
   | structMember fieldName hKey memberName =>
       exact compileRequireFailCond_default_bridgedSource
         (BridgedSourceExpr.structMember fieldName hKey memberName) hOk
+  | structMember2 fieldName hKey1 hKey2 memberName =>
+      exact compileRequireFailCond_default_bridgedSource
+        (BridgedSourceExpr.structMember2 fieldName hKey1 hKey2 memberName) hOk
   | ge ha hb =>
       simp only [compileRequireFailCond] at hOk
       obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulBinOp_ok hOk

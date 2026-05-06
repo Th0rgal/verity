@@ -1629,6 +1629,7 @@ def check_native_closure_import_boundary(
         "| mapping2 {key1 key2 : Expr} (fieldName : String)",
         "| mapping2Word {key1 key2 : Expr} (fieldName : String)",
         "| structMember {key : Expr} (fieldName : String) (hKey : BridgedSourceExpr key)",
+        "| structMember2 {key1 key2 : Expr} (fieldName : String)",
         "private theorem compileMappingSlotRead_bridged",
         "private theorem bridgedExpr_sload_mappingSlot2_lit",
         "private theorem bridgedExpr_packed_read",

@@ -1139,7 +1139,7 @@ def build_report() -> dict[str, object]:
                 "proven (source-expression fragment with parameter length, "
                 "storage, and storage-array length reads, ADT tag/field reads, "
                 "singleton and nested mapping reads through the abstract "
-                "mappingSlot bridge, single-mapping struct-member reads, "
+                "mappingSlot bridge, mapping struct-member reads, "
                 "reserved exponentiation, boolean normalization, branchless "
                 "helpers, bridged environment reads, and unary calldata/memory/"
                 "transient reads)"
