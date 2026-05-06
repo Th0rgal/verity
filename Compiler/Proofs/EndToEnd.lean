@@ -1387,32 +1387,6 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatche
       spec selectors hSupported irContract hCompile)
     hLower hEnv hProject hMatch
 
-/-- Native runtime theorem using canonical runtime-size fuel for the external
-body-shape projected dispatcher-exec surface. -/
-private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match_canonicalFuel
-    {spec : CompilationModel.CompilationModel}
-    {selectors : List Nat} {irContract : IRContract}
-    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
-    {nativeContract : EvmYul.Yul.Ast.YulContract} {nativeYul : YulResult}
-    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
-    (hSupported : SupportedSpec spec selectors)
-    (hExternalBodies : ∀ fn, fn ∈ irContract.functions →
-      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
-    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hProject : nativeProjectedDispatcherResultEq
-      (nativeRuntimeDispatcherFuel irContract) irContract tx state
-      observableSlots nativeContract nativeYul)
-    (hMatch :
-      nativeResultsMatchOn observableSlots (interpretIR irContract tx state)
-        (.ok nativeYul)) :
-    nativeIRRuntimeMatchesIR
-      (nativeRuntimeFuel irContract) irContract tx state observableSlots :=
-  nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match
-    hCompile hSupported hExternalBodies hLower hEnv hProject hMatch
-
 private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
