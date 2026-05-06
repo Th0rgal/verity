@@ -867,11 +867,11 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.EndToEnd.isStaticScalarParamType_of_supportedExternalParamType  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.allStaticScalarParams_of_supportedSpec_selectorFunctionPairs  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.safeBodies_of_sourceBodyNativeClosure  -- private
-#print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
+-- #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match  -- private
 #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_generated_callDispatcher_match
-#print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping
+-- #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping  -- private
 #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping
-#print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_mapping
+-- #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_mapping  -- private
 #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match_canonicalFuel  -- private
@@ -4490,4 +4490,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4296 theorems/lemmas (2894 public, 1402 private, 0 sorry'd)
+-- Total: 4296 theorems/lemmas (2891 public, 1405 private, 0 sorry'd)

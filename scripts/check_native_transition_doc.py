@@ -305,9 +305,7 @@ def check_public_theorem_target(
 
     for required_native_seam in (
         "theorem compile_preserves_native_evmYulLean_of_nativeResultsMatchOn",
-        "def nativeGeneratedDispatcherExecMatchesIROn",
         "def nativeGeneratedCallDispatcherMatchesIROn",
-        "theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match",
         "theorem compile_preserves_native_evmYulLean_of_generated_callDispatcher_match",
         "theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping",
         "theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping",
@@ -471,6 +469,24 @@ def check_public_theorem_target(
                 "Compiler/Proofs/EndToEnd.lean must keep the native theorem seam "
                 f"`{required_native_seam}` explicit until the generated-fragment "
                 "native bridge is discharged"
+            )
+
+    for dispatcher_exec_public_seam in (
+        "def nativeGeneratedDispatcherExecMatchesIROn",
+        "theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match",
+        "theorem compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping",
+        "theorem compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_mapping",
+    ):
+        if re.search(
+            r"^\s*" + re.escape(dispatcher_exec_public_seam) + r"\b",
+            end_to_end_text,
+            re.MULTILINE,
+        ):
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must keep dispatcher-exec "
+                "compatibility seams private; public generated correctness "
+                "must expose `EvmYul.Yul.callDispatcher` rather than "
+                f"`{dispatcher_exec_public_seam}`"
             )
 
     for removed_transition_seam in (

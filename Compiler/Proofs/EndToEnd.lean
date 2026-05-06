@@ -217,7 +217,7 @@ This is the source-level theorem's direct native execution premise: the
 generated runtime is lowered to an EVMYulLean contract, then its dispatcher is
 executed with canonical generated-runtime fuel and projected onto Verity's
 observable result surface. -/
-def nativeGeneratedDispatcherExecMatchesIROn
+private def nativeGeneratedDispatcherExecMatchesIROn
     (contract : IRContract)
     (tx : IRTransaction)
     (state : IRState)
@@ -4094,7 +4094,7 @@ dispatcher execution premise directly, derives static-parameter closure from
 into the native safe-body predicate internally. The native runtime environment
 validation is discharged from explicit representability/header-use facts rather
 than exposed as an opaque validator result. -/
-theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
+private theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match
     (model : CompilationModel.CompilationModel)
     (selectors : List Nat)
     (hSupported : SupportedSpec model selectors)
@@ -4230,7 +4230,7 @@ theorem compile_preserves_native_evmYulLean_of_generated_callDispatcher_match
   simpa using hNativeCallDispatcher
 
 /-- Helper-free generated dispatcher wrapper over concrete dispatcher lowering. -/
-theorem compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping
+private theorem compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping
     (model : CompilationModel.CompilationModel) (selectors : List Nat)
     (hSupported : SupportedSpec model selectors)
     (irContract : IRContract)
@@ -4324,7 +4324,7 @@ theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_
 
 /-- Mapping-helper generated dispatcher wrapper over concrete dispatcher
 lowering. -/
-theorem compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_mapping
+private theorem compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_mapping
     (model : CompilationModel.CompilationModel) (selectors : List Nat)
     (hSupported : SupportedSpec model selectors)
     (irContract : IRContract)
