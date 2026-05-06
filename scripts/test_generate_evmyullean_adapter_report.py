@@ -768,6 +768,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             phase4["compileExpr_bridgedSource"],
             "proven (source-expression fragment with parameter length, "
             "storage, and storage-array length reads, ADT tag/field reads, "
+            "singleton mapping reads through the abstract mappingSlot bridge, "
             "reserved exponentiation, boolean normalization, branchless "
             "helpers, bridged environment reads, and unary calldata/memory/"
             "transient reads)",

@@ -1623,6 +1623,10 @@ def check_native_closure_import_boundary(
         "| storageArrayLength (fieldName : String) :",
         "| adtTag (adtName storageField : String) :",
         "| adtField (adtName variantName fieldName : String) (fieldIndex : Nat)",
+        "| mapping {key : Expr} (fieldName : String) (hKey : BridgedSourceExpr key)",
+        "| mappingWord {key : Expr} (fieldName : String) (hKey : BridgedSourceExpr key)",
+        "| mappingUint {key : Expr} (fieldName : String) (hKey : BridgedSourceExpr key)",
+        "private theorem compileMappingSlotRead_bridged",
     ):
         if required_source_expr_theorem not in source_expr_closure_text:
             errors.append(

@@ -22,13 +22,16 @@
       `calldatasize`
     - storage reads whose compiler field lookup succeeds: `storage`,
       `storageAddr`, `storageArrayLength`, `adtTag`, `adtField`
+    - singleton mapping reads through the abstract `mappingSlot` bridge:
+      `mapping`, `mappingWord`, `mappingUint`
     - unary calldata/memory/transient reads: `calldataload`, `mload`, `tload`
     - native syntactic memory-slice hashing: `keccak256`
 
-  General external/internal calls, mapping entries, checked dynamic-array
-  elements, storage-array elements, ADT construction/matching, returndata,
-  dynamic helpers, ABI casts, `selfBalance`, and external account/state reads
-  are out of scope and require dedicated closure proofs.
+  General external/internal calls, nested/packed/struct mapping entries,
+  checked dynamic-array elements, storage-array elements, ADT
+  construction/matching, returndata, dynamic helpers, ABI casts,
+  `selfBalance`, and external account/state reads are out of scope and
+  require dedicated closure proofs.
 
   The scalar-leaf-only theorem `compileExpr_bridgedSource_leaf` is
   retained below as a specialization.
@@ -87,14 +90,15 @@ theorem compileExpr_bridgedSource_leaf
 /-- Source EDSL expressions whose `compileExpr` output is a `BridgedExpr`.
     Covers scalar/local leaves, storage reads whose compiler field lookup
     succeeds, including dynamic-array length words and ADT tag/field reads,
+    singleton mapping reads through the abstract `mappingSlot` bridge,
     pure arithmetic/comparison/bit-op binops, boolean-normalization forms,
     branchless arithmetic helpers, the reserved exponentiation builtin surface,
     zero-argument environment/calldata-size reads, unary calldata/memory/
     transient reads, syntactic memory-slice `keccak256`, and `ge`/`le` negated
-    comparisons. General external/internal calls, mapping entries, checked
-    dynamic-array elements, storage-array elements, ADT construction/matching,
-    returndata, dynamic helpers, ABI casts, `selfBalance`, and external
-    account/state reads are out of scope. -/
+    comparisons. General external/internal calls, nested/packed/struct mapping
+    entries, checked dynamic-array elements, storage-array elements, ADT
+    construction/matching, returndata, dynamic helpers, ABI casts,
+    `selfBalance`, and external account/state reads are out of scope. -/
 inductive BridgedSourceExpr : Expr → Prop
   -- scalar leaves
   | literal (n : Nat) : BridgedSourceExpr (.literal n)
@@ -113,6 +117,13 @@ inductive BridgedSourceExpr : Expr → Prop
       (storageField : String) :
       BridgedSourceExpr
         (.adtField adtName variantName fieldName fieldIndex storageField)
+  | mapping {key : Expr} (fieldName : String) (hKey : BridgedSourceExpr key) :
+      BridgedSourceExpr (.mapping fieldName key)
+  | mappingWord {key : Expr} (fieldName : String) (hKey : BridgedSourceExpr key)
+      (wordOffset : Nat) :
+      BridgedSourceExpr (.mappingWord fieldName key wordOffset)
+  | mappingUint {key : Expr} (fieldName : String) (hKey : BridgedSourceExpr key) :
+      BridgedSourceExpr (.mappingUint fieldName key)
   -- zero-argument environment / calldata-size reads
   | caller : BridgedSourceExpr .caller
   | contractAddress : BridgedSourceExpr .contractAddress
@@ -541,6 +552,63 @@ private theorem bridgedExpr_sload {slot : YulExpr} (hSlot : BridgedExpr slot) :
   subst arg
   exact hSlot
 
+/-- `mappingSlot(base, key)` is in the native bridged expression fragment
+    whenever both slot arguments are bridged. -/
+private theorem bridgedExpr_mappingSlot {base key : YulExpr}
+    (hBase : BridgedExpr base) (hKey : BridgedExpr key) :
+    BridgedExpr (YulExpr.call "mappingSlot" [base, key]) :=
+  bridgedExpr_binopBuiltin (by simp [bridgedBuiltins]) hBase hKey
+
+/-- `sload(mappingSlot(lit slot, key))` is bridged for bridged keys. -/
+private theorem bridgedExpr_sload_mappingSlot_lit
+    (slot : Nat) {key : YulExpr} (hKey : BridgedExpr key) :
+    BridgedExpr
+      (YulExpr.call "sload"
+        [YulExpr.call "mappingSlot" [YulExpr.lit slot, key]]) :=
+  bridgedExpr_sload
+    (bridgedExpr_mappingSlot (BridgedExpr.lit slot) hKey)
+
+/-- `sload(add(mappingSlot(lit slot, key), lit wordOffset))` is bridged for
+    bridged keys. -/
+private theorem bridgedExpr_sload_mappingSlot_lit_add
+    (slot wordOffset : Nat) {key : YulExpr} (hKey : BridgedExpr key) :
+    BridgedExpr
+      (YulExpr.call "sload"
+        [YulExpr.call "add"
+          [YulExpr.call "mappingSlot" [YulExpr.lit slot, key],
+            YulExpr.lit wordOffset]]) :=
+  bridgedExpr_sload
+    (bridgedExpr_binopBuiltin (by simp [bridgedBuiltins])
+      (bridgedExpr_mappingSlot (BridgedExpr.lit slot) hKey)
+      (BridgedExpr.lit wordOffset))
+
+/-- The compiler's singleton mapping-read helper emits only native-bridged
+    Yul when field lookup succeeds and the key expression is bridged.
+
+    The proof intentionally stays at the `mappingSlot` helper boundary; it does
+    not claim source-level memory+keccak equivalence for mapping slots. -/
+private theorem compileMappingSlotRead_bridged
+    {fields : List CompilationModel.Field} {field label : String}
+    {keyExpr out : YulExpr} {wordOffset : Nat}
+    (hKey : BridgedExpr keyExpr)
+    (hOk :
+      compileMappingSlotRead fields field keyExpr label wordOffset = .ok out) :
+    BridgedExpr out := by
+  unfold compileMappingSlotRead at hOk
+  split at hOk
+  · simp at hOk
+  · split at hOk
+    · rename_i slot hFind
+      dsimp at hOk
+      split at hOk
+      · simp [Pure.pure, Except.pure] at hOk
+        subst out
+        exact bridgedExpr_sload_mappingSlot_lit slot hKey
+      · simp [Pure.pure, Except.pure] at hOk
+        subst out
+        exact bridgedExpr_sload_mappingSlot_lit_add slot wordOffset hKey
+    · simp at hOk
+
 /-- ADT tag reads compile to `and(sload(baseSlot), 0xff)`. -/
 private theorem bridgedExpr_adtTagRead_lit (baseSlot : Nat) :
     BridgedExpr (compileAdtTagRead (YulExpr.lit baseSlot)) := by
@@ -726,6 +794,36 @@ theorem compileExpr_bridgedSource
         subst out
         exact bridgedExpr_adtFieldRead_lit baseSlot fieldIndex
       · simp at hOk
+  | mapping fieldName hKey ihKey =>
+      intro out hOk
+      simp only [compileExpr, bind, Except.bind] at hOk
+      cases hCompiledKey : compileExpr fields src _ with
+      | error err =>
+          rw [hCompiledKey] at hOk
+          cases hOk
+      | ok keyExpr =>
+          rw [hCompiledKey] at hOk
+          exact compileMappingSlotRead_bridged (ihKey hCompiledKey) hOk
+  | mappingWord fieldName hKey wordOffset ihKey =>
+      intro out hOk
+      simp only [compileExpr, bind, Except.bind] at hOk
+      cases hCompiledKey : compileExpr fields src _ with
+      | error err =>
+          rw [hCompiledKey] at hOk
+          cases hOk
+      | ok keyExpr =>
+          rw [hCompiledKey] at hOk
+          exact compileMappingSlotRead_bridged (ihKey hCompiledKey) hOk
+  | mappingUint fieldName hKey ihKey =>
+      intro out hOk
+      simp only [compileExpr, bind, Except.bind] at hOk
+      cases hCompiledKey : compileExpr fields src _ with
+      | error err =>
+          rw [hCompiledKey] at hOk
+          cases hOk
+      | ok keyExpr =>
+          rw [hCompiledKey] at hOk
+          exact compileMappingSlotRead_bridged (ihKey hCompiledKey) hOk
   | caller =>
       intro out hOk
       simp [compileExpr, Pure.pure, Except.pure] at hOk
@@ -1068,6 +1166,15 @@ theorem compileRequireFailCond_bridgedSource
       exact compileRequireFailCond_default_bridgedSource
         (BridgedSourceExpr.adtField adtName variantName fieldName fieldIndex
           storageField) hOk
+  | mapping fieldName hKey =>
+      exact compileRequireFailCond_default_bridgedSource
+        (BridgedSourceExpr.mapping fieldName hKey) hOk
+  | mappingWord fieldName hKey wordOffset =>
+      exact compileRequireFailCond_default_bridgedSource
+        (BridgedSourceExpr.mappingWord fieldName hKey wordOffset) hOk
+  | mappingUint fieldName hKey =>
+      exact compileRequireFailCond_default_bridgedSource
+        (BridgedSourceExpr.mappingUint fieldName hKey) hOk
   | ge ha hb =>
       simp only [compileRequireFailCond] at hOk
       obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulBinOp_ok hOk

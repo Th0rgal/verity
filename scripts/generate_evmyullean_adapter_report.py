@@ -1138,6 +1138,7 @@ def build_report() -> dict[str, object]:
             source_expr_pure_closure_status = (
                 "proven (source-expression fragment with parameter length, "
                 "storage, and storage-array length reads, ADT tag/field reads, "
+                "singleton mapping reads through the abstract mappingSlot bridge, "
                 "reserved exponentiation, boolean normalization, branchless "
                 "helpers, bridged environment reads, and unary calldata/memory/"
                 "transient reads)"
