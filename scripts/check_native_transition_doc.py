@@ -1304,6 +1304,63 @@ def check_public_transitive_import_boundary(
     return errors
 
 
+def check_public_transitive_forbidden_terms(
+    public_boundary_files: list[tuple[str, str]],
+) -> list[str]:
+    """Reject legacy proof-interpreter/backend names in public reachable files."""
+
+    errors: list[str] = []
+    forbidden_terms = (
+        "ReferenceOracle",
+        "execYulFuel",
+        "interpretYulRuntimeWithBackend",
+        ".verity",
+        "defaultBuiltinBackend",
+        "legacyBuiltinBackend",
+        "evalBuiltinCallWithContext",
+        "nativeIRRuntimeAgreesWithInterpreter",
+    )
+    text_overrides = {
+        label: text
+        for label, text in public_boundary_files
+    }
+
+    for label, text in public_boundary_files:
+        queue: list[tuple[str, str, list[str]]] = [(label, text, [label])]
+        seen_labels: set[str] = set()
+        while queue:
+            current_label, current_text, chain = queue.pop(0)
+            if current_label in seen_labels:
+                continue
+            seen_labels.add(current_label)
+
+            for forbidden in forbidden_terms:
+                if forbidden in current_text:
+                    errors.append(
+                        f"{label} must not transitively expose legacy "
+                        f"proof-interpreter/backend term `{forbidden}` via "
+                        + " -> ".join(chain)
+                    )
+
+            for imported in lean_imports(current_text):
+                imported_path = lean_module_to_path(imported)
+                if imported_path is None:
+                    continue
+                try:
+                    imported_relative = imported_path.relative_to(ROOT).as_posix()
+                except ValueError:
+                    continue
+                if not imported_relative.startswith("Compiler/"):
+                    continue
+                imported_text = text_overrides.get(
+                    imported_relative,
+                    imported_path.read_text(encoding="utf-8"),
+                )
+                queue.append((imported_relative, imported_text, chain + [imported]))
+
+    return errors
+
+
 def check_native_closure_import_boundary(
     bridge_predicates_text: str,
     body_closure_text: str,
@@ -1562,6 +1619,34 @@ def main() -> int:
     )
     errors.extend(
         check_public_transitive_import_boundary(
+            [
+                ("Compiler.lean", ROOT_COMPILER.read_text(encoding="utf-8")),
+                ("Compiler/Proofs/EndToEnd.lean", END_TO_END.read_text(encoding="utf-8")),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean",
+                    native_harness_text,
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
+                    NATIVE_ADAPTER.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgePredicates.lean",
+                    BRIDGE_PREDICATES.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean",
+                    BODY_CLOSURE.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean",
+                    SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
+                ),
+            ]
+        )
+    )
+    errors.extend(
+        check_public_transitive_forbidden_terms(
             [
                 ("Compiler.lean", ROOT_COMPILER.read_text(encoding="utf-8")),
                 ("Compiler/Proofs/EndToEnd.lean", END_TO_END.read_text(encoding="utf-8")),

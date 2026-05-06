@@ -930,6 +930,72 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_transitive_forbidden_terms_accepts_current_shape(self) -> None:
+        errors = check.check_public_transitive_forbidden_terms(
+            [
+                ("Compiler/Proofs/EndToEnd.lean", check.END_TO_END.read_text(encoding="utf-8")),
+                ("Compiler.lean", check.ROOT_COMPILER.read_text(encoding="utf-8")),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean",
+                    check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
+                    check.NATIVE_ADAPTER.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgePredicates.lean",
+                    check.BRIDGE_PREDICATES.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean",
+                    check.BODY_CLOSURE.read_text(encoding="utf-8"),
+                ),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean",
+                    check.SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
+                ),
+            ]
+        )
+        self.assertEqual(errors, [])
+
+    def test_public_transitive_forbidden_terms_rejects_adapter_legacy_term(self) -> None:
+        adapter_text = (
+            check.NATIVE_ADAPTER.read_text(encoding="utf-8")
+            + "\n-- stale proof dependency: interpretYulRuntimeWithBackend .evmYulLean\n"
+        )
+        errors = check.check_public_transitive_forbidden_terms(
+            [
+                ("Compiler.lean", check.ROOT_COMPILER.read_text(encoding="utf-8")),
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
+                    adapter_text,
+                ),
+            ]
+        )
+        self.assertTrue(
+            any("interpretYulRuntimeWithBackend" in error for error in errors),
+            errors,
+        )
+
+    def test_public_transitive_forbidden_terms_rejects_native_harness_legacy_term(self) -> None:
+        native_harness_text = (
+            check.NATIVE_HARNESS.read_text(encoding="utf-8")
+            + "\n-- stale proof dependency: evalBuiltinCallWithContext\n"
+        )
+        errors = check.check_public_transitive_forbidden_terms(
+            [
+                (
+                    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean",
+                    native_harness_text,
+                )
+            ]
+        )
+        self.assertTrue(
+            any("evalBuiltinCallWithContext" in error for error in errors),
+            errors,
+        )
+
     def test_legacy_proof_boundary_rejects_public_boundary_import(self) -> None:
         end_to_end_text = (
             check.END_TO_END.read_text(encoding="utf-8")
