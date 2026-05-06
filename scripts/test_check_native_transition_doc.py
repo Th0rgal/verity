@@ -1183,6 +1183,22 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_native_closure_import_boundary_rejects_missing_source_array_length_closure(self) -> None:
+        source_text = check.SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8").replace(
+            "| arrayLength (name : String) : BridgedSourceExpr (.arrayLength name)",
+            "| arrayLengthRemoved (name : String) : BridgedSourceExpr (.arrayLength name)",
+            1,
+        )
+        errors = check.check_native_closure_import_boundary(
+            check.BRIDGE_PREDICATES.read_text(encoding="utf-8"),
+            check.BODY_CLOSURE.read_text(encoding="utf-8"),
+            source_text,
+        )
+        self.assertTrue(
+            any("arrayLength" in error for error in errors),
+            errors,
+        )
+
     def test_native_closure_import_boundary_rejects_missing_source_storage_array_length_closure(self) -> None:
         source_text = check.SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8").replace(
             "| storageArrayLength (fieldName : String) :",

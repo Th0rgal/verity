@@ -4,7 +4,8 @@
   This module proves that the Verity compiler's `compileExpr` emits a
   `BridgedExpr` for the pure arithmetic / comparison / bit-operation
   fragment of the EDSL:
-    - scalar leaves: `literal`, `param`, `constructorArg`, `localVar`
+    - scalar/local leaves: `literal`, `param`, `constructorArg`, `localVar`,
+      `arrayLength`
     - pure binops whose Yul output is `yulBinOp NAME (← a) (← b)` with
       `NAME ∈ bridgedBuiltins`: `add`, `sub`, `mul`, `div`, `sdiv`,
       `mod`, `smod`, `bitAnd`, `bitOr`, `bitXor`, `shl`, `shr`, `sar`,
@@ -22,9 +23,10 @@
     - unary calldata/memory/transient reads: `calldataload`, `mload`, `tload`
     - native syntactic memory-slice hashing: `keccak256`
 
-  Mapping entries, storage-array elements, ADT construction/matching,
-  returndata, call, dynamic helpers, ABI casts, `selfBalance`, and external
-  account/state reads are out of scope and require dedicated closure proofs.
+  Mapping entries, checked dynamic-array elements, storage-array elements,
+  ADT construction/matching, returndata, call, dynamic helpers, ABI casts,
+  `selfBalance`, and external account/state reads are out of scope and require
+  dedicated closure proofs.
 
   The scalar-leaf-only theorem `compileExpr_bridgedSource_leaf` is
   retained below as a specialization.
@@ -81,21 +83,22 @@ theorem compileExpr_bridgedSource_leaf
       exact BridgedExpr.ident name
 
 /-- Source EDSL expressions whose `compileExpr` output is a `BridgedExpr`.
-    Covers scalar leaves, storage reads whose compiler field lookup succeeds,
-    including dynamic-array length words and ADT tag/field reads,
+    Covers scalar/local leaves, storage reads whose compiler field lookup
+    succeeds, including dynamic-array length words and ADT tag/field reads,
     pure arithmetic/comparison/bit-op binops, boolean-normalization forms,
     branchless arithmetic helpers, zero-argument environment/calldata-size
     reads, unary calldata/memory/transient reads, syntactic memory-slice
-    `keccak256`, and `ge`/`le` negated comparisons. Mapping entries,
-    storage-array elements, ADT construction/matching, returndata, dynamic
-    helpers, ABI casts, calls, `selfBalance`, and external account/state reads
-    are out of scope. -/
+    `keccak256`, and `ge`/`le` negated comparisons. Mapping entries, checked
+    dynamic-array elements, storage-array elements, ADT construction/matching,
+    returndata, dynamic helpers, ABI casts, calls, `selfBalance`, and external
+    account/state reads are out of scope. -/
 inductive BridgedSourceExpr : Expr → Prop
   -- scalar leaves
   | literal (n : Nat) : BridgedSourceExpr (.literal n)
   | param (name : String) : BridgedSourceExpr (.param name)
   | constructorArg (idx : Nat) : BridgedSourceExpr (.constructorArg idx)
   | localVar (name : String) : BridgedSourceExpr (.localVar name)
+  | arrayLength (name : String) : BridgedSourceExpr (.arrayLength name)
   -- storage reads
   | storage (fieldName : String) : BridgedSourceExpr (.storage fieldName)
   | storageAddr (fieldName : String) : BridgedSourceExpr (.storageAddr fieldName)
@@ -641,6 +644,10 @@ theorem compileExpr_bridgedSource
       intro out hOk
       simp [compileExpr, Pure.pure, Except.pure] at hOk
       subst out; exact BridgedExpr.ident name
+  | arrayLength name =>
+      intro out hOk
+      simp [compileExpr, Pure.pure, Except.pure] at hOk
+      subst out; exact BridgedExpr.ident s!"{name}_length"
   | storage fieldName =>
       intro out hOk
       simp only [compileExpr] at hOk
@@ -1063,6 +1070,9 @@ theorem compileRequireFailCond_bridgedSource
         (by simpa [compileRequireFailCond] using hOk)
   | localVar name =>
       exact compileRequireFailCond_default_bridgedSource (.localVar name)
+        (by simpa [compileRequireFailCond] using hOk)
+  | arrayLength name =>
+      exact compileRequireFailCond_default_bridgedSource (.arrayLength name)
         (by simpa [compileRequireFailCond] using hOk)
   | caller =>
       exact compileRequireFailCond_default_bridgedSource .caller

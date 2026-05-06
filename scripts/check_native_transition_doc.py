@@ -1616,6 +1616,7 @@ def check_native_closure_import_boundary(
         "theorem bridgedSourceExpr_keccak256_of_exprCompileCore",
         "theorem compileExpr_keccak256_bridgedSource_of_exprCompileCore",
         "private theorem bridgedExpr_sload_lit",
+        "| arrayLength (name : String) : BridgedSourceExpr (.arrayLength name)",
         "| storage (fieldName : String) : BridgedSourceExpr (.storage fieldName)",
         "| storageAddr (fieldName : String) : BridgedSourceExpr (.storageAddr fieldName)",
         "| storageArrayLength (fieldName : String) :",
