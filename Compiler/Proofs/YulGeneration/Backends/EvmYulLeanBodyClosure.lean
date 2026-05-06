@@ -15872,6 +15872,18 @@ private def bridgedExternalRawLogLetVar
   .base (.base (.base (.storage (.pureBinding
     (.letVar _ _ (bridgedSourceExpr_of_exprCompileCore hValue))))))
 
+private def bridgedExternalRawLogLetKeccak
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {name : String} {offset size : Expr}
+    (hOffset :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore offset)
+    (hSize :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore size) :
+    BridgedSourceExternalRecursiveBodyWithRawLogStmt fields errors
+      dynamicSource (.letVar name (.keccak256 offset size)) :=
+  .base (.base (.base (.storage (.pureBinding
+    (bridgedSourcePureBindingStmt_letKeccak_of_exprCompileCore hOffset hSize)))))
+
 private def bridgedExternalRawLogAssignVar
     {fields : List Field} {errors : List ErrorDef}
     {dynamicSource : DynamicDataSource} {name : String} {value : Expr}
@@ -16046,6 +16058,35 @@ theorem bridgedSafeStmts_externalTerminalCore
   BridgedSafeStmts.externalRecursiveRawLog
     (bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListTerminalCore
       hTerminal)
+
+/-- External native safe-body package for the common single-word memory
+    preimage shape:
+
+    `mstore(storeOffset, storeValue); let name := keccak256(hashOffset, hashSize)`.
+
+    This is still only a native syntactic Yul-closure fact; the corresponding
+    source-level memory-slice hash semantics remain outside `StmtListCompileCore`. -/
+theorem bridgedSafeStmts_externalMstoreLetKeccak_of_exprCompileCore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {storeOffset storeValue hashOffset hashSize : Expr} {name : String}
+    (hStoreOffset :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore storeOffset)
+    (hStoreValue :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore storeValue)
+    (hHashOffset :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore hashOffset)
+    (hHashSize :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore hashSize) :
+    BridgedSafeStmts fields errors dynamicSource internalRetNames false
+      [Stmt.mstore storeOffset storeValue,
+        Stmt.letVar name (.keccak256 hashOffset hashSize)] :=
+  BridgedSafeStmts.externalRecursiveRawLog
+    (.cons
+      (bridgedExternalRawLogMstore hStoreOffset hStoreValue)
+      (.cons
+        (bridgedExternalRawLogLetKeccak hHashOffset hHashSize)
+        .nil))
 
 /-- The singleton `tstore` shape exposed by `SupportedFragment.tstoreSingle`
     is a native safe body whenever its offset and value are compile-core

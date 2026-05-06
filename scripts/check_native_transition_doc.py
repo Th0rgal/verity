@@ -1627,6 +1627,7 @@ def check_native_closure_import_boundary(
     for required_body_closure_theorem in (
         "theorem bridgedSafeStmts_letKeccak_of_exprCompileCore",
         "theorem bridgedSafeStmts_assignKeccak_of_exprCompileCore",
+        "theorem bridgedSafeStmts_externalMstoreLetKeccak_of_exprCompileCore",
     ):
         if required_body_closure_theorem not in body_closure_text:
             errors.append(
