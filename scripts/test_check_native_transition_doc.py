@@ -1178,6 +1178,32 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_adapter_correctness_transition_surface_accepts_current_shape(self) -> None:
+        errors = check.check_adapter_correctness_transition_surface(
+            check.ADAPTER_CORRECTNESS.read_text(encoding="utf-8")
+        )
+        self.assertEqual(errors, [])
+
+    def test_adapter_correctness_transition_surface_rejects_public_helpers(self) -> None:
+        adapter_correctness_text = (
+            check.ADAPTER_CORRECTNESS.read_text(encoding="utf-8")
+            .replace("private theorem assign_equiv_let", "theorem assign_equiv_let", 1)
+            .replace(
+                "@[simp] private theorem legacyExecYulFuel_stmts_nil",
+                "@[simp] theorem legacyExecYulFuel_stmts_nil",
+                1,
+            )
+        )
+        errors = check.check_adapter_correctness_transition_surface(adapter_correctness_text)
+        self.assertTrue(
+            any("assign_equiv_let" in error for error in errors),
+            errors,
+        )
+        self.assertTrue(
+            any("legacyExecYulFuel_stmts_nil" in error for error in errors),
+            errors,
+        )
+
     def test_native_closure_import_boundary_accepts_current_shape(self) -> None:
         errors = check.check_native_closure_import_boundary(
             check.BRIDGE_PREDICATES.read_text(encoding="utf-8"),

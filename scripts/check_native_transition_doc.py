@@ -50,6 +50,14 @@ BRIDGE_LEMMAS = (
     / "Backends"
     / "EvmYulLeanBridgeLemmas.lean"
 )
+ADAPTER_CORRECTNESS = (
+    ROOT
+    / "Compiler"
+    / "Proofs"
+    / "YulGeneration"
+    / "Backends"
+    / "EvmYulLeanAdapterCorrectness.lean"
+)
 BODY_CLOSURE = (
     ROOT
     / "Compiler"
@@ -1472,6 +1480,34 @@ def check_bridge_lemmas_transition_surface(bridge_lemmas_text: str) -> list[str]
     return errors
 
 
+def check_adapter_correctness_transition_surface(adapter_correctness_text: str) -> list[str]:
+    """Keep legacy adapter-correctness rewrites out of the public theorem surface."""
+
+    errors: list[str] = []
+    for helper in (
+        "assign_equiv_let",
+        "assign_equiv_let'",
+        "legacyExecYulFuel_stmts_nil",
+        "for_init_hoist",
+        "for_init_hoist_revert",
+        "for_init_hoist_return",
+        "for_init_hoist_stop",
+    ):
+        if re.search(
+            r"^\s*(?:@\[[^\]]*\]\s*)*theorem\s+"
+            + re.escape(helper)
+            + r"\b",
+            adapter_correctness_text,
+            re.MULTILINE,
+        ):
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/"
+                "EvmYulLeanAdapterCorrectness.lean must keep transition-only "
+                f"adapter correctness helper `{helper}` private"
+            )
+    return errors
+
+
 def check_native_closure_import_boundary(
     bridge_predicates_text: str,
     body_closure_text: str,
@@ -1725,6 +1761,7 @@ def main() -> int:
         RETARGET,
         BRIDGE_PREDICATES,
         BRIDGE_LEMMAS,
+        ADAPTER_CORRECTNESS,
         BODY_CLOSURE,
         SOURCE_EXPR_CLOSURE,
         BUILTINS,
@@ -1867,6 +1904,11 @@ def main() -> int:
     errors.extend(
         check_bridge_lemmas_transition_surface(
             BRIDGE_LEMMAS.read_text(encoding="utf-8")
+        )
+    )
+    errors.extend(
+        check_adapter_correctness_transition_surface(
+            ADAPTER_CORRECTNESS.read_text(encoding="utf-8")
         )
     )
     errors.extend(
