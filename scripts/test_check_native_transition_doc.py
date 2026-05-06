@@ -1128,7 +1128,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         errors = check.check_transition_only_import_allowlist(
             [
                 (path.relative_to(check.ROOT).as_posix(), path.read_text(encoding="utf-8"))
-                for path in (check.ROOT / "Compiler").rglob("*.lean")
+                for path in check.transition_import_scan_files()
             ]
         )
         self.assertEqual(errors, [])
@@ -1144,6 +1144,20 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertTrue(
             any("transition-only bridge lemma module" in error for error in errors),
+            errors,
+        )
+
+    def test_transition_only_import_allowlist_rejects_new_reference_oracle_importer(self) -> None:
+        errors = check.check_transition_only_import_allowlist(
+            [
+                (
+                    "Compiler/Proofs/EndToEnd.lean",
+                    "import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics\n",
+                )
+            ]
+        )
+        self.assertTrue(
+            any("legacy ReferenceOracle module" in error for error in errors),
             errors,
         )
 

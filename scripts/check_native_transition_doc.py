@@ -112,8 +112,26 @@ TRANSITION_ONLY_PUBLIC_FORBIDDEN_MODULES = LEGACY_PROOF_MODULES + (
     "Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas",
 )
 BRIDGE_LEMMAS_IMPORT_ALLOWLIST = (
+    "PrintAxioms.lean",
     "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean",
     "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
+)
+REFERENCE_ORACLE_IMPORT_ALLOWLIST = (
+    "PrintAxioms.lean",
+    "Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean",
+    "Compiler/Proofs/YulGeneration/Codegen.lean",
+    "Compiler/Proofs/YulGeneration/Equivalence.lean",
+    "Compiler/Proofs/YulGeneration/Lemmas.lean",
+    "Compiler/Proofs/YulGeneration/Preservation.lean",
+    "Compiler/Proofs/YulGeneration/StatementEquivalence.lean",
+    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean",
+    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean",
+    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean",
+    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeDispatchOracleTest.lean",
+    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeSmokeTest.lean",
+    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
+    "Contracts/MacroTranslateInvariantTest.lean",
+    "Contracts/MacroTranslateRoundTripFuzz.lean",
 )
 LEGACY_PROOF_FILES = (
     ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Codegen.lean",
@@ -1411,23 +1429,44 @@ def lean_imports(text: str) -> list[str]:
 def check_transition_only_import_allowlist(
     lean_files: list[tuple[str, str]],
 ) -> list[str]:
-    """Keep transition-only bridge lemmas out of non-transition modules."""
+    """Keep transition-only ReferenceOracle imports out of new proof modules."""
 
     errors: list[str] = []
-    forbidden_import = (
+    forbidden_bridge_import = (
         "Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas"
     )
-    allowlist = set(BRIDGE_LEMMAS_IMPORT_ALLOWLIST)
+    bridge_allowlist = set(BRIDGE_LEMMAS_IMPORT_ALLOWLIST)
+    reference_oracle_import_prefix = (
+        "Compiler.Proofs.YulGeneration.ReferenceOracle"
+    )
+    reference_oracle_allowlist = set(REFERENCE_ORACLE_IMPORT_ALLOWLIST)
     for label, text in lean_files:
-        if label in allowlist:
-            continue
-        if forbidden_import in lean_imports(text):
+        imports = lean_imports(text)
+        if label not in bridge_allowlist and forbidden_bridge_import in imports:
             errors.append(
                 f"{label} must not import transition-only bridge lemma module "
-                f"`{forbidden_import}`; keep ReferenceOracle bridge evidence "
+                f"`{forbidden_bridge_import}`; keep ReferenceOracle bridge evidence "
                 "confined to EvmYulLeanRetarget and bridge regression tests"
             )
+        if label not in reference_oracle_allowlist:
+            for imported in imports:
+                if imported == reference_oracle_import_prefix or imported.startswith(
+                    reference_oracle_import_prefix + "."
+                ):
+                    errors.append(
+                        f"{label} must not import legacy ReferenceOracle module "
+                        f"`{imported}`; keep the custom interpreter confined "
+                        "to the known transition and regression-test modules"
+                    )
     return errors
+
+
+def transition_import_scan_files() -> list[Path]:
+    files = [ROOT / "PrintAxioms.lean"]
+    for directory in (ROOT / "Compiler", ROOT / "Contracts"):
+        if directory.exists():
+            files.extend(sorted(directory.rglob("*.lean")))
+    return files
 
 
 def check_public_transitive_import_boundary(
@@ -2010,7 +2049,7 @@ def main() -> int:
         check_transition_only_import_allowlist(
             [
                 (path.relative_to(ROOT).as_posix(), path.read_text(encoding="utf-8"))
-                for path in (ROOT / "Compiler").rglob("*.lean")
+                for path in transition_import_scan_files()
             ]
         )
     )
