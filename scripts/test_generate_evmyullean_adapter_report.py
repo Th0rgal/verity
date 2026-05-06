@@ -774,6 +774,11 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "helpers, bridged environment reads, and unary calldata/memory/"
             "transient reads)",
         )
+        self.assertEqual(
+            phase4["compileExpr_mappingChain_bridgedSource"],
+            "proven (mappingChain source-expression wrapper through "
+            "the abstract mappingSlot bridge)",
+        )
 
     def test_missing_retarget_theorem_is_not_reported_proven(self) -> None:
         with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:

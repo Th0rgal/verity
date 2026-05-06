@@ -1615,6 +1615,7 @@ def check_native_closure_import_boundary(
         "theorem bridgedSourceExpr_of_exprCompileCore",
         "theorem bridgedSourceExpr_keccak256_of_exprCompileCore",
         "theorem compileExpr_keccak256_bridgedSource_of_exprCompileCore",
+        "theorem compileExpr_mappingChain_bridgedSource",
         "private theorem bridgedExpr_sload_lit",
         "| arrayLength (name : String) : BridgedSourceExpr (.arrayLength name)",
         "| builtinExp {base exponent}",
@@ -1632,6 +1633,7 @@ def check_native_closure_import_boundary(
         "| structMember2 {key1 key2 : Expr} (fieldName : String)",
         "private theorem compileMappingSlotRead_bridged",
         "private theorem bridgedExpr_sload_mappingSlot2_lit",
+        "private theorem bridgedExpr_sload_mappingSlotChain_lit",
         "private theorem bridgedExpr_packed_read",
     ):
         if required_source_expr_theorem not in source_expr_closure_text:

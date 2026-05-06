@@ -1003,11 +1003,19 @@ def build_report() -> dict[str, object]:
             source_expr_pure_closure_has_sorry = _theorem_body_has_sorry_in(
                 source_expr_closure_code, "compileExpr_bridgedSource"
             )
+            has_source_expr_mapping_chain_closure = _has_theorem_in(
+                source_expr_closure_code, "compileExpr_mappingChain_bridgedSource"
+            )
+            source_expr_mapping_chain_closure_has_sorry = _theorem_body_has_sorry_in(
+                source_expr_closure_code, "compileExpr_mappingChain_bridgedSource"
+            )
         else:
             has_source_expr_leaf_closure = False
             source_expr_leaf_closure_has_sorry = False
             has_source_expr_pure_closure = False
             source_expr_pure_closure_has_sorry = False
+            has_source_expr_mapping_chain_closure = False
+            source_expr_mapping_chain_closure_has_sorry = False
         if not has_scalar_param_body_closure:
             scalar_param_body_closure_status = "missing"
         elif scalar_param_body_closure_has_sorry:
@@ -1143,6 +1151,15 @@ def build_report() -> dict[str, object]:
                 "reserved exponentiation, boolean normalization, branchless "
                 "helpers, bridged environment reads, and unary calldata/memory/"
                 "transient reads)"
+            )
+        if not has_source_expr_mapping_chain_closure:
+            source_expr_mapping_chain_closure_status = "missing"
+        elif source_expr_mapping_chain_closure_has_sorry:
+            source_expr_mapping_chain_closure_status = "sorry"
+        else:
+            source_expr_mapping_chain_closure_status = (
+                "proven (mappingChain source-expression wrapper through "
+                "the abstract mappingSlot bridge)"
             )
         if not has_universal_body_closure:
             universal_body_closure_status = "missing"
@@ -1468,6 +1485,7 @@ def build_report() -> dict[str, object]:
             "compileStmtList_internal_recursive_body_fragment_bridged": internal_recursive_body_fragment_closure_status,
             "compileExpr_bridgedSource_leaf": source_expr_leaf_closure_status,
             "compileExpr_bridgedSource": source_expr_pure_closure_status,
+            "compileExpr_mappingChain_bridgedSource": source_expr_mapping_chain_closure_status,
             "compileStmtList_always_bridged": universal_body_closure_status,
             "trust_boundary": phase4_trust_boundary,
             "remaining_for_whole_program_retargeting": remaining_for_whole_program_retargeting,

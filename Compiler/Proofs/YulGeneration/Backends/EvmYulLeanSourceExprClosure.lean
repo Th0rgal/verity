@@ -30,8 +30,8 @@
     - unary calldata/memory/transient reads: `calldataload`, `mload`, `tload`
     - native syntactic memory-slice hashing: `keccak256`
 
-  General external/internal calls, packed mapping entries, mapping chains,
-  checked dynamic-array elements, storage-array elements, ADT
+  General external/internal calls, packed mapping entries, checked
+  dynamic-array elements, storage-array elements, ADT
   construction/matching, returndata, dynamic helpers, ABI casts,
   `selfBalance`, and external account/state reads are out of scope and require
   dedicated closure proofs.
@@ -101,7 +101,7 @@ theorem compileExpr_bridgedSource_leaf
     zero-argument environment/calldata-size reads, unary calldata/memory/
     transient reads, syntactic memory-slice `keccak256`, and `ge`/`le` negated
     comparisons. General external/internal calls, packed mapping entries,
-    mapping chains, checked dynamic-array elements, storage-array elements, ADT
+    checked dynamic-array elements, storage-array elements, ADT
     construction/matching, returndata, dynamic helpers, ABI casts,
     `selfBalance`, and external account/state reads are out of scope. -/
 inductive BridgedSourceExpr : Expr → Prop
@@ -632,6 +632,40 @@ private theorem bridgedExpr_sload_mappingSlot2_lit_add
         (bridgedExpr_mappingSlot (BridgedExpr.lit slot) hKey1)
         hKey2)
       (BridgedExpr.lit wordOffset))
+
+/-- A `foldl mappingSlot` chain over bridged key expressions stays in the
+    native bridged expression fragment. -/
+private theorem bridgedExpr_foldl_mappingSlot
+    (keys : List YulExpr) {base : YulExpr}
+    (hBase : BridgedExpr base)
+    (hKeys : ∀ key ∈ keys, BridgedExpr key) :
+    BridgedExpr
+      (keys.foldl
+        (fun slotExpr keyExpr =>
+          YulExpr.call "mappingSlot" [slotExpr, keyExpr])
+        base) := by
+  induction keys generalizing base with
+  | nil =>
+      simpa using hBase
+  | cons key rest ih =>
+      simp only [List.foldl_cons]
+      have hKey : BridgedExpr key := hKeys key (by simp)
+      have hRest : ∀ k ∈ rest, BridgedExpr k := by
+        intro k hk
+        exact hKeys k (by simp [hk])
+      exact ih (bridgedExpr_mappingSlot hBase hKey) hRest
+
+/-- `sload(compileMappingSlotChain(lit slot, keys))` is bridged when every
+    compiled key is bridged. -/
+private theorem bridgedExpr_sload_mappingSlotChain_lit
+    (slot : Nat) (keys : List YulExpr)
+    (hKeys : ∀ key ∈ keys, BridgedExpr key) :
+    BridgedExpr
+      (YulExpr.call "sload"
+        [compileMappingSlotChain (YulExpr.lit slot) keys]) := by
+  unfold compileMappingSlotChain
+  exact bridgedExpr_sload
+    (bridgedExpr_foldl_mappingSlot keys (BridgedExpr.lit slot) hKeys)
 
 /-- The compiler's singleton mapping-read helper emits only native-bridged
     Yul when field lookup succeeds and the key expression is bridged.
@@ -1627,5 +1661,33 @@ theorem compileExprList_bridgedSource
               cases hMem with
               | inl h => subst h; exact hHeadBridged
               | inr h => exact hTailBridged yulExpr h
+
+/-- Mapping-chain source-expression wrapper: when every key source expression
+    is in `BridgedSourceExpr`, the compiler's `mappingChain` read emits a
+    bridged `sload` over a `foldl mappingSlot` chain.
+
+    Like the other mapping read closures, this stays at the abstract
+    `mappingSlot` helper boundary rather than claiming source-level
+    memory+keccak equivalence. -/
+theorem compileExpr_mappingChain_bridgedSource
+    (fields : List CompilationModel.Field) (src : DynamicDataSource)
+    {fieldName : String} {keys : List Expr} {out : YulExpr}
+    (hKeys : ∀ key ∈ keys, BridgedSourceExpr key)
+    (hOk : compileExpr fields src (.mappingChain fieldName keys) = .ok out) :
+    BridgedExpr out := by
+  simp only [compileExpr] at hOk
+  split at hOk
+  · simp at hOk
+  · split at hOk
+    · rename_i slot hFind
+      cases hCompiledKeys : compileExprList fields src keys with
+      | error err =>
+          simp [bind, Except.bind, hCompiledKeys] at hOk
+      | ok keyExprs =>
+          simp [bind, Except.bind, hCompiledKeys, Pure.pure, Except.pure] at hOk
+          subst out
+          exact bridgedExpr_sload_mappingSlotChain_lit slot keyExprs
+            (compileExprList_bridgedSource fields src hKeys hCompiledKeys)
+    · simp at hOk
 
 end Compiler.Proofs.YulGeneration.Backends

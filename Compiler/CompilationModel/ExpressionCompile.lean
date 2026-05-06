@@ -34,7 +34,8 @@ def compileMappingSlotRead (fields : List Field) (field : String) (keyExpr : Yul
       pure (YulExpr.call "sload" [finalSlot])
     | none => throw s!"Compilation error: unknown mapping field '{field}' in {label}"
 
-private def compileMappingSlotChain (baseSlot : YulExpr) (keys : List YulExpr) : YulExpr :=
+-- Exposed so proof modules can name the exact nested mapping-chain lowering shape.
+def compileMappingSlotChain (baseSlot : YulExpr) (keys : List YulExpr) : YulExpr :=
   keys.foldl (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr]) baseSlot
 
 -- Compile expression to Yul (using mutual recursion for lists)
