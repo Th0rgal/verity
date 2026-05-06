@@ -219,7 +219,7 @@
   "phase4_retarget": {
     "admitted_bridge_dependencies": [],
     "backends_agree_on_bridged_builtins": "proven",
-    "compileExpr_bridgedSource": "proven (source-expression fragment with parameter length, storage, and storage-array length reads, ADT tag/field reads, singleton and nested mapping reads through the abstract mappingSlot bridge, reserved exponentiation, boolean normalization, branchless helpers, bridged environment reads, and unary calldata/memory/transient reads)",
+    "compileExpr_bridgedSource": "proven (source-expression fragment with parameter length, storage, and storage-array length reads, ADT tag/field reads, singleton and nested mapping reads through the abstract mappingSlot bridge, single-mapping struct-member reads, reserved exponentiation, boolean normalization, branchless helpers, bridged environment reads, and unary calldata/memory/transient reads)",
     "compileExpr_bridgedSource_leaf": "proven (scalar source-expression leaves)",
     "compileStmtList_always_bridged": "proven (universal compileStmtList body closure for BridgedSafeStmts; external-call family carved out)",
     "compileStmtList_binding_leaf_bridged": "proven (scalar let/assign statement lists)",

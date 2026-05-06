@@ -25,14 +25,16 @@
     - singleton and nested mapping reads through the abstract `mappingSlot`
       bridge: `mapping`, `mappingWord`, `mappingUint`, `mapping2`,
       `mapping2Word`
+    - single-mapping struct-member reads through the same `mappingSlot`
+      bridge: `structMember`
     - unary calldata/memory/transient reads: `calldataload`, `mload`, `tload`
     - native syntactic memory-slice hashing: `keccak256`
 
-  General external/internal calls, packed/struct mapping entries, mapping
-  chains, checked dynamic-array elements, storage-array elements, ADT
-  construction/matching, returndata, dynamic helpers, ABI casts,
-  `selfBalance`, and external account/state reads are out of scope and require
-  dedicated closure proofs.
+  General external/internal calls, double-mapping struct-member reads, packed
+  mapping entries, mapping chains, checked dynamic-array elements,
+  storage-array elements, ADT construction/matching, returndata, dynamic
+  helpers, ABI casts, `selfBalance`, and external account/state reads are out
+  of scope and require dedicated closure proofs.
 
   The scalar-leaf-only theorem `compileExpr_bridgedSource_leaf` is
   retained below as a specialization.
@@ -93,14 +95,16 @@ theorem compileExpr_bridgedSource_leaf
     succeeds, including dynamic-array length words and ADT tag/field reads,
     singleton and nested mapping reads through the abstract `mappingSlot`
     bridge,
+    single-mapping struct-member reads,
     pure arithmetic/comparison/bit-op binops, boolean-normalization forms,
     branchless arithmetic helpers, the reserved exponentiation builtin surface,
     zero-argument environment/calldata-size reads, unary calldata/memory/
     transient reads, syntactic memory-slice `keccak256`, and `ge`/`le` negated
-    comparisons. General external/internal calls, packed/struct mapping
-    entries, mapping chains, checked dynamic-array elements, storage-array
-    elements, ADT construction/matching, returndata, dynamic helpers, ABI
-    casts, `selfBalance`, and external account/state reads are out of scope. -/
+    comparisons. General external/internal calls, double-mapping struct-member
+    reads, packed mapping entries, mapping chains, checked dynamic-array
+    elements, storage-array elements, ADT construction/matching, returndata,
+    dynamic helpers, ABI casts, `selfBalance`, and external account/state reads
+    are out of scope. -/
 inductive BridgedSourceExpr : Expr → Prop
   -- scalar leaves
   | literal (n : Nat) : BridgedSourceExpr (.literal n)
@@ -133,6 +137,9 @@ inductive BridgedSourceExpr : Expr → Prop
       (hKey1 : BridgedSourceExpr key1) (hKey2 : BridgedSourceExpr key2)
       (wordOffset : Nat) :
       BridgedSourceExpr (.mapping2Word fieldName key1 key2 wordOffset)
+  | structMember {key : Expr} (fieldName : String) (hKey : BridgedSourceExpr key)
+      (memberName : String) :
+      BridgedSourceExpr (.structMember fieldName key memberName)
   -- zero-argument environment / calldata-size reads
   | caller : BridgedSourceExpr .caller
   | contractAddress : BridgedSourceExpr .contractAddress
@@ -686,6 +693,27 @@ private theorem bridgedExpr_packed_sload_lit
     · exact bridgedExpr_sload_lit slot
   · exact BridgedExpr.lit mask
 
+/-- Packed reads over an already-bridged slot word compile to
+    `and(shr(offset, slotWord), mask)`, whose subexpressions are bridged. -/
+private theorem bridgedExpr_packed_read
+    {slotWord : YulExpr} (hSlotWord : BridgedExpr slotWord)
+    (offset mask : Nat) :
+    BridgedExpr
+      (YulExpr.call "and"
+        [YulExpr.call "shr" [YulExpr.lit offset, slotWord],
+          YulExpr.lit mask]) := by
+  refine BridgedExpr.call "and" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+  intro arg hMem
+  simp only [List.mem_cons, List.mem_nil_iff, or_false] at hMem
+  rcases hMem with rfl | rfl
+  · refine BridgedExpr.call "shr" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+    intro arg hMem
+    simp only [List.mem_cons, List.mem_nil_iff, or_false] at hMem
+    rcases hMem with rfl | rfl
+    · exact BridgedExpr.lit offset
+    · exact hSlotWord
+  · exact BridgedExpr.lit mask
+
 /-- Destructure a binary helper expression emission. -/
 private theorem compileExpr_binaryShape_ok
     {fields : List CompilationModel.Field} {src : DynamicDataSource}
@@ -921,6 +949,51 @@ theorem compileExpr_bridgedSource
                     exact bridgedExpr_sload_mappingSlot2_lit_add slot wordOffset
                       (ihKey1 hCompiledKey1) (ihKey2 hCompiledKey2)
         · simp at hOk
+  | structMember fieldName hKey memberName ihKey =>
+      intro out hOk
+      simp [compileExpr, bind, Except.bind] at hOk
+      split at hOk
+      · cases hOk
+      · simp [Pure.pure, Except.pure] at hOk
+        split at hOk
+        · simp at hOk
+        · split at hOk
+          · simp at hOk
+          · rename_i member hMember
+            cases hPacked : member.packed with
+            | none =>
+                rw [hPacked] at hOk
+                cases hCompiledKey : compileExpr fields src _ with
+                | error err =>
+                    rw [hCompiledKey] at hOk
+                    cases hOk
+                | ok keyExpr =>
+                    rw [hCompiledKey] at hOk
+                    simp at hOk
+                    exact compileMappingSlotRead_bridged (ihKey hCompiledKey) hOk
+            | some packed =>
+                rw [hPacked] at hOk
+                cases hCompiledKey : compileExpr fields src _ with
+                | error err =>
+                    rw [hCompiledKey] at hOk
+                    cases hOk
+                | ok keyExpr =>
+                    rw [hCompiledKey] at hOk
+                    simp at hOk
+                    cases hSlotWord :
+                        compileMappingSlotRead fields fieldName keyExpr
+                          s!"structMember.{memberName}" member.wordOffset with
+                    | error err =>
+                        rw [hSlotWord] at hOk
+                        cases hOk
+                    | ok slotWord =>
+                        rw [hSlotWord] at hOk
+                        simp at hOk
+                        subst out
+                        exact bridgedExpr_packed_read
+                          (compileMappingSlotRead_bridged
+                            (ihKey hCompiledKey) hSlotWord)
+                          packed.offset (packedMaskNat packed)
   | caller =>
       intro out hOk
       simp [compileExpr, Pure.pure, Except.pure] at hOk
@@ -1278,6 +1351,9 @@ theorem compileRequireFailCond_bridgedSource
   | mapping2Word fieldName hKey1 hKey2 wordOffset =>
       exact compileRequireFailCond_default_bridgedSource
         (BridgedSourceExpr.mapping2Word fieldName hKey1 hKey2 wordOffset) hOk
+  | structMember fieldName hKey memberName =>
+      exact compileRequireFailCond_default_bridgedSource
+        (BridgedSourceExpr.structMember fieldName hKey memberName) hOk
   | ge ha hb =>
       simp only [compileRequireFailCond] at hOk
       obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulBinOp_ok hOk
