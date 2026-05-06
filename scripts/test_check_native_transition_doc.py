@@ -206,10 +206,10 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_public_theorem_target_guard_rejects_missing_dispatcher_exec_match_canonical_native_fuel_seam(self) -> None:
+    def test_public_theorem_target_guard_rejects_missing_layers2_3_runtime_canonical_native_fuel_seam(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match_canonicalFuel",
-            "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match_hiddenCanonicalFuel",
+            "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel",
+            "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_hiddenCanonicalFuel",
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
@@ -217,7 +217,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("dispatcherExec_positive_match_canonicalFuel" in error for error in errors),
+            any("lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel" in error for error in errors),
             errors,
         )
 
