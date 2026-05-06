@@ -4038,68 +4038,6 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherEx
     initialState observableSlots nativeContract hCompile hSupported hStaticParams
     hSafeBodies hLower hEnv hNativeDispatcherExec
 
-/-- Supported external parameter types are static scalar ABI types for the
-native generated-dispatcher theorem. -/
-private theorem isStaticScalarParamType_of_supportedExternalParamType
-    {ty : CompilationModel.ParamType}
-    (hSupported : SupportedExternalParamType ty) :
-    Compiler.Proofs.YulGeneration.Backends.IsStaticScalarParamType ty :=
-  Compiler.Proofs.YulGeneration.Backends.IsStaticScalarParamType.scalar (by
-    cases ty <;> simp [
-      SupportedExternalParamType,
-      Compiler.Proofs.YulGeneration.Backends.IsScalarParamType] at hSupported ⊢)
-
-/-- Static-parameter witness derived from `SupportedSpec` for every
-selector-dispatched source entry. -/
-private theorem allStaticScalarParams_of_supportedSpec_selectorFunctionPairs
-    (model : CompilationModel.CompilationModel)
-    (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors) :
-    ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs model selectors →
-      Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams
-        entry.1.params := by
-  intro entry hentry param hparam
-  have hfnDispatched :
-      entry.1 ∈ selectorDispatchedFunctions model := by
-    simpa [SourceSemantics.selectorFunctionPairs] using
-      (List.of_mem_zip hentry).1
-  have hfnModel : entry.1 ∈ model.functions :=
-    List.mem_of_mem_filter hfnDispatched
-  exact isStaticScalarParamType_of_supportedExternalParamType
-    ((hSupported.functions entry.1 hfnModel).params.supported param hparam)
-
-/-- File-local source-body closure input for generated native dispatcher
-compatibility wrappers.
-
-The public callDispatcher theorems no longer expose this body-closure predicate;
-private runtime-adapter wrappers still use it to package compiler-core body
-facts into `BridgedSafeStmts` before discharging native generated-fragment
-shape obligations. -/
-private def SourceBodyNativeClosure
-    (model : CompilationModel.CompilationModel)
-    (selectors : List Nat) : Prop :=
-  ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs model selectors →
-    FunctionBody.StmtListCompileCore (entry.1.params.map (·.name)) entry.1.body ∨
-      FunctionBody.StmtListTerminalCore (entry.1.params.map (·.name)) entry.1.body
-
-private theorem safeBodies_of_sourceBodyNativeClosure
-    (model : CompilationModel.CompilationModel)
-    (selectors : List Nat)
-    (hBodies : SourceBodyNativeClosure model selectors) :
-    ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs model selectors →
-      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
-        model.fields model.errors .calldata [] false entry.1.body := by
-  intro entry hentry
-  rcases hBodies entry hentry with hCore | hTerminal
-  · exact Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_externalCompileCore
-      (fields := model.fields) (errors := model.errors)
-      (dynamicSource := .calldata) (internalRetNames := [])
-      (scope := entry.1.params.map (·.name)) hCore
-  · exact Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_externalTerminalCore
-      (fields := model.fields) (errors := model.errors)
-      (dynamicSource := .calldata) (internalRetNames := [])
-      (scope := entry.1.params.map (·.name)) hTerminal
-
 /-- Public supported-compiler correctness theorem over the direct projected
 `EvmYul.Yul.callDispatcher` result for the generated runtime. -/
 theorem compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match

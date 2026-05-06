@@ -56,9 +56,9 @@ materializes pre-state storage for those slots.
   compatibility predicate and wrappers are file-local helpers; public generated
   correctness exposes native `EvmYul.Yul.callDispatcher` premises and derives
   source/native agreement directly over the projected call-dispatcher result.
-  The old body-closure, full-runtime lowering, and environment-validation
-  obligations remain on file-local `interpretIRRuntimeNative` compatibility
-  wrappers, not on the public call-dispatcher theorem signatures. On the
+  The old generated runtime adapter wrappers have been removed rather than
+  being retained as file-local `interpretIRRuntimeNative` compatibility
+  theorems. On the
   helper-free and mapping-helper paths, the public wrapper theorems still accept
   the concrete generated-dispatcher lowering result while exposing the direct
   projected `EvmYul.Yul.callDispatcher` result. The concrete SimpleStorage
