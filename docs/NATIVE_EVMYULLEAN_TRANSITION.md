@@ -55,26 +55,20 @@ materializes pre-state storage for those slots.
   and the concrete SimpleStorage native theorem. The dispatcher-exec
   compatibility predicate and wrappers are file-local helpers; public generated
   correctness exposes native `EvmYul.Yul.callDispatcher` premises and derives
-  the dispatcher-exec projection internally. The call-dispatcher wrappers
-  derive static ABI parameter coverage from `SupportedSpec` and expose
-  source-body closure as
-  `SourceBodyNativeClosure` (compile-core or terminal-core), packaging that
-  into the native body whitelist internally. It also derives native runtime
-  environment validation from explicit chain-id, blob-base-fee, and unsupported
-  header-builtin facts; only the concrete dispatcher execution/result
-  obligation remains explicit. On the helper-free and mapping-helper paths, the
-  public wrapper theorems now accept the concrete generated-dispatcher lowering
-  and construct the full `lowerRuntimeContractNative` result internally. The
-  call-dispatcher wrappers expose the actual generated
-  `EvmYul.Yul.callDispatcher` premise directly. The
-  concrete SimpleStorage native theorem uses the same explicit
-  native-environment facts instead of an opaque validation premise. The opaque
-  arbitrary-fuel
+  source/native agreement directly over the projected call-dispatcher result.
+  The old body-closure, full-runtime lowering, and environment-validation
+  obligations remain on file-local `interpretIRRuntimeNative` compatibility
+  wrappers, not on the public call-dispatcher theorem signatures. On the
+  helper-free and mapping-helper paths, the public wrapper theorems still accept
+  the concrete generated-dispatcher lowering result while exposing the direct
+  projected `EvmYul.Yul.callDispatcher` result. The concrete SimpleStorage
+  native theorem now targets that direct projected call-dispatcher result too.
+  The opaque arbitrary-fuel
   identity seams, generated dispatcher-exec lift facts, and fuel-indexed
   `nativeIRRuntimeMatchesIR` targets are file-local, and the older
   proof-interpreter bridge signature has been removed from EndToEnd. The public
-  generated target is native
-  `Native.interpretIRRuntimeNative` through `nativeResultsMatchOn`, comparing
+  generated target is native `EvmYul.Yul.callDispatcher` through
+  `nativeGeneratedCallDispatcherResultOf` and `nativeResultsMatchOn`, comparing
   success, return value, events, and the explicitly observable final-storage
   slots. The backend-parameterized safe-body Yul target is now isolated
   lower-level transition evidence; the generated native fragment still needs
