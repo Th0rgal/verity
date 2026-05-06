@@ -2612,13 +2612,13 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative_empty
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let'
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.legacyExecYulFuel_stmts_nil
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_revert
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_return
-#print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_stop
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let'  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.legacyExecYulFuel_stmts_nil  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_revert  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_return  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_stop  -- private
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.isDynamicParamType_false_of_static_scalar
@@ -4480,4 +4480,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4286 theorems/lemmas (2890 public, 1396 private, 0 sorry'd)
+-- Total: 4286 theorems/lemmas (2883 public, 1403 private, 0 sorry'd)

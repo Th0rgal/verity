@@ -40,7 +40,7 @@ This justifies the adapter's lowering of `assign` to `Let`. -/
 /-- Assign and let_ produce identical execution results for all states and
     fuel values. This is the core semantic justification for the adapter's
     Assign → Let lowering. -/
-theorem assign_equiv_let (fuel : Nat) (state : YulState)
+private theorem assign_equiv_let (fuel : Nat) (state : YulState)
     (name : String) (value : YulExpr) :
     execYulStmtFuel fuel state (.assign name value) =
     execYulStmtFuel fuel state (.let_ name value) := by
@@ -49,7 +49,7 @@ theorem assign_equiv_let (fuel : Nat) (state : YulState)
   | succ n => rfl
 
 /-- Variant of the assign/let equivalence for the noncomputable wrapper. -/
-theorem assign_equiv_let' (state : YulState)
+private theorem assign_equiv_let' (state : YulState)
     (name : String) (value : YulExpr) :
     execYulStmt state (.assign name value) =
     execYulStmt state (.let_ name value) := by
@@ -72,7 +72,7 @@ When init is empty, step 1 is a no-op: `legacyExecYulFuel fuel state (.stmts [])
 So `for_ [] cond post body` starts directly at step 2. -/
 
 /-- Executing an empty statement list is a no-op for any fuel value. -/
-@[simp] theorem legacyExecYulFuel_stmts_nil (fuel : Nat) (state : YulState) :
+@[simp] private theorem legacyExecYulFuel_stmts_nil (fuel : Nat) (state : YulState) :
     legacyExecYulFuel fuel state (.stmts []) = .continue state := by
   cases fuel <;> rfl
 
@@ -81,7 +81,7 @@ So `for_ [] cond post body` starts directly at step 2. -/
 
     This is the core semantic justification for the adapter's transformation of
     `for (init; cond; post) body` into `init; for (; cond; post) body`. -/
-theorem for_init_hoist (fuel : Nat) (state : YulState)
+private theorem for_init_hoist (fuel : Nat) (state : YulState)
     (init : List YulStmt) (cond : YulExpr) (post body : List YulStmt)
     (s' : YulState) (hinit : legacyExecYulFuel fuel state (.stmts init) = .continue s') :
     execYulStmtFuel (fuel + 1) state (.for_ init cond post body) =
@@ -89,21 +89,21 @@ theorem for_init_hoist (fuel : Nat) (state : YulState)
   simp [execYulStmtFuel, legacyExecYulFuel, hinit, legacyExecYulFuel_stmts_nil]
 
 /-- Init-hoisting for the revert case. -/
-theorem for_init_hoist_revert (fuel : Nat) (state : YulState)
+private theorem for_init_hoist_revert (fuel : Nat) (state : YulState)
     (init : List YulStmt) (cond : YulExpr) (post body : List YulStmt)
     (s : YulState) (hinit : legacyExecYulFuel fuel state (.stmts init) = .revert s) :
     execYulStmtFuel (fuel + 1) state (.for_ init cond post body) = .revert s := by
   simp [execYulStmtFuel, legacyExecYulFuel, hinit]
 
 /-- Init-hoisting for the return case. -/
-theorem for_init_hoist_return (fuel : Nat) (state : YulState)
+private theorem for_init_hoist_return (fuel : Nat) (state : YulState)
     (init : List YulStmt) (cond : YulExpr) (post body : List YulStmt)
     (v : Nat) (s : YulState) (hinit : legacyExecYulFuel fuel state (.stmts init) = .return v s) :
     execYulStmtFuel (fuel + 1) state (.for_ init cond post body) = .return v s := by
   simp [execYulStmtFuel, legacyExecYulFuel, hinit]
 
 /-- Init-hoisting for the stop case. -/
-theorem for_init_hoist_stop (fuel : Nat) (state : YulState)
+private theorem for_init_hoist_stop (fuel : Nat) (state : YulState)
     (init : List YulStmt) (cond : YulExpr) (post body : List YulStmt)
     (s : YulState) (hinit : legacyExecYulFuel fuel state (.stmts init) = .stop s) :
     execYulStmtFuel (fuel + 1) state (.for_ init cond post body) = .stop s := by
