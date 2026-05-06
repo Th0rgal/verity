@@ -3216,7 +3216,7 @@ separately when the builtin is known to be in the bridged pure fragment. -/
     This theorem applies away from the directly handled context/env builtins;
     per-builtin bridge lemmas are applied after this routing rewrite when the
     builtin is known to lie in the bridged pure fragment. -/
-theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
+private theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat) (func : String) (argVals : List Nat)
     (hCaller : func ≠ "caller")

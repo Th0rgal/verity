@@ -1361,6 +1361,23 @@ def check_public_transitive_forbidden_terms(
     return errors
 
 
+def check_bridge_lemmas_transition_surface(bridge_lemmas_text: str) -> list[str]:
+    """Keep transition-helper bridge rewrites out of the public theorem surface."""
+
+    errors: list[str] = []
+    if re.search(
+        r"^\s*theorem\s+evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge\b",
+        bridge_lemmas_text,
+        re.MULTILINE,
+    ):
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean "
+            "must keep transition-only routing helper "
+            "`evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge` private"
+        )
+    return errors
+
+
 def check_native_closure_import_boundary(
     bridge_predicates_text: str,
     body_closure_text: str,
@@ -1671,6 +1688,11 @@ def main() -> int:
                     SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
                 ),
             ]
+        )
+    )
+    errors.extend(
+        check_bridge_lemmas_transition_surface(
+            BRIDGE_LEMMAS.read_text(encoding="utf-8")
         )
     )
     errors.extend(

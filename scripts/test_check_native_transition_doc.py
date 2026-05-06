@@ -996,6 +996,24 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_bridge_lemmas_transition_surface_accepts_current_shape(self) -> None:
+        errors = check.check_bridge_lemmas_transition_surface(
+            check.BRIDGE_LEMMAS.read_text(encoding="utf-8")
+        )
+        self.assertEqual(errors, [])
+
+    def test_bridge_lemmas_transition_surface_rejects_public_pure_bridge(self) -> None:
+        bridge_lemmas_text = check.BRIDGE_LEMMAS.read_text(encoding="utf-8").replace(
+            "private theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge",
+            "theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge",
+            1,
+        )
+        errors = check.check_bridge_lemmas_transition_surface(bridge_lemmas_text)
+        self.assertTrue(
+            any("pure_bridge" in error for error in errors),
+            errors,
+        )
+
     def test_legacy_proof_boundary_rejects_public_boundary_import(self) -> None:
         end_to_end_text = (
             check.END_TO_END.read_text(encoding="utf-8")
