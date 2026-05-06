@@ -765,7 +765,6 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.EndToEnd.compiledExternalFunctions_noFuncDefs_of_safe_static  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported  -- private
@@ -779,17 +778,11 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved  -- private
@@ -798,10 +791,6 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment  -- private
@@ -810,30 +799,12 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults  -- private
--- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment  -- private
@@ -842,68 +813,31 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.isStaticScalarParamType_of_supportedExternalParamType  -- private
--- #print axioms Compiler.Proofs.EndToEnd.allStaticScalarParams_of_supportedSpec_selectorFunctionPairs  -- private
--- #print axioms Compiler.Proofs.EndToEnd.safeBodies_of_sourceBodyNativeClosure  -- private
--- #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match  -- private
--- #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_generated_callDispatcher_match  -- private
 #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match
--- #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping  -- private
 #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping
--- #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_mapping  -- private
 #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved  -- private
@@ -916,18 +850,6 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_ofIR_environment_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel  -- private
--- #print axioms Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_functions_bridged  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_functions_loop_free  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_runtimeCode_eq_single_dispatcher  -- private
@@ -1017,10 +939,6 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeStoreHitMatchBridge_proved  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeSelectorMissMatchBridge_proved  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeCallDispatcherMatchBridge_of_per_case  -- private
--- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match  -- private
--- #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_eq_nativeContractOfDispatcher_of_lowerStmtsNative  -- private
--- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match  -- private
--- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_interpretIRRuntimeNative  -- private
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean
 
 -- Compiler/Proofs/EventSemantics.lean
@@ -3106,10 +3024,15 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setStorageAddrSingleSlot_of_exprCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_requireSingle_of_exprCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_requireGuardFamilyClause
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSourcePureBindingStmt_letKeccak_of_exprCompileCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSourcePureBindingStmt_assignKeccak_of_exprCompileCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_letKeccak_of_exprCompileCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_assignKeccak_of_exprCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListTerminalCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_externalCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_externalTerminalCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_externalMstoreLetKeccak_of_exprCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_tstoreSingle_of_exprCompileCore
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_bridged
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_noFuncDefs
@@ -4375,6 +4298,7 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_bridgedSource_leaf
 #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSourceExpr_of_exprCompileCore
+#print axioms Compiler.Proofs.YulGeneration.Backends.bridgedSourceExpr_keccak256_of_exprCompileCore
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_binopBuiltin  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_unopBuiltin  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_nullaryBuiltin  -- private
@@ -4393,12 +4317,28 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_yulNegatedBinOp_ok  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_yulBoolBinOp_ok  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_unopBuiltin_ok  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload_lit  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_mappingSlot  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload_mappingSlot_lit  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload_mappingSlot_lit_add  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload_mappingSlot2_lit  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload_mappingSlot2_lit_add  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_foldl_mappingSlot  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload_mappingSlotChain_lit  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.compileMappingSlotRead_bridged  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_adtTagRead_lit  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_adtFieldRead_lit  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_packed_sload_lit  -- private
+-- #print axioms Compiler.Proofs.YulGeneration.Backends.bridgedExpr_packed_read  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_binaryShape_ok  -- private
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_ternaryShape_ok  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_bridgedSource
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_keccak256_bridgedSource_of_exprCompileCore
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.compileRequireFailCond_default_bridgedSource  -- private
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileRequireFailCond_bridgedSource
 #print axioms Compiler.Proofs.YulGeneration.Backends.compileExprList_bridgedSource
+#print axioms Compiler.Proofs.YulGeneration.Backends.compileExpr_mappingChain_bridgedSource
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
 #print axioms Batteries.RBNode.All.setBlack'
@@ -4481,4 +4421,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4287 theorems/lemmas (2882 public, 1405 private, 0 sorry'd)
+-- Total: 4227 theorems/lemmas (2890 public, 1337 private, 0 sorry'd)
