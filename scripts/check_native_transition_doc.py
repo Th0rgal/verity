@@ -714,6 +714,29 @@ def check_public_theorem_target(
                 f"`{forbidden_simple_storage_bridge_surface.strip()}`"
             )
 
+    for private_simple_storage_scaffold in (
+        "simpleStorageNativeDispatcherStmts",
+        "simpleStorageNativeDispatcherInnerStmts",
+        "simpleStorageNativeDispatcher_letValue",
+        "simpleStorageNativeDispatcher_if1Cond",
+        "simpleStorageNativeDispatcher_if1Body",
+        "simpleStorageNativeDispatcher_if2Cond",
+        "simpleStorageNativeDispatcher_if2Body",
+        "simpleStorageNativeDispatcherFuel",
+    ):
+        if re.search(
+            r"^\s*(?:noncomputable\s+)?def\s+"
+            + re.escape(private_simple_storage_scaffold)
+            + r"\b",
+            end_to_end_text,
+            re.MULTILINE,
+        ):
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must keep SimpleStorage native "
+                "dispatcher proof scaffolding file-local; do not export "
+                f"`{private_simple_storage_scaffold}`"
+            )
+
     for forbidden_reference_oracle_seam in (
         "theorem layer3_contract_preserves_semantics_via_reference_oracle ",
         "theorem layer3_contract_preserves_semantics_via_reference_oracle_with_function_bridge ",

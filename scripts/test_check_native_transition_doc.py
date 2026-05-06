@@ -647,6 +647,21 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_theorem_target_guard_rejects_simple_storage_native_scaffold_surface(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\nnoncomputable def simpleStorageNativeDispatcherFuel : Nat := 1\n"
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("dispatcher proof scaffolding" in error for error in errors),
+            errors,
+        )
+
     def test_rejects_verity_default_builtin_backend(self) -> None:
         builtins_text = check.BUILTINS.read_text(encoding="utf-8").replace(
             "private abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",

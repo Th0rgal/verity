@@ -6636,7 +6636,7 @@ private theorem lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
     stmt hNoFunc
 
-noncomputable def simpleStorageNativeDispatcherStmts :
+private noncomputable def simpleStorageNativeDispatcherStmts :
     List EvmYul.Yul.Ast.Stmt :=
   match
     Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
@@ -6726,7 +6726,7 @@ private theorem simpleStorageNativeDispatcherStmts_exists_singleton_block :
   rw [hBlock] at hOk
   exact lowerStmtsNative_single_block_ok_singleton _ _ hOk
 
-noncomputable def simpleStorageNativeDispatcherInnerStmts :
+private noncomputable def simpleStorageNativeDispatcherInnerStmts :
     List EvmYul.Yul.Ast.Stmt :=
   Classical.choose simpleStorageNativeDispatcherStmts_exists_singleton_block
 
@@ -6960,20 +6960,20 @@ private theorem simpleStorageNativeDispatcherInnerStmts_eq_let_if_if :
 `__has_selector` let. Pinned via `Classical.choose` from the let/if/if shape
 existential so it can be referenced by downstream proofs without re-`obtain`-ing
 the witness each time. -/
-noncomputable def simpleStorageNativeDispatcher_letValue :
+private noncomputable def simpleStorageNativeDispatcher_letValue :
     EvmYul.Yul.Ast.Expr :=
   Classical.choose simpleStorageNativeDispatcherInnerStmts_eq_let_if_if
 
 /-- The lowered condition of the SimpleStorage native dispatcher's
 selector-miss `if iszero(__has_selector) { … }` guard. -/
-noncomputable def simpleStorageNativeDispatcher_if1Cond :
+private noncomputable def simpleStorageNativeDispatcher_if1Cond :
     EvmYul.Yul.Ast.Expr :=
   Classical.choose
     (Classical.choose_spec simpleStorageNativeDispatcherInnerStmts_eq_let_if_if)
 
 /-- The lowered body of the SimpleStorage native dispatcher's selector-miss
 guard (the `revert(0,0)` revert path). -/
-noncomputable def simpleStorageNativeDispatcher_if1Body :
+private noncomputable def simpleStorageNativeDispatcher_if1Body :
     List EvmYul.Yul.Ast.Stmt :=
   Classical.choose
     (Classical.choose_spec
@@ -6981,7 +6981,7 @@ noncomputable def simpleStorageNativeDispatcher_if1Body :
 
 /-- The lowered condition of the SimpleStorage native dispatcher's
 selector-hit `if __has_selector { switch … }` body. -/
-noncomputable def simpleStorageNativeDispatcher_if2Cond :
+private noncomputable def simpleStorageNativeDispatcher_if2Cond :
     EvmYul.Yul.Ast.Expr :=
   Classical.choose
     (Classical.choose_spec
@@ -6992,7 +6992,7 @@ noncomputable def simpleStorageNativeDispatcher_if2Cond :
 /-- The lowered body of the SimpleStorage native dispatcher's selector-hit
 `if __has_selector { switch … }` body — i.e., the singleton list containing
 the lowered `switch` over the three generated cases. -/
-noncomputable def simpleStorageNativeDispatcher_if2Body :
+private noncomputable def simpleStorageNativeDispatcher_if2Body :
     List EvmYul.Yul.Ast.Stmt :=
   Classical.choose
     (Classical.choose_spec
@@ -9003,7 +9003,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_con
   exact exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
     fuel _ _ _ err hSize hGe hT3
 
-noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
+private noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
   sizeOf [Compiler.CodegenCommon.buildSwitch
     simpleStorageIRContract.functions none none]
 
