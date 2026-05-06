@@ -749,7 +749,7 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.ArithmeticProfile.shr_bridge
 
 -- Compiler/Proofs/EndToEnd.lean
-#print axioms Compiler.Proofs.EndToEnd.sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
+-- #print axioms Compiler.Proofs.EndToEnd.sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_nativeResultsMatchOn  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match  -- private
@@ -4481,4 +4481,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4287 theorems/lemmas (2883 public, 1404 private, 0 sorry'd)
+-- Total: 4287 theorems/lemmas (2882 public, 1405 private, 0 sorry'd)

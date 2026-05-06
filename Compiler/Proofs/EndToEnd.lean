@@ -94,7 +94,7 @@ def sourceResultMatchesNativeOn
 
 /-- Compose Layer 2 source-to-IR correctness with native EVMYulLean runtime
 correctness, without mentioning the legacy Yul interpreter. -/
-theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
+private theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
     {observableSlots : List Nat}
     {source : SourceSemantics.SourceContractResult}
     {ir : IRResult}
