@@ -1524,6 +1524,29 @@ theorem arbitraryFuelSurfaceForTest
             errors,
         )
 
+    def test_public_end_to_end_theorem_signature_guard_rejects_call_dispatcher_body_env_terms(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + """
+theorem compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match
+    (_hBodies : SourceBodyNativeClosure model selectors)
+    (_hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
+        runtime tx = false) :
+    True := by
+  trivial
+"""
+        )
+        errors = check.check_public_end_to_end_theorem_signatures(end_to_end_text)
+        self.assertTrue(
+            any("SourceBodyNativeClosure" in error for error in errors),
+            errors,
+        )
+        self.assertTrue(
+            any("nativeRuntimePathUsesUnsupportedHeaderBuiltin" in error for error in errors),
+            errors,
+        )
+
     def test_unbridged_environment_boundary_accepts_current_shape(self) -> None:
         errors = check.check_unbridged_environment_boundary(
             check.NATIVE_HARNESS.read_text(encoding="utf-8"),

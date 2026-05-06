@@ -1683,6 +1683,18 @@ def check_public_end_to_end_theorem_signatures(end_to_end_text: str) -> list[str
         "evalBuiltinCallWithContext",
         "nativeIRRuntimeAgreesWithInterpreter",
     )
+    public_call_dispatcher_theorems = (
+        "compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match",
+        "compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping",
+        "compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping",
+    )
+    forbidden_public_call_dispatcher_terms = (
+        "SourceBodyNativeClosure",
+        "lowerRuntimeContractNative",
+        "nativeChainIdRepresentable",
+        "nativeBlobBaseFeeRepresentable",
+        "nativeRuntimePathUsesUnsupportedHeaderBuiltin",
+    )
 
     for match in theorem_pattern.finditer(end_to_end_text):
         name = match.group(1)
@@ -1703,6 +1715,22 @@ def check_public_end_to_end_theorem_signatures(end_to_end_text: str) -> list[str
                 f"`{name}` must use canonical native generated-runtime fuel "
                 "instead of exposing arbitrary theorem-facing fuel"
             )
+        if name in public_call_dispatcher_theorems:
+            leaked_call_dispatcher_terms = sorted(
+                term
+                for term in forbidden_public_call_dispatcher_terms
+                if term in signature
+            )
+            if leaked_call_dispatcher_terms:
+                errors.append(
+                    "Compiler/Proofs/EndToEnd.lean public callDispatcher theorem "
+                    f"`{name}` must keep body, full-runtime lowering, and "
+                    "native environment-validation obligations below the "
+                    "public direct callDispatcher signature: "
+                    + ", ".join(
+                        f"`{term}`" for term in leaked_call_dispatcher_terms
+                    )
+                )
 
     return errors
 
