@@ -460,9 +460,6 @@ ALLOWLIST: set[str] = {
     # Projected native dispatcher result wrapper has a short proof body, but
     # the scanner includes the following public runtime-harness doc block.
     "nativeDispatcherExecMatchesIRPositive_of_project_eq_match",
-    # Public generated-dispatcher EndToEnd theorem necessarily carries the
-    # full source-to-IR and native-runtime composition boundary in one wrapper.
-    "compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match",
     # Private transition wrapper retained only in EvmYulLeanRetarget; the proof
     # is a thin composition but its statement carries the full bridged-body
     # hypotheses for the isolated legacy regression boundary.

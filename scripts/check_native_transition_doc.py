@@ -551,18 +551,6 @@ def check_public_theorem_target(
             )
 
     if re.search(
-        r"^\s*theorem\s+compile_preserves_native_evmYulLean_of_generated_callDispatcher_match\b",
-        end_to_end_text,
-        re.MULTILINE,
-    ):
-        errors.append(
-            "Compiler/Proofs/EndToEnd.lean must keep the generated "
-            "`compile_preserves_native_evmYulLean_of_generated_callDispatcher_match` "
-            "adapter theorem file-local; public generated correctness should "
-            "target `nativeGeneratedCallDispatcherResultOf` directly"
-        )
-
-    if re.search(
         r"^\s*theorem\s+compile_preserves_native_evmYulLean_of_nativeResultsMatchOn\b",
         end_to_end_text,
         re.MULTILINE,
@@ -599,6 +587,10 @@ def check_public_theorem_target(
         "layers2_3_ir_matches_yul_evmYulLeanBackend_with_function_bridge",
         "layers2_3_ir_matches_yul_evmYulLeanBackend",
         "layers2_3_ir_matches_native_evmYulLean_of_evmYulLean_bridge",
+        "compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match",
+        "compile_preserves_native_evmYulLean_of_generated_callDispatcher_match",
+        "compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping",
+        "compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_mapping",
         "simpleStorage_endToEnd_evmYulLeanBackend",
     ):
         if re.search(
