@@ -14,6 +14,8 @@
     - boolean-normalized operations: `logicalAnd`, `logicalOr`, `logicalNot`
     - branchless arithmetic helpers: `ceilDiv`, `mulDivDown`, `mulDivUp`,
       `wMulDown`, `wDivUp`, `min`, `max`, `ite`
+    - reserved exponentiation builtin surface:
+      `externalCall builtinExpName [base, exponent]`
     - zero-argument environment/calldata-size reads whose emitted Yul calls
       are already bridged: `caller`, `contractAddress`, `msgValue`,
       `blockTimestamp`, `blockNumber`, `chainid`, `blobbasefee`,
@@ -23,10 +25,10 @@
     - unary calldata/memory/transient reads: `calldataload`, `mload`, `tload`
     - native syntactic memory-slice hashing: `keccak256`
 
-  Mapping entries, checked dynamic-array elements, storage-array elements,
-  ADT construction/matching, returndata, call, dynamic helpers, ABI casts,
-  `selfBalance`, and external account/state reads are out of scope and require
-  dedicated closure proofs.
+  General external/internal calls, mapping entries, checked dynamic-array
+  elements, storage-array elements, ADT construction/matching, returndata,
+  dynamic helpers, ABI casts, `selfBalance`, and external account/state reads
+  are out of scope and require dedicated closure proofs.
 
   The scalar-leaf-only theorem `compileExpr_bridgedSource_leaf` is
   retained below as a specialization.
@@ -86,11 +88,12 @@ theorem compileExpr_bridgedSource_leaf
     Covers scalar/local leaves, storage reads whose compiler field lookup
     succeeds, including dynamic-array length words and ADT tag/field reads,
     pure arithmetic/comparison/bit-op binops, boolean-normalization forms,
-    branchless arithmetic helpers, zero-argument environment/calldata-size
-    reads, unary calldata/memory/transient reads, syntactic memory-slice
-    `keccak256`, and `ge`/`le` negated comparisons. Mapping entries, checked
+    branchless arithmetic helpers, the reserved exponentiation builtin surface,
+    zero-argument environment/calldata-size reads, unary calldata/memory/
+    transient reads, syntactic memory-slice `keccak256`, and `ge`/`le` negated
+    comparisons. General external/internal calls, mapping entries, checked
     dynamic-array elements, storage-array elements, ADT construction/matching,
-    returndata, dynamic helpers, ABI casts, calls, `selfBalance`, and external
+    returndata, dynamic helpers, ABI casts, `selfBalance`, and external
     account/state reads are out of scope. -/
 inductive BridgedSourceExpr : Expr → Prop
   -- scalar leaves
@@ -195,6 +198,9 @@ inductive BridgedSourceExpr : Expr → Prop
       BridgedSourceExpr (.wMulDown a b)
   | wDivUp {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
       BridgedSourceExpr (.wDivUp a b)
+  | builtinExp {base exponent}
+      (hBase : BridgedSourceExpr base) (hExponent : BridgedSourceExpr exponent) :
+      BridgedSourceExpr (.externalCall builtinExpName [base, exponent])
   | min {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
       BridgedSourceExpr (.min a b)
   | max {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
@@ -954,6 +960,23 @@ theorem compileExpr_bridgedSource
       obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_binaryShape_ok hOk
       subst hEq
       exact bridgedExpr_wDivUp (iha hA) (ihb hB)
+  | builtinExp hBase hExponent iha ihb =>
+      rename_i base exponent
+      intro out hOk
+      simp only [compileExpr] at hOk
+      cases hA : compileExpr fields src base with
+      | error err =>
+          simp [compileExprList, hA, bind, Except.bind] at hOk
+      | ok ca =>
+          cases hB : compileExpr fields src exponent with
+          | error err =>
+              simp [compileExprList, hA, hB, bind, Except.bind] at hOk
+          | ok cb =>
+              simp [compileExprList, hA, hB, builtinExpName, Pure.pure,
+                Except.pure, bind, Except.bind] at hOk
+              cases hOk
+              exact bridgedExpr_yulBinOp (by simp [bridgedBuiltins])
+                (iha hA) (ihb hB)
   | min _ _ iha ihb =>
       intro out hOk
       simp only [compileExpr] at hOk
@@ -1193,6 +1216,10 @@ theorem compileRequireFailCond_bridgedSource
         (by simpa [compileRequireFailCond] using hOk)
   | wDivUp ha hb =>
       exact compileRequireFailCond_default_bridgedSource (.wDivUp ha hb)
+        (by simpa [compileRequireFailCond] using hOk)
+  | builtinExp hBase hExponent =>
+      exact compileRequireFailCond_default_bridgedSource
+        (.builtinExp hBase hExponent)
         (by simpa [compileRequireFailCond] using hOk)
   | min ha hb =>
       exact compileRequireFailCond_default_bridgedSource (.min ha hb)

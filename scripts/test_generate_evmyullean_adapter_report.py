@@ -768,8 +768,9 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             phase4["compileExpr_bridgedSource"],
             "proven (source-expression fragment with parameter length, "
             "storage, and storage-array length reads, ADT tag/field reads, "
-            "boolean normalization, branchless helpers, bridged environment "
-            "reads, and unary calldata/memory/transient reads)",
+            "reserved exponentiation, boolean normalization, branchless "
+            "helpers, bridged environment reads, and unary calldata/memory/"
+            "transient reads)",
         )
 
     def test_missing_retarget_theorem_is_not_reported_proven(self) -> None:
