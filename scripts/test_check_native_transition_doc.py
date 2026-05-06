@@ -229,6 +229,22 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_theorem_target_guard_rejects_missing_call_dispatcher_result_surface(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "noncomputable def nativeGeneratedCallDispatcherResultOf",
+            "noncomputable def nativeGeneratedHiddenCallDispatcherResultOf",
+            1,
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("nativeGeneratedCallDispatcherResultOf" in error for error in errors),
+            errors,
+        )
+
     def test_public_theorem_target_guard_rejects_public_dispatcher_exec_surface(self) -> None:
         end_to_end_text = (
             check.END_TO_END.read_text(encoding="utf-8")
@@ -266,6 +282,26 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertTrue(
             any("generated_callDispatcher_match" in error for error in errors),
+            errors,
+        )
+
+    def test_public_theorem_target_guard_rejects_missing_direct_generated_call_dispatcher_theorem(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "theorem compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match",
+            "theorem compile_preserves_native_evmYulLean_hiddenCallDispatcher_of_generated_callDispatcher_match",
+            1,
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any(
+                "compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match"
+                in error
+                for error in errors
+            ),
             errors,
         )
 
