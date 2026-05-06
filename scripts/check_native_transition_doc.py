@@ -371,7 +371,6 @@ def check_public_theorem_target(
         "theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping",
         "theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match",
-        "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match_canonicalFuel",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_canonicalFuel",
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment",
