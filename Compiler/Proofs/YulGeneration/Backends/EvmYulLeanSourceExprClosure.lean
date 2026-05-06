@@ -199,6 +199,19 @@ theorem bridgedSourceExpr_of_exprCompileCore :
   intro e hCore
   induction hCore <;> constructor <;> assumption
 
+/-- A syntactic memory-slice `keccak256` expression is native-bridged when its
+    offset and size arguments are in the public compile-core expression
+    grammar. This does not add `keccak256` to `ExprCompileCore`: source/IR
+    semantic correctness still needs source-side memory-slice hashing. -/
+theorem bridgedSourceExpr_keccak256_of_exprCompileCore
+    {offset size : Expr}
+    (hOffset : FunctionBody.ExprCompileCore offset)
+    (hSize : FunctionBody.ExprCompileCore size) :
+    BridgedSourceExpr (.keccak256 offset size) :=
+  BridgedSourceExpr.keccak256
+    (bridgedSourceExpr_of_exprCompileCore hOffset)
+    (bridgedSourceExpr_of_exprCompileCore hSize)
+
 /-- A `YulExpr.call` whose name is in `bridgedBuiltins` and whose two
     arguments are already `BridgedExpr` is itself a `BridgedExpr`. -/
 private theorem bridgedExpr_binopBuiltin {func : String}
@@ -821,6 +834,19 @@ theorem compileExpr_bridgedSource
       obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulNegatedBinOp_ok hOk
       subst hEq
       exact bridgedExpr_yulNegatedBinOp (by simp [bridgedBuiltins]) (iha hA) (ihb hB)
+
+/-- Convenience wrapper for the native syntactic `keccak256` source-expression
+    closure when the offset and size subexpressions are compile-core. -/
+theorem compileExpr_keccak256_bridgedSource_of_exprCompileCore
+    (fields : List CompilationModel.Field) (src : DynamicDataSource)
+    {offset size : Expr} {out : YulExpr}
+    (hOffset : FunctionBody.ExprCompileCore offset)
+    (hSize : FunctionBody.ExprCompileCore size)
+    (hOk : compileExpr fields src (.keccak256 offset size) = .ok out) :
+    BridgedExpr out :=
+  compileExpr_bridgedSource fields src
+    (bridgedSourceExpr_keccak256_of_exprCompileCore hOffset hSize)
+    hOk
 
 /-- Default `require` failure condition shape: `iszero(compileExpr cond)` is
     bridged whenever the source condition expression is bridged. -/
