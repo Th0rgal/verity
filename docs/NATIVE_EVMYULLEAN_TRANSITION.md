@@ -93,19 +93,13 @@ materializes pre-state storage for those slots.
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match`,
   with `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure`
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_canonicalFuel`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment`,
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment_canonicalFuel`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure`,
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_canonicalFuel`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment`,
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment_canonicalFuel`,
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
-  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults_canonicalFuel`
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`
   as the explicitly named safe-body wrapper aliases.
-  The canonical native runtime, Layer 3, and Layer 2/3 positive and projected-result wrappers set dispatcher fuel to
+  The canonical native runtime and selected full-runtime wrapper surfaces set dispatcher fuel to
   `nativeRuntimeDispatcherFuel irContract` and runtime fuel to
   `nativeRuntimeFuel irContract`, avoiding an arbitrary public fuel parameter
   on the recommended direct-match surface. These direct match seams keep the
@@ -156,27 +150,22 @@ materializes pre-state storage for those slots.
   while the matching
   `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_*`
   and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
-  wrappers expose the direct native-vs-IR result surface. The native runtime,
-  Layer 3, and Layer 2/3 dispatcher-statement aliases also expose
-  canonical-fuel `_canonicalFuel` variants for the positive and projected
-  base, `_ofIR_environment`, and `_ofIR_globalDefaults` cases on both
-  no-mapping and `_mapping_reserved` paths. The mapping-enabled equivalents are
+  wrappers expose the direct native-vs-IR result surface. The mapping-enabled equivalents are
   exposed under the
   `_mapping_reserved` suffix for the `nativeIRRuntimeMatchesIR`,
   `layer3_contract_preserves_semantics_native_of_compiled_generated_*`, and
   `layers2_3_ir_matches_native_evmYulLean_of_generated_*` dispatcher-statement
   wrapper families. The `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
   wrappers now compose successful full runtime lowering with those dispatcher
-  statement surfaces and expose canonical-fuel `_canonicalFuel` variants, so
+  statement surfaces, so
   callers can remain at the emitted-runtime lowering boundary while proving
   the exact extracted dispatcher match. The same
-  full-runtime boundary and canonical-fuel variants are lifted to Layer 3 by the
+  full-runtime boundary is lifted to Layer 3 by the
   `layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
   wrapper family, and to the Layers 2+3 composition by the
   `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_*`
   wrapper family. The public Layers 2+3 full-runtime dispatcher-statement
-  wrappers also expose canonical-fuel `_canonicalFuel` aliases plus
-  `_ofIR_environment` and `_ofIR_globalDefaults` variants for both no-mapping
+  wrappers also expose `_ofIR_environment` and `_ofIR_globalDefaults` variants for both no-mapping
   and `_mapping_reserved` paths, matching the narrower dispatcher-statement
   environment-discharge surface while keeping callers at the full
   emitted-runtime lowering boundary.
@@ -288,9 +277,7 @@ scope so the native path does not look more complete than it is:
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel`,
-  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
-  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults_canonicalFuel`.
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`.
   The
   `verity_contract` surface now accepts monadic environment reads such as
   `let t <- blockTimestamp`, `let t <- Verity.blockTimestamp`, `blockNumber`,
