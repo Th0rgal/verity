@@ -1618,6 +1618,7 @@ def check_native_closure_import_boundary(
         "private theorem bridgedExpr_sload_lit",
         "| storage (fieldName : String) : BridgedSourceExpr (.storage fieldName)",
         "| storageAddr (fieldName : String) : BridgedSourceExpr (.storageAddr fieldName)",
+        "| storageArrayLength (fieldName : String) :",
     ):
         if required_source_expr_theorem not in source_expr_closure_text:
             errors.append(

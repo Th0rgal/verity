@@ -18,13 +18,13 @@
       `blockTimestamp`, `blockNumber`, `chainid`, `blobbasefee`,
       `calldatasize`
     - storage reads whose compiler field lookup succeeds: `storage`,
-      `storageAddr`
+      `storageAddr`, `storageArrayLength`
     - unary calldata/memory/transient reads: `calldataload`, `mload`, `tload`
     - native syntactic memory-slice hashing: `keccak256`
 
-  Mapping, returndata, call, dynamic helpers, ABI casts, `selfBalance`, and
-  external account/state reads are out of scope and require dedicated closure
-  proofs.
+  Mapping entries, storage-array elements, returndata, call, dynamic helpers,
+  ABI casts, `selfBalance`, and external account/state reads are out of scope
+  and require dedicated closure proofs.
 
   The scalar-leaf-only theorem `compileExpr_bridgedSource_leaf` is
   retained below as a specialization.
@@ -82,12 +82,13 @@ theorem compileExpr_bridgedSource_leaf
 
 /-- Source EDSL expressions whose `compileExpr` output is a `BridgedExpr`.
     Covers scalar leaves, storage reads whose compiler field lookup succeeds,
+    including dynamic-array length words,
     pure arithmetic/comparison/bit-op binops, boolean-normalization forms,
     branchless arithmetic helpers, zero-argument environment/calldata-size
     reads, unary calldata/memory/transient reads, syntactic memory-slice
-    `keccak256`, and `ge`/`le` negated comparisons. Mapping, returndata,
-    dynamic helpers, ABI casts, calls, `selfBalance`, and external
-    account/state reads are out of scope. -/
+    `keccak256`, and `ge`/`le` negated comparisons. Mapping entries,
+    storage-array elements, returndata, dynamic helpers, ABI casts, calls,
+    `selfBalance`, and external account/state reads are out of scope. -/
 inductive BridgedSourceExpr : Expr → Prop
   -- scalar leaves
   | literal (n : Nat) : BridgedSourceExpr (.literal n)
@@ -97,6 +98,8 @@ inductive BridgedSourceExpr : Expr → Prop
   -- storage reads
   | storage (fieldName : String) : BridgedSourceExpr (.storage fieldName)
   | storageAddr (fieldName : String) : BridgedSourceExpr (.storageAddr fieldName)
+  | storageArrayLength (fieldName : String) :
+      BridgedSourceExpr (.storageArrayLength fieldName)
   -- zero-argument environment / calldata-size reads
   | caller : BridgedSourceExpr .caller
   | contractAddress : BridgedSourceExpr .contractAddress
@@ -647,6 +650,19 @@ theorem compileExpr_bridgedSource
             | mappingStruct2 | adt =>
               simp [hTy] at hOk
         · simp at hOk
+  | storageArrayLength fieldName =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      split at hOk
+      · rename_i f slot hFind
+        cases hTy : f.ty with
+        | dynamicArray elemTy =>
+            simp [hTy, Pure.pure, Except.pure] at hOk
+            subst out
+            exact bridgedExpr_sload_lit slot
+        | uint256 | address | mappingTyped | mappingStruct | mappingStruct2 | adt =>
+            simp [hTy] at hOk
+      · simp at hOk
   | caller =>
       intro out hOk
       simp [compileExpr, Pure.pure, Except.pure] at hOk
@@ -962,6 +978,9 @@ theorem compileRequireFailCond_bridgedSource
   | storageAddr fieldName =>
       exact compileRequireFailCond_default_bridgedSource
         (BridgedSourceExpr.storageAddr fieldName) hOk
+  | storageArrayLength fieldName =>
+      exact compileRequireFailCond_default_bridgedSource
+        (BridgedSourceExpr.storageArrayLength fieldName) hOk
   | ge ha hb =>
       simp only [compileRequireFailCond] at hOk
       obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulBinOp_ok hOk
