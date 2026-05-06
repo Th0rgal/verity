@@ -9,7 +9,7 @@ The detailed completion contract and reusable agent prompt live in
 
 ## Current State
 
-The current public proof path still targets:
+The deeper generated-Yul preservation path still targets:
 
 ```lean
 interpretYulRuntimeWithBackend .evmYulLean
@@ -74,7 +74,7 @@ materializes pre-state storage for those slots.
   lower-level transition evidence; the generated native fragment still needs
   broader direct match proofs before that transition plumbing can be removed
   completely.
-- The same module also exposes
+- The same module also keeps file-local transition seams for
   `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match_canonicalFuel`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`,
@@ -234,9 +234,11 @@ materializes pre-state storage for those slots.
   remains only as a private compatibility alias; public EndToEnd wrappers no
   longer consume either legacy retarget name.
 - The older generic native reference-oracle/fuel-wrapper aliases have been
-  removed. The remaining native Layer 3 and supported EndToEnd seams consume
-  `nativeIRRuntimeMatchesIR` directly, making the generated native fragment's
-  direct match proof the visible blocker.
+  removed. The remaining file-local native Layer 3 transition seams consume
+  `nativeIRRuntimeMatchesIR` directly, while the public supported EndToEnd
+  theorems expose direct `EvmYul.Yul.callDispatcher` results. The generated
+  native fragment's direct match proof remains the visible blocker for deleting
+  the private runtime transition layer.
 - `nativeDispatcherExecMatchesIRPositive_of_project_eq_match` now gives the
   remaining generated-dispatch proof a single projected-result introduction
   form, so endpoint-specific native success/halt/error splits are only needed

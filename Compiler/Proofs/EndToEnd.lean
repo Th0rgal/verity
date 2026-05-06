@@ -10008,10 +10008,12 @@ replacement coverage: universal bridge lemmas for all pure bridged builtins.
 
 /-! ## EVMYulLean Semantic Targets
 
-The active native theorem surface in this file targets native EVMYulLean
-dispatcher execution through `nativeIRRuntimeMatchesIR` and the generated
-dispatcher theorem family. EndToEnd no longer defines compatibility wrappers
-over the older backend-parameterized proof-interpreter surface.
+The public native theorem surface in this file targets the direct projected
+`EvmYul.Yul.callDispatcher` result through `nativeGeneratedCallDispatcherResultOf`.
+The older `nativeIRRuntimeMatchesIR` and generated dispatcher-exec theorem
+families remain file-local transition evidence. EndToEnd no longer defines
+compatibility wrappers over the older backend-parameterized proof-interpreter
+surface.
 
 The retargeting module (`EvmYulLeanRetarget.lean`) still internally records the
 bridge-history facts: `backends_agree_on_bridged_builtins`, `BridgedExpr`
