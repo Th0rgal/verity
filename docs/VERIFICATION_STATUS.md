@@ -125,7 +125,7 @@ The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGenerat
 - `genParamLoads_scalar_bridged`: scalar calldata parameter-loading prologues emitted by `genParamLoads` satisfy `BridgedStmts`
 - `genStaticTypeLoads_calldataload_bridged`: static scalar leaf-load helpers for fixed arrays/tuples satisfy `BridgedStmts`
 - `genParamLoads_static_scalar_bridged`: full calldata parameter-loading prologues for static scalar fixed arrays/tuples satisfy `BridgedStmts`
-- `compileExpr_bridgedSource`: pure arithmetic/comparison/bit-operation source expressions in the `BridgedSourceExpr` fragment compile to `BridgedExpr`
+- `compileExpr_bridgedSource`: arithmetic/comparison/bit-operation source expressions, calldata/memory/transient reads, and syntactic `keccak256(offset, size)` source expressions in the `BridgedSourceExpr` fragment compile to `BridgedExpr`; `keccak256` remains outside the full source-vs-IR semantic core until memory-slice hashing is modeled by the source evaluator
 - `compileStmtList_binding_leaf_bridged`: scalar-leaf `letVar`/`assignVar` source statement lists compile to `BridgedStmts`
 - `compileStmtList_pure_binding_bridged`: pure arithmetic/comparison/bit-operation `letVar`/`assignVar` source statement lists compile to `BridgedStmts`
 - `compileStmtList_storage_fragment_bridged`: pure binding plus unpacked single-slot `setStorage` source statement lists compile to `BridgedStmts`

@@ -18,10 +18,11 @@
       `blockTimestamp`, `blockNumber`, `chainid`, `blobbasefee`,
       `calldatasize`
     - unary calldata/memory/transient reads: `calldataload`, `mload`, `tload`
+    - native syntactic memory-slice hashing: `keccak256`
 
-  Storage, mapping, returndata, call, keccak256, dynamic helpers, ABI casts,
-  `selfBalance`, and external account/state reads are out of scope and require
-  dedicated closure proofs.
+  Storage, mapping, returndata, call, dynamic helpers, ABI casts, `selfBalance`,
+  and external account/state reads are out of scope and require dedicated
+  closure proofs.
 
   The scalar-leaf-only theorem `compileExpr_bridgedSource_leaf` is
   retained below as a specialization.
@@ -81,9 +82,9 @@ theorem compileExpr_bridgedSource_leaf
     Covers scalar leaves, pure arithmetic/comparison/bit-op binops,
     boolean-normalization forms, branchless arithmetic helpers,
     zero-argument environment/calldata-size reads, unary calldata/memory/
-    transient reads, and `ge`/`le` negated comparisons. Storage, mapping,
-    returndata, dynamic helpers, ABI casts, calls, `selfBalance`, and external
-    account/state reads are out of scope. -/
+    transient reads, syntactic memory-slice `keccak256`, and `ge`/`le` negated
+    comparisons. Storage, mapping, returndata, dynamic helpers, ABI casts,
+    calls, `selfBalance`, and external account/state reads are out of scope. -/
 inductive BridgedSourceExpr : Expr → Prop
   -- scalar leaves
   | literal (n : Nat) : BridgedSourceExpr (.literal n)
@@ -106,6 +107,9 @@ inductive BridgedSourceExpr : Expr → Prop
       BridgedSourceExpr (.mload offset)
   | tload {offset} (hOffset : BridgedSourceExpr offset) :
       BridgedSourceExpr (.tload offset)
+  | keccak256 {offset size}
+      (hOffset : BridgedSourceExpr offset) (hSize : BridgedSourceExpr size) :
+      BridgedSourceExpr (.keccak256 offset size)
   -- arithmetic binops (yulBinOp with bridged name)
   | add {a b} (ha : BridgedSourceExpr a) (hb : BridgedSourceExpr b) :
       BridgedSourceExpr (.add a b)
@@ -611,6 +615,12 @@ theorem compileExpr_bridgedSource
       obtain ⟨co, hO, hEq⟩ := compileExpr_unopBuiltin_ok hOk
       subst hEq
       exact bridgedExpr_tload co (iho hO)
+  | keccak256 _ _ ihOffset ihSize =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      obtain ⟨co, cs, hO, hS, hEq⟩ := compileExpr_binaryShape_ok hOk
+      subst hEq
+      exact bridgedExpr_keccak256 co cs (ihOffset hO) (ihSize hS)
   | add _ _ iha ihb =>
       intro out hOk
       simp only [compileExpr] at hOk
@@ -901,6 +911,9 @@ theorem compileRequireFailCond_bridgedSource
         (by simpa [compileRequireFailCond] using hOk)
   | tload hOffset =>
       exact compileRequireFailCond_default_bridgedSource (.tload hOffset)
+        (by simpa [compileRequireFailCond] using hOk)
+  | keccak256 hOffset hSize =>
+      exact compileRequireFailCond_default_bridgedSource (.keccak256 hOffset hSize)
         (by simpa [compileRequireFailCond] using hOk)
   | add ha hb =>
       exact compileRequireFailCond_default_bridgedSource (.add ha hb)
