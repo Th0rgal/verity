@@ -1075,24 +1075,26 @@ def check_native_switch_lowering_boundary(native_adapter_text: str, native_smoke
 
 
 def check_default_builtin_backend(builtins_text: str) -> list[str]:
-    """Pin the public default backend to EVMYulLean.
+    """Pin the file-local default backend to EVMYulLean.
 
-    The legacy Verity backend remains available through `legacyBuiltinBackend`
-    for reference-oracle comparisons, but unqualified builtin evaluation must
-    not silently drift back to that backend.
+    The backend aliases are transition/reference-oracle helpers, not public
+    proof authority. Keep them private while ensuring unqualified builtin
+    evaluation does not silently drift back to the Verity backend.
     """
 
     errors: list[str] = []
     normalized = normalize_ws(builtins_text)
     required = (
-        "abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",
+        "private abbrev legacyBuiltinBackend : BuiltinBackend := .verity",
+        "private abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",
         "theorem defaultBuiltinBackend_eq_evmYulLean",
     )
     for snippet in required:
         if normalize_ws(snippet) not in normalized:
             errors.append(
                 "Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean "
-                f"must pin the public default builtin backend with `{snippet}`"
+                "must pin private reference-oracle/default builtin backend "
+                f"aliases with `{snippet}`"
             )
     return errors
 

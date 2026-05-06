@@ -254,10 +254,10 @@ inductive BuiltinBackend where
   deriving DecidableEq, Repr
 
 /-- Explicit backend for Verity's historical reference-oracle interpreter. -/
-abbrev legacyBuiltinBackend : BuiltinBackend := .verity
+private abbrev legacyBuiltinBackend : BuiltinBackend := .verity
 
-/-- Default builtin backend for public native-retargeted proof entry points. -/
-abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean
+/-- File-local default backend for native-retargeted reference-oracle helpers. -/
+private abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean
 
 @[simp] private theorem defaultBuiltinBackend_eq_evmYulLean :
     defaultBuiltinBackend = BuiltinBackend.evmYulLean := rfl

@@ -547,12 +547,23 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
 
     def test_rejects_verity_default_builtin_backend(self) -> None:
         builtins_text = check.BUILTINS.read_text(encoding="utf-8").replace(
-            "abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",
-            "abbrev defaultBuiltinBackend : BuiltinBackend := .verity",
+            "private abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",
+            "private abbrev defaultBuiltinBackend : BuiltinBackend := .verity",
         )
         errors = check.check_default_builtin_backend(builtins_text)
         self.assertTrue(
             any("default builtin backend" in error for error in errors),
+            errors,
+        )
+
+    def test_rejects_public_default_builtin_backend_alias(self) -> None:
+        builtins_text = check.BUILTINS.read_text(encoding="utf-8").replace(
+            "private abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",
+            "abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",
+        )
+        errors = check.check_default_builtin_backend(builtins_text)
+        self.assertTrue(
+            any("defaultBuiltinBackend" in error for error in errors),
             errors,
         )
 
