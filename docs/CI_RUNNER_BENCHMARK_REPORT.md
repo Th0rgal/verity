@@ -6,6 +6,10 @@ This report compares the connected self-hosted runners with real Verity CI
 work. The validation was run through GitHub Actions, with each job explicitly
 forced onto a selected runner label set.
 
+For the hardware-level explanation of why the DGX is faster, which Verity tasks
+are CPU-bound, and what hardware is likely to beat it, see
+[`docs/CI_RUNNER_HARDWARE_ANALYSIS.md`](CI_RUNNER_HARDWARE_ANALYSIS.md).
+
 ## Current Runner Architecture
 
 ```text
