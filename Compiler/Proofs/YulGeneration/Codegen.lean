@@ -206,21 +206,21 @@ private theorem find_switch_case_of_find_function_none
 /-! ## Runtime code reduction lemmas -/
 
 /-- Function definitions are no-ops in execution. -/
-@[simp] theorem execYulStmtFuel_funcDef (fuel : Nat) (state : YulState)
+@[simp] private theorem execYulStmtFuel_funcDef (fuel : Nat) (state : YulState)
     (name : String) (params ret : List String) (body : List YulStmt) :
     execYulStmtFuel fuel state (YulStmt.funcDef name params ret body) =
       YulExecResult.continue state := by
   cases fuel <;> simp [execYulStmtFuel, legacyExecYulFuel]
 
 /-- `legacyExecYulFuel` on a funcDef target gives `.continue state` for any fuel. -/
-@[simp] theorem legacyExecYulFuel_funcDef (fuel : Nat) (state : YulState)
+@[simp] private theorem legacyExecYulFuel_funcDef (fuel : Nat) (state : YulState)
     (name : String) (params ret : List String) (body : List YulStmt) :
     legacyExecYulFuel fuel state (.stmt (YulStmt.funcDef name params ret body)) =
       YulExecResult.continue state := by
   cases fuel <;> simp [legacyExecYulFuel]
 
 /-- Stepping through a funcDef in a statement list consumes one fuel unit. -/
-@[simp] theorem execYulStmtsFuel_cons_funcDef (fuel : Nat) (state : YulState)
+@[simp] private theorem execYulStmtsFuel_cons_funcDef (fuel : Nat) (state : YulState)
     (name : String) (params ret : List String) (body rest : List YulStmt) :
     execYulStmtsFuel (Nat.succ fuel) state (YulStmt.funcDef name params ret body :: rest) =
       execYulStmtsFuel fuel state rest := by

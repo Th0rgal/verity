@@ -1159,6 +1159,20 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_legacy_proof_boundary_rejects_public_attributed_legacy_declaration(self) -> None:
+        legacy_text = (
+            check.LEGACY_PROOF_FILES[0].read_text(encoding="utf-8")
+            + "\n@[simp] theorem leakedLegacyFuelSimp : True := by trivial\n"
+        )
+        errors = check.check_legacy_proof_boundary(
+            [],
+            [("Compiler/Proofs/YulGeneration/Codegen.lean", legacy_text)],
+        )
+        self.assertTrue(
+            any("leakedLegacyFuelSimp" in error for error in errors),
+            errors,
+        )
+
     def test_native_alias_signature_guard_accepts_current_shape(self) -> None:
         errors = check.check_native_alias_signatures(
             check.END_TO_END.read_text(encoding="utf-8"),

@@ -1234,7 +1234,7 @@ def check_legacy_proof_boundary(
             )
 
     public_decl_pattern = re.compile(
-        r"^\s*(?:@[^\n]*\n\s*)*"
+        r"^\s*(?:@\[[^\]]*\]\s*)*"
         r"(?!(?:private|namespace|end|open|section|variable|include|omit|attribute)\b)"
         r"(def|theorem|lemma|abbrev|inductive|structure)\s+([A-Za-z0-9_'.]+)\b",
         re.MULTILINE,
