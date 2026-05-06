@@ -518,8 +518,6 @@ def check_public_theorem_target(
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment_canonicalFuel",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults_canonicalFuel",
-        "theorem simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match",
-        "theorem simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match",
         "theorem simpleStorageNativeCallDispatcherMatchBridge_of_per_case",
         "theorem simpleStorageNativeRetrieveHitMatchBridge_proved",
         "theorem simpleStorageNativeStoreHitMatchBridge_proved",
