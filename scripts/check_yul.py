@@ -27,6 +27,10 @@ IMPORT_BUILTINS_RE = re.compile(
     r"^\s*import\s+Compiler\.Proofs\.YulGeneration\.ReferenceOracle\.Builtins\s*$",
     re.MULTILINE,
 )
+IMPORT_NATIVE_BUILTINS_RE = re.compile(
+    r"^\s*import\s+Compiler\.Proofs\.YulGeneration\.Backends\.EvmYulLeanBuiltinSemantics\s*$",
+    re.MULTILINE,
+)
 BUILTIN_CALL_RE = re.compile(
     r"\bCompiler\.Proofs\.YulGeneration\.(?:"
     r"evalBuiltinCall"
@@ -34,6 +38,9 @@ BUILTIN_CALL_RE = re.compile(
     r"|evalBuiltinCallWithBackend"
     r"|evalBuiltinCallWithBackendContext"
     r")\b"
+)
+NATIVE_BUILTIN_CALL_RE = re.compile(
+    r"\bCompiler\.Proofs\.YulGeneration\.Backends\.evalBuiltinCallWithEvmYulLeanContext\b"
 )
 INLINE_DISPATCH_RE = re.compile(
     r'func\s*=\s*"(?:mappingSlot|sload|add|sub|mul|div|mod|lt|gt|eq|iszero|and|or|xor|not|shl|shr|caller|calldataload|address|timestamp|number)"'
@@ -200,15 +207,30 @@ def collect_builtin_boundary_failures() -> list[str]:
         text = scrub_lean_code(lean_file.read_text(encoding="utf-8"))
         rel = lean_file.relative_to(ROOT)
 
-        if not IMPORT_BUILTINS_RE.search(text):
-            failures.append(f"{rel}: missing import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins")
+        if lean_file.name == "IRInterpreter.lean":
+            if not IMPORT_NATIVE_BUILTINS_RE.search(text):
+                failures.append(
+                    f"{rel}: missing import "
+                    "Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics"
+                )
 
-        if not BUILTIN_CALL_RE.search(text):
-            failures.append(
-                f"{rel}: missing call to Compiler.Proofs.YulGeneration."
-                "evalBuiltinCall, legacyEvalBuiltinCallWithContext, "
-                "evalBuiltinCallWithBackend, or evalBuiltinCallWithBackendContext"
-            )
+            if not NATIVE_BUILTIN_CALL_RE.search(text):
+                failures.append(
+                    f"{rel}: missing call to Compiler.Proofs.YulGeneration.Backends."
+                    "evalBuiltinCallWithEvmYulLeanContext"
+                )
+        else:
+            if not IMPORT_BUILTINS_RE.search(text):
+                failures.append(
+                    f"{rel}: missing import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins"
+                )
+
+            if not BUILTIN_CALL_RE.search(text):
+                failures.append(
+                    f"{rel}: missing call to Compiler.Proofs.YulGeneration."
+                    "evalBuiltinCall, legacyEvalBuiltinCallWithContext, "
+                    "evalBuiltinCallWithBackend, or evalBuiltinCallWithBackendContext"
+                )
 
         if INLINE_DISPATCH_RE.search(text):
             failures.append(
