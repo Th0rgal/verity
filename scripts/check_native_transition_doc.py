@@ -532,22 +532,23 @@ def check_public_theorem_target(
                 "native bridge is discharged"
             )
 
-    for lowered_call_dispatcher_theorem in (
+    for public_call_dispatcher_theorem in (
+        "compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match",
         "compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping",
         "compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping",
     ):
-        signature = theorem_signature(end_to_end_text, lowered_call_dispatcher_theorem)
+        signature = theorem_signature(end_to_end_text, public_call_dispatcher_theorem)
         if "nativeGeneratedCallDispatcherResultOf" not in signature:
             errors.append(
-                "Compiler/Proofs/EndToEnd.lean lowered generated "
-                f"`{lowered_call_dispatcher_theorem}` theorem must conclude "
+                "Compiler/Proofs/EndToEnd.lean public generated "
+                f"`{public_call_dispatcher_theorem}` theorem must conclude "
                 "the direct projected `EvmYul.Yul.callDispatcher` result via "
                 "`nativeGeneratedCallDispatcherResultOf`, not the thin runtime adapter"
             )
         if "interpretIRRuntimeNative" in signature:
             errors.append(
-                "Compiler/Proofs/EndToEnd.lean lowered generated "
-                f"`{lowered_call_dispatcher_theorem}` theorem must not expose "
+                "Compiler/Proofs/EndToEnd.lean public generated "
+                f"`{public_call_dispatcher_theorem}` theorem must not expose "
                 "`interpretIRRuntimeNative` as its public result target"
             )
 

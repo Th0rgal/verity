@@ -375,6 +375,27 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_theorem_target_guard_rejects_base_call_dispatcher_adapter_target(self) -> None:
+        end_to_end_text = self.replace_in_theorem_signature(
+            check.END_TO_END.read_text(encoding="utf-8"),
+            "compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match",
+            "nativeGeneratedCallDispatcherResultOf",
+            "Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative",
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("thin runtime adapter" in error for error in errors),
+            errors,
+        )
+        self.assertTrue(
+            any("interpretIRRuntimeNative" in error for error in errors),
+            errors,
+        )
+
     def test_public_theorem_target_guard_rejects_lowered_mapping_adapter_target(self) -> None:
         end_to_end_text = self.replace_in_theorem_signature(
             check.END_TO_END.read_text(encoding="utf-8"),

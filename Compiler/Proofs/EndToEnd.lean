@@ -10478,7 +10478,7 @@ on bridged IR function, entrypoint, and internal helper bodies, and
   fully proven builtin bridge equivalences. This file intentionally does not
   define EndToEnd wrappers over that proof-interpreter backend target; the
   public EndToEnd theorem family targets native dispatcher execution through
-  `interpretIRRuntimeNative`.
+  the direct projected `nativeGeneratedCallDispatcherResultOf` result.
   The body-closure increments prove that generated external function bodies can
   discharge raw `BridgedStmts` witnesses from `SupportedSpec`, static-parameter
   witnesses, and `BridgedSafeStmts` source-body witnesses.
