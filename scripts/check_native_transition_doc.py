@@ -121,8 +121,9 @@ REQUIRED_SNIPPETS = (
     "observable storage slot set explicitly",
     "only materializes pre-state storage for those slots",
     "nativeResultsMatchOn",
+    "nativeGeneratedCallDispatcherResultOf",
     "nativeGeneratedCallDispatcherMatchesIROn",
-    "compile_preserves_native_evmYulLean_of_generated_callDispatcher_match",
+    "compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match",
     "compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping",
     "compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping",
     "explicitly observable final-storage slots",
@@ -337,7 +338,6 @@ def check_public_theorem_target(
         "theorem compile_preserves_native_evmYulLean_of_nativeResultsMatchOn",
         "def nativeGeneratedCallDispatcherResultOf",
         "def nativeGeneratedCallDispatcherMatchesIROn",
-        "theorem compile_preserves_native_evmYulLean_of_generated_callDispatcher_match",
         "theorem compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match",
         "theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping",
         "theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping",
@@ -521,6 +521,18 @@ def check_public_theorem_target(
                 f"`{lowered_call_dispatcher_theorem}` theorem must not expose "
                 "`interpretIRRuntimeNative` as its public result target"
             )
+
+    if re.search(
+        r"^\s*theorem\s+compile_preserves_native_evmYulLean_of_generated_callDispatcher_match\b",
+        end_to_end_text,
+        re.MULTILINE,
+    ):
+        errors.append(
+            "Compiler/Proofs/EndToEnd.lean must keep the generated "
+            "`compile_preserves_native_evmYulLean_of_generated_callDispatcher_match` "
+            "adapter theorem file-local; public generated correctness should "
+            "target `nativeGeneratedCallDispatcherResultOf` directly"
+        )
 
     for dispatcher_exec_public_seam in (
         "def nativeGeneratedDispatcherExecMatchesIROn",

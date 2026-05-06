@@ -45,9 +45,10 @@ materializes pre-state storage for those slots.
   `nativeResultsMatchOn`, `sourceResultMatchesNativeOn`, the source/native
   composition theorem over that result surface,
   `compile_preserves_native_evmYulLean_of_nativeResultsMatchOn`,
+  `nativeGeneratedCallDispatcherResultOf`,
   `nativeGeneratedCallDispatcherMatchesIROn`, the supported-compiler
-  generated `EvmYul.Yul.callDispatcher` wrapper
-  `compile_preserves_native_evmYulLean_of_generated_callDispatcher_match`, the
+  generated direct `EvmYul.Yul.callDispatcher` theorem
+  `compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match`, the
   helper-free call-dispatcher lowering wrapper
   `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping`,
   the mapping-helper call-dispatcher lowering wrapper

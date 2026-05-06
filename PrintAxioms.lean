@@ -868,7 +868,7 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.EndToEnd.allStaticScalarParams_of_supportedSpec_selectorFunctionPairs  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.safeBodies_of_sourceBodyNativeClosure  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match  -- private
-#print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_generated_callDispatcher_match
+-- #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_generated_callDispatcher_match  -- private
 #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match
 -- #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_dispatcher_noMapping  -- private
 #print axioms Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping
@@ -4480,4 +4480,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4286 theorems/lemmas (2892 public, 1394 private, 0 sorry'd)
+-- Total: 4286 theorems/lemmas (2891 public, 1395 private, 0 sorry'd)

@@ -4188,14 +4188,16 @@ private theorem compile_preserves_native_evmYulLean_of_generated_dispatcherExec_
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
       hSourceIR hLayer3
 
-/-- Public supported-compiler correctness theorem over the generated native
+/-- File-local adapter theorem over the generated native
 `EvmYul.Yul.callDispatcher` target.
 
 This is the callDispatcher-facing sibling of
 `compile_preserves_native_evmYulLean_of_generated_dispatcherExec_match`; it
-keeps the public premise at the native EVMYulLean entrypoint and converts to
-the file-local dispatcher-exec projection internally. -/
-theorem compile_preserves_native_evmYulLean_of_generated_callDispatcher_match
+keeps the premise at the native EVMYulLean entrypoint and converts to the
+file-local dispatcher-exec projection internally. Public generated correctness
+uses `compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match`
+to target the direct projected `EvmYul.Yul.callDispatcher` result. -/
+private theorem compile_preserves_native_evmYulLean_of_generated_callDispatcher_match
     (model : CompilationModel.CompilationModel) (selectors : List Nat)
     (hSupported : SupportedSpec model selectors) (irContract : IRContract)
     (tx : IRTransaction) (initialWorld : Verity.ContractState)
