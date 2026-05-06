@@ -738,9 +738,14 @@ def check_public_theorem_target(
                 f"`{forbidden_public_alias.strip()}`"
             )
 
-    simple_storage_native_marker = "theorem simpleStorage_endToEnd_native_evmYulLean "
+    simple_storage_native_name = "simpleStorage_endToEnd_native_evmYulLean"
+    simple_storage_native_signature = theorem_signature(
+        end_to_end_text,
+        simple_storage_native_name,
+    )
+    simple_storage_native_marker = f"theorem {simple_storage_native_name} "
     simple_storage_native_start = normalized_end_to_end.find(simple_storage_native_marker)
-    if simple_storage_native_start < 0:
+    if simple_storage_native_start < 0 or not simple_storage_native_signature:
         errors.append(
             "Compiler/Proofs/EndToEnd.lean must keep the public native "
             "`simpleStorage_endToEnd_native_evmYulLean` theorem explicit"
@@ -756,20 +761,32 @@ def check_public_theorem_target(
             else normalized_end_to_end[simple_storage_native_start:next_theorem]
         )
         for required_direct_target in (
-            "simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match",
+            "nativeGeneratedCallDispatcherResultOf",
             "simpleStorageNativeCallDispatcherMatchBridge_of_per_case",
         ):
             if required_direct_target not in simple_storage_native_span:
                 errors.append(
                     "Compiler/Proofs/EndToEnd.lean public native SimpleStorage "
-                    "theorem must consume the full-runtime native dispatcher "
+                    "theorem must consume the direct native callDispatcher "
                     f"target `{required_direct_target}`"
                 )
+        if "nativeGeneratedCallDispatcherResultOf" not in simple_storage_native_signature:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean public native SimpleStorage "
+                "theorem signature must target direct projected "
+                "`nativeGeneratedCallDispatcherResultOf` execution"
+            )
         for forbidden_compat_target in (
+            "interpretIRRuntimeNative",
+            "simpleStorage_endToEnd_native_evmYulLean_interpretIRRuntimeNative",
+            "simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match",
             "simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_bridge",
             "simpleStorageNativeCallDispatcherBridge_of_per_case",
         ):
-            if forbidden_compat_target in simple_storage_native_span:
+            if (
+                forbidden_compat_target in simple_storage_native_span
+                or forbidden_compat_target in simple_storage_native_signature
+            ):
                 errors.append(
                     "Compiler/Proofs/EndToEnd.lean public native SimpleStorage "
                     "theorem must not consume the compatibility dispatcher "

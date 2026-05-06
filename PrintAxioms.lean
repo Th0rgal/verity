@@ -1020,6 +1020,7 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorageNativeContract_eq_nativeContractOfDispatcher_of_lowerStmtsNative  -- private
 -- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match  -- private
+-- #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_interpretIRRuntimeNative  -- private
 #print axioms Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean
 
 -- Compiler/Proofs/EventSemantics.lean
@@ -4480,4 +4481,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4286 theorems/lemmas (2883 public, 1403 private, 0 sorry'd)
+-- Total: 4287 theorems/lemmas (2883 public, 1404 private, 0 sorry'd)

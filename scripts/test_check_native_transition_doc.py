@@ -559,11 +559,11 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
 
     def test_public_theorem_target_guard_rejects_simple_storage_native_compat_wrapper(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match\n"
-            "    tx initialState observableSlots",
-            "simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_bridge\n"
-            "    tx initialState observableSlots",
+        end_to_end_text = self.replace_in_theorem_signature(
+            check.END_TO_END.read_text(encoding="utf-8"),
+            "simpleStorage_endToEnd_native_evmYulLean",
+            "nativeGeneratedCallDispatcherResultOf",
+            "Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative",
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
@@ -571,20 +571,20 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("lowered_runtime_dispatcherStmts_match" in error for error in errors),
+            any("nativeGeneratedCallDispatcherResultOf" in error for error in errors),
             errors,
         )
         self.assertTrue(
-            any("positive_dispatcherExec_bridge" in error for error in errors),
+            any("interpretIRRuntimeNative" in error for error in errors),
             errors,
         )
 
     def test_public_theorem_target_guard_rejects_simple_storage_native_compat_splitter(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
             "simpleStorageNativeCallDispatcherMatchBridge_of_per_case\n"
-            "          tx initialState observableSlots",
+            "      tx initialState observableSlots",
             "simpleStorageNativeCallDispatcherBridge_of_per_case\n"
-            "          tx initialState observableSlots",
+            "      tx initialState observableSlots",
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,

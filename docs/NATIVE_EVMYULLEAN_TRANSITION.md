@@ -1036,10 +1036,13 @@ scope so the native path does not look more complete than it is:
    from source-level static-scalar parameter witnesses plus compiled statement-list
    no-`funcDef` closure, leaving the native dispatcher match itself as the
    remaining proof obligation.
-   The concrete `simpleStorage_endToEnd_native_evmYulLean` theorem now uses the
-   direct positive dispatcher-exec match wrapper, after its retrieve-hit,
-   store-hit, and selector-miss cases prove the lowered native dispatcher result
-   matches `interpretIR` directly. The generic selector-miss boundary is now
+   The concrete `simpleStorage_endToEnd_native_evmYulLean` theorem now targets
+   the direct projected `EvmYul.Yul.callDispatcher` result through
+   `nativeGeneratedCallDispatcherResultOf`, after its retrieve-hit, store-hit,
+   and selector-miss cases prove the lowered native dispatcher result matches
+   `interpretIR` directly. The older `interpretIRRuntimeNative` SimpleStorage
+   wrapper is file-local compatibility evidence. The generic selector-miss
+   boundary is now
    packaged by
    `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`,
    which exposes the native `Revert` execution and exact projected rollback
@@ -1123,14 +1126,15 @@ scope so the native path does not look more complete than it is:
    `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match`.
    Normal selector-hit execution has the matching raw dispatcher lift
    `contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq`.
-   SimpleStorage also exposes the direct positive-dispatcher seam
+   SimpleStorage also keeps file-local positive-dispatcher and full-runtime
+   compatibility seams:
    `simpleStorage_endToEnd_native_evmYulLean_of_positive_dispatcherExec_match`,
-   the full-runtime dispatcher-statement seam
    `simpleStorage_endToEnd_native_evmYulLean_of_lowered_runtime_dispatcherStmts_match`,
    and a direct per-case splitter
    `simpleStorageNativeCallDispatcherMatchBridge_of_per_case`. The public
-   `simpleStorage_endToEnd_native_evmYulLean` theorem now consumes the
-   full-runtime seam and discharges its callback with this direct splitter. The
+   `simpleStorage_endToEnd_native_evmYulLean` theorem now consumes the direct
+   projected `EvmYul.Yul.callDispatcher` result and discharges its native match
+   with this direct splitter. The
    selector-miss revert arm is discharged by
    `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`
    and its contract-dispatcher boundary lift

@@ -36,8 +36,9 @@ The current baseline is:
 - Lower Layer 3 transition modules still contain isolated reference-oracle and
   backend-wrapper evidence for the bridged fragment; that evidence is not the
   public EndToEnd proof authority.
-- `simpleStorage_endToEnd_native_evmYulLean` is a concrete native theorem with
-  no public retrieve-hit, store-hit, or selector-miss bridge premises.
+- `simpleStorage_endToEnd_native_evmYulLean` is a concrete native theorem over
+  the direct projected `EvmYul.Yul.callDispatcher` result, with no public
+  retrieve-hit, store-hit, or selector-miss bridge premises.
 - The active compiler stack has zero project-level Lean axioms and zero `sorry`
   placeholders.
 
