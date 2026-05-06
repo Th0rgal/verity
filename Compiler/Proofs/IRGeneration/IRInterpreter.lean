@@ -15,6 +15,7 @@
 
 import Compiler.IR
 import Compiler.CompilationModel
+import Compiler.Proofs.IRGeneration.IRRuntimeTypes
 import Compiler.Proofs.IRGeneration.IRStorageWord
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.YulGeneration.LogNames
@@ -1107,18 +1108,6 @@ theorem execIRStmts_single_block_stop_length_insufficient
 
 /-! ## IR Function Execution -/
 
-structure IRTransaction where
-  sender : Nat
-  msgValue : Nat := 0
-  thisAddress : Nat := 0
-  blockTimestamp : Nat := 0
-  blockNumber : Nat := 0
-  chainId : Nat := 0
-  blobBaseFee : Nat := 0
-  functionSelector : Nat
-  args : List Nat
-  deriving Repr
-
 /-- Apply transaction context fields to an IR state, leaving storage and
 other non-transaction fields unchanged. -/
 @[reducible] def IRState.withTx (s : IRState) (tx : IRTransaction) : IRState :=
@@ -1139,13 +1128,6 @@ other non-transaction fields unchanged. -/
     (s.withTx tx).storage = s.storage := rfl
 @[simp] theorem IRState.withTx_events (s : IRState) (tx : IRTransaction) :
     (s.withTx tx).events = s.events := rfl
-
-structure IRResult where
-  success : Bool
-  returnValue : Option Nat
-  finalStorage : IRStorageSlot → IRStorageWord
-  finalMappings : Nat → Nat → IRStorageWord
-  events : List (List Nat)
 
 /-- Execute an IR function with given arguments.
 Uses `sizeOf fn.body + 1` fuel, which is sufficient for any terminating execution

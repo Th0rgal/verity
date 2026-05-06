@@ -1,6 +1,7 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
 import Compiler.Proofs.YulGeneration.RuntimeTypes
+import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Codegen
 import EvmYul.Yul.Interpreter
 import Lean

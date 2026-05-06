@@ -91,6 +91,7 @@ NATIVE_SMOKE_TEST = (
     / "Backends"
     / "EvmYulLeanNativeSmokeTest.lean"
 )
+RUNTIME_TYPES = ROOT / "Compiler" / "Proofs" / "YulGeneration" / "RuntimeTypes.lean"
 LEGACY_PROOF_MODULES = (
     "Compiler.Proofs.YulGeneration.Codegen",
     "Compiler.Proofs.YulGeneration.Equivalence",
@@ -1474,6 +1475,23 @@ def check_native_closure_import_boundary(
     return errors
 
 
+def check_runtime_types_import_boundary(runtime_types_text: str) -> list[str]:
+    """Keep shared Yul runtime plumbing from importing IR execution semantics."""
+
+    errors: list[str] = []
+    if "import Compiler.Proofs.IRGeneration.IRInterpreter" in runtime_types_text:
+        errors.append(
+            "Compiler/Proofs/YulGeneration/RuntimeTypes.lean must import "
+            "IRRuntimeTypes rather than the full IR interpreter"
+        )
+    if "import Compiler.Proofs.IRGeneration.IRRuntimeTypes" not in runtime_types_text:
+        errors.append(
+            "Compiler/Proofs/YulGeneration/RuntimeTypes.lean must import the "
+            "neutral IR runtime record module"
+        )
+    return errors
+
+
 def check_native_alias_signatures(end_to_end_text: str) -> list[str]:
     """Reject hidden native dispatcher fuel-wrapper aliases in theorem signatures."""
 
@@ -1622,6 +1640,7 @@ def main() -> int:
         PRESERVATION,
         NATIVE_ADAPTER,
         NATIVE_SMOKE_TEST,
+        RUNTIME_TYPES,
         *LEGACY_PROOF_FILES,
     ):
         if not path.exists():
@@ -1630,6 +1649,7 @@ def main() -> int:
 
     native_harness_text = NATIVE_HARNESS.read_text(encoding="utf-8")
     native_smoke_text = NATIVE_SMOKE_TEST.read_text(encoding="utf-8")
+    runtime_types_text = RUNTIME_TYPES.read_text(encoding="utf-8")
     errors = check_doc(DOC.read_text(encoding="utf-8"))
     errors.extend(
         check_definition_of_done_doc(DOD_DOC.read_text(encoding="utf-8"))
@@ -1658,6 +1678,7 @@ def main() -> int:
             SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
         )
     )
+    errors.extend(check_runtime_types_import_boundary(runtime_types_text))
     errors.extend(
         check_legacy_proof_boundary(
             [

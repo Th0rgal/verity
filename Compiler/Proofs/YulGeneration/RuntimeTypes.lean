@@ -1,6 +1,8 @@
 import Compiler.Yul.Ast
+import Compiler.IR
 import Compiler.Constants
-import Compiler.Proofs.IRGeneration.IRInterpreter
+import Compiler.Proofs.IRGeneration.IRRuntimeTypes
+import Compiler.Proofs.MappingSlot
 
 namespace Compiler.Proofs.YulGeneration
 
