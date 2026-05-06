@@ -4023,37 +4023,6 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherEx
   nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure
     hCompile hSupported hStaticParams hSafeBodies hLower hEnv hProject hMatch
 
-/-- Supported compiler-produced projected-result theorem on the direct
-native-vs-IR target using canonical runtime-size fuel. -/
-private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match_canonicalFuel
-    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
-    (irContract : IRContract) (tx : IRTransaction) (initialState : IRState)
-    (observableSlots : List Nat) (nativeContract : EvmYul.Yul.Ast.YulContract)
-    (nativeYul : YulResult)
-    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
-    (hSupported : SupportedSpec spec selectors)
-    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
-    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
-      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
-        spec.fields spec.errors .calldata [] false entry.1.body)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
-    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hProject : nativeProjectedDispatcherResultEq
-      (nativeRuntimeDispatcherFuel irContract) irContract tx initialState
-      observableSlots nativeContract nativeYul)
-    (hMatch :
-      nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
-        (.ok nativeYul)) :
-    nativeResultsMatchOn observableSlots (interpretIR irContract tx initialState)
-      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-        (nativeRuntimeFuel irContract) irContract tx initialState observableSlots) :=
-  layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match
-    (nativeRuntimeDispatcherFuel irContract) spec selectors irContract tx
-    initialState observableSlots nativeContract nativeYul hCompile hSupported
-    hStaticParams hSafeBodies hLower hEnv hProject hMatch
-
 /-- Supported compiler-produced positive dispatcher-exec theorem on the direct
 native-vs-IR target, with source-level body closure named explicitly. -/
 private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure

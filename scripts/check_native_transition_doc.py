@@ -470,7 +470,6 @@ def check_public_theorem_target(
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match_canonicalFuel",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match",
-        "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match_canonicalFuel",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_canonicalFuel",
         "theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment",
