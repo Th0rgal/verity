@@ -14,6 +14,9 @@ make refresh-status
 # Run Python unit tests
 make test-python
 
+# Profile a CI-equivalent command and write JSON/log artifacts
+python3 scripts/profile_ci_resources.py --name check --output-dir artifacts/ci-profile -- make check
+
 # Run Foundry differential tests
 make test-foundry
 ```
