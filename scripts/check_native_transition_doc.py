@@ -1626,7 +1626,10 @@ def check_native_closure_import_boundary(
         "| mapping {key : Expr} (fieldName : String) (hKey : BridgedSourceExpr key)",
         "| mappingWord {key : Expr} (fieldName : String) (hKey : BridgedSourceExpr key)",
         "| mappingUint {key : Expr} (fieldName : String) (hKey : BridgedSourceExpr key)",
+        "| mapping2 {key1 key2 : Expr} (fieldName : String)",
+        "| mapping2Word {key1 key2 : Expr} (fieldName : String)",
         "private theorem compileMappingSlotRead_bridged",
+        "private theorem bridgedExpr_sload_mappingSlot2_lit",
     ):
         if required_source_expr_theorem not in source_expr_closure_text:
             errors.append(
