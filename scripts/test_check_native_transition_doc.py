@@ -1076,6 +1076,29 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_native_closure_import_boundary_accepts_current_shape(self) -> None:
+        errors = check.check_native_closure_import_boundary(
+            check.BRIDGE_PREDICATES.read_text(encoding="utf-8"),
+            check.BODY_CLOSURE.read_text(encoding="utf-8"),
+            check.SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
+        )
+        self.assertEqual(errors, [])
+
+    def test_native_closure_import_boundary_rejects_legacy_predicate_language(self) -> None:
+        bridge_text = (
+            check.BRIDGE_PREDICATES.read_text(encoding="utf-8")
+            + "\n/- native and transition backends agree through .verity -/\n"
+        )
+        errors = check.check_native_closure_import_boundary(
+            bridge_text,
+            check.BODY_CLOSURE.read_text(encoding="utf-8"),
+            check.SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("legacy transition authority language" in error for error in errors),
+            errors,
+        )
+
     def test_legacy_proof_boundary_rejects_public_boundary_import(self) -> None:
         end_to_end_text = (
             check.END_TO_END.read_text(encoding="utf-8")

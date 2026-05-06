@@ -3,7 +3,7 @@
 
   This module contains only the syntactic builtin set and `Bridged*` Yul
   fragment predicates used by native closure proofs. It deliberately avoids the
-  legacy Yul reference oracle and the retarget executor equivalence stack.
+  transition-only oracle and executor equivalence stack.
 -/
 
 import Compiler.Yul.Ast
@@ -13,10 +13,9 @@ namespace Compiler.Proofs.YulGeneration.Backends
 
 open Compiler.Proofs.IRGeneration
 
-/-- The set of builtins for which the native and transition backends produce
-    identical results in the transition bridge. Kept here so native
-    closure proofs can name the supported fragment without importing the legacy
-    retarget executor theorem stack. -/
+/-- Builtin names accepted by the current native generated-fragment closure
+    predicate. Kept here so native closure proofs can name the supported
+    fragment without importing transition-only executor equivalence proofs. -/
 def bridgedBuiltins : List String :=
   ["add", "sub", "mul", "div", "mod",
    "lt", "gt", "eq", "iszero",
@@ -29,8 +28,8 @@ def bridgedBuiltins : List String :=
    "calldataload", "calldatasize",
    "sload", "mappingSlot"]
 
-/-- Every builtin handled by the legacy context evaluator currently has an
-    EVMYulLean bridge lemma. -/
+/-- Builtin names intentionally excluded from the current native generated
+    fragment. The list is empty for the fragment tracked in this module. -/
 def unbridgedBuiltins : List String := []
 
 def allowedExprCallName (func : String) : Prop :=

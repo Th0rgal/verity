@@ -1421,6 +1421,21 @@ def check_native_closure_import_boundary(
             "native closure predicates should remain syntactic"
         )
 
+    for forbidden_predicate_surface in (
+        "legacy Yul reference oracle",
+        "legacy retarget executor",
+        "legacy context evaluator",
+        "native and transition backends",
+        ".verity",
+    ):
+        if forbidden_predicate_surface in bridge_predicates_text:
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/"
+                "EvmYulLeanBridgePredicates.lean must describe the generated "
+                "fragment in native-closure terms, not legacy transition "
+                f"authority language `{forbidden_predicate_surface}`"
+            )
+
     for label, text in (
         ("EvmYulLeanBodyClosure.lean", body_closure_text),
         ("EvmYulLeanSourceExprClosure.lean", source_expr_closure_text),
