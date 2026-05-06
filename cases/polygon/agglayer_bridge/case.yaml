@@ -1,0 +1,30 @@
+name: agglayer_bridge
+display_name: Polygon AgglayerBridge Merkle nullifier integrity
+project: polygon
+family: polygon
+implementation: agglayer_bridge
+contract: AgglayerBridge
+source:
+  repository: https://github.com/agglayer/agglayer-contracts
+  commit: 110bda5a03e70ee7331bc06407a8e79226d3e520
+  path: contracts/AgglayerBridge.sol
+selected_functions:
+  - claimAsset
+  - claimMessage
+  - _verifyLeafAndSetNullifier
+  - _verifyLeaf
+  - _setAndCheckClaimed
+  - isClaimed
+  - _validateAndDecodeGlobalIndex
+  - _bitmapPositions
+  - _addLeafBridge
+  - _updateGlobalExitRoot
+abstraction_tags:
+  - merkle-proof
+  - nullifier-bitmap
+  - global-exit-root
+  - metadata-hash-parameter
+  - token-effects-abstracted
+tasks:
+  - tasks/claimAsset_valid_leaf_and_consumes_unique_nullifier.yaml
+  - tasks/claimMessage_valid_leaf_and_consumes_unique_nullifier.yaml

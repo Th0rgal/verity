@@ -1,0 +1,5 @@
+name: polygon
+display_name: Polygon / Agglayer
+description: Polygon Agglayer bridge and interoperability verification cases.
+implementations:
+  - implementations/agglayer_bridge/implementation.yaml

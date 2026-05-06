@@ -1,0 +1,7 @@
+name: claimMessage_valid_leaf_and_consumes_unique_nullifier
+theorem: Benchmark.Generated.Polygon.AgglayerBridge.Tasks.claimMessage_valid_leaf_and_consumes_unique_nullifier
+path: Benchmark/Generated/Polygon/AgglayerBridge/Tasks/claimMessage_valid_leaf_and_consumes_unique_nullifier.lean
+spec: Benchmark.Cases.Polygon.AgglayerBridge.claimMessage_valid_leaf_and_consumes_unique_nullifier_spec
+description: >
+  A successful message claim must verify the exact message leaf against a registered
+  global exit root and consume the source-network/leaf-index nullifier exactly once.

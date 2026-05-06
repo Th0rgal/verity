@@ -42,6 +42,12 @@ lean_lib «Contracts» where
     .andSubmodules `Contracts.ReentrancyExample
   ]
 
+lean_lib «Benchmark» where
+  globs := #[
+    .one `Benchmark,
+    .andSubmodules `Benchmark.Cases
+  ]
+
 lean_lib «Compiler» where
   globs := #[.andSubmodules `Compiler]
 

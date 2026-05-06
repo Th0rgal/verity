@@ -1,0 +1,7 @@
+name: agglayer_bridge
+display_name: AgglayerBridge.sol
+case: cases/polygon/agglayer_bridge/case.yaml
+source:
+  repository: https://github.com/agglayer/agglayer-contracts
+  commit: 110bda5a03e70ee7331bc06407a8e79226d3e520
+  path: contracts/AgglayerBridge.sol
