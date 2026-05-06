@@ -766,7 +766,9 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         )
         self.assertEqual(
             phase4["compileExpr_bridgedSource"],
-            "proven (pure source-expression fragment)",
+            "proven (source-expression fragment with storage reads, "
+            "boolean normalization, branchless helpers, bridged environment "
+            "reads, and unary calldata/memory/transient reads)",
         )
 
     def test_missing_retarget_theorem_is_not_reported_proven(self) -> None:
@@ -1450,7 +1452,7 @@ class ParseBridgedBuiltinsDefsTests(unittest.TestCase):
 
             def unbridgedBuiltins : List String := ["sload", "mappingSlot"]
         """)
-        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+        with patch.object(gen, "BRIDGE_PREDICATES_FILE", p):
             bridged, unbridged = gen._parse_bridged_builtins_defs()
         self.assertEqual(bridged, ["add", "caller", "sub"])
         self.assertEqual(unbridged, ["mappingSlot", "sload"])
@@ -1460,7 +1462,7 @@ class ParseBridgedBuiltinsDefsTests(unittest.TestCase):
             -- no defs here
             theorem foo := by sorry
         """)
-        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+        with patch.object(gen, "BRIDGE_PREDICATES_FILE", p):
             bridged, unbridged = gen._parse_bridged_builtins_defs()
         self.assertEqual(bridged, [])
         self.assertEqual(unbridged, [])

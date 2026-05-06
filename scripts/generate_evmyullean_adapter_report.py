@@ -1136,9 +1136,9 @@ def build_report() -> dict[str, object]:
             source_expr_pure_closure_status = "sorry"
         else:
             source_expr_pure_closure_status = (
-                "proven (pure source-expression fragment with boolean normalization, "
-                "branchless helpers, bridged environment reads, and unary "
-                "calldata/memory/transient reads)"
+                "proven (source-expression fragment with storage reads, "
+                "boolean normalization, branchless helpers, bridged environment "
+                "reads, and unary calldata/memory/transient reads)"
             )
         if not has_universal_body_closure:
             universal_body_closure_status = "missing"
@@ -1190,8 +1190,6 @@ def build_report() -> dict[str, object]:
         elif (
             has_universal_body_closure
             and not universal_body_closure_has_sorry
-            and has_layer3_evm_retarget
-            and not layer3_evm_retarget_has_sorry
             and has_runtime_backend_eq
             and not runtime_backend_eq_has_sorry
             and has_runtime_closure

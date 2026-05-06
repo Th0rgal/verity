@@ -17,12 +17,14 @@
       are already bridged: `caller`, `contractAddress`, `msgValue`,
       `blockTimestamp`, `blockNumber`, `chainid`, `blobbasefee`,
       `calldatasize`
+    - storage reads whose compiler field lookup succeeds: `storage`,
+      `storageAddr`
     - unary calldata/memory/transient reads: `calldataload`, `mload`, `tload`
     - native syntactic memory-slice hashing: `keccak256`
 
-  Storage, mapping, returndata, call, dynamic helpers, ABI casts, `selfBalance`,
-  and external account/state reads are out of scope and require dedicated
-  closure proofs.
+  Mapping, returndata, call, dynamic helpers, ABI casts, `selfBalance`, and
+  external account/state reads are out of scope and require dedicated closure
+  proofs.
 
   The scalar-leaf-only theorem `compileExpr_bridgedSource_leaf` is
   retained below as a specialization.
@@ -79,18 +81,22 @@ theorem compileExpr_bridgedSource_leaf
       exact BridgedExpr.ident name
 
 /-- Source EDSL expressions whose `compileExpr` output is a `BridgedExpr`.
-    Covers scalar leaves, pure arithmetic/comparison/bit-op binops,
-    boolean-normalization forms, branchless arithmetic helpers,
-    zero-argument environment/calldata-size reads, unary calldata/memory/
-    transient reads, syntactic memory-slice `keccak256`, and `ge`/`le` negated
-    comparisons. Storage, mapping, returndata, dynamic helpers, ABI casts,
-    calls, `selfBalance`, and external account/state reads are out of scope. -/
+    Covers scalar leaves, storage reads whose compiler field lookup succeeds,
+    pure arithmetic/comparison/bit-op binops, boolean-normalization forms,
+    branchless arithmetic helpers, zero-argument environment/calldata-size
+    reads, unary calldata/memory/transient reads, syntactic memory-slice
+    `keccak256`, and `ge`/`le` negated comparisons. Mapping, returndata,
+    dynamic helpers, ABI casts, calls, `selfBalance`, and external
+    account/state reads are out of scope. -/
 inductive BridgedSourceExpr : Expr → Prop
   -- scalar leaves
   | literal (n : Nat) : BridgedSourceExpr (.literal n)
   | param (name : String) : BridgedSourceExpr (.param name)
   | constructorArg (idx : Nat) : BridgedSourceExpr (.constructorArg idx)
   | localVar (name : String) : BridgedSourceExpr (.localVar name)
+  -- storage reads
+  | storage (fieldName : String) : BridgedSourceExpr (.storage fieldName)
+  | storageAddr (fieldName : String) : BridgedSourceExpr (.storageAddr fieldName)
   -- zero-argument environment / calldata-size reads
   | caller : BridgedSourceExpr .caller
   | contractAddress : BridgedSourceExpr .contractAddress
@@ -497,6 +503,36 @@ private theorem compileExpr_unopBuiltin_ok
       simp [hA, bind, Except.bind, Pure.pure, Except.pure] at hOk
       exact hOk.symm
 
+/-- Literal-slot `sload` is in the native bridged expression fragment. -/
+private theorem bridgedExpr_sload_lit (slot : Nat) :
+    BridgedExpr (YulExpr.call "sload" [YulExpr.lit slot]) := by
+  refine BridgedExpr.call "sload" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+  intro arg hMem
+  simp only [List.mem_singleton] at hMem
+  subst arg
+  exact BridgedExpr.lit slot
+
+/-- Packed storage reads compile to `and(shr(offset, sload(slot)), mask)`,
+    whose subexpressions are all native bridged builtins. -/
+private theorem bridgedExpr_packed_sload_lit
+    (slot offset mask : Nat) :
+    BridgedExpr
+      (YulExpr.call "and"
+        [YulExpr.call "shr" [YulExpr.lit offset,
+            YulExpr.call "sload" [YulExpr.lit slot]],
+          YulExpr.lit mask]) := by
+  refine BridgedExpr.call "and" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+  intro arg hMem
+  simp only [List.mem_cons, List.mem_nil_iff, or_false] at hMem
+  rcases hMem with rfl | rfl
+  · refine BridgedExpr.call "shr" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+    intro arg hMem
+    simp only [List.mem_cons, List.mem_nil_iff, or_false] at hMem
+    rcases hMem with rfl | rfl
+    · exact BridgedExpr.lit offset
+    · exact bridgedExpr_sload_lit slot
+  · exact BridgedExpr.lit mask
+
 /-- Destructure a binary helper expression emission. -/
 private theorem compileExpr_binaryShape_ok
     {fields : List CompilationModel.Field} {src : DynamicDataSource}
@@ -570,6 +606,47 @@ theorem compileExpr_bridgedSource
       intro out hOk
       simp [compileExpr, Pure.pure, Except.pure] at hOk
       subst out; exact BridgedExpr.ident name
+  | storage fieldName =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      split at hOk
+      · simp at hOk
+      · split at hOk
+        · rename_i f slot hFind
+          cases hPacked : f.packedBits with
+          | none =>
+              simp [hPacked, Pure.pure, Except.pure] at hOk
+              subst out
+              exact bridgedExpr_sload_lit slot
+          | some packed =>
+              simp [hPacked, Pure.pure, Except.pure] at hOk
+              subst out
+              exact bridgedExpr_packed_sload_lit slot packed.offset
+                (packedMaskNat packed)
+        · simp at hOk
+  | storageAddr fieldName =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      split at hOk
+      · simp at hOk
+      · split at hOk
+        · rename_i f slot hFind
+          cases hTy : f.ty with
+          | address =>
+              cases hPacked : f.packedBits with
+              | none =>
+                  simp [hTy, hPacked, Pure.pure, Except.pure] at hOk
+                  subst out
+                  exact bridgedExpr_sload_lit slot
+              | some packed =>
+                  simp [hTy, hPacked, Pure.pure, Except.pure] at hOk
+                  subst out
+                  exact bridgedExpr_packed_sload_lit slot packed.offset
+                    (packedMaskNat packed)
+          | uint256 | dynamicArray | mappingTyped | mappingStruct
+            | mappingStruct2 | adt =>
+              simp [hTy] at hOk
+        · simp at hOk
   | caller =>
       intro out hOk
       simp [compileExpr, Pure.pure, Except.pure] at hOk
@@ -879,6 +956,12 @@ theorem compileRequireFailCond_bridgedSource
         compileRequireFailCond fields src cond = .ok failCond → BridgedExpr failCond := by
   intro cond hCond failCond hOk
   cases hCond with
+  | storage fieldName =>
+      exact compileRequireFailCond_default_bridgedSource
+        (BridgedSourceExpr.storage fieldName) hOk
+  | storageAddr fieldName =>
+      exact compileRequireFailCond_default_bridgedSource
+        (BridgedSourceExpr.storageAddr fieldName) hOk
   | ge ha hb =>
       simp only [compileRequireFailCond] at hOk
       obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulBinOp_ok hOk
