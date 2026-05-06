@@ -4358,12 +4358,10 @@ theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_
         observableSlots (nativeGeneratedDispatcherContractOf dispatcher)) :
     sourceResultMatchesNativeOn observableSlots
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-        (Nat.succ (sizeOf (Compiler.emitYul irContract).runtimeCode))
-        irContract tx
+      (nativeGeneratedCallDispatcherResultOf irContract tx
         (FunctionBody.initialIRStateForTx model tx initialWorld)
-        observableSlots) := by
-  apply compile_preserves_native_evmYulLean_of_generated_callDispatcher_match
+        observableSlots (nativeGeneratedDispatcherContractOf dispatcher)) := by
+  apply compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match
     model selectors hSupported irContract tx initialWorld observableSlots
     (nativeGeneratedDispatcherContractOf dispatcher) htxNormalized
     hcalldataSizeFits hcompile hBodies
@@ -4458,12 +4456,11 @@ theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_
         observableSlots (nativeGeneratedDispatcherContractWithMappingOf dispatcher)) :
     sourceResultMatchesNativeOn observableSlots
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-        (Nat.succ (sizeOf (Compiler.emitYul irContract).runtimeCode))
-        irContract tx
+      (nativeGeneratedCallDispatcherResultOf irContract tx
         (FunctionBody.initialIRStateForTx model tx initialWorld)
-        observableSlots) := by
-  apply compile_preserves_native_evmYulLean_of_generated_callDispatcher_match
+        observableSlots
+        (nativeGeneratedDispatcherContractWithMappingOf dispatcher)) := by
+  apply compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match
     model selectors hSupported irContract tx initialWorld observableSlots
     (nativeGeneratedDispatcherContractWithMappingOf dispatcher) htxNormalized
     hcalldataSizeFits hcompile hBodies

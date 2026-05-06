@@ -191,6 +191,22 @@ def normalize_ws(text: str) -> str:
     return " ".join(text.split())
 
 
+def theorem_signature(text: str, theorem_name: str) -> str:
+    """Return the theorem statement through its `:= by` proof delimiter."""
+
+    match = re.search(
+        r"^\s*theorem\s+" + re.escape(theorem_name) + r"\b",
+        text,
+        re.MULTILINE,
+    )
+    if match is None:
+        return ""
+    proof_start = text.find(":= by", match.start())
+    if proof_start < 0:
+        return text[match.start() :]
+    return text[match.start() : proof_start]
+
+
 def check_doc(text: str) -> list[str]:
     normalized = normalize_ws(text)
     errors: list[str] = []
@@ -485,6 +501,25 @@ def check_public_theorem_target(
                 "Compiler/Proofs/EndToEnd.lean must keep the native theorem seam "
                 f"`{required_native_seam}` explicit until the generated-fragment "
                 "native bridge is discharged"
+            )
+
+    for lowered_call_dispatcher_theorem in (
+        "compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping",
+        "compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping",
+    ):
+        signature = theorem_signature(end_to_end_text, lowered_call_dispatcher_theorem)
+        if "nativeGeneratedCallDispatcherResultOf" not in signature:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean lowered generated "
+                f"`{lowered_call_dispatcher_theorem}` theorem must conclude "
+                "the direct projected `EvmYul.Yul.callDispatcher` result via "
+                "`nativeGeneratedCallDispatcherResultOf`, not the thin runtime adapter"
+            )
+        if "interpretIRRuntimeNative" in signature:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean lowered generated "
+                f"`{lowered_call_dispatcher_theorem}` theorem must not expose "
+                "`interpretIRRuntimeNative` as its public result target"
             )
 
     for dispatcher_exec_public_seam in (

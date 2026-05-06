@@ -12,6 +12,14 @@ import check_native_transition_doc as check
 
 
 class NativeTransitionDocCheckTests(unittest.TestCase):
+    def replace_in_theorem_signature(
+        self, text: str, theorem_name: str, old: str, new: str
+    ) -> str:
+        signature = check.theorem_signature(text, theorem_name)
+        self.assertIn(old, signature)
+        start = text.index(signature)
+        return text[:start] + signature.replace(old, new, 1) + text[start + len(signature) :]
+
     def test_current_doc_passes(self) -> None:
         text = check.DOC.read_text(encoding="utf-8")
         self.assertEqual(check.check_doc(text), [])
@@ -327,6 +335,48 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
         self.assertTrue(
             any("lowered_generated_callDispatcher_mapping" in error for error in errors),
+            errors,
+        )
+
+    def test_public_theorem_target_guard_rejects_lowered_nomapping_adapter_target(self) -> None:
+        end_to_end_text = self.replace_in_theorem_signature(
+            check.END_TO_END.read_text(encoding="utf-8"),
+            "compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping",
+            "nativeGeneratedCallDispatcherResultOf",
+            "Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative",
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("thin runtime adapter" in error for error in errors),
+            errors,
+        )
+        self.assertTrue(
+            any("interpretIRRuntimeNative" in error for error in errors),
+            errors,
+        )
+
+    def test_public_theorem_target_guard_rejects_lowered_mapping_adapter_target(self) -> None:
+        end_to_end_text = self.replace_in_theorem_signature(
+            check.END_TO_END.read_text(encoding="utf-8"),
+            "compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping",
+            "nativeGeneratedCallDispatcherResultOf",
+            "Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative",
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("thin runtime adapter" in error for error in errors),
+            errors,
+        )
+        self.assertTrue(
+            any("interpretIRRuntimeNative" in error for error in errors),
             errors,
         )
 
