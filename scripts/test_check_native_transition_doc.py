@@ -1152,6 +1152,23 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_root_compiler_import_boundary_accepts_current_shape(self) -> None:
+        errors = check.check_root_compiler_import_boundary(
+            check.ROOT_COMPILER.read_text(encoding="utf-8")
+        )
+        self.assertEqual(errors, [])
+
+    def test_root_compiler_import_boundary_rejects_direct_ir_interpreter_import(self) -> None:
+        root_text = (
+            check.ROOT_COMPILER.read_text(encoding="utf-8")
+            + "\nimport Compiler.Proofs.IRGeneration.IRInterpreter\n"
+        )
+        errors = check.check_root_compiler_import_boundary(root_text)
+        self.assertTrue(
+            any("full IR interpreter" in error for error in errors),
+            errors,
+        )
+
     def test_legacy_proof_boundary_rejects_public_boundary_import(self) -> None:
         end_to_end_text = (
             check.END_TO_END.read_text(encoding="utf-8")

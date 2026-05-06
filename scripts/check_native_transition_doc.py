@@ -1511,6 +1511,18 @@ def check_native_harness_import_boundary(native_harness_text: str) -> list[str]:
     return errors
 
 
+def check_root_compiler_import_boundary(root_compiler_text: str) -> list[str]:
+    """Keep the root aggregate from directly re-exporting broad interpreters."""
+
+    errors: list[str] = []
+    if "import Compiler.Proofs.IRGeneration.IRInterpreter" in root_compiler_text:
+        errors.append(
+            "Compiler.lean must not directly import the full IR interpreter; "
+            "import proof modules that own their semantic dependencies instead"
+        )
+    return errors
+
+
 def check_native_alias_signatures(end_to_end_text: str) -> list[str]:
     """Reject hidden native dispatcher fuel-wrapper aliases in theorem signatures."""
 
@@ -1699,6 +1711,11 @@ def main() -> int:
     )
     errors.extend(check_runtime_types_import_boundary(runtime_types_text))
     errors.extend(check_native_harness_import_boundary(native_harness_text))
+    errors.extend(
+        check_root_compiler_import_boundary(
+            ROOT_COMPILER.read_text(encoding="utf-8")
+        )
+    )
     errors.extend(
         check_legacy_proof_boundary(
             [

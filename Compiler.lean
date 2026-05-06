@@ -29,7 +29,6 @@ import Compiler.Keccak.SpongeProperties
 import Compiler.Proofs.KeccakBound
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.IRGeneration.Expr
-import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.IRGeneration.SupportedFragment
 import Compiler.Proofs.IRGeneration.Contract
 import Compiler.Proofs.IRGeneration.Dispatch
