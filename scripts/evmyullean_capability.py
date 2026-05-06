@@ -19,7 +19,7 @@ LET_BINDING_RE = re.compile(
     r"^\s*let\s+([A-Za-z_][A-Za-z0-9_']*)(?:\s*:\s*[^:=]+)?\s*:=\s*(.+?)\s*$"
 )
 DISPATCH_DEF_RE = re.compile(
-    r"^\s*def\s+(legacyEvalBuiltinCallWithContext|evalBuiltinCall)\b"
+    r"^\s*(?:private\s+)?def\s+(legacyEvalBuiltinCallWithContext|evalBuiltinCall)\b"
 )
 
 

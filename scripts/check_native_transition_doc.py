@@ -1087,6 +1087,7 @@ def check_default_builtin_backend(builtins_text: str) -> list[str]:
     required = (
         "private abbrev legacyBuiltinBackend : BuiltinBackend := .verity",
         "private abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",
+        "private def evalBuiltinCall",
         "theorem defaultBuiltinBackend_eq_evmYulLean",
     )
     for snippet in required:

@@ -303,7 +303,7 @@ def legacyEvalBuiltinCall
     (argVals : List Nat) : Option Nat :=
   legacyEvalBuiltinCallWithContext storage sender 0 0 0 0 0 0 selector calldata func argVals
 
-def evalBuiltinCall
+private def evalBuiltinCall
     (storage : IRStorageSlot → IRStorageWord)
     (sender : Nat)
     (selector : Nat)

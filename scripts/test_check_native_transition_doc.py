@@ -567,6 +567,18 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_rejects_public_eval_builtin_call_wrapper(self) -> None:
+        builtins_text = check.BUILTINS.read_text(encoding="utf-8").replace(
+            "private def evalBuiltinCall",
+            "def evalBuiltinCall",
+            1,
+        )
+        errors = check.check_default_builtin_backend(builtins_text)
+        self.assertTrue(
+            any("evalBuiltinCall" in error for error in errors),
+            errors,
+        )
+
     def test_public_theorem_target_guard_rejects_reintroduced_call_dispatcher_fuel_wrapper(self) -> None:
         end_to_end_text = (
             check.END_TO_END.read_text(encoding="utf-8")

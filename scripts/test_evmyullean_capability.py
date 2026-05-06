@@ -81,6 +81,25 @@ class EVMYulLeanCapabilityExtractionTests(unittest.TestCase):
             self.assertEqual(len(diagnostics), 1)
             self.assertIn("non-literal dispatch", diagnostics[0])
 
+    def test_extract_found_builtins_accepts_private_eval_builtin_call(self) -> None:
+        with tempfile.TemporaryDirectory(dir=property_utils.ROOT) as tmpdir:
+            builtins_file = Path(tmpdir) / "Builtins.lean"
+            builtins_file.write_text(
+                "namespace X\n\n"
+                "private def evalBuiltinCall (func : String) (argVals : List Nat) : Option Nat :=\n"
+                "  if func = \"calldatasize\" then\n"
+                "    some 1\n"
+                "  else\n"
+                "    none\n",
+                encoding="utf-8",
+            )
+
+            found, diagnostics = evmyullean_capability.extract_found_builtins_with_diagnostics(
+                builtins_file
+            )
+            self.assertEqual(found, {"calldatasize"})
+            self.assertEqual(diagnostics, [])
+
     def test_extract_found_builtins_resolves_typed_alias_chain(self) -> None:
         with tempfile.TemporaryDirectory(dir=property_utils.ROOT) as tmpdir:
             builtins_file = Path(tmpdir) / "Builtins.lean"
