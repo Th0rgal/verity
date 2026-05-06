@@ -111,6 +111,10 @@ TRANSITION_ONLY_PUBLIC_FORBIDDEN_MODULES = LEGACY_PROOF_MODULES + (
     "Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget",
     "Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas",
 )
+BRIDGE_LEMMAS_IMPORT_ALLOWLIST = (
+    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean",
+    "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
+)
 LEGACY_PROOF_FILES = (
     ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Codegen.lean",
     ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Equivalence.lean",
@@ -1404,6 +1408,28 @@ def lean_imports(text: str) -> list[str]:
     return imports
 
 
+def check_transition_only_import_allowlist(
+    lean_files: list[tuple[str, str]],
+) -> list[str]:
+    """Keep transition-only bridge lemmas out of non-transition modules."""
+
+    errors: list[str] = []
+    forbidden_import = (
+        "Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas"
+    )
+    allowlist = set(BRIDGE_LEMMAS_IMPORT_ALLOWLIST)
+    for label, text in lean_files:
+        if label in allowlist:
+            continue
+        if forbidden_import in lean_imports(text):
+            errors.append(
+                f"{label} must not import transition-only bridge lemma module "
+                f"`{forbidden_import}`; keep ReferenceOracle bridge evidence "
+                "confined to EvmYulLeanRetarget and bridge regression tests"
+            )
+    return errors
+
+
 def check_public_transitive_import_boundary(
     public_boundary_files: list[tuple[str, str]],
 ) -> list[str]:
@@ -1977,6 +2003,14 @@ def main() -> int:
                     "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean",
                     SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
                 ),
+            ]
+        )
+    )
+    errors.extend(
+        check_transition_only_import_allowlist(
+            [
+                (path.relative_to(ROOT).as_posix(), path.read_text(encoding="utf-8"))
+                for path in (ROOT / "Compiler").rglob("*.lean")
             ]
         )
     )

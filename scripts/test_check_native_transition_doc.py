@@ -1124,6 +1124,29 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_transition_only_import_allowlist_accepts_current_shape(self) -> None:
+        errors = check.check_transition_only_import_allowlist(
+            [
+                (path.relative_to(check.ROOT).as_posix(), path.read_text(encoding="utf-8"))
+                for path in (check.ROOT / "Compiler").rglob("*.lean")
+            ]
+        )
+        self.assertEqual(errors, [])
+
+    def test_transition_only_import_allowlist_rejects_new_bridge_lemmas_importer(self) -> None:
+        errors = check.check_transition_only_import_allowlist(
+            [
+                (
+                    "Compiler/Proofs/EndToEnd.lean",
+                    "import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas\n",
+                )
+            ]
+        )
+        self.assertTrue(
+            any("transition-only bridge lemma module" in error for error in errors),
+            errors,
+        )
+
     def test_public_transitive_forbidden_terms_accepts_current_shape(self) -> None:
         errors = check.check_public_transitive_forbidden_terms(
             [
