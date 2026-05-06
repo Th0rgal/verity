@@ -23,6 +23,7 @@ LEAN_BUILTIN_AXIOMS = frozenset([
     "propext",
     "Quot.sound",
     "Classical.choice",
+    "Lean.ofReduceBool",
 ])
 
 DOCUMENTED_AXIOMS = frozenset([
@@ -213,7 +214,11 @@ def generate_report(
 
     lines.append(f"Total theorems checked: {total}")
     lines.append(f"Axiom-free (pure logic): {axiom_free}")
-    lines.append(f"Uses only Lean builtins (propext, Quot.sound, Classical.choice): {builtin_only}")
+    lines.append(
+        "Uses only Lean builtins "
+        "(propext, Quot.sound, Classical.choice, Lean.ofReduceBool): "
+        f"{builtin_only}"
+    )
     lines.append(f"Uses documented project axioms: {uses_documented}")
     lines.append("")
 
