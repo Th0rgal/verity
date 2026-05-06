@@ -77,7 +77,6 @@ materializes pre-state storage for those slots.
 - The same module also keeps file-local transition seams for
   `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`,
-  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_canonicalFuel`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match`,

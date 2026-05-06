@@ -1159,32 +1159,6 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatche
       hCompile hSupported hStaticParams hSafeBodies)
     hLower hEnv hMatch
 
-/-- Native runtime theorem using canonical runtime-size fuel for the public
-positive dispatcher-exec surface. -/
-private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_canonicalFuel
-    {spec : CompilationModel.CompilationModel}
-    {selectors : List Nat} {irContract : IRContract}
-    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
-    {nativeContract : EvmYul.Yul.Ast.YulContract}
-    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
-    (hSupported : SupportedSpec spec selectors)
-    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
-    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
-      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
-        spec.fields spec.errors .calldata [] false entry.1.body)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
-    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hMatch :
-      nativeDispatcherExecMatchesIRPositive
-        (nativeRuntimeDispatcherFuel irContract) irContract tx state
-        observableSlots nativeContract) :
-    nativeIRRuntimeMatchesIR
-      (nativeRuntimeFuel irContract) irContract tx state observableSlots :=
-  nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
-    hCompile hSupported hStaticParams hSafeBodies hLower hEnv hMatch
-
 private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
