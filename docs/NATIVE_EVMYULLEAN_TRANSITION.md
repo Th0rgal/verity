@@ -44,7 +44,6 @@ materializes pre-state storage for those slots.
 - The EndToEnd layer now exposes a small native result surface:
   `nativeResultsMatchOn`, `sourceResultMatchesNativeOn`, the source/native
   composition theorem over that result surface,
-  `compile_preserves_native_evmYulLean_of_nativeResultsMatchOn`,
   `nativeGeneratedCallDispatcherResultOf`,
   `nativeGeneratedCallDispatcherMatchesIROn`, the supported-compiler
   generated direct `EvmYul.Yul.callDispatcher` theorem

@@ -335,7 +335,6 @@ def check_public_theorem_target(
             )
 
     for required_native_seam in (
-        "theorem compile_preserves_native_evmYulLean_of_nativeResultsMatchOn",
         "def nativeGeneratedCallDispatcherResultOf",
         "def nativeGeneratedCallDispatcherMatchesIROn",
         "theorem compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match",
@@ -532,6 +531,18 @@ def check_public_theorem_target(
             "`compile_preserves_native_evmYulLean_of_generated_callDispatcher_match` "
             "adapter theorem file-local; public generated correctness should "
             "target `nativeGeneratedCallDispatcherResultOf` directly"
+        )
+
+    if re.search(
+        r"^\s*theorem\s+compile_preserves_native_evmYulLean_of_nativeResultsMatchOn\b",
+        end_to_end_text,
+        re.MULTILINE,
+    ):
+        errors.append(
+            "Compiler/Proofs/EndToEnd.lean must keep the generic "
+            "`compile_preserves_native_evmYulLean_of_nativeResultsMatchOn` "
+            "adapter theorem file-local; public compiler correctness should "
+            "target explicit native result values"
         )
 
     for dispatcher_exec_public_seam in (

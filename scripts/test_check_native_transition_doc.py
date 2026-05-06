@@ -293,6 +293,22 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_theorem_target_guard_rejects_public_native_results_adapter(self) -> None:
+        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
+            "private theorem compile_preserves_native_evmYulLean_of_nativeResultsMatchOn",
+            "theorem compile_preserves_native_evmYulLean_of_nativeResultsMatchOn",
+            1,
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("adapter theorem file-local" in error for error in errors),
+            errors,
+        )
+
     def test_public_theorem_target_guard_rejects_missing_direct_generated_call_dispatcher_theorem(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
             "theorem compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match",

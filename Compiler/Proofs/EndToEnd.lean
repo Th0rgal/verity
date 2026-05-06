@@ -120,13 +120,13 @@ theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResu
         exact hStorageAt.trans (hNativeStorage slot hslot)
       · exact hSourceEvents.trans hNativeEvents
 
-/-- Public supported-compiler correctness theorem over native EVMYulLean
-runtime execution.
+/-- File-local supported-compiler correctness theorem over native EVMYulLean
+runtime adapter execution.
 
 The theorem target is the native runtime harness backed by
 `EvmYul.Yul.callDispatcher`; the only Layer 3 premise is a direct native-vs-IR
 `nativeResultsMatchOn` proof for the same generated runtime. -/
-theorem compile_preserves_native_evmYulLean_of_nativeResultsMatchOn
+private theorem compile_preserves_native_evmYulLean_of_nativeResultsMatchOn
     (model : CompilationModel.CompilationModel)
     (selectors : List Nat)
     (hSupported : SupportedSpec model selectors)
