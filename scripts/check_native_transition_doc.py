@@ -424,7 +424,6 @@ def check_public_theorem_target(
         "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_canonicalFuel",
         "theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match",
         "theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match",
-        "theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match_canonicalFuel",
         "theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure",
         "theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure_canonicalFuel",
         "theorem layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match",
