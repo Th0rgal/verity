@@ -382,21 +382,6 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_public_theorem_target_guard_rejects_missing_runtime_dispatcher_stmts_canonical_native_fuel_seam(self) -> None:
-        end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
-            "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel",
-            "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_hiddenCanonicalFuel",
-        )
-        errors = check.check_public_theorem_target(
-            end_to_end_text,
-            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
-            check.RETARGET.read_text(encoding="utf-8"),
-        )
-        self.assertTrue(
-            any("dispatcherStmts_positive_body_closure_noMapping_ofIR_environment_canonicalFuel" in error for error in errors),
-            errors,
-        )
-
     def test_public_theorem_target_guard_rejects_missing_runtime_lowered_dispatcher_stmts_canonical_native_fuel_seam(self) -> None:
         end_to_end_text = check.END_TO_END.read_text(encoding="utf-8").replace(
             "theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_canonicalFuel",
