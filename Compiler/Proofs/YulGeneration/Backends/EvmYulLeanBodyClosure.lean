@@ -15794,6 +15794,74 @@ theorem bridgedSafeStmts_requireGuardFamilyClause
     subst stmt
     exact bridgedSourceRequireStmt_of_guardFamilyClause clause)
 
+/-- A `let` binding whose RHS is syntactic `keccak256(offset, size)` is a
+    native pure-binding source statement when the offset and size arguments are
+    compile-core expressions. This deliberately stays outside
+    `StmtListCompileCore`, whose source/IR semantic theorem still excludes
+    memory-slice hashing. -/
+theorem bridgedSourcePureBindingStmt_letKeccak_of_exprCompileCore
+    {name : String} {offset size : Expr}
+    (hOffset :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore offset)
+    (hSize :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore size) :
+    BridgedSourcePureBindingStmt
+      (.letVar name (.keccak256 offset size)) :=
+  BridgedSourcePureBindingStmt.letVar name (.keccak256 offset size)
+    (bridgedSourceExpr_keccak256_of_exprCompileCore hOffset hSize)
+
+/-- An assignment whose RHS is syntactic `keccak256(offset, size)` is a native
+    pure-binding source statement when the offset and size arguments are
+    compile-core expressions. -/
+theorem bridgedSourcePureBindingStmt_assignKeccak_of_exprCompileCore
+    {name : String} {offset size : Expr}
+    (hOffset :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore offset)
+    (hSize :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore size) :
+    BridgedSourcePureBindingStmt
+      (.assignVar name (.keccak256 offset size)) :=
+  BridgedSourcePureBindingStmt.assignVar name (.keccak256 offset size)
+    (bridgedSourceExpr_keccak256_of_exprCompileCore hOffset hSize)
+
+/-- Singleton native safe-body package for `let name := keccak256(offset,size)`
+    with compile-core offset and size arguments. -/
+theorem bridgedSafeStmts_letKeccak_of_exprCompileCore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {isInternal : Bool} {name : String} {offset size : Expr}
+    (hOffset :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore offset)
+    (hSize :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore size) :
+    BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal
+      [Stmt.letVar name (.keccak256 offset size)] :=
+  BridgedSafeStmts.storage (by
+    intro stmt hMem
+    simp only [List.mem_singleton] at hMem
+    subst stmt
+    exact BridgedSourceStorageStmt.pureBinding
+      (bridgedSourcePureBindingStmt_letKeccak_of_exprCompileCore hOffset hSize))
+
+/-- Singleton native safe-body package for `name := keccak256(offset,size)`
+    with compile-core offset and size arguments. -/
+theorem bridgedSafeStmts_assignKeccak_of_exprCompileCore
+    {fields : List Field} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {isInternal : Bool} {name : String} {offset size : Expr}
+    (hOffset :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore offset)
+    (hSize :
+      _root_.Compiler.Proofs.IRGeneration.FunctionBody.ExprCompileCore size) :
+    BridgedSafeStmts fields errors dynamicSource internalRetNames isInternal
+      [Stmt.assignVar name (.keccak256 offset size)] :=
+  BridgedSafeStmts.storage (by
+    intro stmt hMem
+    simp only [List.mem_singleton] at hMem
+    subst stmt
+    exact BridgedSourceStorageStmt.pureBinding
+      (bridgedSourcePureBindingStmt_assignKeccak_of_exprCompileCore hOffset hSize))
+
 private def bridgedExternalRawLogLetVar
     {fields : List Field} {errors : List ErrorDef}
     {dynamicSource : DynamicDataSource} {name : String} {value : Expr}

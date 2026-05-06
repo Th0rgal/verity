@@ -1167,6 +1167,25 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_native_closure_import_boundary_rejects_missing_body_keccak_closure(self) -> None:
+        body_text = check.BODY_CLOSURE.read_text(encoding="utf-8").replace(
+            "theorem bridgedSafeStmts_letKeccak_of_exprCompileCore",
+            "theorem bridgedSafeStmts_letKeccak_removed_for_test",
+            1,
+        )
+        errors = check.check_native_closure_import_boundary(
+            check.BRIDGE_PREDICATES.read_text(encoding="utf-8"),
+            body_text,
+            check.SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any(
+                "bridgedSafeStmts_letKeccak_of_exprCompileCore" in error
+                for error in errors
+            ),
+            errors,
+        )
+
     def test_runtime_types_import_boundary_accepts_current_shape(self) -> None:
         errors = check.check_runtime_types_import_boundary(
             check.RUNTIME_TYPES.read_text(encoding="utf-8")

@@ -1624,6 +1624,18 @@ def check_native_closure_import_boundary(
                 f"`{required_source_expr_theorem.removeprefix('theorem ')}`"
             )
 
+    for required_body_closure_theorem in (
+        "theorem bridgedSafeStmts_letKeccak_of_exprCompileCore",
+        "theorem bridgedSafeStmts_assignKeccak_of_exprCompileCore",
+    ):
+        if required_body_closure_theorem not in body_closure_text:
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/"
+                "EvmYulLeanBodyClosure.lean must keep the native safe-body "
+                "keccak binding closure theorem "
+                f"`{required_body_closure_theorem.removeprefix('theorem ')}`"
+            )
+
     return errors
 
 
