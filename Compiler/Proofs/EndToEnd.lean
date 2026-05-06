@@ -815,40 +815,6 @@ private theorem layer3_contract_preserves_semantics_native_of_generated_dispatch
     hPrefixUnique hInternals hExternalBodies hInternalBodies hNoFallback
     hNoReceive hLower hEnv hNativeDispatcherExec
 
-/-- Native Layer 3 generated-shape variant at raw lowered-dispatcher exec using
-canonical runtime-size fuel. -/
-private theorem layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match_canonicalFuel
-    (contract : IRContract) (tx : IRTransaction)
-    (initialState : IRState) (observableSlots : List Nat)
-    (nativeContract : EvmYul.Yul.Ast.YulContract)
-    (hPrefixUnique : Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique
-      ((if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
-        contract.internalFunctions) = true)
-    (hInternals : ∀ stmt, stmt ∈ contract.internalFunctions →
-      ∃ name params rets body, stmt = Yul.YulStmt.funcDef name params rets body)
-    (hExternalBodies : ∀ fn, fn ∈ contract.functions →
-      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef fn.body = false)
-    (hInternalBodies : ∀ name params rets body,
-      Yul.YulStmt.funcDef name params rets body ∈ contract.internalFunctions →
-        Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef body = false)
-    (hNoFallback : contract.fallbackEntrypoint = none)
-    (hNoReceive : contract.receiveEntrypoint = none)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul contract).runtimeCode = .ok nativeContract)
-    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-      (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hNativeDispatcherExec :
-      nativeDispatcherExecMatchesIRPositive
-        (nativeRuntimeDispatcherFuel contract) contract tx initialState
-        observableSlots nativeContract) :
-    nativeResultsMatchOn observableSlots (interpretIR contract tx initialState)
-      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-        (nativeRuntimeFuel contract) contract tx initialState observableSlots) :=
-  layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match
-    (nativeRuntimeDispatcherFuel contract) contract tx initialState
-    observableSlots nativeContract hPrefixUnique hInternals hExternalBodies
-    hInternalBodies hNoFallback hNoReceive hLower hEnv hNativeDispatcherExec
-
 /-! ## Layers 2+3 Composition -/
 
 /-- Supported native identity seam on the direct native-vs-IR target. Kept
