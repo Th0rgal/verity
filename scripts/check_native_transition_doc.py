@@ -737,6 +737,17 @@ def check_public_theorem_target(
                 f"`{private_simple_storage_scaffold}`"
             )
 
+    if re.search(
+        r"^\s*def\s+SourceBodyNativeClosure\b",
+        end_to_end_text,
+        re.MULTILINE,
+    ):
+        errors.append(
+            "Compiler/Proofs/EndToEnd.lean must keep "
+            "`SourceBodyNativeClosure` file-local; public callDispatcher "
+            "theorems should not export body-closure proof scaffolding"
+        )
+
     for forbidden_reference_oracle_seam in (
         "theorem layer3_contract_preserves_semantics_via_reference_oracle ",
         "theorem layer3_contract_preserves_semantics_via_reference_oracle_with_function_bridge ",

@@ -4068,12 +4068,14 @@ private theorem allStaticScalarParams_of_supportedSpec_selectorFunctionPairs
   exact isStaticScalarParamType_of_supportedExternalParamType
     ((hSupported.functions entry.1 hfnModel).params.supported param hparam)
 
-/-- Public source-body closure input for the generated native dispatcher theorem.
+/-- File-local source-body closure input for generated native dispatcher
+compatibility wrappers.
 
-Callers provide compiler-core body facts; this file packages them into
-`BridgedSafeStmts` internally before discharging the native generated-fragment
+The public callDispatcher theorems no longer expose this body-closure predicate;
+private runtime-adapter wrappers still use it to package compiler-core body
+facts into `BridgedSafeStmts` before discharging native generated-fragment
 shape obligations. -/
-def SourceBodyNativeClosure
+private def SourceBodyNativeClosure
     (model : CompilationModel.CompilationModel)
     (selectors : List Nat) : Prop :=
   ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs model selectors →

@@ -662,6 +662,21 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_theorem_target_guard_rejects_public_source_body_closure_surface(self) -> None:
+        end_to_end_text = (
+            check.END_TO_END.read_text(encoding="utf-8")
+            + "\ndef SourceBodyNativeClosure (_model : Model) (_selectors : List Nat) : Prop := True\n"
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("SourceBodyNativeClosure" in error and "file-local" in error for error in errors),
+            errors,
+        )
+
     def test_rejects_verity_default_builtin_backend(self) -> None:
         builtins_text = check.BUILTINS.read_text(encoding="utf-8").replace(
             "private abbrev defaultBuiltinBackend : BuiltinBackend := .evmYulLean",
