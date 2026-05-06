@@ -1611,6 +1611,19 @@ def check_native_closure_import_boundary(
                     f"`{forbidden_import.removeprefix('import ')}`"
                 )
 
+    for required_source_expr_theorem in (
+        "theorem bridgedSourceExpr_of_exprCompileCore",
+        "theorem bridgedSourceExpr_keccak256_of_exprCompileCore",
+        "theorem compileExpr_keccak256_bridgedSource_of_exprCompileCore",
+    ):
+        if required_source_expr_theorem not in source_expr_closure_text:
+            errors.append(
+                "Compiler/Proofs/YulGeneration/Backends/"
+                "EvmYulLeanSourceExprClosure.lean must keep the native "
+                "source-expression closure theorem "
+                f"`{required_source_expr_theorem.removeprefix('theorem ')}`"
+            )
+
     return errors
 
 
