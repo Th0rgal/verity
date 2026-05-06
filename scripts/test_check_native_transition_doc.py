@@ -1479,6 +1479,17 @@ theorem compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDisp
         )
         self.assertTrue(any("blobbasefee" in error for error in errors), errors)
 
+    def test_unbridged_environment_boundary_rejects_missing_selfbalance_rejection_pin(self) -> None:
+        smoke_text = check.NATIVE_SMOKE_TEST.read_text(encoding="utf-8").replace(
+            'nativeRejectsUnsupportedHeaderBuiltin "selfbalance" = true',
+            'nativeAcceptsUnsupportedHeaderBuiltin "selfbalance" = true',
+        )
+        errors = check.check_unbridged_environment_boundary(
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            smoke_text,
+        )
+        self.assertTrue(any("selfbalance" in error for error in errors), errors)
+
     def test_native_switch_lowering_boundary_accepts_current_shape(self) -> None:
         errors = check.check_native_switch_lowering_boundary(
             check.NATIVE_ADAPTER.read_text(encoding="utf-8"),

@@ -205,6 +205,7 @@ REQUIRED_SNIPPETS = (
     "`YulTransaction.chainId` must match",
     "EvmYul.chainId",
     "`chainid()` and `blobbasefee()` now fail closed on the selected native runtime path",
+    "`selfbalance` also fails closed on the selected native runtime path",
     "EvmYul.MIN_BASE_FEE_PER_BLOB_GAS",
     "`initialState_unbridgedEnvironmentDefaults`",
 )
@@ -1798,6 +1799,7 @@ def check_unbridged_environment_boundary(native_harness_text: str, native_smoke_
         'nativeStoresBuiltinWithTx "blobbasefee" 16 EvmYul.MIN_BASE_FEE_PER_BLOB_GAS',
         'nativeRejectsUnsupportedHeaderBuiltin "coinbase" = true',
         'nativeRejectsUnsupportedHeaderBuiltin "gaslimit" = true',
+        'nativeRejectsUnsupportedHeaderBuiltin "selfbalance" = true',
         'nativeAllowsUnselectedUnsupportedEnvironmentBuiltin = true',
     ):
         if pinned_default not in normalized_native_smoke:

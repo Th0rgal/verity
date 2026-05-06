@@ -1648,7 +1648,8 @@ def nativeRuntimePathUsesBuiltin
     (yulFunctionBodies runtimeCode) runtimeCode
 
 def unsupportedNativeHeaderBuiltinNames : List String :=
-  ["coinbase", "difficulty", "prevrandao", "gaslimit", "basefee", "gasprice"]
+  ["coinbase", "difficulty", "prevrandao", "gaslimit", "basefee", "gasprice",
+   "selfbalance"]
 
 def nativeRuntimePathUsesAnyBuiltin
     (builtins : List String)
@@ -1678,8 +1679,8 @@ def unsupportedNativeChainIdError : AdapterError :=
   current bridge supports only EVMYulLean global chain id"
 
 def unsupportedNativeHeaderBuiltinError : AdapterError :=
-  "native EVMYulLean selected runtime path uses a header builtin that is not \
-  represented in Verity's YulTransaction bridge"
+  "native EVMYulLean selected runtime path uses a header/account builtin that \
+  is not represented in Verity's YulTransaction bridge"
 
 def validateNativeRuntimeEnvironment
     (runtimeCode : List YulStmt)

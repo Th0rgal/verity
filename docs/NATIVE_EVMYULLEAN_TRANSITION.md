@@ -266,7 +266,10 @@ scope so the native path does not look more complete than it is:
   not yet have Verity `YulTransaction` fields, such as `coinbase`, `difficulty`,
   `prevrandao`, `gaslimit`, `basefee`, and `gasprice`, also fail closed on the
   selected native runtime path instead of reading EVMYulLean's zeroed header
-  defaults. The native harness names the remaining unbridged boundary with
+  defaults. The account-balance builtin `selfbalance` also fails closed on the
+  selected native runtime path until the bridge carries Verity's `selfBalance`
+  into the EVMYulLean account map. The native harness names the remaining
+  unbridged boundary with
   `initialState_unbridgedEnvironmentDefaults`, pinning base-fee/blob fields and
   native `chainid` to their current EVMYulLean default/global behavior until
   the follow-up widens the state bridge. The helper theorems

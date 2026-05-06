@@ -1084,6 +1084,10 @@ example :
   native_decide
 
 example :
+    nativeRejectsUnsupportedHeaderBuiltin "selfbalance" = true := by
+  native_decide
+
+example :
     nativeStoresBuiltin "caller" 12 sampleTx.sender = true := by
   native_decide
 
