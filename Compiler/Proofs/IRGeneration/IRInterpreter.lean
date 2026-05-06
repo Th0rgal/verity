@@ -85,77 +85,7 @@ private theorem internal_call_measure_decreases (fuel measure : Nat) :
   rw [Prod.lex_iff]
   exact Or.inl (Nat.lt_succ_self fuel)
 
-/-! ## Execution State for IR -/
-
-structure IRState where
-  /-- Variable bindings (name → value) -/
-  vars : List (String × Nat)
-  /-- Storage slots (slot → value).
-
-      Typed via `IRStorageWord` so Phase 1 of the IR storage refactor can
-      flip the carrier to a `UInt256`-bounded representation without
-      touching this signature. Currently `IRStorageWord` is an `abbrev`
-      for `Nat`, so this is definitionally `Nat → Nat` and existing
-      callsites continue to typecheck. -/
-  storage : IRStorageSlot → IRStorageWord
-  /-- Transient storage slots (slot → value). -/
-  transientStorage : Nat → Nat := fun _ => 0
-  /-- Memory words (offset → value) -/
-  memory : Nat → Nat
-  /-- Calldata words (argument index → value) -/
-  calldata : List Nat
-  /-- Return value (if any) -/
-  returnValue : Option Nat
-  /-- Sender address -/
-  sender : Nat
-  /-- Msg.value seen by `callvalue()`. -/
-  msgValue : Nat := 0
-  /-- Contract address seen by `address()`. -/
-  thisAddress : Nat := 0
-  /-- Block timestamp seen by `timestamp()`. -/
-  blockTimestamp : Nat := 0
-  /-- Block number seen by `number()`. -/
-  blockNumber : Nat := 0
-  /-- Chain id seen by `chainid()`. -/
-  chainId : Nat := 0
-  /-- Blob base fee seen by `blobbasefee()`. -/
-  blobBaseFee : Nat := 0
-  /-- Function selector (4-byte value used by calldataload(0)) -/
-  selector : Nat
-  /-- Emitted log records for this execution. -/
-  events : List (List Nat) := []
-  deriving Nonempty
-
-/-- Initial state for IR execution -/
-def IRState.initial (sender : Nat) : IRState :=
-  { vars := []
-    storage := fun _ => 0
-    transientStorage := fun _ => 0
-    memory := fun _ => 0
-    calldata := []
-    returnValue := none
-    sender := sender
-    msgValue := 0
-    thisAddress := 0
-    blockTimestamp := 0
-    blockNumber := 0
-    chainId := 0
-    blobBaseFee := 0
-    selector := 0
-    events := [] }
-
-/-- Lookup variable in state -/
-def IRState.getVar (s : IRState) (name : String) : Option Nat :=
-  s.vars.find? (·.1 == name) |>.map (·.2)
-
-/-- Set variable in state -/
-def IRState.setVar (s : IRState) (name : String) (value : Nat) : IRState :=
-  { s with vars := (name, value) :: s.vars.filter (·.1 != name) }
-
-/-- Set several variables in order, matching the left-to-right binding behavior used
-by parameter initialization and multi-return helper calls. -/
-def IRState.setVars (s : IRState) (bindings : List (String × Nat)) : IRState :=
-  bindings.foldl (fun st (name, value) => st.setVar name value) s
+/-! ## Execution State Helpers -/
 
 def byteWordCount (size : Nat) : Nat :=
   (size + 31) / 32

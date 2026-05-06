@@ -7342,7 +7342,7 @@ theorem compileStmt_rawLog_bridged
                       compileExpr_bridgedSource fields dynamicSource hSize hSizeExpr
                     have hLenLe : topics.length ≤ 4 := Nat.le_of_not_lt hLen
                     have hLogName :
-                        Compiler.Proofs.IRGeneration.isYulLogName
+                        Compiler.Proofs.YulGeneration.isYulLogName
                           s!"log{topics.length}" = true := by
                       have hn : topics.length ≤ 4 := hLenLe
                       generalize hEq : topics.length = n at hn

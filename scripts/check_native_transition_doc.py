@@ -284,19 +284,8 @@ def check_public_theorem_target(
     for required_native_surface in (
         "def nativeResultsMatch",
         "def nativeResultsMatchOn",
-        "def nativeDispatcherExecMatchesIRPositive",
-        "theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match",
-        "theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match",
-        "def nativeIRRuntimeMatchesIR",
         "theorem validateNativeRuntimeEnvironment_ofIR_representableEnvironment",
         "theorem validateNativeRuntimeEnvironment_ofIR_globalDefaults",
-        "theorem nativeDispatcherExecMatchesIRPositive_of_project_eq_match",
-        "theorem nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match",
-        "theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match",
-        "theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_match",
-        "theorem nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match",
-        "theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match",
-        "theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match",
         "def nativeMappingSlotFunctionDefinition",
         "theorem lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero",
         "theorem lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero_body",
@@ -309,6 +298,23 @@ def check_public_theorem_target(
                 "must own the native theorem/result surface "
                 f"`{required_native_surface}` until the generated-fragment "
                 "native bridge is discharged"
+            )
+
+    for required_end_to_end_native_surface in (
+        "def nativeIRRuntimeMatchesIR",
+        "def nativeDispatcherExecMatchesIRPositive",
+        "theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match",
+        "theorem nativeDispatcherExecMatchesIRPositive_of_project_eq_match",
+        "theorem nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match",
+        "theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match",
+        "theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match",
+    ):
+        if required_end_to_end_native_surface not in normalized_end_to_end:
+            errors.append(
+                "Compiler/Proofs/EndToEnd.lean must own the native-vs-IR "
+                "comparison surface "
+                f"`{required_end_to_end_native_surface}` after the native "
+                "harness was split away from the full IR interpreter"
             )
 
     for required_native_seam in (
@@ -1492,6 +1498,19 @@ def check_runtime_types_import_boundary(runtime_types_text: str) -> list[str]:
     return errors
 
 
+def check_native_harness_import_boundary(native_harness_text: str) -> list[str]:
+    """Keep the native harness independent of the full IR interpreter."""
+
+    errors: list[str] = []
+    if "import Compiler.Proofs.IRGeneration.IRInterpreter" in native_harness_text:
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean "
+            "must consume IRRuntimeTypes records without importing the full IR "
+            "interpreter"
+        )
+    return errors
+
+
 def check_native_alias_signatures(end_to_end_text: str) -> list[str]:
     """Reject hidden native dispatcher fuel-wrapper aliases in theorem signatures."""
 
@@ -1679,6 +1698,7 @@ def main() -> int:
         )
     )
     errors.extend(check_runtime_types_import_boundary(runtime_types_text))
+    errors.extend(check_native_harness_import_boundary(native_harness_text))
     errors.extend(
         check_legacy_proof_boundary(
             [

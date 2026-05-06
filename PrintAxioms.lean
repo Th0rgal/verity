@@ -4191,17 +4191,6 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
 #print axioms Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_succ_eq_contractDispatcherExecResult_of_lowerRuntimeContractNative
--- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive_of_project_eq_match  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive_of_exec_ok_match  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_match  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive_of_exec_error_match  -- private
--- #print axioms Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match  -- private
 
 -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeSignedArithLemmas.lean
 -- #print axioms Compiler.Proofs.YulGeneration.Backends.fin_val_mul_neg1  -- private
@@ -4490,4 +4479,4 @@ import Compiler.Proofs.YulGeneration.RuntimeTypes
 -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
 #print axioms Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
--- Total: 4296 theorems/lemmas (2891 public, 1405 private, 0 sorry'd)
+-- Total: 4285 theorems/lemmas (2891 public, 1394 private, 0 sorry'd)
