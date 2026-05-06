@@ -10393,11 +10393,11 @@ theorem simpleStorage_endToEnd_native_evmYulLean
 /-! ## Universal Pure Arithmetic Bridge
 
 The pure arithmetic bridge proofs (`pure_add_bridge`, etc.) were removed
-after the `evalBuiltinCall` refactor (commit e5da6c7f) which added
-`callvalue`/`calldatasize` support, making `evalBuiltinCall` too large
-for the default heartbeat limit during type-checking. The proofs were
-mathematically correct but need `evalBuiltinCall` to be factored into
-smaller pieces before they can be re-stated without timeout.
+after the legacy builtin dispatch grew `callvalue`/`calldatasize`
+support, making the old monolithic wrapper too large for the default
+heartbeat limit during type-checking. The proofs were mathematically
+correct but need the legacy builtin dispatch to be factored into smaller
+pieces before they can be re-stated without timeout.
 
 See: `ArithmeticProfile.lean` and
 `YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` for the current

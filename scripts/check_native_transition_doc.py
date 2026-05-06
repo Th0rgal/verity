@@ -273,6 +273,13 @@ def check_public_theorem_target(
             "keep that evidence isolated in EvmYulLeanRetarget.lean"
         )
 
+    if "evalBuiltinCall" in end_to_end_text:
+        errors.append(
+            "Compiler/Proofs/EndToEnd.lean must not directly mention legacy "
+            "builtin-dispatch wrapper `evalBuiltinCall`; keep those notes and "
+            "dependencies below the public EndToEnd surface"
+        )
+
     for required_native_surface in (
         "def nativeResultsMatch",
         "def nativeResultsMatchOn",
@@ -1184,6 +1191,7 @@ def check_reference_oracle_names(
         )
 
     for forbidden_end_to_end_legacy_term in (
+        "evalBuiltinCall",
         "legacyEvalBuiltinCallWithContext",
         "legacyBuiltinBackend",
         "Compiler.Proofs.YulGeneration.ReferenceOracle",
