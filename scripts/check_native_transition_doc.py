@@ -1421,6 +1421,20 @@ def check_native_closure_import_boundary(
             "native closure predicates should remain syntactic"
         )
 
+    if "import Compiler.Proofs.YulGeneration.LogNames" not in bridge_predicates_text:
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Backends/"
+            "EvmYulLeanBridgePredicates.lean must import the neutral "
+            "Yul log-name helper"
+        )
+
+    if "import Compiler.Proofs.IRGeneration.IRInterpreter" in bridge_predicates_text:
+        errors.append(
+            "Compiler/Proofs/YulGeneration/Backends/"
+            "EvmYulLeanBridgePredicates.lean must not import the full IR "
+            "interpreter for log-name predicates"
+        )
+
     for forbidden_predicate_surface in (
         "legacy Yul reference oracle",
         "legacy retarget executor",

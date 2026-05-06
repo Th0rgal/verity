@@ -406,7 +406,7 @@ private theorem bridgedExpr_ite {cond thenVal elseVal : YulExpr}
 /-- Destructure a `do`-block emission of `yulBinOp` into its sub-results.
     This shape matches what `simp only [compileExpr]` produces for every
     binop constructor case. -/
-private lemma compileExpr_yulBinOp_ok
+private theorem compileExpr_yulBinOp_ok
     {fields : List CompilationModel.Field} {src : DynamicDataSource}
     {op : String} {a b : Expr} {out : YulExpr}
     (hOk : (do let x ← compileExpr fields src a
@@ -426,7 +426,7 @@ private lemma compileExpr_yulBinOp_ok
           exact hOk.symm
 
 /-- Same destructuring for `yulNegatedBinOp` emissions (used by `ge`/`le`). -/
-private lemma compileExpr_yulNegatedBinOp_ok
+private theorem compileExpr_yulNegatedBinOp_ok
     {fields : List CompilationModel.Field} {src : DynamicDataSource}
     {op : String} {a b : Expr} {out : YulExpr}
     (hOk : (do let x ← compileExpr fields src a
@@ -446,7 +446,7 @@ private lemma compileExpr_yulNegatedBinOp_ok
           exact hOk.symm
 
 /-- Destructure a boolean-normalized binary expression emission. -/
-private lemma compileExpr_yulBoolBinOp_ok
+private theorem compileExpr_yulBoolBinOp_ok
     {fields : List CompilationModel.Field} {src : DynamicDataSource}
     {op : String} {a b : Expr} {out : YulExpr}
     (hOk : (do let x ← compileExpr fields src a
@@ -467,7 +467,7 @@ private lemma compileExpr_yulBoolBinOp_ok
           exact hOk.symm
 
 /-- Destructure a unary builtin expression emission. -/
-private lemma compileExpr_unopBuiltin_ok
+private theorem compileExpr_unopBuiltin_ok
     {fields : List CompilationModel.Field} {src : DynamicDataSource}
     {op : String} {a : Expr} {out : YulExpr}
     (hOk : (do let x ← compileExpr fields src a
@@ -481,7 +481,7 @@ private lemma compileExpr_unopBuiltin_ok
       exact hOk.symm
 
 /-- Destructure a binary helper expression emission. -/
-private lemma compileExpr_binaryShape_ok
+private theorem compileExpr_binaryShape_ok
     {fields : List CompilationModel.Field} {src : DynamicDataSource}
     {shape : YulExpr → YulExpr → YulExpr} {a b : Expr} {out : YulExpr}
     (hOk : (do let x ← compileExpr fields src a
@@ -501,7 +501,7 @@ private lemma compileExpr_binaryShape_ok
           exact hOk.symm
 
 /-- Destructure a ternary helper expression emission. -/
-private lemma compileExpr_ternaryShape_ok
+private theorem compileExpr_ternaryShape_ok
     {fields : List CompilationModel.Field} {src : DynamicDataSource}
     {shape : YulExpr → YulExpr → YulExpr → YulExpr}
     {a b c : Expr} {out : YulExpr}
@@ -814,7 +814,7 @@ theorem compileExpr_bridgedSource
 
 /-- Default `require` failure condition shape: `iszero(compileExpr cond)` is
     bridged whenever the source condition expression is bridged. -/
-private lemma compileRequireFailCond_default_bridgedSource
+private theorem compileRequireFailCond_default_bridgedSource
     {fields : List CompilationModel.Field} {src : DynamicDataSource}
     {cond : Expr} {failCond : YulExpr}
     (hCond : BridgedSourceExpr cond)
@@ -826,11 +826,10 @@ private lemma compileRequireFailCond_default_bridgedSource
   cases hCompiled : compileExpr fields src cond with
   | error err =>
       rw [hCompiled] at hOk
-      simp at hOk
+      cases hOk
   | ok compiled =>
       rw [hCompiled] at hOk
-      simp at hOk
-      subst hOk
+      cases hOk
       exact bridgedExpr_unopBuiltin (by simp [bridgedBuiltins])
         (compileExpr_bridgedSource fields src hCond hCompiled)
 

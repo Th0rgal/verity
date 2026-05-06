@@ -17,6 +17,7 @@ import Compiler.IR
 import Compiler.CompilationModel
 import Compiler.Proofs.IRGeneration.IRStorageWord
 import Compiler.Proofs.MappingSlot
+import Compiler.Proofs.YulGeneration.LogNames
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Verity.Core
@@ -27,6 +28,8 @@ open Compiler
 open Compiler.Yul
 open Verity.Core
 open Compiler.Proofs
+
+export Compiler.Proofs.YulGeneration (isYulLogName)
 
 /-! Size measures for termination proofs. -/
 mutual
@@ -184,10 +187,6 @@ def encodeYulLogEvent (memory : Nat → Nat) (offset size : Nat)
 def IRState.appendYulLog (s : IRState) (offset size : Nat)
     (topics : List Nat) : IRState :=
   { s with events := s.events ++ [encodeYulLogEvent s.memory offset size topics] }
-
-def isYulLogName (func : String) : Bool :=
-  func == "log0" || func == "log1" || func == "log2" ||
-    func == "log3" || func == "log4"
 
 def applyYulLogCall? (state : IRState) (func : String)
     (argVals : List Nat) : Option IRState :=

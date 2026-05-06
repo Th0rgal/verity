@@ -7,11 +7,9 @@
 -/
 
 import Compiler.Yul.Ast
-import Compiler.Proofs.IRGeneration.IRInterpreter
+import Compiler.Proofs.YulGeneration.LogNames
 
 namespace Compiler.Proofs.YulGeneration.Backends
-
-open Compiler.Proofs.IRGeneration
 
 /-- Builtin names accepted by the current native generated-fragment closure
     predicate. Kept here so native closure proofs can name the supported
