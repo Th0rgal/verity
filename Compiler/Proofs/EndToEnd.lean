@@ -1217,44 +1217,6 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatche
       hNoHeader)
     hMatch
 
-/-- Canonical-fuel positive dispatcher theorem with `YulTransaction.ofIR`
-environment validation discharged from representable environment facts. -/
-private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment_canonicalFuel
-    {spec : CompilationModel.CompilationModel}
-    {selectors : List Nat} {irContract : IRContract}
-    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
-    {nativeContract : EvmYul.Yul.Ast.YulContract}
-    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
-    (hSupported : SupportedSpec spec selectors)
-    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
-    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
-      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
-        spec.fields spec.errors .calldata [] false entry.1.body)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
-    (hChainId :
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
-        tx.chainId = true)
-    (hBlobBaseFee :
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable
-        tx.blobBaseFee = true)
-    (hNoHeader :
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
-        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
-        false)
-    (hMatch :
-      nativeDispatcherExecMatchesIRPositive
-        (nativeRuntimeDispatcherFuel irContract) irContract tx state
-        observableSlots nativeContract) :
-    nativeIRRuntimeMatchesIR
-      (nativeRuntimeFuel irContract) irContract tx state observableSlots :=
-  nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_canonicalFuel
-    hCompile hSupported hStaticParams hSafeBodies hLower
-    (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_representableEnvironment
-      (Compiler.emitYul irContract).runtimeCode tx hChainId hBlobBaseFee
-      hNoHeader)
-    hMatch
-
 /-- Supported compiler-produced positive dispatcher theorem with
 `YulTransaction.ofIR` environment validation discharged from the EVMYulLean
 global default environment. -/
@@ -1280,40 +1242,6 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatche
     (hMatch : nativeDispatcherExecMatchesIRPositive fuel' irContract tx state observableSlots nativeContract) :
     nativeIRRuntimeMatchesIR (Nat.succ fuel') irContract tx state observableSlots :=
   nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure
-    hCompile hSupported hStaticParams hSafeBodies hLower
-    (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_globalDefaults
-      (Compiler.emitYul irContract).runtimeCode tx hChainId hBlobBaseFee
-      hNoHeader)
-    hMatch
-
-/-- Canonical-fuel positive dispatcher theorem with `YulTransaction.ofIR`
-environment validation discharged from the EVMYulLean global defaults. -/
-private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults_canonicalFuel
-    {spec : CompilationModel.CompilationModel}
-    {selectors : List Nat} {irContract : IRContract}
-    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
-    {nativeContract : EvmYul.Yul.Ast.YulContract}
-    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
-    (hSupported : SupportedSpec spec selectors)
-    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
-    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
-      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
-        spec.fields spec.errors .calldata [] false entry.1.body)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
-    (hChainId : tx.chainId = EvmYul.chainId)
-    (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
-    (hNoHeader :
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeRuntimePathUsesUnsupportedHeaderBuiltin
-        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
-        false)
-    (hMatch :
-      nativeDispatcherExecMatchesIRPositive
-        (nativeRuntimeDispatcherFuel irContract) irContract tx state
-        observableSlots nativeContract) :
-    nativeIRRuntimeMatchesIR
-      (nativeRuntimeFuel irContract) irContract tx state observableSlots :=
-  nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_canonicalFuel
     hCompile hSupported hStaticParams hSafeBodies hLower
     (Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_globalDefaults
       (Compiler.emitYul irContract).runtimeCode tx hChainId hBlobBaseFee
