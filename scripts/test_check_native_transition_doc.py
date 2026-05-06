@@ -1199,6 +1199,22 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_native_closure_import_boundary_rejects_missing_source_adt_read_closure(self) -> None:
+        source_text = check.SOURCE_EXPR_CLOSURE.read_text(encoding="utf-8").replace(
+            "| adtTag (adtName storageField : String) :",
+            "| adtTagRemoved (adtName storageField : String) :",
+            1,
+        )
+        errors = check.check_native_closure_import_boundary(
+            check.BRIDGE_PREDICATES.read_text(encoding="utf-8"),
+            check.BODY_CLOSURE.read_text(encoding="utf-8"),
+            source_text,
+        )
+        self.assertTrue(
+            any("adtTag" in error for error in errors),
+            errors,
+        )
+
     def test_native_closure_import_boundary_rejects_missing_body_keccak_closure(self) -> None:
         body_text = check.BODY_CLOSURE.read_text(encoding="utf-8").replace(
             "theorem bridgedSafeStmts_externalMstoreLetKeccak_of_exprCompileCore",

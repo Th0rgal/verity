@@ -1619,6 +1619,8 @@ def check_native_closure_import_boundary(
         "| storage (fieldName : String) : BridgedSourceExpr (.storage fieldName)",
         "| storageAddr (fieldName : String) : BridgedSourceExpr (.storageAddr fieldName)",
         "| storageArrayLength (fieldName : String) :",
+        "| adtTag (adtName storageField : String) :",
+        "| adtField (adtName variantName fieldName : String) (fieldIndex : Nat)",
     ):
         if required_source_expr_theorem not in source_expr_closure_text:
             errors.append(

@@ -18,13 +18,13 @@
       `blockTimestamp`, `blockNumber`, `chainid`, `blobbasefee`,
       `calldatasize`
     - storage reads whose compiler field lookup succeeds: `storage`,
-      `storageAddr`, `storageArrayLength`
+      `storageAddr`, `storageArrayLength`, `adtTag`, `adtField`
     - unary calldata/memory/transient reads: `calldataload`, `mload`, `tload`
     - native syntactic memory-slice hashing: `keccak256`
 
-  Mapping entries, storage-array elements, returndata, call, dynamic helpers,
-  ABI casts, `selfBalance`, and external account/state reads are out of scope
-  and require dedicated closure proofs.
+  Mapping entries, storage-array elements, ADT construction/matching,
+  returndata, call, dynamic helpers, ABI casts, `selfBalance`, and external
+  account/state reads are out of scope and require dedicated closure proofs.
 
   The scalar-leaf-only theorem `compileExpr_bridgedSource_leaf` is
   retained below as a specialization.
@@ -82,13 +82,14 @@ theorem compileExpr_bridgedSource_leaf
 
 /-- Source EDSL expressions whose `compileExpr` output is a `BridgedExpr`.
     Covers scalar leaves, storage reads whose compiler field lookup succeeds,
-    including dynamic-array length words,
+    including dynamic-array length words and ADT tag/field reads,
     pure arithmetic/comparison/bit-op binops, boolean-normalization forms,
     branchless arithmetic helpers, zero-argument environment/calldata-size
     reads, unary calldata/memory/transient reads, syntactic memory-slice
     `keccak256`, and `ge`/`le` negated comparisons. Mapping entries,
-    storage-array elements, returndata, dynamic helpers, ABI casts, calls,
-    `selfBalance`, and external account/state reads are out of scope. -/
+    storage-array elements, ADT construction/matching, returndata, dynamic
+    helpers, ABI casts, calls, `selfBalance`, and external account/state reads
+    are out of scope. -/
 inductive BridgedSourceExpr : Expr → Prop
   -- scalar leaves
   | literal (n : Nat) : BridgedSourceExpr (.literal n)
@@ -100,6 +101,12 @@ inductive BridgedSourceExpr : Expr → Prop
   | storageAddr (fieldName : String) : BridgedSourceExpr (.storageAddr fieldName)
   | storageArrayLength (fieldName : String) :
       BridgedSourceExpr (.storageArrayLength fieldName)
+  | adtTag (adtName storageField : String) :
+      BridgedSourceExpr (.adtTag adtName storageField)
+  | adtField (adtName variantName fieldName : String) (fieldIndex : Nat)
+      (storageField : String) :
+      BridgedSourceExpr
+        (.adtField adtName variantName fieldName fieldIndex storageField)
   -- zero-argument environment / calldata-size reads
   | caller : BridgedSourceExpr .caller
   | contractAddress : BridgedSourceExpr .contractAddress
@@ -515,6 +522,31 @@ private theorem bridgedExpr_sload_lit (slot : Nat) :
   subst arg
   exact BridgedExpr.lit slot
 
+/-- `sload(e)` is in the native bridged expression fragment whenever the slot
+    expression is bridged. -/
+private theorem bridgedExpr_sload {slot : YulExpr} (hSlot : BridgedExpr slot) :
+    BridgedExpr (YulExpr.call "sload" [slot]) := by
+  refine BridgedExpr.call "sload" _ (Or.inl (by simp [bridgedBuiltins])) ?_
+  intro arg hMem
+  simp only [List.mem_singleton] at hMem
+  subst arg
+  exact hSlot
+
+/-- ADT tag reads compile to `and(sload(baseSlot), 0xff)`. -/
+private theorem bridgedExpr_adtTagRead_lit (baseSlot : Nat) :
+    BridgedExpr (compileAdtTagRead (YulExpr.lit baseSlot)) := by
+  unfold compileAdtTagRead
+  exact bridgedExpr_binopBuiltin (by simp [bridgedBuiltins])
+    (bridgedExpr_sload_lit baseSlot) (BridgedExpr.lit 0xFF)
+
+/-- ADT field reads compile to `sload(add(baseSlot, fieldIndex + 1))`. -/
+private theorem bridgedExpr_adtFieldRead_lit (baseSlot fieldIndex : Nat) :
+    BridgedExpr (compileAdtFieldRead (YulExpr.lit baseSlot) fieldIndex) := by
+  unfold compileAdtFieldRead
+  exact bridgedExpr_sload
+    (bridgedExpr_binopBuiltin (by simp [bridgedBuiltins])
+      (BridgedExpr.lit baseSlot) (BridgedExpr.lit (fieldIndex + 1)))
+
 /-- Packed storage reads compile to `and(shr(offset, sload(slot)), mask)`,
     whose subexpressions are all native bridged builtins. -/
 private theorem bridgedExpr_packed_sload_lit
@@ -662,6 +694,24 @@ theorem compileExpr_bridgedSource
             exact bridgedExpr_sload_lit slot
         | uint256 | address | mappingTyped | mappingStruct | mappingStruct2 | adt =>
             simp [hTy] at hOk
+      · simp at hOk
+  | adtTag adtName storageField =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      split at hOk
+      · rename_i baseSlot hFind
+        simp [Pure.pure, Except.pure] at hOk
+        subst out
+        exact bridgedExpr_adtTagRead_lit baseSlot
+      · simp at hOk
+  | adtField adtName variantName fieldName fieldIndex storageField =>
+      intro out hOk
+      simp only [compileExpr] at hOk
+      split at hOk
+      · rename_i baseSlot hFind
+        simp [Pure.pure, Except.pure] at hOk
+        subst out
+        exact bridgedExpr_adtFieldRead_lit baseSlot fieldIndex
       · simp at hOk
   | caller =>
       intro out hOk
@@ -981,6 +1031,13 @@ theorem compileRequireFailCond_bridgedSource
   | storageArrayLength fieldName =>
       exact compileRequireFailCond_default_bridgedSource
         (BridgedSourceExpr.storageArrayLength fieldName) hOk
+  | adtTag adtName storageField =>
+      exact compileRequireFailCond_default_bridgedSource
+        (BridgedSourceExpr.adtTag adtName storageField) hOk
+  | adtField adtName variantName fieldName fieldIndex storageField =>
+      exact compileRequireFailCond_default_bridgedSource
+        (BridgedSourceExpr.adtField adtName variantName fieldName fieldIndex
+          storageField) hOk
   | ge ha hb =>
       simp only [compileRequireFailCond] at hOk
       obtain ⟨ca, cb, hA, hB, hEq⟩ := compileExpr_yulBinOp_ok hOk
