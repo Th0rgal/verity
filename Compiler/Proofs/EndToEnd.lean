@@ -1282,34 +1282,6 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatche
       hCompile hSupported hStaticParams hSafeBodies)
     hLower hEnv hProject hMatch
 
-/-- Native runtime theorem using canonical runtime-size fuel for the public
-projected-result dispatcher-exec surface. -/
-private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_canonicalFuel
-    {spec : CompilationModel.CompilationModel}
-    {selectors : List Nat} {irContract : IRContract}
-    {tx : IRTransaction} {state : IRState} {observableSlots : List Nat}
-    {nativeContract : EvmYul.Yul.Ast.YulContract} {nativeYul : YulResult}
-    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
-    (hSupported : SupportedSpec spec selectors)
-    (hStaticParams : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors → Compiler.Proofs.YulGeneration.Backends.AllStaticScalarParams entry.1.params)
-    (hSafeBodies : ∀ entry, entry ∈ SourceSemantics.selectorFunctionPairs spec selectors →
-      Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
-        spec.fields spec.errors .calldata [] false entry.1.body)
-    (hLower : Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-      (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
-    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
-    (hProject : nativeProjectedDispatcherResultEq
-      (nativeRuntimeDispatcherFuel irContract) irContract tx state
-      observableSlots nativeContract nativeYul)
-    (hMatch :
-      nativeResultsMatchOn observableSlots (interpretIR irContract tx state)
-        (.ok nativeYul)) :
-    nativeIRRuntimeMatchesIR
-      (nativeRuntimeFuel irContract) irContract tx state observableSlots :=
-  nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure
-    hCompile hSupported hStaticParams hSafeBodies hLower hEnv hProject hMatch
-
 private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
     {selectors : List Nat} {irContract : IRContract}
