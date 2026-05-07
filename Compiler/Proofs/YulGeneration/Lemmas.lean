@@ -1,5 +1,6 @@
 import Compiler.Codegen
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 
 namespace Compiler.Proofs.YulGeneration
 
@@ -12,7 +13,7 @@ These lemmas connect the runtime codegen structure with the Yul semantics.
 -/
 
 set_option maxHeartbeats 1000000 in
-@[simp] theorem evalYulExpr_selectorExpr_semantics :
+@[simp] private theorem evalYulExpr_selectorExpr_semantics :
     ∀ state : YulState, evalYulExpr state selectorExpr = some (state.selector % selectorModulus) := by
   intro state
   have hShiftModEq : selectorShift % evmModulus = selectorShift := by
@@ -41,11 +42,13 @@ set_option maxHeartbeats 1000000 in
         (state.selector % selectorModulus) * 2 ^ selectorShift := by
     exact Nat.mod_eq_of_lt hSelectorWordLt
   simp [selectorExpr, evalYulExpr, evalYulCall, evalYulExprs,
-    evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext, calldataloadWord, selectorWord,
+    evalBuiltinCallWithBackendContext, Backends.evalBuiltinCallWithEvmYulLeanContext,
+    Backends.evalBuiltinCallViaEvmYulLean,
+    calldataloadWord, selectorWord,
     hShiftModEq, hSelectorWordMod, hSelectorShiftNotGe256]
 
 @[simp]
-theorem execYulStmtFuel_switch_match_semantics
+private theorem execYulStmtFuel_switch_match_semantics
     (state : YulState) (expr : YulExpr) (cases' : List (Nat × List YulStmt))
     (defaultCase : Option (List YulStmt)) (fuel v : Nat) (body : List YulStmt)
     (hEval : evalYulExpr state expr = some v)
@@ -54,12 +57,12 @@ theorem execYulStmtFuel_switch_match_semantics
       execYulStmtsFuel fuel state body := by
   cases fuel with
   | zero =>
-      simp [execYulStmtFuel, execYulStmtsFuel, execYulFuel, hEval, hFind]
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
   | succ fuel =>
-      simp [execYulStmtFuel, execYulStmtsFuel, execYulFuel, hEval, hFind]
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
 
 @[simp]
-theorem execYulStmtFuel_switch_miss_semantics
+private theorem execYulStmtFuel_switch_miss_semantics
     (state : YulState) (expr : YulExpr) (cases' : List (Nat × List YulStmt))
     (defaultCase : Option (List YulStmt)) (fuel v : Nat)
     (hEval : evalYulExpr state expr = some v)
@@ -70,10 +73,10 @@ theorem execYulStmtFuel_switch_miss_semantics
         | none => YulExecResult.continue state) := by
   cases fuel with
   | zero =>
-      simp [execYulStmtFuel, execYulStmtsFuel, execYulFuel, hEval, hFind]
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
       rfl
   | succ fuel =>
-      simp [execYulStmtFuel, execYulStmtsFuel, execYulFuel, hEval, hFind]
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
       rfl
 
 end Compiler.Proofs.YulGeneration

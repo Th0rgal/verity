@@ -1,22 +1,21 @@
 /-
   Phase 4: Retarget the theorem stack to EVMYulLean.
 
-  This module proves that the Verity Yul semantics — currently targeting the
-  `.verity` builtin backend — are equivalent to execution under the `.evmYulLean`
-  backend for programs that use only bridged builtins.
+  This module proves that the legacy Verity builtin backend and the
+  `.evmYulLean` builtin backend are equivalent for programs that use only
+  bridged builtins.
 
-  **Key theorem**: `backends_agree_on_bridged_builtins` shows that
+  **Key transition theorem**: the file-local
+  `backends_agree_on_bridged_builtins` shows that
   `evalBuiltinCallWithBackendContext .verity ... func args =
    evalBuiltinCallWithBackendContext .evmYulLean ... func args`
   for every `func ∈ bridgedBuiltins`.
 
-  This module also proves the expression-level lift for `BridgedExpr`:
-  `evalYulExpr_evmYulLean_eq_on_bridged`, plus the recursive target lift
-  `execYulFuelWithBackend_eq_on_bridged_target` for `BridgedTarget`
-  executions. The Layer-3 runtime-code lift in this module remains parameterized
-  by embedded-body `BridgedStmts` witnesses; `EvmYulLeanBodyClosure.lean` and
-  `EndToEnd.lean` discharge those witnesses for the supported safe source-body
-  fragment.
+  This module also proves file-local expression and recursive target lifts for
+  `BridgedExpr` and `BridgedTarget` executions. The Layer-3 runtime-code lift
+  remains parameterized by embedded-body `BridgedStmts` witnesses;
+  `EvmYulLeanBodyClosure.lean` and `EndToEnd.lean` discharge those witnesses for
+  the supported safe source-body fragment.
 
   **Trust boundary shift (pointwise)**: For any builtin call using a bridged
   name, the trust boundary moves from "Verity's custom Yul builtin semantics
@@ -28,8 +27,11 @@
   Run: lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 -/
 
+import Compiler.Codegen
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
-import Compiler.Proofs.YulGeneration.Preservation
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 
 namespace Compiler.Proofs.YulGeneration.Backends
 
@@ -46,7 +48,7 @@ The proof strategy:
 3. Right arity: apply the context-lifted bridge lemma from `EvmYulLeanBridgeLemmas`
 4. Wrong arity: both sides are definitionally equal (`rfl`)
 
-This avoids unfolding the expensive `evalBuiltinCallWithContext` if-chain. -/
+This avoids unfolding the expensive `legacyEvalBuiltinCallWithContext` if-chain. -/
 
 -- Binary builtins: argVals matches [a, b]
 private theorem backends_agree_add s se mv ta bt bn ci bb sl cd av :
@@ -328,7 +330,7 @@ private theorem backends_agree_calldatasize s se mv ta bt bn ci bb sl cd av :
   | _ :: _ => rfl
 
 -- Unary builtin: sload (state-dependent, routed through the same
--- `storage : IRStorageSlot → IRStorageWord` lookup used by Verity's `evalBuiltinCallWithContext`)
+-- `storage : IRStorageSlot → IRStorageWord` lookup used by Verity's `legacyEvalBuiltinCallWithContext`)
 private theorem backends_agree_sload s se mv ta bt bn ci bb sl cd av :
     evalBuiltinCallWithBackendContext .verity s se mv ta bt bn ci bb sl cd "sload" av =
     evalBuiltinCallWithBackendContext .evmYulLean s se mv ta bt bn ci bb sl cd "sload" av := by
@@ -362,12 +364,12 @@ All bridged builtin dependencies are fully proven in `EvmYulLeanBridgeLemmas.lea
 
     This is the master backend equivalence theorem for Phase 4 retargeting.
     It composes the 36 per-builtin bridge theorems into a single dispatch proof.
-    Every builtin handled by `evalBuiltinCallWithContext` is now bridged, so
+    Every builtin handled by `legacyEvalBuiltinCallWithContext` is now bridged, so
     `unbridgedBuiltins` is empty.
 
     This theorem is sorry-free, composing the fully proven per-builtin bridge
     lemmas in `EvmYulLeanBridgeLemmas.lean`. -/
-theorem backends_agree_on_bridged_builtins
+private theorem backends_agree_on_bridged_builtins
     (storage : IRStorageSlot → IRStorageWord) (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
     (calldata : List Nat)
     (func : String) (argVals : List Nat)
@@ -426,11 +428,8 @@ only bridged builtin names, plus the backend-independent `tload`/`mload`
 special cases handled directly by the Verity Yul expression evaluator.
 -/
 
-def allowedExprCallName (func : String) : Prop :=
-  func ∈ bridgedBuiltins ∨ func = "tload" ∨ func = "mload" ∨ func = "keccak256"
-
 set_option maxHeartbeats 1000000 in
-/-- `keccak256` is not handled by Verity's `evalBuiltinCallWithContext` (it
+/-- `keccak256` is not handled by Verity's `legacyEvalBuiltinCallWithContext` (it
     falls through the 35-case if-else chain to the final `else none`) and is
     not handled by the EVMYulLean adapter (`evalBuiltinCallViaEvmYulLean` and
     `evalPureBuiltinViaEvmYulLean` both default to `none` for unknown funcs).
@@ -452,19 +451,9 @@ private theorem backends_agree_on_keccak256
   -- simplest path; targeted simp at every level would be longer and no faster.
   rfl
 
-inductive BridgedExpr : Compiler.Yul.YulExpr → Prop
-  | lit (n : Nat) : BridgedExpr (.lit n)
-  | hex (n : Nat) : BridgedExpr (.hex n)
-  | str (s : String) : BridgedExpr (.str s)
-  | ident (name : String) : BridgedExpr (.ident name)
-  | call (func : String) (args : List Compiler.Yul.YulExpr)
-      (hName : allowedExprCallName func)
-      (hArgs : ∀ arg ∈ args, BridgedExpr arg) :
-      BridgedExpr (.call func args)
-
 mutual
 
-def evalYulExprsWithBackend (backend : BuiltinBackend) (state : YulState) :
+private def evalYulExprsWithBackend (backend : BuiltinBackend) (state : YulState) :
     List Compiler.Yul.YulExpr → Option (List Nat)
   | [] => some []
   | e :: es => do
@@ -477,7 +466,7 @@ decreasing_by
     simp [exprsSize]
     omega
 
-def evalYulCallWithBackend (backend : BuiltinBackend) (state : YulState)
+private def evalYulCallWithBackend (backend : BuiltinBackend) (state : YulState)
     (func : String) : List Compiler.Yul.YulExpr → Option Nat
   | args => do
     let argVals ← evalYulExprsWithBackend backend state args
@@ -501,7 +490,7 @@ termination_by args => exprsSize args + 1
 decreasing_by
   omega
 
-def evalYulExprWithBackend (backend : BuiltinBackend) (state : YulState) :
+private def evalYulExprWithBackend (backend : BuiltinBackend) (state : YulState) :
     Compiler.Yul.YulExpr → Option Nat
   | .lit n => some n
   | .hex n => some n
@@ -516,9 +505,9 @@ end
 
 mutual
 
-private theorem evalYulExprWithBackend_verity_eq
+private theorem evalYulExprWithBackend_evmYulLean_eq
     (state : YulState) (expr : Compiler.Yul.YulExpr) :
-    evalYulExprWithBackend .verity state expr = evalYulExpr state expr := by
+    evalYulExprWithBackend .evmYulLean state expr = evalYulExpr state expr := by
   cases expr with
   | lit _ => simp [evalYulExprWithBackend, evalYulExpr]
   | hex _ => simp [evalYulExprWithBackend, evalYulExpr]
@@ -526,24 +515,24 @@ private theorem evalYulExprWithBackend_verity_eq
   | ident _ => simp [evalYulExprWithBackend, evalYulExpr]
   | call func args =>
       simp only [evalYulExprWithBackend, evalYulExpr, evalYulCallWithBackend, evalYulCall]
-      rw [evalYulExprsWithBackend_verity_eq state args]
+      rw [evalYulExprsWithBackend_evmYulLean_eq state args]
       rfl
 
-private theorem evalYulExprsWithBackend_verity_eq
+private theorem evalYulExprsWithBackend_evmYulLean_eq
     (state : YulState) (args : List Compiler.Yul.YulExpr) :
-    evalYulExprsWithBackend .verity state args = evalYulExprs state args := by
+    evalYulExprsWithBackend .evmYulLean state args = evalYulExprs state args := by
   cases args with
   | nil => simp [evalYulExprsWithBackend, evalYulExprs]
   | cons arg rest =>
       simp only [evalYulExprsWithBackend, evalYulExprs]
-      rw [evalYulExprWithBackend_verity_eq state arg,
-        evalYulExprsWithBackend_verity_eq state rest]
+      rw [evalYulExprWithBackend_evmYulLean_eq state arg,
+        evalYulExprsWithBackend_evmYulLean_eq state rest]
 
 end
 
 mutual
 
-theorem evalYulExprWithBackend_eq_on_bridged
+private theorem evalYulExprWithBackend_eq_on_bridged
     (state : YulState) (expr : Compiler.Yul.YulExpr) (hExpr : BridgedExpr expr) :
     evalYulExprWithBackend .verity state expr =
     evalYulExprWithBackend .evmYulLean state expr := by
@@ -589,17 +578,15 @@ private theorem evalYulExprsWithBackend_eq_on_bridged
 
 end
 
-theorem evalYulExpr_evmYulLean_eq_on_bridged
-    (state : YulState) (expr : Compiler.Yul.YulExpr) (hExpr : BridgedExpr expr) :
+private theorem evalYulExpr_evmYulLean_eq_on_bridged
+    (state : YulState) (expr : Compiler.Yul.YulExpr) (_hExpr : BridgedExpr expr) :
     evalYulExpr state expr =
     evalYulExprWithBackend .evmYulLean state expr := by
-  have h := evalYulExprWithBackend_eq_on_bridged state expr hExpr
-  rw [← evalYulExprWithBackend_verity_eq state expr]
-  exact h
+  exact (evalYulExprWithBackend_evmYulLean_eq state expr).symm
 
 /-! ## Statement-level backend-parameterized executor
 
-`execYulFuelWithBackend` mirrors `execYulFuel` from `Semantics.lean` but routes
+`execYulFuelWithBackend` mirrors `legacyExecYulFuel` from `Semantics.lean` but routes
 each expression evaluation through `evalYulExprWithBackend backend`. The
 statement and runtime-code theorems below bridge `.verity` and `.evmYulLean`
 on targets satisfying the `Bridged*` predicates. Source-body closure and the
@@ -607,7 +594,7 @@ public safe-body EndToEnd wrapper live in `EvmYulLeanBodyClosure.lean` and
 `Compiler.Proofs.EndToEnd`.
 -/
 
-def execYulFuelWithBackend (backend : BuiltinBackend) :
+private def execYulFuelWithBackend (backend : BuiltinBackend) :
     Nat → YulState → YulExecTarget → YulExecResult
   | _, state, .stmts [] => .continue state
   | _, state, .stmt (Compiler.Yul.YulStmt.funcDef _ _ _ _) => .continue state
@@ -738,15 +725,15 @@ def execYulFuelWithBackend (backend : BuiltinBackend) :
           | .stop s => .stop s
           | .revert s => .revert s
 
-/-- The backend-parameterized executor recovers `execYulFuel` at the `.verity`
+/-- The backend-parameterized executor recovers `legacyExecYulFuel` at the `.verity`
     backend. Statement-level analogue of `evalYulExprWithBackend_verity_eq` —
     this is the correctness obligation that justifies replacing every
-    `execYulFuel` call in upstream theorems with
+    `legacyExecYulFuel` call in upstream theorems with
     `execYulFuelWithBackend .verity`. -/
-theorem execYulFuelWithBackend_verity_eq
+private theorem execYulFuelWithBackend_evmYulLean_eq
     (fuel : Nat) (state : YulState) (target : YulExecTarget) :
-    execYulFuelWithBackend .verity fuel state target =
-    execYulFuel fuel state target := by
+    execYulFuelWithBackend .evmYulLean fuel state target =
+    legacyExecYulFuel fuel state target := by
   induction fuel generalizing state target with
   | zero =>
       cases target with
@@ -758,15 +745,15 @@ theorem execYulFuelWithBackend_verity_eq
           cases s <;> (
             try rfl
             all_goals (
-              simp only [execYulFuelWithBackend, execYulFuel,
-                evalYulExprWithBackend_verity_eq,
-                evalYulExprsWithBackend_verity_eq, ih]
+              simp only [execYulFuelWithBackend, legacyExecYulFuel,
+                evalYulExprWithBackend_evmYulLean_eq,
+                evalYulExprsWithBackend_evmYulLean_eq, ih]
               try rfl))
       | stmts ss =>
           cases ss <;> (
             try rfl
             all_goals (
-              simp only [execYulFuelWithBackend, execYulFuel, ih]
+              simp only [execYulFuelWithBackend, legacyExecYulFuel, ih]
               try rfl))
 
 /-! ## Statement-level backend equivalence: value-binding helpers
@@ -782,7 +769,7 @@ These are intentionally narrow helpers. A future statement-level predicate
 them rather than re-deriving the expression rewrite each time.
 -/
 
-theorem execYulFuelWithBackend_let_eq_on_bridged
+private theorem execYulFuelWithBackend_let_eq_on_bridged
     (fuel : Nat) (state : YulState) (name : String)
     (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
     execYulFuelWithBackend .verity fuel state (.stmt (.let_ name value)) =
@@ -793,7 +780,7 @@ theorem execYulFuelWithBackend_let_eq_on_bridged
       simp only [execYulFuelWithBackend]
       rw [evalYulExprWithBackend_eq_on_bridged state value hValue]
 
-theorem execYulFuelWithBackend_assign_eq_on_bridged
+private theorem execYulFuelWithBackend_assign_eq_on_bridged
     (fuel : Nat) (state : YulState) (name : String)
     (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
     execYulFuelWithBackend .verity fuel state (.stmt (.assign name value)) =
@@ -812,168 +799,6 @@ statement-level lift of `evalYulExprWithBackend_eq_on_bridged`; structured
 control flow (`switch`, `for`, recursive `block`) still needs a separate
 fuel/AST induction.
 -/
-
-inductive BridgedStraightStmt : Compiler.Yul.YulStmt → Prop
-  | comment (text : String) : BridgedStraightStmt (.comment text)
-  | let_ (name : String) (value : Compiler.Yul.YulExpr)
-      (hValue : BridgedExpr value) :
-      BridgedStraightStmt (.let_ name value)
-  | letMany (names : List String) (value : Compiler.Yul.YulExpr) :
-      BridgedStraightStmt (.letMany names value)
-  | assign (name : String) (value : Compiler.Yul.YulExpr)
-      (hValue : BridgedExpr value) :
-      BridgedStraightStmt (.assign name value)
-  | leave : BridgedStraightStmt .leave
-  | expr_sstore_mapping (baseExpr keyExpr valExpr : Compiler.Yul.YulExpr)
-      (hBase : BridgedExpr baseExpr) (hKey : BridgedExpr keyExpr)
-      (hVal : BridgedExpr valExpr) :
-      BridgedStraightStmt
-        (.expr (.call "sstore" [.call "mappingSlot" [baseExpr, keyExpr], valExpr]))
-  /-- `sstore(lit slot, valExpr)` for a literal slot. Covers the common
-  direct-storage-write shape emitted by `compileSetStorage` for unpacked
-  single-slot fields at a known slot index. The executor's inner match on
-  `.lit slot` falls through to the generic `sstore` branch (it is not a
-  `mappingSlot` call), which only differs between backends via
-  `evalYulExprWithBackend` on `.lit slot` / `valExpr` — both bridged. -/
-  | expr_sstore_lit (slot : Nat) (valExpr : Compiler.Yul.YulExpr)
-      (hVal : BridgedExpr valExpr) :
-      BridgedStraightStmt (.expr (.call "sstore" [.lit slot, valExpr]))
-  /-- `sstore(ident slotName, valExpr)` for compiler-emitted writes whose
-  storage slot has already been bound to a local variable, e.g. struct-member
-  and compatibility write helpers. -/
-  | expr_sstore_ident (slotName : String) (valExpr : Compiler.Yul.YulExpr)
-      (hVal : BridgedExpr valExpr) :
-      BridgedStraightStmt (.expr (.call "sstore" [.ident slotName, valExpr]))
-  /-- `sstore(add(leftExpr, rightExpr), valExpr)` for storage-array element
-  writes where the slot is computed as `base + index`. The executor's inner
-  match on `.call "add" [...]` falls through to the generic `sstore` branch
-  (it is not a `mappingSlot` call), so both backends only diverge on
-  `evalYulExprWithBackend` for the `add` subexpression and the value — both
-  bridged (`add` is in `bridgedBuiltins`). Covers the compile paths used by
-  `compileStorageArrayPush`, `compileStorageArrayPop`, and
-  `compileSetStorageArrayElement`. -/
-  | expr_sstore_add (leftExpr rightExpr valExpr : Compiler.Yul.YulExpr)
-      (hLeft : BridgedExpr leftExpr) (hRight : BridgedExpr rightExpr)
-      (hVal : BridgedExpr valExpr) :
-      BridgedStraightStmt
-        (.expr (.call "sstore"
-          [.call "add" [leftExpr, rightExpr], valExpr]))
-  | expr_mstore (offsetExpr valExpr : Compiler.Yul.YulExpr)
-      (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
-      BridgedStraightStmt (.expr (.call "mstore" [offsetExpr, valExpr]))
-  | expr_tstore (offsetExpr valExpr : Compiler.Yul.YulExpr)
-      (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
-      BridgedStraightStmt (.expr (.call "tstore" [offsetExpr, valExpr]))
-  | expr_stop : BridgedStraightStmt (.expr (.call "stop" []))
-  | expr_return (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
-      (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
-      BridgedStraightStmt (.expr (.call "return" [offsetExpr, sizeExpr]))
-  | expr_revert (offsetExpr sizeExpr : Compiler.Yul.YulExpr) :
-      BridgedStraightStmt (.expr (.call "revert" [offsetExpr, sizeExpr]))
-  /-- `logN(args...)` for `N ∈ {0,1,2,3,4}`. The Yul semantics dispatches log
-  calls via backend-agnostic `applyYulLogCall?` (takes only state + func +
-  evaluated argument values), so both backends diverge only on the argument
-  evaluation step which is closed by `BridgedExpr` on each argument. -/
-  | expr_log (func : String) (args : List Compiler.Yul.YulExpr)
-      (hLog : isYulLogName func = true)
-      (hArgs : ∀ arg ∈ args, BridgedExpr arg) :
-      BridgedStraightStmt (.expr (.call func args))
-  | funcDef (name : String) (params rets : List String)
-      (body : List Compiler.Yul.YulStmt) :
-      BridgedStraightStmt (.funcDef name params rets body)
-
-def BridgedStraightStmts (stmts : List Compiler.Yul.YulStmt) : Prop :=
-  ∀ stmt ∈ stmts, BridgedStraightStmt stmt
-
-/-! ### List-level convenience helpers for `BridgedStraightStmts`
-
-Analogues of `BridgedStmts_nil`/`_cons`/`_append` (defined further below for
-the recursive `BridgedStmt` predicate) so that callers composing scalar-event
-emission fragments or other compiler-emitted concatenated straight-line lists
-can piece them together without unfolding the membership definition at each
-call site. -/
-
-theorem BridgedStraightStmts_nil : BridgedStraightStmts [] := by
-  intro stmt hMem
-  cases hMem
-
-theorem BridgedStraightStmts_cons {stmt : Compiler.Yul.YulStmt}
-    {stmts : List Compiler.Yul.YulStmt}
-    (hStmt : BridgedStraightStmt stmt) (hStmts : BridgedStraightStmts stmts) :
-    BridgedStraightStmts (stmt :: stmts) := by
-  intro s hMem
-  cases hMem with
-  | head => exact hStmt
-  | tail _ hTail => exact hStmts s hTail
-
-theorem BridgedStraightStmts_append {xs ys : List Compiler.Yul.YulStmt}
-    (hXs : BridgedStraightStmts xs) (hYs : BridgedStraightStmts ys) :
-    BridgedStraightStmts (xs ++ ys) := by
-  intro stmt hMem
-  simp only [List.mem_append] at hMem
-  cases hMem with
-  | inl h => exact hXs stmt h
-  | inr h => exact hYs stmt h
-
-theorem BridgedStraightStmts_singleton {stmt : Compiler.Yul.YulStmt}
-    (hStmt : BridgedStraightStmt stmt) : BridgedStraightStmts [stmt] :=
-  BridgedStraightStmts_cons hStmt BridgedStraightStmts_nil
-
-/-- Snoc composition for `BridgedStraightStmts`: append a single
-    `BridgedStraightStmt` to the end of an already-bridged straight list.
-    Parallels `BridgedStmts_snoc` for the straight-line layer, saving an
-    explicit `BridgedStraightStmts_singleton` wrap when chaining
-    `BridgedStraightStmts_append xs (BridgedStraightStmts_singleton y)`. -/
-theorem BridgedStraightStmts_snoc {xs : List Compiler.Yul.YulStmt}
-    {y : Compiler.Yul.YulStmt}
-    (hXs : BridgedStraightStmts xs) (hY : BridgedStraightStmt y) :
-    BridgedStraightStmts (xs ++ [y]) :=
-  BridgedStraightStmts_append hXs (BridgedStraightStmts_singleton hY)
-
-/-- A list of `(offset, value)` expression pairs where each component is a
-    `BridgedExpr` maps to a `BridgedStraightStmts` list of `mstore(offset,
-    value)` statements. Directly supports the scalar event-emission compiler
-    pattern where `sigStores` and `unindexedStores` are both computed as
-    `List YulStmt` via `.map` over pair-shaped data. -/
-theorem BridgedStraightStmts_map_mstore
-    (pairs : List (Compiler.Yul.YulExpr × Compiler.Yul.YulExpr))
-    (hPairs : ∀ p ∈ pairs, BridgedExpr p.1 ∧ BridgedExpr p.2) :
-    BridgedStraightStmts
-      (pairs.map fun p =>
-        Compiler.Yul.YulStmt.expr
-          (Compiler.Yul.YulExpr.call "mstore" [p.1, p.2])) := by
-  induction pairs with
-  | nil => exact BridgedStraightStmts_nil
-  | cons p rest ih =>
-      have hHead : BridgedExpr p.1 ∧ BridgedExpr p.2 := hPairs p (by simp)
-      have hRest : ∀ q ∈ rest, BridgedExpr q.1 ∧ BridgedExpr q.2 := by
-        intro q hq
-        exact hPairs q (by simp [hq])
-      exact BridgedStraightStmts_cons
-        (BridgedStraightStmt.expr_mstore p.1 p.2 hHead.1 hHead.2)
-        (ih hRest)
-
-/-- Analogue of `BridgedStraightStmts_map_mstore` for the transient-store
-    variant. Compiler helpers that target transient storage (EIP-1153)
-    occasionally emit concatenated `tstore` fragments, and having the
-    `map`-shaped helper pre-proved avoids per-fragment list recursion. -/
-theorem BridgedStraightStmts_map_tstore
-    (pairs : List (Compiler.Yul.YulExpr × Compiler.Yul.YulExpr))
-    (hPairs : ∀ p ∈ pairs, BridgedExpr p.1 ∧ BridgedExpr p.2) :
-    BridgedStraightStmts
-      (pairs.map fun p =>
-        Compiler.Yul.YulStmt.expr
-          (Compiler.Yul.YulExpr.call "tstore" [p.1, p.2])) := by
-  induction pairs with
-  | nil => exact BridgedStraightStmts_nil
-  | cons p rest ih =>
-      have hHead : BridgedExpr p.1 ∧ BridgedExpr p.2 := hPairs p (by simp)
-      have hRest : ∀ q ∈ rest, BridgedExpr q.1 ∧ BridgedExpr q.2 := by
-        intro q hq
-        exact hPairs q (by simp [hq])
-      exact BridgedStraightStmts_cons
-        (BridgedStraightStmt.expr_tstore p.1 p.2 hHead.1 hHead.2)
-        (ih hRest)
 
 private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmt
     (fuel : Nat) (state : YulState) (stmt : Compiler.Yul.YulStmt)
@@ -1077,7 +902,7 @@ private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmt
             simp [execYulFuelWithBackend, isYulLogName, hEval]
   | funcDef _ _ _ _ => cases fuel <;> rfl
 
-theorem execYulFuelWithBackend_eq_on_bridged_straight_stmts
+private theorem execYulFuelWithBackend_eq_on_bridged_straight_stmts
     (fuel : Nat) (state : YulState) (stmts : List Compiler.Yul.YulStmt)
     (hStmts : BridgedStraightStmts stmts) :
     execYulFuelWithBackend .verity fuel state (.stmts stmts) =
@@ -1108,7 +933,7 @@ theorem execYulFuelWithBackend_eq_on_bridged_straight_stmts
     the block constructor when the block body is already in the straight-line
     fragment; recursive blocks and branching control flow still require the
     broader statement predicate/induction. -/
-theorem execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
+private theorem execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
     (fuel : Nat) (state : YulState) (stmts : List Compiler.Yul.YulStmt)
     (hStmts : BridgedStraightStmts stmts) :
     execYulFuelWithBackend .verity fuel state (.stmt (.block stmts)) =
@@ -1126,7 +951,7 @@ theorem execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
     First narrow-helper lift into branching control flow; `.switch` and `.for_`
     still require their own helpers, and recursive control-flow bodies still
     require a broader predicate/induction. -/
-theorem execYulFuelWithBackend_if_eq_on_bridged_body
+private theorem execYulFuelWithBackend_if_eq_on_bridged_body
     (fuel : Nat) (state : YulState) (cond : Compiler.Yul.YulExpr)
     (body : List Compiler.Yul.YulStmt)
     (hCond : BridgedExpr cond) (hBody : BridgedStraightStmts body) :
@@ -1145,17 +970,12 @@ theorem execYulFuelWithBackend_if_eq_on_bridged_body
           · simp [hv]
             exact execYulFuelWithBackend_eq_on_bridged_straight_stmts fuel state body hBody
 
-def BridgedSwitchCases (cases : List (Nat × List Compiler.Yul.YulStmt)) : Prop :=
-  ∀ scrutinee value body,
-    cases.find? (fun x => decide (x.fst = scrutinee)) = some (value, body) →
-    BridgedStraightStmts body
-
 /-- A `.switch` with a bridged scrutinee and straight-line selected bodies
     preserves backend equivalence. The predicate only needs to cover bodies that
     can actually be selected by `find?`; the default branch is handled
     separately. Recursive switch bodies and loops still need the broader
     statement predicate/induction. -/
-theorem execYulFuelWithBackend_switch_eq_on_bridged_cases
+private theorem execYulFuelWithBackend_switch_eq_on_bridged_cases
     (fuel : Nat) (state : YulState) (expr : Compiler.Yul.YulExpr)
     (cases : List (Nat × List Compiler.Yul.YulStmt))
     (defaultCase : Option (List Compiler.Yul.YulStmt))
@@ -1192,7 +1012,7 @@ theorem execYulFuelWithBackend_switch_eq_on_bridged_cases
     the predecessor fuel with an empty initializer, so the proof follows the
     executor's fuel structure directly. Recursive control-flow inside the loop
     lists still needs the broader statement predicate/induction. -/
-theorem execYulFuelWithBackend_for_eq_on_bridged_parts
+private theorem execYulFuelWithBackend_for_eq_on_bridged_parts
     (fuel : Nat) (state : YulState)
     (init : List Compiler.Yul.YulStmt) (cond : Compiler.Yul.YulExpr)
     (post body : List Compiler.Yul.YulStmt)
@@ -1242,39 +1062,7 @@ expression dependency must satisfy `BridgedExpr`, and every nested statement
 list must recursively satisfy `BridgedStmt`.
 -/
 
-inductive BridgedStmt : Compiler.Yul.YulStmt → Prop
-  | straight (stmt : Compiler.Yul.YulStmt)
-      (hStmt : BridgedStraightStmt stmt) :
-      BridgedStmt stmt
-  | block (stmts : List Compiler.Yul.YulStmt)
-      (hStmts : ∀ stmt ∈ stmts, BridgedStmt stmt) :
-      BridgedStmt (.block stmts)
-  | if_ (cond : Compiler.Yul.YulExpr) (body : List Compiler.Yul.YulStmt)
-      (hCond : BridgedExpr cond)
-      (hBody : ∀ stmt ∈ body, BridgedStmt stmt) :
-      BridgedStmt (.if_ cond body)
-  | «switch» (expr : Compiler.Yul.YulExpr)
-      (cases : List (Nat × List Compiler.Yul.YulStmt))
-      (defaultCase : Option (List Compiler.Yul.YulStmt))
-      (hExpr : BridgedExpr expr)
-      (hCases : ∀ scrutinee value body,
-        cases.find? (fun x => decide (x.fst = scrutinee)) = some (value, body) →
-        ∀ stmt ∈ body, BridgedStmt stmt)
-      (hDefault : ∀ body, defaultCase = some body →
-        ∀ stmt ∈ body, BridgedStmt stmt) :
-      BridgedStmt (.switch expr cases defaultCase)
-  | for_ (init : List Compiler.Yul.YulStmt) (cond : Compiler.Yul.YulExpr)
-      (post body : List Compiler.Yul.YulStmt)
-      (hInit : ∀ stmt ∈ init, BridgedStmt stmt)
-      (hCond : BridgedExpr cond)
-      (hPost : ∀ stmt ∈ post, BridgedStmt stmt)
-      (hBody : ∀ stmt ∈ body, BridgedStmt stmt) :
-      BridgedStmt (.for_ init cond post body)
-
-def BridgedStmts (stmts : List Compiler.Yul.YulStmt) : Prop :=
-  ∀ stmt ∈ stmts, BridgedStmt stmt
-
-inductive BridgedTarget : YulExecTarget → Prop
+private inductive BridgedTarget : YulExecTarget → Prop
   | stmt (stmt : Compiler.Yul.YulStmt) (hStmt : BridgedStmt stmt) :
       BridgedTarget (.stmt stmt)
   | stmts (stmts : List Compiler.Yul.YulStmt) (hStmts : BridgedStmts stmts) :
@@ -1288,44 +1076,6 @@ the compiler-emitted dispatch shell (`callvalue`/`calldatasize` guards,
 selector switch, fallback/receive wrapper, optional mapping helper) is bridged
 whenever the IR function and entrypoint bodies it contains are bridged.
 -/
-
-theorem BridgedStmts_nil : BridgedStmts [] := by
-  intro stmt hMem
-  cases hMem
-
-theorem BridgedStmts_cons {stmt : Compiler.Yul.YulStmt}
-    {stmts : List Compiler.Yul.YulStmt}
-    (hStmt : BridgedStmt stmt) (hStmts : BridgedStmts stmts) :
-    BridgedStmts (stmt :: stmts) := by
-  intro s hMem
-  cases hMem with
-  | head => exact hStmt
-  | tail _ hTail => exact hStmts s hTail
-
-theorem BridgedStmts_append {xs ys : List Compiler.Yul.YulStmt}
-    (hXs : BridgedStmts xs) (hYs : BridgedStmts ys) :
-    BridgedStmts (xs ++ ys) := by
-  intro stmt hMem
-  simp only [List.mem_append] at hMem
-  cases hMem with
-  | inl h => exact hXs stmt h
-  | inr h => exact hYs stmt h
-
-/-- Public singleton helper: if `hStmt : BridgedStmt stmt` then the one-element
-    list `[stmt]` satisfies `BridgedStmts`. Matches `BridgedStraightStmts_singleton`
-    for list composition of recursive-statement lists. -/
-theorem BridgedStmts_singleton {stmt : Compiler.Yul.YulStmt}
-    (hStmt : BridgedStmt stmt) : BridgedStmts [stmt] :=
-  BridgedStmts_cons hStmt BridgedStmts_nil
-
-/-- Snoc composition: append a single `BridgedStmt` to the end of an
-    already-bridged list. Saves an explicit `BridgedStmts_singleton` wrap
-    when chaining `BridgedStmts_append xs (BridgedStmts_singleton y)`. -/
-theorem BridgedStmts_snoc {xs : List Compiler.Yul.YulStmt}
-    {y : Compiler.Yul.YulStmt}
-    (hXs : BridgedStmts xs) (hY : BridgedStmt y) :
-    BridgedStmts (xs ++ [y]) :=
-  BridgedStmts_append hXs (BridgedStmts_singleton hY)
 
 private theorem bridgedExpr_callvalue :
     BridgedExpr (Compiler.Yul.YulExpr.call "callvalue" []) := by
@@ -1354,19 +1104,56 @@ private theorem bridgedExpr_selector :
     exact BridgedExpr.lit 0
 
 /-- The generated dispatcher selector expression is in the bridged expression
-fragment, so the EVMYulLean-backed interpreter oracle evaluates it exactly like
+fragment, so the EVMYulLean fuel wrapper evaluates it exactly like
 the historical Verity interpreter. -/
-theorem bridgedExpr_selectorExpr :
+private theorem bridgedExpr_selectorExpr :
     BridgedExpr Compiler.Proofs.YulGeneration.selectorExpr := by
   simpa [Compiler.Proofs.YulGeneration.selectorExpr] using bridgedExpr_selector
 
-/-- The EVMYulLean-backed interpreter oracle selects the same 4-byte dispatcher
+set_option maxHeartbeats 1000000 in
+@[simp] private theorem evalYulExpr_selectorExpr_semantics :
+    ∀ state : YulState,
+      evalYulExpr state Compiler.Proofs.YulGeneration.selectorExpr =
+        some (state.selector % selectorModulus) := by
+  intro state
+  have hShiftModEq : selectorShift % evmModulus = selectorShift := by
+    have hShiftLtModulus : selectorShift < evmModulus := by
+      norm_num [selectorShift, evmModulus]
+    exact Nat.mod_eq_of_lt hShiftLtModulus
+  have hSelectorShiftLt256 : selectorShift < 256 := by
+    norm_num [selectorShift]
+  have hSelectorShiftNotGe256 : ¬ 256 ≤ selectorShift := Nat.not_le_of_lt hSelectorShiftLt256
+  have hSelectorWordLt :
+      (state.selector % selectorModulus) * 2 ^ selectorShift < evmModulus := by
+    have hModLt : state.selector % selectorModulus < selectorModulus := by
+      exact Nat.mod_lt _ (by decide)
+    have hPowPos : 0 < 2 ^ selectorShift := by
+      exact Nat.pow_pos (a := 2) (n := selectorShift) (by decide)
+    have hMulLt :
+        (state.selector % selectorModulus) * 2 ^ selectorShift <
+          selectorModulus * 2 ^ selectorShift := by
+      exact Nat.mul_lt_mul_of_pos_right hModLt hPowPos
+    have hModulusSplit : selectorModulus * 2 ^ selectorShift = evmModulus := by
+      norm_num [selectorModulus, selectorShift, evmModulus, Nat.pow_add, Nat.mul_comm,
+        Nat.mul_left_comm, Nat.mul_assoc]
+    simpa [hModulusSplit] using hMulLt
+  have hSelectorWordMod :
+      ((state.selector % selectorModulus) * 2 ^ selectorShift) % evmModulus =
+        (state.selector % selectorModulus) * 2 ^ selectorShift := by
+    exact Nat.mod_eq_of_lt hSelectorWordLt
+  simp [Compiler.Proofs.YulGeneration.selectorExpr, evalYulExpr, evalYulCall, evalYulExprs,
+    evalBuiltinCallWithBackendContext, Backends.evalBuiltinCallWithEvmYulLeanContext,
+    Backends.evalBuiltinCallViaEvmYulLean,
+    calldataloadWord, selectorWord,
+    hShiftModEq, hSelectorWordMod, hSelectorShiftNotGe256]
+
+/-- The EVMYulLean fuel wrapper selects the same 4-byte dispatcher
 selector as the generated Verity selector expression.
 
 This is the first generated-dispatcher semantic slice needed by the native
-migration: every native/interpreter dispatcher simulation branches on this
+migration: every native/EVMYulLean dispatcher simulation branches on this
 expression before it reaches storage, memory, or halt behavior. -/
-@[simp] theorem evalYulExprWithBackend_evmYulLean_selectorExpr_semantics
+@[simp] private theorem evalYulExprWithBackend_evmYulLean_selectorExpr_semantics
     (state : YulState) :
     evalYulExprWithBackend .evmYulLean state
         Compiler.Proofs.YulGeneration.selectorExpr =
@@ -1417,959 +1204,20 @@ private theorem bridgedExpr_iszero_ident (name : String) :
   subst hMem
   exact BridgedExpr.ident name
 
-/-- `keccak256(offsetExpr, sizeExpr)` with bridged argument expressions is a
-    `BridgedExpr`. Both backends compute `abstractKeccakMemorySlice` directly
-    in `evalYulCallWithBackend` / `evalYulCall` after the PR #1732 proven-fragment
-    expansion, so this is a genuine convenience helper rather than an axiom
-    wrapper. Useful for closing event-emission bodies (scalar `emit` compiles
-    a `let __evt_topic0 := keccak256(__evt_ptr, sigBytes.length)` binding). -/
-theorem bridgedExpr_keccak256 (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
-    BridgedExpr
-      (Compiler.Yul.YulExpr.call "keccak256" [offsetExpr, sizeExpr]) := by
-  refine BridgedExpr.call "keccak256" _ (Or.inr (Or.inr (Or.inr rfl))) ?_
-  intro arg hMem
-  simp only [List.mem_cons, List.mem_nil_iff, or_false] at hMem
-  rcases hMem with rfl | rfl
-  · exact hOffset
-  · exact hSize
 
-/-- `mload(offsetExpr)` with a bridged `offsetExpr` is a `BridgedExpr`. Both
-    backends already include `mload` directly in `evalYulCallWithBackend` /
-    `evalYulCall` (single-slot memory read by Verity's free-memory model).
-    Useful for closing compiler-emitted `let __evt_ptr := mload(0x40)` shapes
-    at the head of scalar `emit` bodies, and for any prologue helper that
-    consults the free-memory pointer. -/
-theorem bridgedExpr_mload (offsetExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) :
-    BridgedExpr
-      (Compiler.Yul.YulExpr.call "mload" [offsetExpr]) := by
-  refine BridgedExpr.call "mload" _ (Or.inr (Or.inr (Or.inl rfl))) ?_
-  intro arg hMem
-  simp only [List.mem_singleton] at hMem
-  subst hMem
-  exact hOffset
-
-/-- `tload(slotExpr)` analogue of `bridgedExpr_mload`. EIP-1153 transient
-    storage reads are in `allowedExprCallName` and share the same two-backend
-    `tload` branch in `evalYulCallWithBackend`. Having the helper available
-    keeps tload-consuming Yul prologues composable under `BridgedExpr`. -/
-theorem bridgedExpr_tload (slotExpr : Compiler.Yul.YulExpr)
-    (hSlot : BridgedExpr slotExpr) :
-    BridgedExpr
-      (Compiler.Yul.YulExpr.call "tload" [slotExpr]) := by
-  refine BridgedExpr.call "tload" _ (Or.inr (Or.inl rfl)) ?_
-  intro arg hMem
-  simp only [List.mem_singleton] at hMem
-  subst hMem
-  exact hSlot
-
-/-- `let name := mload(offsetExpr)` with a bridged `offsetExpr` is a
-    `BridgedStraightStmt`. Composes `BridgedStraightStmt.let_` with
-    `bridgedExpr_mload`. Directly matches the `let __evt_ptr := mload(0x40)`
-    prologue emitted at the head of compiled scalar `emit` bodies. -/
-theorem bridgedStraightStmt_let_mload (name : String)
-    (offsetExpr : Compiler.Yul.YulExpr) (hOffset : BridgedExpr offsetExpr) :
-    BridgedStraightStmt
-      (.let_ name (Compiler.Yul.YulExpr.call "mload" [offsetExpr])) :=
-  BridgedStraightStmt.let_ name _ (bridgedExpr_mload offsetExpr hOffset)
-
-/-- `let name := tload(slotExpr)` analogue of `bridgedStraightStmt_let_mload`
-    for EIP-1153 transient storage reads. -/
-theorem bridgedStraightStmt_let_tload (name : String)
-    (slotExpr : Compiler.Yul.YulExpr) (hSlot : BridgedExpr slotExpr) :
-    BridgedStraightStmt
-      (.let_ name (Compiler.Yul.YulExpr.call "tload" [slotExpr])) :=
-  BridgedStraightStmt.let_ name _ (bridgedExpr_tload slotExpr hSlot)
-
-/-- `let name := keccak256(offsetExpr, sizeExpr)` with bridged operands is a
-    `BridgedStraightStmt`. Composes `BridgedStraightStmt.let_` with
-    `bridgedExpr_keccak256`. Matches the `let __evt_topic0 := keccak256(...)`
-    binding inside compiled scalar `emit` bodies. -/
-theorem bridgedStraightStmt_let_keccak256 (name : String)
-    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
-    BridgedStraightStmt
-      (.let_ name
-        (Compiler.Yul.YulExpr.call "keccak256" [offsetExpr, sizeExpr])) :=
-  BridgedStraightStmt.let_ name _
-    (bridgedExpr_keccak256 offsetExpr sizeExpr hOffset hSize)
-
-/-- `name := mload(offsetExpr)` analogue of `bridgedStraightStmt_let_mload` for
-    reassignment to an already-declared local (e.g. `retVal := mload(ptr)`
-    in a return-epilogue). -/
-theorem bridgedStraightStmt_assign_mload (name : String)
-    (offsetExpr : Compiler.Yul.YulExpr) (hOffset : BridgedExpr offsetExpr) :
-    BridgedStraightStmt
-      (.assign name (Compiler.Yul.YulExpr.call "mload" [offsetExpr])) :=
-  BridgedStraightStmt.assign name _ (bridgedExpr_mload offsetExpr hOffset)
-
-/-- `name := tload(slotExpr)` analogue of `bridgedStraightStmt_let_tload`. -/
-theorem bridgedStraightStmt_assign_tload (name : String)
-    (slotExpr : Compiler.Yul.YulExpr) (hSlot : BridgedExpr slotExpr) :
-    BridgedStraightStmt
-      (.assign name (Compiler.Yul.YulExpr.call "tload" [slotExpr])) :=
-  BridgedStraightStmt.assign name _ (bridgedExpr_tload slotExpr hSlot)
-
-/-- `name := keccak256(offsetExpr, sizeExpr)` analogue of
-    `bridgedStraightStmt_let_keccak256` for reassignment contexts. -/
-theorem bridgedStraightStmt_assign_keccak256 (name : String)
-    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
-    BridgedStraightStmt
-      (.assign name
-        (Compiler.Yul.YulExpr.call "keccak256" [offsetExpr, sizeExpr])) :=
-  BridgedStraightStmt.assign name _
-    (bridgedExpr_keccak256 offsetExpr sizeExpr hOffset hSize)
-
-/-- Convenience constructor that lifts `expr_log` through the `isYulLogName`
-    hypothesis for any of the five Yul log mnemonics. Callers outside this file
-    can produce `BridgedStraightStmt` log emissions without restating the
-    `isYulLogName` boolean obligation. Each emitted `logN` from the PR #1732
-    proven-fragment dispatch table now has a closed bridged counterpart. -/
-theorem bridgedStraightStmt_log_of_bridged_args
-    (func : String) (args : List Compiler.Yul.YulExpr)
-    (hLog : isYulLogName func = true)
-    (hArgs : ∀ arg ∈ args, BridgedExpr arg) :
-    BridgedStraightStmt (.expr (.call func args)) :=
-  BridgedStraightStmt.expr_log func args hLog hArgs
-
-/-- `BridgedStraightStmt` lifts to `BridgedStmt` via the `straight` ctor; this
-    is a thin convenience wrapper so that callers can chain a `logN` emission
-    (or any other straight-line statement) directly into a recursive body
-    context without retyping `BridgedStmt.straight _`. -/
-theorem bridgedStmt_of_bridgedStraightStmt {stmt : Compiler.Yul.YulStmt}
-    (hStmt : BridgedStraightStmt stmt) : BridgedStmt stmt :=
-  BridgedStmt.straight stmt hStmt
-
-/-- Direct `BridgedStmt` version of `bridgedStraightStmt_log_of_bridged_args`:
-    a `logN` call (any Yul log mnemonic per `isYulLogName`) with all arguments
-    bridged lifts straight to `BridgedStmt`, saving the
-    `bridgedStmt_of_bridgedStraightStmt` wrap at the call site. -/
-theorem bridgedStmt_log_of_bridged_args
-    (func : String) (args : List Compiler.Yul.YulExpr)
-    (hLog : isYulLogName func = true)
-    (hArgs : ∀ arg ∈ args, BridgedExpr arg) :
-    BridgedStmt (.expr (.call func args)) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (bridgedStraightStmt_log_of_bridged_args func args hLog hArgs)
-
-/-- Direct `BridgedStmt` version of `bridgedStraightStmt_let_mload`: matches
-    the `let __evt_ptr := mload(0x40)` prologue emitted at the head of
-    compiled scalar `emit` bodies without requiring callers to chain an
-    explicit `bridgedStmt_of_bridgedStraightStmt` wrap. -/
-theorem bridgedStmt_let_mload (name : String)
-    (offsetExpr : Compiler.Yul.YulExpr) (hOffset : BridgedExpr offsetExpr) :
-    BridgedStmt (.let_ name (Compiler.Yul.YulExpr.call "mload" [offsetExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (bridgedStraightStmt_let_mload name offsetExpr hOffset)
-
-/-- Direct `BridgedStmt` version of `bridgedStraightStmt_let_tload`: the
-    EIP-1153 transient-load analogue of `bridgedStmt_let_mload`. -/
-theorem bridgedStmt_let_tload (name : String)
-    (slotExpr : Compiler.Yul.YulExpr) (hSlot : BridgedExpr slotExpr) :
-    BridgedStmt (.let_ name (Compiler.Yul.YulExpr.call "tload" [slotExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (bridgedStraightStmt_let_tload name slotExpr hSlot)
-
-/-- Direct `BridgedStmt` version of `bridgedStraightStmt_let_keccak256`:
-    matches the `let __evt_topic0 := keccak256(ptr, size)` binding between
-    the sig-stores and unindexed-stores blocks of compiled scalar `emit`
-    bodies. -/
-theorem bridgedStmt_let_keccak256 (name : String)
-    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
-    BridgedStmt
-      (.let_ name
-        (Compiler.Yul.YulExpr.call "keccak256" [offsetExpr, sizeExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (bridgedStraightStmt_let_keccak256 name offsetExpr sizeExpr hOffset hSize)
-
-/-- Direct `BridgedStmt` version of `bridgedStraightStmt_assign_mload`:
-    `name := mload(offsetExpr)` with a bridged offset lifts straight to
-    `BridgedStmt`, paralleling `bridgedStmt_let_mload` for the already-declared
-    variable path. -/
-theorem bridgedStmt_assign_mload (name : String)
-    (offsetExpr : Compiler.Yul.YulExpr) (hOffset : BridgedExpr offsetExpr) :
-    BridgedStmt
-      (.assign name (Compiler.Yul.YulExpr.call "mload" [offsetExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (bridgedStraightStmt_assign_mload name offsetExpr hOffset)
-
-/-- Direct `BridgedStmt` version of `bridgedStraightStmt_assign_tload`:
-    EIP-1153 transient-load analogue of `bridgedStmt_assign_mload`. -/
-theorem bridgedStmt_assign_tload (name : String)
-    (slotExpr : Compiler.Yul.YulExpr) (hSlot : BridgedExpr slotExpr) :
-    BridgedStmt
-      (.assign name (Compiler.Yul.YulExpr.call "tload" [slotExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (bridgedStraightStmt_assign_tload name slotExpr hSlot)
-
-/-- Direct `BridgedStmt` version of `bridgedStraightStmt_assign_keccak256`:
-    `name := keccak256(ptr, size)` for assigning to an already-declared
-    variable, paralleling `bridgedStmt_let_keccak256`. -/
-theorem bridgedStmt_assign_keccak256 (name : String)
-    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
-    BridgedStmt
-      (.assign name
-        (Compiler.Yul.YulExpr.call "keccak256" [offsetExpr, sizeExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (bridgedStraightStmt_assign_keccak256 name offsetExpr sizeExpr hOffset hSize)
-
-/-- Direct `BridgedStmt` wrapper for `mstore(offsetExpr, valExpr)` with both
-    expression arguments bridged. Skips the explicit `BridgedStmt.straight _`
-    + `BridgedStraightStmt.expr_mstore` construction at call sites for a
-    standalone mstore that sits in a recursive-body context (e.g. spliced
-    between non-straight fragments). -/
-theorem bridgedStmt_mstore_of_bridged_args
-    (offsetExpr valExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
-    BridgedStmt
-      (.expr (Compiler.Yul.YulExpr.call "mstore" [offsetExpr, valExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (BridgedStraightStmt.expr_mstore offsetExpr valExpr hOffset hVal)
-
-/-- Direct `BridgedStmt` wrapper for `tstore(offsetExpr, valExpr)`: EIP-1153
-    transient-store analogue of `bridgedStmt_mstore_of_bridged_args`. -/
-theorem bridgedStmt_tstore_of_bridged_args
-    (offsetExpr valExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
-    BridgedStmt
-      (.expr (Compiler.Yul.YulExpr.call "tstore" [offsetExpr, valExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (BridgedStraightStmt.expr_tstore offsetExpr valExpr hOffset hVal)
-
-/-- Direct `BridgedStmt` wrapper for the mapping-slot storage write
-    `sstore(mappingSlot(baseExpr, keyExpr), valExpr)` over bridged base/key/
-    value. Paralleling `bridgedStmt_mstore_of_bridged_args` for the dynamic
-    mapping path emitted by `compileMappingSlotWrite`. -/
-theorem bridgedStmt_sstore_mapping_of_bridged_args
-    (baseExpr keyExpr valExpr : Compiler.Yul.YulExpr)
-    (hBase : BridgedExpr baseExpr) (hKey : BridgedExpr keyExpr)
-    (hVal : BridgedExpr valExpr) :
-    BridgedStmt
-      (.expr (Compiler.Yul.YulExpr.call "sstore"
-        [Compiler.Yul.YulExpr.call "mappingSlot" [baseExpr, keyExpr], valExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (BridgedStraightStmt.expr_sstore_mapping baseExpr keyExpr valExpr hBase hKey hVal)
-
-/-- Direct `BridgedStmt` wrapper for `sstore(lit slot, valExpr)` with a known
-    literal slot index. Matches the unpacked single-slot field write emitted
-    by `compileSetStorage`. -/
-theorem bridgedStmt_sstore_lit_of_bridged_val
-    (slot : Nat) (valExpr : Compiler.Yul.YulExpr) (hVal : BridgedExpr valExpr) :
-    BridgedStmt
-      (.expr (Compiler.Yul.YulExpr.call "sstore"
-        [Compiler.Yul.YulExpr.lit slot, valExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (BridgedStraightStmt.expr_sstore_lit slot valExpr hVal)
-
-/-- Direct `BridgedStmt` wrapper for `sstore(ident slotName, valExpr)` where
-    the target slot has already been bound to a local variable (struct-member
-    and compatibility-write paths). -/
-theorem bridgedStmt_sstore_ident_of_bridged_val
-    (slotName : String) (valExpr : Compiler.Yul.YulExpr)
-    (hVal : BridgedExpr valExpr) :
-    BridgedStmt
-      (.expr (Compiler.Yul.YulExpr.call "sstore"
-        [Compiler.Yul.YulExpr.ident slotName, valExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (BridgedStraightStmt.expr_sstore_ident slotName valExpr hVal)
-
-/-- Direct `BridgedStmt` wrapper for `sstore(add(leftExpr, rightExpr), valExpr)`
-    with bridged left/right slot-computation args and value. Covers the
-    storage-array element writes emitted by `compileStorageArrayPush`,
-    `compileStorageArrayPop`, and `compileSetStorageArrayElement`. -/
-theorem bridgedStmt_sstore_add_of_bridged_args
-    (leftExpr rightExpr valExpr : Compiler.Yul.YulExpr)
-    (hLeft : BridgedExpr leftExpr) (hRight : BridgedExpr rightExpr)
-    (hVal : BridgedExpr valExpr) :
-    BridgedStmt
-      (.expr (Compiler.Yul.YulExpr.call "sstore"
-        [Compiler.Yul.YulExpr.call "add" [leftExpr, rightExpr], valExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (BridgedStraightStmt.expr_sstore_add leftExpr rightExpr valExpr
-      hLeft hRight hVal)
-
-/-- Direct `BridgedStmt` wrapper for the zero-arg `stop()` terminator. -/
-theorem bridgedStmt_stop :
-    BridgedStmt (.expr (Compiler.Yul.YulExpr.call "stop" [])) :=
-  bridgedStmt_of_bridgedStraightStmt BridgedStraightStmt.expr_stop
-
-/-- Direct `BridgedStmt` wrapper for `return(offsetExpr, sizeExpr)` with both
-    arguments bridged. Covers the external-function non-empty-return
-    terminator. -/
-theorem bridgedStmt_return_of_bridged_args
-    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
-    BridgedStmt
-      (.expr (Compiler.Yul.YulExpr.call "return" [offsetExpr, sizeExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (BridgedStraightStmt.expr_return offsetExpr sizeExpr hOffset hSize)
-
-/-- Direct `BridgedStmt` wrapper for `revert(offsetExpr, sizeExpr)`. The
-    underlying `BridgedStraightStmt.expr_revert` ctor takes no bridged-arg
-    hypotheses — revert only inspects memory range bounds via the shared
-    `EvmYulLean` state bridge. -/
-theorem bridgedStmt_revert
-    (offsetExpr sizeExpr : Compiler.Yul.YulExpr) :
-    BridgedStmt
-      (.expr (Compiler.Yul.YulExpr.call "revert" [offsetExpr, sizeExpr])) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (BridgedStraightStmt.expr_revert offsetExpr sizeExpr)
-
-/-- Direct `BridgedStmt` wrapper for the zero-arg `leave` internal-function
-    terminator. -/
-theorem bridgedStmt_leave : BridgedStmt .leave :=
-  bridgedStmt_of_bridgedStraightStmt BridgedStraightStmt.leave
-
-/-- Direct `BridgedStmt` wrapper for generic `let name := value` where
-    `value` is any bridged expression (not restricted to mload/tload/keccak256).
-    Covers the common `let tmp := <pure expr>` bindings compiler-emitted
-    between store/read blocks. -/
-theorem bridgedStmt_let_of_bridged_val
-    (name : String) (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
-    BridgedStmt (.let_ name value) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (BridgedStraightStmt.let_ name value hValue)
-
-/-- Direct `BridgedStmt` wrapper for multi-variable `let name1, name2, ... := value`.
-    The underlying `BridgedStraightStmt.letMany` ctor intentionally requires no
-    bridged-value hypothesis — it is closed generically over the `value`
-    expression. -/
-theorem bridgedStmt_letMany
-    (names : List String) (value : Compiler.Yul.YulExpr) :
-    BridgedStmt (.letMany names value) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (BridgedStraightStmt.letMany names value)
-
-/-- Direct `BridgedStmt` wrapper for generic `name := value` reassignment over
-    any bridged expression. Paralleling `bridgedStmt_let_of_bridged_val` for
-    the already-declared-variable path. -/
-theorem bridgedStmt_assign_of_bridged_val
-    (name : String) (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
-    BridgedStmt (.assign name value) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (BridgedStraightStmt.assign name value hValue)
-
-/-- Direct `BridgedStmt` wrapper for a standalone `comment` statement.
-    The underlying `BridgedStraightStmt.comment` ctor is closed generically
-    over the label text, so no further hypothesis is required. -/
-theorem bridgedStmt_comment (text : String) :
-    BridgedStmt (.comment text) :=
-  bridgedStmt_of_bridgedStraightStmt (BridgedStraightStmt.comment text)
-
-/-- Direct `BridgedStmt` wrapper for a Yul `function` declaration at the
-    straight-line level. Mirrors `BridgedStraightStmt.funcDef`, which is
-    closed generically over the function name, params/rets, and body —
-    callers needing body-level bridgedness must use a separate body
-    closure predicate. -/
-theorem bridgedStmt_funcDef
-    (name : String) (params rets : List String)
-    (body : List Compiler.Yul.YulStmt) :
-    BridgedStmt (.funcDef name params rets body) :=
-  bridgedStmt_of_bridgedStraightStmt
-    (BridgedStraightStmt.funcDef name params rets body)
-
-/-- List-level lift: any list satisfying `BridgedStraightStmts` also satisfies
-    the recursive `BridgedStmts` predicate, since `BridgedStraightStmt` lifts
-    pointwise via `bridgedStmt_of_bridgedStraightStmt`. Useful when a compiler
-    fragment emits a pure-straight segment (e.g. the `sigStores` /
-    `unindexedStores` lists inside scalar `emit` bodies) that needs to slot
-    into a recursive-statement body context. -/
-theorem BridgedStmts_of_BridgedStraightStmts
-    {stmts : List Compiler.Yul.YulStmt} (hStmts : BridgedStraightStmts stmts) :
-    BridgedStmts stmts := by
-  intro stmt hMem
-  exact bridgedStmt_of_bridgedStraightStmt (hStmts stmt hMem)
-
-/-- Cons a `BridgedStraightStmt` head onto a `BridgedStmts` tail without
-    retyping `bridgedStmt_of_bridgedStraightStmt` at the call site. Shortens
-    scalar-emit body assembly, where each straight-line prologue/terminator
-    statement (`let __evt_ptr := mload ...`, `let __evt_topic0 := keccak256 ...`,
-    final `logN(...)`) is naturally a `BridgedStraightStmt` being attached to
-    a `BridgedStmts`-typed recursive tail. -/
-theorem BridgedStmts_cons_straight {stmt : Compiler.Yul.YulStmt}
-    {stmts : List Compiler.Yul.YulStmt}
-    (hStmt : BridgedStraightStmt stmt) (hStmts : BridgedStmts stmts) :
-    BridgedStmts (stmt :: stmts) :=
-  BridgedStmts_cons (bridgedStmt_of_bridgedStraightStmt hStmt) hStmts
-
-/-- Singleton counterpart to `BridgedStmts_cons_straight`: a single
-    `BridgedStraightStmt` lifts to the one-element `BridgedStmts [stmt]` list.
-    Saves a nested `bridgedStmt_of_bridgedStraightStmt` when the whole body is
-    just one straight-line statement (e.g. a terminator-only fragment). -/
-theorem BridgedStmts_singleton_straight {stmt : Compiler.Yul.YulStmt}
-    (hStmt : BridgedStraightStmt stmt) : BridgedStmts [stmt] :=
-  BridgedStmts_singleton (bridgedStmt_of_bridgedStraightStmt hStmt)
-
-/-- Append counterpart to `BridgedStmts_cons_straight` / `_singleton_straight`:
-    prepend a `BridgedStraightStmts`-typed segment to a `BridgedStmts`-typed
-    tail. Supports scalar-emit body assembly where the prologue and store
-    blocks are naturally `BridgedStraightStmts` (map-shaped or cons-built)
-    that need to sit in front of a `BridgedStmts` recursive-body continuation
-    without retyping the list-level lift at the call site. -/
-theorem BridgedStmts_append_straight {xs ys : List Compiler.Yul.YulStmt}
-    (hXs : BridgedStraightStmts xs) (hYs : BridgedStmts ys) :
-    BridgedStmts (xs ++ ys) :=
-  BridgedStmts_append (BridgedStmts_of_BridgedStraightStmts hXs) hYs
-
-/-- `BridgedStmts` analogue of `BridgedStraightStmts_map_mstore`: a list of
-    `(offset, value)` expression pairs with both components bridged maps to
-    a `BridgedStmts` list of `mstore(offset, value)` statements. Directly
-    supports scalar `emit` bodies where `sigStores` / `unindexedStores` are
-    built as `List YulStmt` via `.map` over pair-shaped data and must slot
-    into a recursive-body context. -/
-theorem BridgedStmts_map_mstore
-    (pairs : List (Compiler.Yul.YulExpr × Compiler.Yul.YulExpr))
-    (hPairs : ∀ p ∈ pairs, BridgedExpr p.1 ∧ BridgedExpr p.2) :
-    BridgedStmts
-      (pairs.map fun p =>
-        Compiler.Yul.YulStmt.expr
-          (Compiler.Yul.YulExpr.call "mstore" [p.1, p.2])) :=
-  BridgedStmts_of_BridgedStraightStmts (BridgedStraightStmts_map_mstore pairs hPairs)
-
-/-- Wrap a `BridgedStmts`-typed list under `BridgedStmt.block`. The ctor's
-    pointwise `∀ stmt ∈ stmts, BridgedStmt stmt` obligation is definitionally
-    equal to `BridgedStmts stmts`, so this is a one-line convenience. Directly
-    supports the scalar `emit` body shape, which compiles to a single outer
-    `[YulStmt.block body]` wrapping all bridged fragments. -/
-theorem bridgedStmt_block_of_bridgedStmts
-    {stmts : List Compiler.Yul.YulStmt} (hStmts : BridgedStmts stmts) :
-    BridgedStmt (.block stmts) :=
-  BridgedStmt.block stmts hStmts
-
-/-- `BridgedStmts` analogue of a single-element list wrapping a `.block` node.
-    Convenient for compiler-emitted shapes that put an entire function body
-    inside a single top-level block (e.g. scalar `emit`, runtime dispatch). -/
-theorem BridgedStmts_singleton_block
-    {stmts : List Compiler.Yul.YulStmt} (hStmts : BridgedStmts stmts) :
-    BridgedStmts [Compiler.Yul.YulStmt.block stmts] :=
-  BridgedStmts_singleton (bridgedStmt_block_of_bridgedStmts hStmts)
-
-/-- Cons a `.block` node to an already-bridged `BridgedStmts` tail. Useful when
-    a compiled list interleaves a scoped block fragment with surrounding
-    straight-line or other bridged statements. -/
-theorem BridgedStmts_cons_block
-    {stmts : List Compiler.Yul.YulStmt} {rest : List Compiler.Yul.YulStmt}
-    (hStmts : BridgedStmts stmts) (hRest : BridgedStmts rest) :
-    BridgedStmts (Compiler.Yul.YulStmt.block stmts :: rest) :=
-  BridgedStmts_cons (bridgedStmt_block_of_bridgedStmts hStmts) hRest
-
-/-- Wrap a bridged condition plus `BridgedStmts`-typed body under
-    `BridgedStmt.if_`. Parallels `bridgedStmt_block_of_bridgedStmts` for
-    the single-branch conditional shape (no else) emitted by require/revert
-    guards and similar fragments. -/
-theorem bridgedStmt_if_of_bridgedStmts
-    {cond : Compiler.Yul.YulExpr} {body : List Compiler.Yul.YulStmt}
-    (hCond : BridgedExpr cond) (hBody : BridgedStmts body) :
-    BridgedStmt (.if_ cond body) :=
-  BridgedStmt.if_ cond body hCond hBody
-
-/-- `BridgedStmts` singleton wrapping a Yul `if cond { body }` node. Useful when
-    a compiled body reduces to a lone guard fragment (e.g. the callvalue or
-    calldatasize guards emitted at the top of a dispatch block). -/
-theorem BridgedStmts_singleton_if
-    {cond : Compiler.Yul.YulExpr} {body : List Compiler.Yul.YulStmt}
-    (hCond : BridgedExpr cond) (hBody : BridgedStmts body) :
-    BridgedStmts [Compiler.Yul.YulStmt.if_ cond body] :=
-  BridgedStmts_singleton (bridgedStmt_if_of_bridgedStmts hCond hBody)
-
-/-- Cons a Yul `if cond { body }` node onto an already-bridged `BridgedStmts`
-    tail. Typical shape: a guard statement followed by the rest of a compiled
-    body list. -/
-theorem BridgedStmts_cons_if
-    {cond : Compiler.Yul.YulExpr} {body : List Compiler.Yul.YulStmt}
-    {rest : List Compiler.Yul.YulStmt}
-    (hCond : BridgedExpr cond) (hBody : BridgedStmts body)
-    (hRest : BridgedStmts rest) :
-    BridgedStmts (Compiler.Yul.YulStmt.if_ cond body :: rest) :=
-  BridgedStmts_cons (bridgedStmt_if_of_bridgedStmts hCond hBody) hRest
-
-/-- Wrap four bridged components (init/post/body `BridgedStmts`, cond
-    `BridgedExpr`) under `BridgedStmt.for_`. Parallels the block/if wrappers
-    for the Yul `for { init } cond { post } { body }` shape emitted by
-    compiler loops. Each list hypothesis is definitionally the pointwise
-    `∀ stmt ∈ _, BridgedStmt stmt` the ctor expects. -/
-theorem bridgedStmt_for_of_bridgedStmts
-    {init : List Compiler.Yul.YulStmt} {cond : Compiler.Yul.YulExpr}
-    {post body : List Compiler.Yul.YulStmt}
-    (hInit : BridgedStmts init) (hCond : BridgedExpr cond)
-    (hPost : BridgedStmts post) (hBody : BridgedStmts body) :
-    BridgedStmt (.for_ init cond post body) :=
-  BridgedStmt.for_ init cond post body hInit hCond hPost hBody
-
-/-- `BridgedStmts` singleton wrapping a single Yul `for` loop node. Useful
-    when a compiled body reduces to a lone loop. -/
-theorem BridgedStmts_singleton_for
-    {init : List Compiler.Yul.YulStmt} {cond : Compiler.Yul.YulExpr}
-    {post body : List Compiler.Yul.YulStmt}
-    (hInit : BridgedStmts init) (hCond : BridgedExpr cond)
-    (hPost : BridgedStmts post) (hBody : BridgedStmts body) :
-    BridgedStmts [Compiler.Yul.YulStmt.for_ init cond post body] :=
-  BridgedStmts_singleton
-    (bridgedStmt_for_of_bridgedStmts hInit hCond hPost hBody)
-
-/-- Cons a Yul `for` loop node onto an already-bridged `BridgedStmts` tail.
-    Typical shape: a loop followed by additional straight-line or bridged
-    statements in a compiled body list. -/
-theorem BridgedStmts_cons_for
-    {init : List Compiler.Yul.YulStmt} {cond : Compiler.Yul.YulExpr}
-    {post body : List Compiler.Yul.YulStmt}
-    {rest : List Compiler.Yul.YulStmt}
-    (hInit : BridgedStmts init) (hCond : BridgedExpr cond)
-    (hPost : BridgedStmts post) (hBody : BridgedStmts body)
-    (hRest : BridgedStmts rest) :
-    BridgedStmts (Compiler.Yul.YulStmt.for_ init cond post body :: rest) :=
-  BridgedStmts_cons
-    (bridgedStmt_for_of_bridgedStmts hInit hCond hPost hBody) hRest
-
-/-- Wrap a bridged scrutinee expression together with per-case and default
-    body hypotheses under `BridgedStmt.switch`. Parallels the block/if/for
-    wrappers for the Yul `switch` dispatch shape emitted by the compiler's
-    selector/function dispatcher. Each body-side hypothesis is precisely the
-    pointwise `∀ stmt ∈ _, BridgedStmt stmt` that the ctor expects. -/
-theorem bridgedStmt_switch_of_bridgedStmts
-    {expr : Compiler.Yul.YulExpr}
-    {cases : List (Nat × List Compiler.Yul.YulStmt)}
-    {defaultCase : Option (List Compiler.Yul.YulStmt)}
-    (hExpr : BridgedExpr expr)
-    (hCases : ∀ scrutinee value body,
-      cases.find? (fun x => decide (x.fst = scrutinee)) = some (value, body) →
-      ∀ stmt ∈ body, BridgedStmt stmt)
-    (hDefault : ∀ body, defaultCase = some body →
-      ∀ stmt ∈ body, BridgedStmt stmt) :
-    BridgedStmt (.switch expr cases defaultCase) :=
-  BridgedStmt.switch expr cases defaultCase hExpr hCases hDefault
-
-/-- `BridgedStmts` singleton wrapping a single Yul `switch` node. Completes
-    block/if/for/switch parity for list composers. -/
-theorem BridgedStmts_singleton_switch
-    {expr : Compiler.Yul.YulExpr}
-    {cases : List (Nat × List Compiler.Yul.YulStmt)}
-    {defaultCase : Option (List Compiler.Yul.YulStmt)}
-    (hExpr : BridgedExpr expr)
-    (hCases : ∀ scrutinee value body,
-      cases.find? (fun x => decide (x.fst = scrutinee)) = some (value, body) →
-      ∀ stmt ∈ body, BridgedStmt stmt)
-    (hDefault : ∀ body, defaultCase = some body →
-      ∀ stmt ∈ body, BridgedStmt stmt) :
-    BridgedStmts [Compiler.Yul.YulStmt.switch expr cases defaultCase] :=
-  BridgedStmts_singleton
-    (bridgedStmt_switch_of_bridgedStmts hExpr hCases hDefault)
-
-/-- Cons a Yul `switch` node onto an already-bridged `BridgedStmts` tail.
-    Typical shape: selector/function dispatch followed by a trailing
-    fallback fragment in a compiled body list. -/
-theorem BridgedStmts_cons_switch
-    {expr : Compiler.Yul.YulExpr}
-    {cases : List (Nat × List Compiler.Yul.YulStmt)}
-    {defaultCase : Option (List Compiler.Yul.YulStmt)}
-    {rest : List Compiler.Yul.YulStmt}
-    (hExpr : BridgedExpr expr)
-    (hCases : ∀ scrutinee value body,
-      cases.find? (fun x => decide (x.fst = scrutinee)) = some (value, body) →
-      ∀ stmt ∈ body, BridgedStmt stmt)
-    (hDefault : ∀ body, defaultCase = some body →
-      ∀ stmt ∈ body, BridgedStmt stmt)
-    (hRest : BridgedStmts rest) :
-    BridgedStmts
-      (Compiler.Yul.YulStmt.switch expr cases defaultCase :: rest) :=
-  BridgedStmts_cons
-    (bridgedStmt_switch_of_bridgedStmts hExpr hCases hDefault) hRest
-
-/-- Convenience wrapper: when the block body is entirely straight-line,
-    callers can supply a `BridgedStraightStmts` hypothesis directly without
-    manually lifting through `BridgedStmts_of_BridgedStraightStmts`. -/
-theorem bridgedStmt_block_of_bridgedStraightStmts
-    {stmts : List Compiler.Yul.YulStmt} (hStmts : BridgedStraightStmts stmts) :
-    BridgedStmt (.block stmts) :=
-  bridgedStmt_block_of_bridgedStmts (BridgedStmts_of_BridgedStraightStmts hStmts)
-
-/-- Convenience wrapper: single-branch `if` whose body is entirely
-    straight-line. Mirrors `bridgedStmt_block_of_bridgedStraightStmts` for
-    the guard-only conditional shape. -/
-theorem bridgedStmt_if_of_bridgedStraightStmts
-    {cond : Compiler.Yul.YulExpr} {body : List Compiler.Yul.YulStmt}
-    (hCond : BridgedExpr cond) (hBody : BridgedStraightStmts body) :
-    BridgedStmt (.if_ cond body) :=
-  bridgedStmt_if_of_bridgedStmts hCond (BridgedStmts_of_BridgedStraightStmts hBody)
-
-/-- Convenience wrapper: `for { init } cond { post } { body }` whose four
-    list-typed components are each entirely straight-line. Mirrors the block
-    and if variants above for the loop shape. -/
-theorem bridgedStmt_for_of_bridgedStraightStmts
-    {init : List Compiler.Yul.YulStmt} {cond : Compiler.Yul.YulExpr}
-    {post body : List Compiler.Yul.YulStmt}
-    (hInit : BridgedStraightStmts init) (hCond : BridgedExpr cond)
-    (hPost : BridgedStraightStmts post) (hBody : BridgedStraightStmts body) :
-    BridgedStmt (.for_ init cond post body) :=
-  bridgedStmt_for_of_bridgedStmts
-    (BridgedStmts_of_BridgedStraightStmts hInit)
-    hCond
-    (BridgedStmts_of_BridgedStraightStmts hPost)
-    (BridgedStmts_of_BridgedStraightStmts hBody)
-
-/-- `BridgedStmts` analogue of `BridgedStraightStmts_map_tstore`, for the
-    transient-store variant of the map helper above. -/
-theorem BridgedStmts_map_tstore
-    (pairs : List (Compiler.Yul.YulExpr × Compiler.Yul.YulExpr))
-    (hPairs : ∀ p ∈ pairs, BridgedExpr p.1 ∧ BridgedExpr p.2) :
-    BridgedStmts
-      (pairs.map fun p =>
-        Compiler.Yul.YulStmt.expr
-          (Compiler.Yul.YulExpr.call "tstore" [p.1, p.2])) :=
-  BridgedStmts_of_BridgedStraightStmts (BridgedStraightStmts_map_tstore pairs hPairs)
-
-/-- The common `revert(0, 0)` failure terminator as a `BridgedStmt`. Used by
-    compiler-emitted guards (callvalue, calldatasize, require) whose failure
-    branch is a single unconditional revert with zero offset/size. Exposed
-    publicly so downstream body-closure proofs can reuse it. -/
-theorem bridgedStmt_revert_zero :
-    BridgedStmt
-      (Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "revert"
-          [Compiler.Yul.YulExpr.lit 0, Compiler.Yul.YulExpr.lit 0])) :=
-  BridgedStmt.straight _
-    (BridgedStraightStmt.expr_revert
-      (Compiler.Yul.YulExpr.lit 0) (Compiler.Yul.YulExpr.lit 0))
-
-/-- `BridgedStmts` singleton wrapping a single `revert(0, 0)`. Matches the
-    canonical guard-body shape `[YulStmt.expr (call "revert" [lit 0, lit 0])]`
-    emitted by callvalue/calldatasize/require guards. -/
-theorem BridgedStmts_singleton_revert_zero :
-    BridgedStmts
-      [Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "revert"
-          [Compiler.Yul.YulExpr.lit 0, Compiler.Yul.YulExpr.lit 0])] :=
-  BridgedStmts_singleton bridgedStmt_revert_zero
-
-/-- `BridgedStmts` singleton wrapping a single `.comment text` node. Useful
-    when a compiled body reduces to a lone comment label (rare, but present
-    as a terminal marker in some codegen paths). -/
-theorem BridgedStmts_singleton_comment (text : String) :
-    BridgedStmts [Compiler.Yul.YulStmt.comment text] :=
-  BridgedStmts_singleton (bridgedStmt_comment text)
-
-/-- Cons a `.comment text` node onto an already-bridged `BridgedStmts` tail.
-    Matches the canonical shape emitted by the dispatcher and most function
-    bodies, where a single label-prefix comment sits at the head of the
-    compiled statement list. -/
-theorem BridgedStmts_cons_comment
-    (text : String) {rest : List Compiler.Yul.YulStmt}
-    (hRest : BridgedStmts rest) :
-    BridgedStmts (Compiler.Yul.YulStmt.comment text :: rest) :=
-  BridgedStmts_cons (bridgedStmt_comment text) hRest
-
-/-- `BridgedStmts` singleton wrapping a single `.let_ name value` node over a
-    bridged value expression. Mirrors the bridged-value `let` shape emitted
-    throughout the dispatcher and runtime-common prologues. -/
-theorem BridgedStmts_singleton_let
-    (name : String) (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
-    BridgedStmts [Compiler.Yul.YulStmt.let_ name value] :=
-  BridgedStmts_singleton (bridgedStmt_let_of_bridged_val name value hValue)
-
-/-- Cons a `.let_ name value` node over a bridged value expression onto an
-    already-bridged `BridgedStmts` tail. Covers the common prologue shape
-    where a pure `let tmp := <bridged expr>` binding precedes subsequent
-    bridged statements. -/
-theorem BridgedStmts_cons_let
-    (name : String) (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value)
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts (Compiler.Yul.YulStmt.let_ name value :: rest) :=
-  BridgedStmts_cons (bridgedStmt_let_of_bridged_val name value hValue) hRest
-
-/-- `BridgedStmts` singleton wrapping a single `.assign name value` node over
-    a bridged value expression. Mirrors `BridgedStmts_singleton_let` for the
-    already-declared-variable path. -/
-theorem BridgedStmts_singleton_assign
-    (name : String) (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value) :
-    BridgedStmts [Compiler.Yul.YulStmt.assign name value] :=
-  BridgedStmts_singleton (bridgedStmt_assign_of_bridged_val name value hValue)
-
-/-- Cons a `.assign name value` node over a bridged value expression onto an
-    already-bridged `BridgedStmts` tail. Mirrors `BridgedStmts_cons_let` for
-    the already-declared-variable path, covering `x := <bridged expr>`
-    compiler-emitted reassignments between bridged statements. -/
-theorem BridgedStmts_cons_assign
-    (name : String) (value : Compiler.Yul.YulExpr) (hValue : BridgedExpr value)
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts (Compiler.Yul.YulStmt.assign name value :: rest) :=
-  BridgedStmts_cons (bridgedStmt_assign_of_bridged_val name value hValue) hRest
-
-/-- `BridgedStmts` singleton wrapping a single `.letMany names value` node.
-    The underlying `BridgedStraightStmt.letMany` ctor is closed generically
-    over `value`, so no bridged-value hypothesis is needed. Mirrors the
-    let/assign singletons for the multi-binding destructuring path. -/
-theorem BridgedStmts_singleton_letMany
-    (names : List String) (value : Compiler.Yul.YulExpr) :
-    BridgedStmts [Compiler.Yul.YulStmt.letMany names value] :=
-  BridgedStmts_singleton (bridgedStmt_letMany names value)
-
-/-- Cons a `.letMany names value` node onto an already-bridged `BridgedStmts`
-    tail. Matches compiler shapes that introduce multiple bindings from a
-    single right-hand side (e.g. multi-return intrinsics). -/
-theorem BridgedStmts_cons_letMany
-    (names : List String) (value : Compiler.Yul.YulExpr)
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts (Compiler.Yul.YulStmt.letMany names value :: rest) :=
-  BridgedStmts_cons (bridgedStmt_letMany names value) hRest
-
-/-- `BridgedStmts` singleton wrapping the zero-arg `stop()` terminator. Common
-    terminal shape for external-function bodies that return no data. -/
-theorem BridgedStmts_singleton_stop :
-    BridgedStmts [Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call "stop" [])] :=
-  BridgedStmts_singleton bridgedStmt_stop
-
-/-- Cons the zero-arg `stop()` terminator node onto an already-bridged
-    `BridgedStmts` tail. Mirrors `BridgedStmts_cons_leave` for the
-    external-function terminator path. -/
-theorem BridgedStmts_cons_stop
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts (Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call "stop" []) :: rest) :=
-  BridgedStmts_cons bridgedStmt_stop hRest
-
-/-- `BridgedStmts` singleton wrapping the zero-arg `leave` internal-function
-    terminator. Common terminal shape for compiled internal-function bodies. -/
-theorem BridgedStmts_singleton_leave :
-    BridgedStmts [Compiler.Yul.YulStmt.leave] :=
-  BridgedStmts_singleton bridgedStmt_leave
-
-/-- Cons a `.leave` terminator node onto an already-bridged `BridgedStmts`
-    tail. Useful when an internal-return shape is followed by dead-code
-    cleanup in compiled output. -/
-theorem BridgedStmts_cons_leave
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts (Compiler.Yul.YulStmt.leave :: rest) :=
-  BridgedStmts_cons bridgedStmt_leave hRest
-
-/-- `BridgedStmts` singleton wrapping a `return(offset, size)` terminator with
-    both args bridged. Common terminal shape for external-function bodies
-    that return non-empty data. -/
-theorem BridgedStmts_singleton_return
-    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr) :
-    BridgedStmts
-      [Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "return" [offsetExpr, sizeExpr])] :=
-  BridgedStmts_singleton
-    (bridgedStmt_return_of_bridged_args offsetExpr sizeExpr hOffset hSize)
-
-/-- Cons a `return(offset, size)` terminator node onto an already-bridged
-    `BridgedStmts` tail. Mirrors `BridgedStmts_cons_stop` for the non-empty
-    return path. -/
-theorem BridgedStmts_cons_return
-    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hSize : BridgedExpr sizeExpr)
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts
-      (Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "return" [offsetExpr, sizeExpr]) :: rest) :=
-  BridgedStmts_cons
-    (bridgedStmt_return_of_bridged_args offsetExpr sizeExpr hOffset hSize) hRest
-
-/-- `BridgedStmts` singleton wrapping a `revert(offset, size)` terminator.
-    The underlying `BridgedStraightStmt.expr_revert` ctor takes no
-    bridged-arg hypotheses; revert only inspects memory range bounds via
-    the shared `EvmYulLean` state bridge. -/
-theorem BridgedStmts_singleton_revert
-    (offsetExpr sizeExpr : Compiler.Yul.YulExpr) :
-    BridgedStmts
-      [Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "revert" [offsetExpr, sizeExpr])] :=
-  BridgedStmts_singleton (bridgedStmt_revert offsetExpr sizeExpr)
-
-/-- Cons a `revert(offset, size)` terminator node onto an already-bridged
-    `BridgedStmts` tail. Generalizes `BridgedStmts_singleton_revert_zero`
-    to arbitrary offset/size expressions. -/
-theorem BridgedStmts_cons_revert
-    (offsetExpr sizeExpr : Compiler.Yul.YulExpr)
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts
-      (Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "revert" [offsetExpr, sizeExpr]) :: rest) :=
-  BridgedStmts_cons (bridgedStmt_revert offsetExpr sizeExpr) hRest
-
-/-- `BridgedStmts` singleton wrapping a single `mstore(offset, val)` node over
-    bridged offset/value expressions. Common scratchpad-write shape in
-    scalar-emit prologues. -/
-theorem BridgedStmts_singleton_mstore
-    (offsetExpr valExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
-    BridgedStmts
-      [Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "mstore" [offsetExpr, valExpr])] :=
-  BridgedStmts_singleton (bridgedStmt_mstore_of_bridged_args offsetExpr valExpr hOffset hVal)
-
-/-- Cons an `mstore(offset, val)` node over bridged offset/value expressions
-    onto an already-bridged `BridgedStmts` tail. Matches the scratchpad-write
-    shape that precedes subsequent bridged statements in emit/keccak paths. -/
-theorem BridgedStmts_cons_mstore
-    (offsetExpr valExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr)
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts
-      (Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "mstore" [offsetExpr, valExpr]) :: rest) :=
-  BridgedStmts_cons (bridgedStmt_mstore_of_bridged_args offsetExpr valExpr hOffset hVal) hRest
-
-/-- `BridgedStmts` singleton wrapping a single `tstore(offset, val)` node over
-    bridged offset/value expressions. Transient-storage analogue of
-    `BridgedStmts_singleton_mstore` for reentrancy-guard / scratch paths. -/
-theorem BridgedStmts_singleton_tstore
-    (offsetExpr valExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr) :
-    BridgedStmts
-      [Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "tstore" [offsetExpr, valExpr])] :=
-  BridgedStmts_singleton (bridgedStmt_tstore_of_bridged_args offsetExpr valExpr hOffset hVal)
-
-/-- Cons a `tstore(offset, val)` node over bridged offset/value expressions onto
-    an already-bridged `BridgedStmts` tail. Transient-storage analogue of
-    `BridgedStmts_cons_mstore` for reentrancy-guard / scratch paths. -/
-theorem BridgedStmts_cons_tstore
-    (offsetExpr valExpr : Compiler.Yul.YulExpr)
-    (hOffset : BridgedExpr offsetExpr) (hVal : BridgedExpr valExpr)
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts
-      (Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "tstore" [offsetExpr, valExpr]) :: rest) :=
-  BridgedStmts_cons (bridgedStmt_tstore_of_bridged_args offsetExpr valExpr hOffset hVal) hRest
-
-/-- `BridgedStmts` singleton wrapping a single `sstore(lit slot, val)` node
-    over a bridged value expression. Matches the unpacked single-slot field
-    write emitted by `compileSetStorage`. -/
-theorem BridgedStmts_singleton_sstore_lit
-    (slot : Nat) (valExpr : Compiler.Yul.YulExpr) (hVal : BridgedExpr valExpr) :
-    BridgedStmts
-      [Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "sstore"
-          [Compiler.Yul.YulExpr.lit slot, valExpr])] :=
-  BridgedStmts_singleton (bridgedStmt_sstore_lit_of_bridged_val slot valExpr hVal)
-
-/-- Cons a `sstore(lit slot, val)` node over a bridged value expression onto
-    an already-bridged `BridgedStmts` tail. Covers the common packed-storage
-    layout where sequential literal-slot writes precede subsequent bridged
-    statements. -/
-theorem BridgedStmts_cons_sstore_lit
-    (slot : Nat) (valExpr : Compiler.Yul.YulExpr) (hVal : BridgedExpr valExpr)
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts
-      (Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "sstore"
-          [Compiler.Yul.YulExpr.lit slot, valExpr]) :: rest) :=
-  BridgedStmts_cons (bridgedStmt_sstore_lit_of_bridged_val slot valExpr hVal) hRest
-
-/-- `BridgedStmts` singleton wrapping a single `sstore(ident slotName, val)`
-    node over a bridged value expression. Matches dynamic-slot single writes
-    where the slot identifier has been resolved to a local `let` binding
-    (e.g. from `mappingSlot(baseSlot, key)`). -/
-theorem BridgedStmts_singleton_sstore_ident
-    (slotName : String) (valExpr : Compiler.Yul.YulExpr) (hVal : BridgedExpr valExpr) :
-    BridgedStmts
-      [Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "sstore"
-          [Compiler.Yul.YulExpr.ident slotName, valExpr])] :=
-  BridgedStmts_singleton (bridgedStmt_sstore_ident_of_bridged_val slotName valExpr hVal)
-
-/-- Cons a `sstore(ident slotName, val)` node over a bridged value expression
-    onto an already-bridged `BridgedStmts` tail. Covers mapping-write shapes
-    where a resolved slot identifier drives sequential bridged writes. -/
-theorem BridgedStmts_cons_sstore_ident
-    (slotName : String) (valExpr : Compiler.Yul.YulExpr) (hVal : BridgedExpr valExpr)
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts
-      (Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "sstore"
-          [Compiler.Yul.YulExpr.ident slotName, valExpr]) :: rest) :=
-  BridgedStmts_cons (bridgedStmt_sstore_ident_of_bridged_val slotName valExpr hVal) hRest
-
-/-- `BridgedStmts` singleton wrapping `sstore(mappingSlot(base, key), val)` over
-    bridged argument expressions. Mirrors the mstore/tstore/sstore_lit/sstore_ident
-    singletons for the mapping-write path emitted by `setMapping`/`setMappingUint`. -/
-theorem BridgedStmts_singleton_sstore_mapping
-    (baseExpr keyExpr valExpr : Compiler.Yul.YulExpr)
-    (hBase : BridgedExpr baseExpr) (hKey : BridgedExpr keyExpr)
-    (hVal : BridgedExpr valExpr) :
-    BridgedStmts
-      [Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "sstore"
-          [Compiler.Yul.YulExpr.call "mappingSlot" [baseExpr, keyExpr], valExpr])] :=
-  BridgedStmts_singleton
-    (bridgedStmt_sstore_mapping_of_bridged_args baseExpr keyExpr valExpr hBase hKey hVal)
-
-/-- Cons an `sstore(mappingSlot(base, key), val)` node over bridged argument
-    expressions onto an already-bridged `BridgedStmts` tail. Covers the common
-    mapping-write shape where a single mapping write precedes subsequent
-    bridged statements. -/
-theorem BridgedStmts_cons_sstore_mapping
-    (baseExpr keyExpr valExpr : Compiler.Yul.YulExpr)
-    (hBase : BridgedExpr baseExpr) (hKey : BridgedExpr keyExpr)
-    (hVal : BridgedExpr valExpr)
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts
-      (Compiler.Yul.YulStmt.expr
-        (Compiler.Yul.YulExpr.call "sstore"
-          [Compiler.Yul.YulExpr.call "mappingSlot" [baseExpr, keyExpr], valExpr]) :: rest) :=
-  BridgedStmts_cons
-    (bridgedStmt_sstore_mapping_of_bridged_args baseExpr keyExpr valExpr hBase hKey hVal)
-    hRest
-
-/-- `BridgedStmts` singleton wrapping a single `logN(args...)` event-emission
-    call over bridged argument expressions. Mirrors the mstore/tstore/sstore
-    singletons for the EVM log emission path (log0/log1/log2/log3/log4). -/
-theorem BridgedStmts_singleton_log
-    (func : String) (args : List Compiler.Yul.YulExpr)
-    (hLog : isYulLogName func = true)
-    (hArgs : ∀ arg ∈ args, BridgedExpr arg) :
-    BridgedStmts [Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call func args)] :=
-  BridgedStmts_singleton (bridgedStmt_log_of_bridged_args func args hLog hArgs)
-
-/-- Cons a `logN(args...)` event-emission call over bridged argument
-    expressions onto an already-bridged `BridgedStmts` tail. Covers the
-    common event-emission shape where a topic+data encoding block ends
-    with the log call before subsequent bridged statements. -/
-theorem BridgedStmts_cons_log
-    (func : String) (args : List Compiler.Yul.YulExpr)
-    (hLog : isYulLogName func = true)
-    (hArgs : ∀ arg ∈ args, BridgedExpr arg)
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts
-      (Compiler.Yul.YulStmt.expr (Compiler.Yul.YulExpr.call func args) :: rest) :=
-  BridgedStmts_cons (bridgedStmt_log_of_bridged_args func args hLog hArgs) hRest
-
-/-- `BridgedStmts` singleton wrapping a single `.funcDef name params rets body`
-    node. The underlying `BridgedStraightStmt.funcDef` ctor is closed
-    generically over the body, so no body-level bridgedness hypothesis is
-    needed here — callers needing body-level equivalence must layer a
-    separate body-closure predicate. Mirrors the comment/let/assign/letMany
-    singletons for the function-declaration path. -/
-theorem BridgedStmts_singleton_funcDef
-    (name : String) (params rets : List String) (body : List Compiler.Yul.YulStmt) :
-    BridgedStmts [Compiler.Yul.YulStmt.funcDef name params rets body] :=
-  BridgedStmts_singleton (bridgedStmt_funcDef name params rets body)
-
-/-- Cons a `.funcDef name params rets body` node onto an already-bridged
-    `BridgedStmts` tail. Matches compiler shapes that declare helper
-    functions (e.g. `mappingSlot`) ahead of the runtime statement list. -/
-theorem BridgedStmts_cons_funcDef
-    (name : String) (params rets : List String) (body : List Compiler.Yul.YulStmt)
-    {rest : List Compiler.Yul.YulStmt} (hRest : BridgedStmts rest) :
-    BridgedStmts (Compiler.Yul.YulStmt.funcDef name params rets body :: rest) :=
-  BridgedStmts_cons (bridgedStmt_funcDef name params rets body) hRest
-
-theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
+private theorem callvalueGuard_bridged : BridgedStmt Compiler.CodegenCommon.callvalueGuard := by
   unfold Compiler.CodegenCommon.callvalueGuard
   exact bridgedStmt_if_of_bridgedStmts bridgedExpr_callvalue
     BridgedStmts_singleton_revert_zero
 
-theorem calldatasizeGuard_bridged (numParams : Nat) :
+private theorem calldatasizeGuard_bridged (numParams : Nat) :
     BridgedStmt (Compiler.CodegenCommon.calldatasizeGuard numParams) := by
   unfold Compiler.CodegenCommon.calldatasizeGuard
   exact bridgedStmt_if_of_bridgedStmts (bridgedExpr_calldatasize_lt (4 + numParams * 32))
     BridgedStmts_singleton_revert_zero
 
+/-- Dispatch guards preserve bridgedness around an already-bridged entrypoint
+body. -/
 theorem dispatchBody_bridged (payable : Bool) (label : String)
     (body : List Compiler.Yul.YulStmt) (hBody : BridgedStmts body) :
     BridgedStmts (Compiler.CodegenCommon.dispatchBody payable label body) := by
@@ -2381,6 +1229,8 @@ theorem dispatchBody_bridged (payable : Bool) (label : String)
       (BridgedStmts_cons callvalueGuard_bridged hBody)
   · exact BridgedStmts_cons_comment label hBody
 
+/-- The generated default dispatch case is bridged whenever its optional
+fallback and receive bodies are bridged. -/
 theorem defaultDispatchCase_bridged
     (fallback receive : Option Compiler.IREntrypoint)
     (hFallback : ∀ fb, fallback = some fb → BridgedStmts fb.body)
@@ -2422,7 +1272,9 @@ theorem defaultDispatchCase_bridged
                   (hFallback fb rfl))
                 BridgedStmts_nil))
 
-private theorem switchCases_bridged
+/-- Every lowered generated selector-switch case is bridged when every source
+function body in the case list is bridged. -/
+theorem switchCases_bridged
     (funcs : List Compiler.IRFunction)
     (hFunctions : ∀ fn, fn ∈ funcs → BridgedStmts fn.body) :
     ∀ scrutinee value body,
@@ -2446,6 +1298,8 @@ private theorem switchCases_bridged
     (BridgedStmts_cons (calldatasizeGuard_bridged fn.params.length)
       (hFunctions fn hFn))
 
+/-- The generated runtime selector switch is bridged from bridged external
+function, fallback, and receive bodies. -/
 theorem buildSwitch_bridged
     (funcs : List Compiler.IRFunction)
     (fallback receive : Option Compiler.IREntrypoint)
@@ -2469,11 +1323,15 @@ theorem buildSwitch_bridged
               exact defaultDispatchCase_bridged fallback receive hFallback hReceive))
           BridgedStmts_nil)))
 
+/-- The generated `mappingSlot` helper body is in the bridged fragment. -/
 theorem mappingSlotFuncAt_bridged (scratchBase : Nat) :
     BridgedStmt (Compiler.CodegenCommon.mappingSlotFuncAt scratchBase) := by
   unfold Compiler.CodegenCommon.mappingSlotFuncAt
   exact bridgedStmt_funcDef "mappingSlot" ["baseSlot", "key"] ["slot"] _
 
+/-- Generic bridge proof for all generated runtime code emitted from an
+`IRContract`: mapping helper, internal helpers, dispatcher switch, and optional
+fallback/receive bodies. -/
 theorem runtimeCode_bridged
     (contract : Compiler.IRContract)
     (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
@@ -2492,6 +1350,8 @@ theorem runtimeCode_bridged
         (buildSwitch_bridged contract.functions contract.fallbackEntrypoint
           contract.receiveEntrypoint hFunctions hFallback hReceive))
 
+/-- The runtime code emitted by `emitYul` is a bridged execution target whenever
+all constituent function, helper, fallback, and receive bodies are bridged. -/
 theorem emitYul_runtimeCode_bridged
     (contract : Compiler.IRContract)
     (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
@@ -2503,7 +1363,7 @@ theorem emitYul_runtimeCode_bridged
     simpa [Compiler.emitYul] using
       runtimeCode_bridged contract hFunctions hFallback hReceive hInternals)
 
-theorem execYulFuelWithBackend_eq_on_bridged_target
+private theorem execYulFuelWithBackend_eq_on_bridged_target
     (fuel : Nat) (state : YulState) (target : YulExecTarget)
     (hTarget : BridgedTarget target) :
     execYulFuelWithBackend .verity fuel state target =
@@ -2616,7 +1476,7 @@ theorem execYulFuelWithBackend_eq_on_bridged_target
               | «stop» _ => rfl
               | «revert» _ => rfl
 
-theorem execYulFuelWithBackend_eq_on_bridged_stmt
+private theorem execYulFuelWithBackend_eq_on_bridged_stmt
     (fuel : Nat) (state : YulState) (stmt : Compiler.Yul.YulStmt)
     (hStmt : BridgedStmt stmt) :
     execYulFuelWithBackend .verity fuel state (.stmt stmt) =
@@ -2624,7 +1484,7 @@ theorem execYulFuelWithBackend_eq_on_bridged_stmt
   execYulFuelWithBackend_eq_on_bridged_target fuel state (.stmt stmt)
     (.stmt stmt hStmt)
 
-theorem execYulFuelWithBackend_eq_on_bridged_stmts
+private theorem execYulFuelWithBackend_eq_on_bridged_stmts
     (fuel : Nat) (state : YulState) (stmts : List Compiler.Yul.YulStmt)
     (hStmts : BridgedStmts stmts) :
     execYulFuelWithBackend .verity fuel state (.stmts stmts) =
@@ -2632,66 +1492,52 @@ theorem execYulFuelWithBackend_eq_on_bridged_stmts
   execYulFuelWithBackend_eq_on_bridged_target fuel state (.stmts stmts)
     (.stmts stmts hStmts)
 
-theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
+private theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
     (fuel : Nat) (state : YulState) (contract : Compiler.IRContract)
-    (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
-    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
-    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
-    (hInternals : BridgedStmts contract.internalFunctions) :
-    execYulFuel fuel state (.stmts (Compiler.emitYul contract).runtimeCode) =
+    (_hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
+    (_hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
+    (_hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
+    (_hInternals : BridgedStmts contract.internalFunctions) :
+    legacyExecYulFuel fuel state (.stmts (Compiler.emitYul contract).runtimeCode) =
     execYulFuelWithBackend .evmYulLean fuel state
       (.stmts (Compiler.emitYul contract).runtimeCode) := by
-  rw [← execYulFuelWithBackend_verity_eq fuel state
-    (.stmts (Compiler.emitYul contract).runtimeCode)]
-  exact execYulFuelWithBackend_eq_on_bridged_target fuel state
-    (.stmts (Compiler.emitYul contract).runtimeCode)
-    (emitYul_runtimeCode_bridged contract hFunctions hFallback hReceive hInternals)
+  exact (execYulFuelWithBackend_evmYulLean_eq fuel state
+    (.stmts (Compiler.emitYul contract).runtimeCode)).symm
 
-noncomputable def execYulStmtsWithBackend
+private noncomputable def execYulStmtsWithBackend
     (backend : BuiltinBackend) (state : YulState) (stmts : List Compiler.Yul.YulStmt) :
     YulExecResult :=
   execYulFuelWithBackend backend (sizeOf stmts + 1) state (.stmts stmts)
 
-noncomputable def interpretYulRuntimeWithBackendFuel
-    (backend : BuiltinBackend) (fuel : Nat)
-    (runtimeCode : List Compiler.Yul.YulStmt)
+private noncomputable def interpretYulRuntimeWithBackend
+    (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (events : List (List Nat) := []) :
     YulResult :=
   let initialState := YulState.initial tx storage events
   yulResultOfExecWithRollback initialState
-    (execYulFuelWithBackend backend fuel initialState (.stmts runtimeCode))
+    (execYulFuelWithBackend backend (sizeOf runtimeCode + 1) initialState
+      (.stmts runtimeCode))
 
-noncomputable def interpretYulRuntimeWithBackend
-    (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
-    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
-    (events : List (List Nat) := []) :
-    YulResult :=
-  interpretYulRuntimeWithBackendFuel backend (sizeOf runtimeCode + 1)
-    runtimeCode tx storage events
+private noncomputable def interpretYulFromIR
+    (contract : Compiler.IRContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (state : Compiler.Proofs.IRGeneration.IRState) : YulResult :=
+  interpretYulRuntime (Compiler.emitYul contract).runtimeCode
+    (YulTransaction.ofIR tx) state.storage state.events
 
-@[simp] theorem interpretYulRuntimeWithBackend_eq_fuel
-    (backend : BuiltinBackend) (runtimeCode : List Compiler.Yul.YulStmt)
-    (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
-    (events : List (List Nat) := []) :
-    interpretYulRuntimeWithBackend backend runtimeCode tx storage events =
-      interpretYulRuntimeWithBackendFuel backend (sizeOf runtimeCode + 1)
-        runtimeCode tx storage events := by
-  rfl
-
-theorem interpretYulRuntimeWithBackend_verity_eq
+private theorem interpretYulRuntimeWithBackend_evmYulLean_eq
     (runtimeCode : List Compiler.Yul.YulStmt) (tx : YulTransaction)
     (storage : IRStorageSlot → IRStorageWord) (events : List (List Nat) := []) :
-    interpretYulRuntimeWithBackend .verity runtimeCode tx storage events =
+    interpretYulRuntimeWithBackend .evmYulLean runtimeCode tx storage events =
     interpretYulRuntime runtimeCode tx storage events := by
-  unfold interpretYulRuntimeWithBackend interpretYulRuntimeWithBackendFuel
-    interpretYulRuntime
+  unfold interpretYulRuntimeWithBackend interpretYulRuntime
   unfold execYulStmts execYulStmtsFuel
   change
     yulResultOfExecWithRollback (YulState.initial tx storage events)
-      (execYulFuelWithBackend .verity (sizeOf runtimeCode + 1)
+      (execYulFuelWithBackend .evmYulLean (sizeOf runtimeCode + 1)
         (YulState.initial tx storage events) (.stmts runtimeCode)) =
-    match execYulFuel (sizeOf runtimeCode + 1)
+    match legacyExecYulFuel (sizeOf runtimeCode + 1)
         (YulState.initial tx storage events) (.stmts runtimeCode) with
     | .continue s =>
         { success := true, returnValue := s.returnValue, finalStorage := s.storage,
@@ -2705,91 +1551,25 @@ theorem interpretYulRuntimeWithBackend_verity_eq
     | .revert _ =>
         { success := false, returnValue := none, finalStorage := storage,
           finalMappings := Compiler.Proofs.storageAsMappings storage, events := events }
-  rw [execYulFuelWithBackend_verity_eq]
-  cases execYulFuel (sizeOf runtimeCode + 1) (YulState.initial tx storage events)
+  rw [execYulFuelWithBackend_evmYulLean_eq]
+  cases legacyExecYulFuel (sizeOf runtimeCode + 1) (YulState.initial tx storage events)
       (.stmts runtimeCode) <;> rfl
 
-theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
+private theorem interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
     (contract : Compiler.IRContract) (tx : Compiler.Proofs.IRGeneration.IRTransaction)
     (state : Compiler.Proofs.IRGeneration.IRState)
-    (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
-    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
-    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
-    (hInternals : BridgedStmts contract.internalFunctions) :
-    interpretYulFromIR contract tx state =
+    (_hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
+    (_hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
+    (_hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
+    (_hInternals : BridgedStmts contract.internalFunctions) :
+  interpretYulFromIR contract tx state =
     interpretYulRuntimeWithBackend .evmYulLean
       (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
       state.storage state.events := by
   unfold interpretYulFromIR
-  calc
-    interpretYulRuntime (Compiler.emitYul contract).runtimeCode
-        (YulTransaction.ofIR tx) state.storage state.events =
-      interpretYulRuntimeWithBackend .verity
-        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
-        state.storage state.events := by
-          exact (interpretYulRuntimeWithBackend_verity_eq
-            (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
-            state.storage (events := state.events)).symm
-    _ = interpretYulRuntimeWithBackend .evmYulLean
-        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
-        state.storage state.events := by
-          unfold interpretYulRuntimeWithBackend interpretYulRuntimeWithBackendFuel
-          change
-            yulResultOfExecWithRollback
-              (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
-              (execYulFuelWithBackend .verity
-                (sizeOf (Compiler.emitYul contract).runtimeCode + 1)
-                (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
-                (.stmts (Compiler.emitYul contract).runtimeCode)) =
-            yulResultOfExecWithRollback
-              (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
-              (execYulFuelWithBackend .evmYulLean
-                (sizeOf (Compiler.emitYul contract).runtimeCode + 1)
-                (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
-                (.stmts (Compiler.emitYul contract).runtimeCode))
-          rw [execYulFuelWithBackend_verity_eq]
-          rw [emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
-            (sizeOf (Compiler.emitYul contract).runtimeCode + 1)
-            (YulState.initial (YulTransaction.ofIR tx) state.storage state.events)
-            contract hFunctions hFallback hReceive hInternals]
-
-theorem yulCodegen_preserves_semantics_evmYulLean
-    (contract : Compiler.IRContract)
-    (tx : IRTransaction)
-    (initialState : IRState)
-    (hselector : tx.functionSelector < selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
-    (hWF : ContractWF contract)
-    (hNoFallback : contract.fallbackEntrypoint = none)
-    (hNoReceive : contract.receiveEntrypoint = none)
-    (hdispatchGuardSafe : ∀ fn, fn ∈ contract.functions →
-      DispatchGuardsSafe fn tx)
-    (hNoHasSelector : ∀ fn, fn ∈ contract.functions →
-      yulStmtsNoRef "__has_selector" fn.body)
-    (hHasSelectorDead : ∀ fn, fn ∈ contract.functions →
-      HasSelectorDeadBridge fn.body)
-    (hLoopFree : ∀ fn, fn ∈ contract.functions →
-      yulStmtsLoopFree fn.body = true)
-    (hbody : ∀ fn, fn ∈ contract.functions →
-      resultsMatch
-        (execIRFunction fn tx.args (initialState.withTx tx))
-        (interpretYulBody fn tx (initialState.withTx tx)))
-    (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
-    (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
-    (hReceive : ∀ rc, contract.receiveEntrypoint = some rc → BridgedStmts rc.body)
-    (hInternals : BridgedStmts contract.internalFunctions) :
-    resultsMatch
-      (interpretIR contract tx initialState)
-      (interpretYulRuntimeWithBackend .evmYulLean
-        (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
-        initialState.storage initialState.events) := by
-  have hLayer3 :=
-    yulCodegen_preserves_semantics contract tx initialState
-      hselector hNoWrap hWF hNoFallback hNoReceive hdispatchGuardSafe
-      hNoHasSelector hHasSelectorDead hLoopFree hbody
-  rw [← interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
-    contract tx initialState hFunctions hFallback hReceive hInternals]
-  exact hLayer3
+  exact (interpretYulRuntimeWithBackend_evmYulLean_eq
+    (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx)
+    state.storage (events := state.events)).symm
 
 /-! ## Phase 4 Completion Summary
 
@@ -2802,7 +1582,7 @@ theorem yulCodegen_preserves_semantics_evmYulLean
    equivalence for `BridgedExpr`, covering literals, identifiers, nested calls
    to bridged builtins, and backend-independent `tload`/`mload`.
 3. **Backend-parameterized statement executor**: `execYulFuelWithBackend` is a
-   backend-parameterized mirror of `execYulFuel`, providing the executor surface
+   backend-parameterized mirror of `legacyExecYulFuel`, providing the executor surface
    used by the statement-level equivalence proofs below.
 4. **`execYulFuelWithBackend_{let,assign}_eq_on_bridged`**: First
    statement-level backend-equivalence theorems — `.let_ n v` and `.assign n v`
@@ -2831,31 +1611,21 @@ theorem yulCodegen_preserves_semantics_evmYulLean
     `BridgedTarget`, whose nested statements satisfy `BridgedStmt`.
 11. **`emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`**: Composes
     emitted runtime-wrapper closure with recursive target equivalence to state
-    that Verity `execYulFuel` equals the EVMYulLean backend executor for
+    that Verity `legacyExecYulFuel` equals the EVMYulLean backend executor for
     `emitYul` runtime code when its embedded bodies are bridged.
-12. **`yulCodegen_preserves_semantics_evmYulLean`**: Composes the existing
-    Layer-3 IR-to-Yul preservation theorem with the bridged-runtime equality
-    above, yielding a contract-level result whose Yul side is evaluated by the
-    EVMYulLean builtin backend. This lower-level theorem is intentionally
-    parameterized by generated embedded-body `BridgedStmts` witnesses; the
-    public safe-body EndToEnd wrapper derives those witnesses for supported
-    compiler-produced contracts.
-
-The public safe-body EndToEnd wrapper consumes this Layer-3 theorem after
-deriving the raw `BridgedStmts` body witnesses from source-level
-`BridgedSafeStmts` and static-parameter witnesses. The lower-level theorem here
-intentionally remains useful for callers that already have explicit generated
-Yul body witnesses.
+12. The former contract-level EVMYulLean fuel-wrapper retarget theorem has
+    been removed from this module. The remaining facts are transition/regression
+    evidence for the bridged proof-interpreter fragment, while public
+    compiler-correctness theorems are expected to target native dispatcher
+    execution through `EvmYul.Yul.callDispatcher`.
 
 ### Trust boundary:
 Expressions constrained by `BridgedExpr`, straight-line statement lists
 constrained by `BridgedStraightStmts`, and recursive statement targets
 constrained by `BridgedTarget` inherit EVMYulLean semantics. Contract-level
-Layer-3 preservation also targets the EVMYulLean backend when embedded bodies
-satisfy `BridgedStmts`; the public safe-body EndToEnd theorem discharges those
-raw body witnesses for supported compiler-produced contracts. The remaining
-scope limit is the external-call/function-table family carved out by
-`BridgedSafeStmts`.
+proof-interpreter preservation is not exported from this module as public
+compiler-correctness authority. The remaining scope limit is the
+external-call/function-table family carved out by `BridgedSafeStmts`.
 -/
 
 end Compiler.Proofs.YulGeneration.Backends

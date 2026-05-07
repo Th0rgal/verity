@@ -1,9 +1,15 @@
 # IR Storage Refactor — Phase 3 Plan
 
-Phase 3 of [`IR_STORAGE_UINT256_REFACTOR.md`](IR_STORAGE_UINT256_REFACTOR.md):
-discharge `simpleStorageNativeStoreHitBridge` and drop the `hStoreHit` premise
-from `simpleStorage_endToEnd_native_evmYulLean`. After Phase 3, the public
-SimpleStorage native theorem has zero remaining bridge premises.
+Phase 3 of [`IR_STORAGE_UINT256_REFACTOR.md`](IR_STORAGE_UINT256_REFACTOR.md)
+originally tracked discharging the store-hit fuel-wrapper bridge and dropping the
+`hStoreHit` premise from `simpleStorage_endToEnd_native_evmYulLean`.
+
+Status update: this plan has been superseded for the public native path. The
+public `simpleStorage_endToEnd_native_evmYulLean` theorem now consumes the
+direct native-vs-IR `simpleStorageNativeStoreHitMatchBridge_proved` proof
+through `simpleStorageNativeCallDispatcherMatchBridge_of_per_case`. The older
+store-hit compatibility theorem has been
+removed with the obsolete SimpleStorage fuel-wrapper bridge surface.
 
 This file is the working scaffold for the Phase 3 PR. It is plan-only so the
 PR opens against a green build.
@@ -30,14 +36,14 @@ The store-hit case has two distinct read paths and one write path:
 
 ## Phase 3 deliverables
 
-1. Lemma `simpleStorageNativeStoreHitBridge_proved` — mirrors the Phase 2
+1. Lemma `simpleStorageNativeStoreHitMatchBridge_proved` — mirrors the Phase 2
    retrieve-hit lemma, with the additional sstore mutation argument.
 2. Replace the explicit `hStoreHit` premise on
    `simpleStorage_endToEnd_native_evmYulLean` with the proved lemma.
 3. `PrintAxioms` for the public theorem reports no remaining bridge premises
    beyond the trusted EVMYulLean builtin axioms.
-4. `simpleStorageNativeCallDispatcherBridge_of_per_case` is the only
-   surviving dispatcher surface and is fully closed.
+4. `simpleStorageNativeCallDispatcherMatchBridge_of_per_case` is the surviving
+   dispatcher surface and is fully closed.
 5. `Contracts/SimpleStorage/Proofs/` unchanged.
 
 ## Proof obligation outline
@@ -64,7 +70,7 @@ After Phases 1 and 2, the store-hit bridge reduces to:
 
 ## Exit criteria
 
-- `simpleStorageNativeStoreHitBridge_proved` lands and is invoked at the
+- `simpleStorageNativeStoreHitMatchBridge_proved` lands and is invoked at the
   call site of the former `hStoreHit` premise.
 - `simpleStorage_endToEnd_native_evmYulLean` has zero remaining bridge
   premises.
@@ -80,5 +86,7 @@ PR.
 
 ## Status
 
-Plan-only. Implementation depends on Phases 1 (#1754) and 2 (#1755) landing
-first.
+Superseded for the public native SimpleStorage theorem. The direct store-hit
+proof is `simpleStorageNativeStoreHitMatchBridge_proved`; the generic
+compatibility cleanup remains tracked in
+[`NATIVE_EVMYULLEAN_TRANSITION.md`](NATIVE_EVMYULLEAN_TRANSITION.md).

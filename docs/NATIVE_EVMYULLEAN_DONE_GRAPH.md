@@ -31,7 +31,7 @@ N0 generated-fragment contract
   -> N3 native dispatcher skeleton
   -> N4 body temp/write preservation
   -> N5 generated statement/expression native equivalence
-  -> N6 whole runtime native/interpreter agreement
+  -> N6 whole runtime native/EVMYulLean agreement
   -> N7 fuel adequacy / theorem-facing fuel story
   -> N8 public Layer 3 theorem flip
   -> N10 CI/docs enforcement
@@ -58,7 +58,73 @@ N8 public Layer 3 theorem flip
 - **Urgency**: P0
 - **Depends on**: none
 - **Blocks**: N1, N3, N4, N5, N6
-- **Status**: partially implicit in existing lowering/proof modules.
+- **Status**: partially implicit in existing lowering/proof modules. Generated
+  dispatcher selector lookup now has native-lowering specializations
+  `lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function` and
+  `lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function`, bridging
+  `IRFunction` selector hits and misses to lowered native case lookup facts.
+  The actual `buildSwitch` source case list is named by
+  `buildSwitchSourceCases`, proved equal to `switchCases` by
+  `buildSwitchSourceCases_eq_switchCases`, and consumed directly by
+  `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function`
+  and `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function`.
+  The singleton dispatcher-only runtime lowering boundary now lives in the
+  native harness as `lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative`.
+  Helper-free emitted runtime lowering is packaged by
+  `lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive`,
+  with the compiled supported no-mapping wrapper
+  `lowerRuntimeContractNative_of_compile_ok_supported_noMapping`. The generated
+  mapping-helper lowering is named by `nativeMappingSlotFunctionDefinition` and
+  `lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero`, pinning
+  the concrete native EVMYulLean function body for `mappingSlot` at scratch
+  base zero. Mapping-enabled emitted-runtime lowering is now packaged by
+  `lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved`
+  and the compiled supported wrapper
+  `lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved`; the
+  dispatcher is lowered under the full emitted-runtime reserved-name context so
+  native switch temporary allocation remains faithful. Successful full native
+  lowering is now peeled back to its concrete dispatcher lowering by
+  `lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher`,
+  `lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher`,
+  `lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved`, and
+  `lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved`.
+  EndToEnd also
+  names the positive/projected no-mapping dispatcher-statement wrappers
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping`
+  and
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping`,
+  plus their `_ofIR_environment` and `_ofIR_globalDefaults` variants and the
+  corresponding direct
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_*`
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
+  wrappers. The same native dispatcher-statement surface now exists for
+  mapping-enabled generated runtimes under the `_mapping_reserved` names,
+  including `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_*`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_*`,
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
+  `_ofIR_environment` / `_ofIR_globalDefaults` variants. The
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
+  wrappers compose successful full runtime lowering with the concrete
+  dispatcher-statement surfaces, keeping callers at the emitted-runtime
+  boundary while the exact dispatcher lowering is extracted internally. The
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
+  wrappers lift that same full-runtime boundary to Layer 3, and
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_*`
+  lifts it to the Layers 2+3 composition.
+  Generic `.block` lowering shape also lives in the native harness via
+  `lowerStmtsNative_single_block_ok_singleton` and
+  `lowerStmtsNative_block_stmts_eq`; let/if/switch dispatcher statement peels
+  are named by `lowerStmtsNativeWithSwitchIds_let_head_eq`,
+  `lowerStmtsNativeWithSwitchIds_if_head_eq`, and
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_eq`; default-revert switch
+  lowering is pinned by `lowerStmtsNativeWithSwitchIds_revert_zero_zero`,
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq`, and
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered`.
+  The combined no-fallback/no-receive generated dispatcher lowering shape is
+  exposed as `buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered`;
+  its selector hit/miss lookup companions are
+  `buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function`
+  and `buildSwitch_noFallback_noReceive_lowered_inner_find?_none_of_find_function`.
 - **Definition of done**:
   - The compiler-emitted runtime Yul fragment is explicitly characterized.
   - Allowed statements, expressions, builtins, helper functions, dispatcher
@@ -80,6 +146,15 @@ N8 public Layer 3 theorem flip
   coverage. `chainid` and `blobbasefee` fail closed unless representable.
   Header-derived builtins without Verity transaction fields now also fail
   closed on selected native runtime paths.
+  `validateNativeRuntimeEnvironment_ofIR_representableEnvironment` and
+  `validateNativeRuntimeEnvironment_ofIR_globalDefaults` package the common
+  `YulTransaction.ofIR` validation cases once unsupported selected-path header
+  builtin use has been ruled out. EndToEnd mirrors the global-default case for
+  the compiled native positive and projected-result seams.
+  `generatedRuntimeNativeFragment_of_compile_ok_supported_safe` and
+  `validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe` close
+  the executable generated-runtime fragment validator for supported compiled
+  contracts.
 - **Definition of done**:
   - Every environment field reachable from generated Yul is bridged, explicitly
     defaulted under a theorem invariant, or rejected fail-closed.
@@ -97,7 +172,52 @@ N8 public Layer 3 theorem flip
 - **Depends on**: N1
 - **Blocks**: N6, N8
 - **Status**: projection coverage exists for success, stop, return, revert,
-  hard native errors, storage rollback, logs, and storage projection.
+  hard native errors, storage rollback, logs, and storage projection. The
+  generic
+  `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`
+  lemma packages generated selector-miss native `Revert` execution with the
+  exact projected rollback result for arbitrary one-word selector tags. The
+  generic
+  `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq` lemma
+  packages selector-hit native halt/error execution with the selected body's
+  projected result at the full lowered-switch boundary; its store-parametric
+  companion
+  `exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq`
+  covers selector switches entered after earlier dispatcher-local bindings.
+  The selector-miss companion
+  `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq`
+  gives the same exact rollback package for store-parametric miss/default
+  paths. The block-level
+  `exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_projectResult_eq`
+  wrapper lifts that package through the generated dispatcher-local
+  `__has_selector` binding shape, while
+  `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq`
+  packages selector-hit halt/error projection through the same block shape.
+  Selector-hit normal-success projection is now packaged by
+  `exec_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq`,
+  `exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq`
+  and its dispatcher-block companion
+  `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq`.
+  The final direct dispatcher-match surface also has the endpoint-agnostic
+  `nativeDispatcherExecMatchesIRPositive_of_project_eq_match`, which lets a
+  generated runtime proof discharge the positive native-vs-IR target from one
+  projected native `YulResult` equality plus the observable IR match. The
+  corresponding runtime lifts are named by
+  `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match` and
+  `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match`.
+  EndToEnd now mirrors this as compiled-contract projected-result and
+  environment-closure seams:
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment`,
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`.
 - **Definition of done**:
   - Projection lemmas cover every native halt/error/result used by generated
     runtime execution.
@@ -118,7 +238,7 @@ N8 public Layer 3 theorem flip
   hit/miss lemmas, and raw lowered switch block bridge lemmas are in progress.
 - **Definition of done**:
   - The lowered dispatcher switch executes the same selected/default branch as
-    the interpreter oracle for every generated dispatcher shape.
+    the EVMYulLean fuel wrapper for every generated dispatcher shape.
   - The result is stated at the raw `lowerNativeSwitchBlock` boundary and at the
     higher generated dispatcher boundary.
 - **Verification**:
@@ -187,7 +307,7 @@ N8 public Layer 3 theorem flip
   complete.
 - **Definition of done**:
   - For compiler-generated runtime Yul, native `callDispatcher` execution
-    agrees with the current interpreter-backed public semantic path on the
+    agrees with the current EVMYulLean-backed public semantic path on the
     observable result.
   - The theorem covers selected public function dispatch, default dispatch,
     storage, logs, return/revert/error behavior, and generated helper calls.

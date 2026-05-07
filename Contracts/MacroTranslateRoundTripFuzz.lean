@@ -1,6 +1,7 @@
+import Compiler.Proofs.YulGeneration.IRFuel
 import Compiler.Selector
 import Compiler.Hex
-import Compiler.Proofs.YulGeneration.Equivalence
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 import Contracts
 import Contracts.ProxyUpgradeabilityMacroSmoke
 import Contracts.ProxyUpgradeabilityLayoutCompatibleSmoke
@@ -15,6 +16,53 @@ open Compiler
 open Compiler.CompilationModel
 open Compiler.Proofs.IRGeneration
 open Compiler.Proofs.YulGeneration
+
+/- This executable harness compares IR execution with the legacy reference-oracle
+   fuel interpreter as regression coverage only. It is not theorem authority for
+   native EVMYulLean correctness. -/
+
+private def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
+  { vars := state.vars
+    «storage» := state.storage
+    transientStorage := state.transientStorage
+    memory := state.memory
+    calldata := state.calldata
+    selector := state.selector
+    returnValue := state.returnValue
+    sender := state.sender
+    msgValue := state.msgValue
+    thisAddress := state.thisAddress
+    blockTimestamp := state.blockTimestamp
+    blockNumber := state.blockNumber
+    chainId := state.chainId
+    blobBaseFee := state.blobBaseFee
+    events := state.events }
+
+private def yulResultOfExecWithRollback (rollback : YulState) : YulExecResult → YulResult
+  | .continue s =>
+      { success := true
+        returnValue := s.returnValue
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .return v s =>
+      { success := true
+        returnValue := some v
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .stop s =>
+      { success := true
+        returnValue := none
+        finalStorage := s.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s.storage
+        events := s.events }
+  | .revert _ =>
+      { success := false
+        returnValue := none
+        finalStorage := rollback.storage
+        finalMappings := Compiler.Proofs.storageAsMappings rollback.storage
+        events := rollback.events }
 
 private def expectTrue (label : String) (ok : Bool) : IO Unit := do
   if !ok then

@@ -16,9 +16,9 @@ flip lands in subsequent commits on this branch.
   and round-trip lemmas (PR #1753, Phase 0).
 - `IRState.storage : Nat → IRStorageWord` is rfl-identical to `Nat → Nat`
   under the abbrev, so the Phase 0 retype required no callsite changes.
-- The public theorem `simpleStorage_endToEnd_native_evmYulLean` retains
-  `hRetrieveHit` and `hStoreHit` as explicit hypotheses (#1743 commit
-  `fe63b826`).
+- The public theorem `simpleStorage_endToEnd_native_evmYulLean` originally
+  retained `hRetrieveHit` and `hStoreHit` as explicit hypotheses (#1743 commit
+  `fe63b826`); later native bridge work discharged those premises.
 
 ## Phase 1 deliverables
 
@@ -45,7 +45,7 @@ flip lands in subsequent commits on this branch.
 | `IRStorageWord` carrier | `Compiler/Proofs/IRGeneration/IRStorageWord.lean` | migrate | Flipped from `abbrev := Nat` to `@[reducible] def := UInt256`. Added `OfNat`, `Inhabited` instances and reproved round-trip lemmas (`toNat_ofNat = n % UInt256.size`, `ofNat_toNat = w`, `toNat_lt_size`). |
 | `abstractStoreMappingEntry` | `Compiler/Proofs/MappingSlot.lean:83` | migrate | Wraps `value : Nat` via `IRStorageWord.ofNat` inside the helper; simp lemma `abstractStoreMappingEntry_eq` updated to match. |
 | `abstractStoreStorageOrMapping` | `Compiler/Proofs/MappingSlot.lean:95` | migrate | Wraps `value : Nat` via `IRStorageWord.ofNat`; simp lemma `abstractStoreStorageOrMapping_eq` updated. |
-| `evalBuiltinCallWithContext` (sload) | `Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean:58` | migrate | Projects `abstractLoadStorageOrMapping storage slot : IRStorageWord` back to `Nat` via `.toNat` for the `Option Nat` return. |
+| `legacyEvalBuiltinCallWithContext` (sload) | `Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean:58` | migrate | Projects `abstractLoadStorageOrMapping storage slot : IRStorageWord` back to `Nat` via `.toNat` for the `Option Nat` return. |
 | `evalBuiltinCallViaEvmYulLean` (sload) | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean:1064` | migrate | Same `.toNat` projection on the EVMYulLean adapter sload branch. |
 | `IRInterpreter.evalIRStatementWithBackend` | `Compiler/Proofs/IRGeneration/IRInterpreter.lean` | safe | All `state.storage` reads go through `abstractLoadStorageOrMapping`, all writes go through `abstractStoreStorageOrMapping` / `abstractStoreMappingEntry`, so the helper-internal wrapping covers every callsite without changes here. Initial-state literal `fun _ => 0` continues to elaborate via the `OfNat IRStorageWord 0` instance. |
 | `EvmYulLeanBridgeLemmas` | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` | safe | Builtin-equivalence lemmas thread `storage : Nat → IRStorageWord` as a parameter but never inspect the value; survive carrier flip without edits. |
@@ -66,9 +66,8 @@ flip lands in subsequent commits on this branch.
 - `lake build` clean.
 - `make check` clean.
 - Every `Contracts/*/Proofs/` spec theorem unchanged (no signature drift).
-- Public theorem `simpleStorage_endToEnd_native_evmYulLean` still carries
-  `hRetrieveHit` and `hStoreHit` premises — Phase 1 does not yet discharge
-  them. That work is Phase 2 / Phase 3.
+- Public theorem `simpleStorage_endToEnd_native_evmYulLean` keeps building;
+  the later Phase 2 / Phase 3 work discharges the retrieve/store hit premises.
 
 ## Status
 
@@ -76,5 +75,6 @@ Carrier flip implemented. `IRStorageWord` is now `@[reducible] def := UInt256`
 with `OfNat` / `Inhabited` instances and the round-trip lemmas restated for the
 new carrier. Downstream callsites have been migrated (helpers wrap `Nat → IRStorageWord`
 internally; sload sites project via `.toNat`). `lake build` clean, `make check`
-green (600 tests). `hRetrieveHit` / `hStoreHit` remain on
-`simpleStorage_endToEnd_native_evmYulLean`; their discharge is Phase 2 / Phase 3.
+green (600 tests). The later Phase 2 / Phase 3 bridge work discharges the
+`hRetrieveHit` / `hStoreHit` premises from
+`simpleStorage_endToEnd_native_evmYulLean`.

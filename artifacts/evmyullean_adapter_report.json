@@ -219,8 +219,9 @@
   "phase4_retarget": {
     "admitted_bridge_dependencies": [],
     "backends_agree_on_bridged_builtins": "proven",
-    "compileExpr_bridgedSource": "proven (pure source-expression fragment)",
+    "compileExpr_bridgedSource": "proven (source-expression fragment with parameter length, storage, and storage-array length reads, ADT tag/field reads, singleton and nested mapping reads through the abstract mappingSlot bridge, mapping struct-member reads, reserved exponentiation, boolean normalization, branchless helpers, bridged environment reads, and unary calldata/memory/transient reads)",
     "compileExpr_bridgedSource_leaf": "proven (scalar source-expression leaves)",
+    "compileExpr_mappingChain_bridgedSource": "proven (mappingChain source-expression wrapper through the abstract mappingSlot bridge)",
     "compileStmtList_always_bridged": "proven (universal compileStmtList body closure for BridgedSafeStmts; external-call family carved out)",
     "compileStmtList_binding_leaf_bridged": "proven (scalar let/assign statement lists)",
     "compileStmtList_external_body_fragment_bridged": "proven (mixed external body fragment)",
@@ -248,12 +249,14 @@
     "genParamLoads_scalar_bridged": "proven (scalar calldata parameters)",
     "genParamLoads_static_scalar_bridged": "proven (static scalar calldata parameters)",
     "genStaticTypeLoads_calldataload_bridged": "proven (static scalar calldata leaves)",
-    "layers2_3_ir_matches_yul_evmYulLean": "proven (body hypotheses discharged)",
-    "remaining_for_whole_program_retargeting": [],
+    "layers2_3_ir_matches_yul_evmYulLeanBackend": "removed from EndToEnd surface (retarget evidence isolated in EvmYulLeanRetarget.lean)",
+    "remaining_for_whole_program_retargeting": [
+      "discharge the conditional EndToEnd theorem's bridged-body hypotheses for full compiler-produced contracts"
+    ],
     "retarget_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
-    "status": "full_semantic_integration",
-    "trust_boundary": "recursive BridgedTarget statement fragment: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr expressions, BridgedStraightStmts (including mapping-slot, literal-slot, and identifier-slot sstore), and recursively nested BridgedStmt targets; generated runtime-code closure, emitted-runtime backend equality, and the lower-level Layer-3 EVMYulLean retarget theorem are proven under bridged IR-body witnesses; the public EndToEnd safe-body wrapper discharges raw BridgedStmts body hypotheses from SupportedSpec, static-parameter, and BridgedSafeStmts source witnesses; compileStmtList_always_bridged proves a universal BridgedSafeStmts aggregation theorem with the external-call family carved out behind explicit function-table hypotheses",
-    "yulCodegen_preserves_semantics_evmYulLean": "proven (conditional on bridged IR bodies)"
+    "status": "universal-safe-body-closure",
+    "trust_boundary": "recursive BridgedTarget statement fragment: EVMYulLean execution model matches EVM (upstream conformance tests) for BridgedExpr expressions, BridgedStraightStmts (including mapping-slot, literal-slot, and identifier-slot sstore), and recursively nested BridgedStmt targets; generated runtime-code closure, emitted-runtime backend equality, and the lower-level Layer-3 EVMYulLean retarget theorem are proven under bridged IR-body witnesses; the EndToEnd safe-body backend-wrapper lemma is private transition plumbing, while public EndToEnd targets use native dispatcher execution through interpretIRRuntimeNative; compileStmtList_always_bridged proves a universal BridgedSafeStmts aggregation theorem with the external-call family carved out behind explicit function-table hypotheses",
+    "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle": "missing"
   },
   "schema_version": 7,
   "status": "ok",

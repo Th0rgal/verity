@@ -1,6 +1,7 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
+import Compiler.Proofs.YulGeneration.RuntimeTypes
 import Compiler.Codegen
 import EvmYul.Yul.Interpreter
 import Lean
@@ -11,7 +12,8 @@ open Compiler.Yul
 open Compiler.Proofs.YulGeneration
 open Compiler.Proofs.YulGeneration.Backends.StateBridge
 open Lean Elab Tactic Meta
-open Compiler.Proofs.IRGeneration (IRStorageWord IRStorageSlot)
+open Compiler.Proofs.IRGeneration
+  (IRResult IRState IRStorageSlot IRStorageWord IRTransaction)
 
 /-!
 Executable native EVMYulLean runtime harness for #1737.
@@ -178,10 +180,29 @@ def yulFunctionBodies (runtimeCode : List YulStmt) : List (String × List YulStm
     | .funcDef name _ _ body => some (name, body)
     | _ => none
 
+@[simp] theorem yulFunctionBodies_nil :
+    yulFunctionBodies [] = [] := by
+  rfl
+
+@[simp] theorem yulFunctionBodies_funcDef_cons
+    (name : String) (params rets : List String) (body rest : List YulStmt) :
+    yulFunctionBodies (YulStmt.funcDef name params rets body :: rest) =
+      (name, body) :: yulFunctionBodies rest := by
+  rfl
+
+@[simp] theorem yulFunctionBodies_nonFunc_cons
+    (stmt : YulStmt) (rest : List YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    yulFunctionBodies (stmt :: rest) = yulFunctionBodies rest := by
+  cases stmt <;> simp [yulFunctionBodies]
+  case funcDef name params rets body =>
+    exact False.elim (hNoFunc name params rets body rfl)
+
 /-! ## Generated Native Runtime Fragment -/
 
 mutual
-  partial def yulStmtContainsFuncDef : YulStmt → Bool
+  def yulStmtContainsFuncDef : YulStmt → Bool
     | .funcDef _ _ _ _ => true
     | .if_ _ body => yulStmtsContainFuncDef body
     | .for_ init _ post body =>
@@ -189,14 +210,58 @@ mutual
           yulStmtsContainFuncDef post ||
           yulStmtsContainFuncDef body
     | .switch _ cases defaultBody =>
-        cases.any (fun entry => yulStmtsContainFuncDef entry.2) ||
-          defaultBody.any yulStmtsContainFuncDef
+        yulSwitchCasesContainFuncDef cases ||
+          match defaultBody with
+          | some stmts => yulStmtsContainFuncDef stmts
+          | none => false
     | .block stmts => yulStmtsContainFuncDef stmts
     | .comment _ | .let_ _ _ | .letMany _ _ | .assign _ _ | .expr _ | .leave => false
 
-  partial def yulStmtsContainFuncDef (stmts : List YulStmt) : Bool :=
-    stmts.any yulStmtContainsFuncDef
+  def yulStmtsContainFuncDef : List YulStmt → Bool
+    | [] => false
+    | stmt :: rest => yulStmtContainsFuncDef stmt || yulStmtsContainFuncDef rest
+
+  def yulSwitchCasesContainFuncDef : List (Nat × List YulStmt) → Bool
+    | [] => false
+    | (_, body) :: rest =>
+        yulStmtsContainFuncDef body || yulSwitchCasesContainFuncDef rest
 end
+
+@[simp] theorem yulStmtsContainFuncDef_nil :
+    yulStmtsContainFuncDef [] = false := by
+  rfl
+
+@[simp] theorem yulStmtsContainFuncDef_cons
+    (stmt : YulStmt) (stmts : List YulStmt) :
+    yulStmtsContainFuncDef (stmt :: stmts) =
+      (yulStmtContainsFuncDef stmt || yulStmtsContainFuncDef stmts) := by
+  rfl
+
+@[simp] theorem yulStmtsContainFuncDef_append
+    (xs ys : List YulStmt) :
+    yulStmtsContainFuncDef (xs ++ ys) =
+      (yulStmtsContainFuncDef xs || yulStmtsContainFuncDef ys) := by
+  induction xs with
+  | nil =>
+      simp
+  | cons stmt rest ih =>
+      simp [ih, Bool.or_assoc]
+
+theorem yulStmtsContainFuncDef_flatMap_false {α : Type}
+    (xs : List α) (f : α → List YulStmt)
+    (h : ∀ x, x ∈ xs → yulStmtsContainFuncDef (f x) = false) :
+    yulStmtsContainFuncDef (xs.flatMap f) = false := by
+  induction xs with
+  | nil =>
+      simp
+  | cons x rest ih =>
+      have hx := h x (by simp)
+      have hrest : ∀ y, y ∈ rest → yulStmtsContainFuncDef (f y) = false := by
+        intro y hy
+        exact h y (by simp [hy])
+      simp only [List.flatMap, List.map_cons, List.flatten_cons,
+        yulStmtsContainFuncDef_append, hx, Bool.false_or]
+      exact ih hrest
 
 def yulRuntimeTopLevelFunctionNames (runtimeCode : List YulStmt) : List String :=
   runtimeCode.filterMap fun
@@ -207,6 +272,73 @@ def yulRuntimeDispatcherStmts (runtimeCode : List YulStmt) : List YulStmt :=
   runtimeCode.filter fun
     | .funcDef _ _ _ _ => false
     | _ => true
+
+@[simp] theorem yulRuntimeTopLevelFunctionNames_nil :
+    yulRuntimeTopLevelFunctionNames [] = [] := by
+  rfl
+
+@[simp] theorem yulRuntimeTopLevelFunctionNames_funcDef_cons
+    (name : String) (params rets : List String) (body rest : List YulStmt) :
+    yulRuntimeTopLevelFunctionNames
+        (YulStmt.funcDef name params rets body :: rest) =
+      name :: yulRuntimeTopLevelFunctionNames rest := by
+  rfl
+
+@[simp] theorem yulRuntimeTopLevelFunctionNames_nonFunc_cons
+    (stmt : YulStmt) (rest : List YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    yulRuntimeTopLevelFunctionNames (stmt :: rest) =
+      yulRuntimeTopLevelFunctionNames rest := by
+  cases stmt <;> simp [yulRuntimeTopLevelFunctionNames]
+  case funcDef name params rets body =>
+    exact False.elim (hNoFunc name params rets body rfl)
+
+@[simp] theorem yulRuntimeTopLevelFunctionNames_append
+    (left right : List YulStmt) :
+    yulRuntimeTopLevelFunctionNames (left ++ right) =
+      yulRuntimeTopLevelFunctionNames left ++
+        yulRuntimeTopLevelFunctionNames right := by
+  induction left with
+  | nil => rfl
+  | cons stmt rest ih =>
+      cases stmt <;> simp [yulRuntimeTopLevelFunctionNames]
+
+theorem yulRuntimeTopLevelFunctionNames_eq_nil_of_all_nonFunc
+    (stmts : List YulStmt)
+    (hNoFunc : ∀ stmt, stmt ∈ stmts →
+      ∀ name params rets body, stmt ≠ YulStmt.funcDef name params rets body) :
+    yulRuntimeTopLevelFunctionNames stmts = [] := by
+  induction stmts with
+  | nil => rfl
+  | cons stmt rest ih =>
+      rw [yulRuntimeTopLevelFunctionNames_nonFunc_cons]
+      · exact ih (by
+          intro stmt hmem
+          exact hNoFunc stmt (by simp [hmem]))
+      · intro name params rets body h
+        exact hNoFunc stmt (by simp) name params rets body h
+
+@[simp] theorem yulRuntimeDispatcherStmts_nil :
+    yulRuntimeDispatcherStmts [] = [] := by
+  rfl
+
+@[simp] theorem yulRuntimeDispatcherStmts_funcDef_cons
+    (name : String) (params rets : List String) (body rest : List YulStmt) :
+    yulRuntimeDispatcherStmts
+        (YulStmt.funcDef name params rets body :: rest) =
+      yulRuntimeDispatcherStmts rest := by
+  rfl
+
+@[simp] theorem yulRuntimeDispatcherStmts_nonFunc_cons
+    (stmt : YulStmt) (rest : List YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    yulRuntimeDispatcherStmts (stmt :: rest) =
+      stmt :: yulRuntimeDispatcherStmts rest := by
+  cases stmt <;> simp [yulRuntimeDispatcherStmts]
+  case funcDef name params rets body =>
+    exact False.elim (hNoFunc name params rets body rfl)
 
 def stringListHasDuplicate : List String → Bool
   | [] => false
@@ -223,6 +355,1411 @@ def generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
     Bool :=
   (yulFunctionBodies runtimeCode).all fun entry => !yulStmtsContainFuncDef entry.2
 
+@[simp] theorem generatedRuntimeDispatcherHasNoFuncDefs_funcDef_cons
+    (name : String) (params rets : List String) (body rest : List YulStmt) :
+    generatedRuntimeDispatcherHasNoFuncDefs
+        (YulStmt.funcDef name params rets body :: rest) =
+      generatedRuntimeDispatcherHasNoFuncDefs rest := by
+  simp [generatedRuntimeDispatcherHasNoFuncDefs]
+
+@[simp] theorem generatedRuntimeDispatcherHasNoFuncDefs_nonFunc_cons
+    (stmt : YulStmt) (rest : List YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    generatedRuntimeDispatcherHasNoFuncDefs (stmt :: rest) =
+      (!yulStmtContainsFuncDef stmt &&
+        generatedRuntimeDispatcherHasNoFuncDefs rest) := by
+  simp [generatedRuntimeDispatcherHasNoFuncDefs,
+    yulRuntimeDispatcherStmts_nonFunc_cons stmt rest hNoFunc]
+
+@[simp] theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_funcDef_cons
+    (name : String) (params rets : List String) (body rest : List YulStmt) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+        (YulStmt.funcDef name params rets body :: rest) =
+      (!yulStmtsContainFuncDef body &&
+        generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs rest) := by
+  simp [generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs]
+
+@[simp] theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_nonFunc_cons
+    (stmt : YulStmt) (rest : List YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs (stmt :: rest) =
+      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs rest := by
+  simp [generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs,
+    yulFunctionBodies_nonFunc_cons stmt rest hNoFunc]
+
+theorem dispatchBody_noFuncDefs
+    (payable : Bool) (label : String) (body : List YulStmt)
+    (hBody : yulStmtsContainFuncDef body = false) :
+    yulStmtsContainFuncDef
+      (Compiler.CodegenCommon.dispatchBody payable label body) = false := by
+  cases payable <;>
+    simp [Compiler.CodegenCommon.dispatchBody, Compiler.CodegenCommon.callvalueGuard,
+      yulStmtContainsFuncDef, yulStmtsContainFuncDef, hBody]
+
+theorem buildSwitchCases_noFuncDefs
+    (funcs : List IRFunction)
+    (hBodies : ∀ fn, fn ∈ funcs → yulStmtsContainFuncDef fn.body = false) :
+    yulSwitchCasesContainFuncDef
+      (funcs.map fun fn =>
+        (fn.selector,
+          Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
+            (Compiler.CodegenCommon.calldatasizeGuard fn.params.length :: fn.body))) =
+      false := by
+  induction funcs with
+  | nil => rfl
+  | cons fn rest ih =>
+      have hFnBody : yulStmtsContainFuncDef fn.body = false := hBodies fn (by simp)
+      have hRest : ∀ fn, fn ∈ rest → yulStmtsContainFuncDef fn.body = false := by
+        intro fn hmem
+        exact hBodies fn (by simp [hmem])
+      have hDispatch :
+          yulStmtsContainFuncDef
+            (Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
+              (Compiler.CodegenCommon.calldatasizeGuard fn.params.length :: fn.body)) =
+            false := by
+        apply dispatchBody_noFuncDefs
+        simp [Compiler.CodegenCommon.calldatasizeGuard, yulStmtContainsFuncDef,
+          yulStmtsContainFuncDef, hFnBody]
+      simp [yulSwitchCasesContainFuncDef, hDispatch, ih hRest]
+
+theorem buildSwitch_noFuncDefs_noFallback_noReceive
+    (funcs : List IRFunction)
+    (hBodies : ∀ fn, fn ∈ funcs → yulStmtsContainFuncDef fn.body = false) :
+    yulStmtContainsFuncDef
+      (Compiler.CodegenCommon.buildSwitch funcs none none) = false := by
+  have hCases := buildSwitchCases_noFuncDefs funcs hBodies
+  simpa [Compiler.CodegenCommon.buildSwitch, Compiler.CodegenCommon.defaultDispatchCase,
+    Compiler.CodegenCommon.dispatchBody, Compiler.CodegenCommon.calldatasizeGuard,
+    Compiler.CodegenCommon.callvalueGuard, yulStmtContainsFuncDef,
+    yulStmtsContainFuncDef, yulSwitchCasesContainFuncDef] using hCases
+
+/-- Dispatch body emitted for one external function case. This native-harness
+copy avoids importing the legacy proof-interpreter `Codegen` module. -/
+def switchCaseBody (fn : IRFunction) : List YulStmt :=
+  Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
+    ([Compiler.CodegenCommon.calldatasizeGuard fn.params.length] ++ fn.body)
+
+/-- Switch cases generated from IR functions. -/
+def switchCases (fns : List IRFunction) : List (Nat × List YulStmt) :=
+  fns.map (fun fn => (fn.selector, switchCaseBody fn))
+
+/-- Source case list emitted inside `buildSwitch` before the optional default
+case is attached. Kept explicit so native lowering lemmas can speak about the
+actual generated dispatcher source list, not only the proof-side `switchCases`
+abbreviation. -/
+def buildSwitchSourceCases (funcs : List IRFunction) :
+    List (Nat × List YulStmt) :=
+  funcs.map (fun fn =>
+    (fn.selector, switchCaseBody fn))
+
+/-- The case list emitted by `buildSwitch` is the native-harness switch case
+abbreviation. -/
+theorem buildSwitchSourceCases_eq_switchCases (funcs : List IRFunction) :
+    buildSwitchSourceCases funcs = switchCases funcs := by
+  rfl
+
+theorem find_switch_case_of_find_function
+    (fns : List IRFunction) (sel : Nat) (fn : IRFunction)
+    (hFind : fns.find? (fun f => f.selector == sel) = some fn) :
+    (switchCases fns).find? (fun (c, _) => c = sel) =
+      some (fn.selector, switchCaseBody fn) := by
+  induction fns with
+  | nil =>
+      simp at hFind
+  | cons f rest ih =>
+      by_cases hsel : f.selector = sel
+      · have hselb : (f.selector == sel) = true := by
+          simp [hsel]
+        have hFind' : some f = some fn := by
+          simpa [List.find?, hselb] using hFind
+        cases hFind'
+        simp [switchCases, hsel]
+      · have hselb : (f.selector == sel) = false := by
+          simp [hsel]
+        have hFind' : rest.find? (fun f => f.selector == sel) = some fn := by
+          simpa [List.find?, hselb] using hFind
+        have ih' := ih hFind'
+        simpa [switchCases, List.find?, hsel] using ih'
+
+theorem find_switch_case_of_find_function_eq_selector
+    (fns : List IRFunction) (sel : Nat) (fn : IRFunction)
+    (hFind : fns.find? (fun f => f.selector == sel) = some fn) :
+    (switchCases fns).find? (fun (c, _) => c = sel) =
+      some (sel, switchCaseBody fn) := by
+  have hCase := find_switch_case_of_find_function fns sel fn hFind
+  have hSel : fn.selector = sel := by
+    have h := List.find?_some hFind
+    simp at h
+    exact h
+  simpa [hSel] using hCase
+
+theorem find_switch_case_of_find_function_none
+    (fns : List IRFunction) (sel : Nat)
+    (hFind : fns.find? (fun f => f.selector == sel) = none) :
+    (switchCases fns).find? (fun (c, _) => c = sel) = none := by
+  induction fns with
+  | nil =>
+      simp at hFind
+      simp [switchCases]
+  | cons f rest ih =>
+      by_cases hsel : f.selector = sel
+      · have hselb : (f.selector == sel) = true := by
+          simp [hsel]
+        have hFind' : (some f : Option IRFunction) = none := by
+          simp [List.find?, hselb] at hFind
+        cases hFind'
+      · have hselb : (f.selector == sel) = false := by
+          simp [hsel]
+        have hFind' : rest.find? (fun f => f.selector == sel) = none := by
+          simpa [List.find?, hselb] using hFind
+        have ih' := ih hFind'
+        simpa [switchCases, List.find?, hsel] using ih'
+
+/-- Generated-dispatcher selector hit specialized to `IRFunction` lookup.
+
+This composes the source `buildSwitch` case lookup theorem with native switch
+case lowering, yielding the lowered native body selected by the same function
+selector that `interpretIR` found. -/
+theorem lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function
+    (reservedNames : List String) (nextSwitchId final selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId
+      (switchCases funcs) = .ok (cases', final))
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn) :
+    ∃ body' bodyStart bodyEnd,
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) := by
+  have hCase :
+      (switchCases funcs).find? (fun entry => entry.1 == selector) =
+        some (selector, switchCaseBody fn) := by
+    simpa using
+      (find_switch_case_of_find_function_eq_selector funcs selector fn hFind)
+  exact Backends.lowerSwitchCasesNativeWithSwitchIds_find?_some
+    reservedNames nextSwitchId final selector selector (switchCaseBody fn)
+    (switchCases funcs) cases' hLower hCase
+
+/-- Generated-dispatcher selector miss specialized to `IRFunction` lookup.
+
+If `interpretIR` finds no function for the selector, native lowering preserves
+that miss on the generated `buildSwitch` case list. -/
+theorem lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function
+    (reservedNames : List String) (nextSwitchId final selector : Nat)
+    (funcs : List IRFunction)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId
+      (switchCases funcs) = .ok (cases', final))
+    (hFind : funcs.find? (fun f => f.selector == selector) = none) :
+    cases'.find? (fun entry => entry.1 == selector) = none := by
+  have hCase :
+      (switchCases funcs).find? (fun entry => entry.1 == selector) = none := by
+    simpa using
+      (find_switch_case_of_find_function_none funcs selector hFind)
+  exact Backends.lowerSwitchCasesNativeWithSwitchIds_find?_none
+    reservedNames nextSwitchId final selector (switchCases funcs) cases'
+    hLower hCase
+
+/-- `buildSwitch`-source variant of
+`lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function`. -/
+theorem lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function
+    (reservedNames : List String) (nextSwitchId final selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId
+      (buildSwitchSourceCases funcs) = .ok (cases', final))
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn) :
+    ∃ body' bodyStart bodyEnd,
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) := by
+  rw [buildSwitchSourceCases_eq_switchCases] at hLower
+  exact lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function
+    reservedNames nextSwitchId final selector funcs fn cases' hLower hFind
+
+/-- `buildSwitch`-source variant of
+`lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function`. -/
+theorem lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+    (reservedNames : List String) (nextSwitchId final selector : Nat)
+    (funcs : List IRFunction)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId
+      (buildSwitchSourceCases funcs) = .ok (cases', final))
+    (hFind : funcs.find? (fun f => f.selector == selector) = none) :
+    cases'.find? (fun entry => entry.1 == selector) = none := by
+  rw [buildSwitchSourceCases_eq_switchCases] at hLower
+  exact lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function
+    reservedNames nextSwitchId final selector funcs cases' hLower hFind
+
+/-- A singleton non-`funcDef` runtime lowers exactly through statement lowering,
+with an empty native function table.
+
+This is the generic native-lowering boundary used when generated runtime code
+has only the dispatcher shell. -/
+theorem lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
+    (stmt : YulStmt)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    Backends.lowerRuntimeContractNative [stmt] =
+      match Backends.lowerStmtsNative [stmt] with
+      | .ok dispatcher =>
+          .ok { dispatcher := .Block dispatcher
+                functions := (∅ : Backends.NativeFunctionMap) }
+      | .error err => .error err := by
+  unfold Backends.lowerRuntimeContractNative
+  unfold Backends.lowerStmtsNative
+  dsimp
+  rw [Backends.lowerRuntimeContractNativeAux_stmt_cons]
+  · rw [Backends.lowerStmtsNativeWithSwitchIds_cons]
+    cases hLower :
+        Backends.lowerStmtGroupNativeWithSwitchIds
+          (Backends.yulStmtsIdentifierNames [stmt]) 0 stmt with
+    | ok pair =>
+        cases pair with
+        | mk lowered next =>
+            simp [Bind.bind, Except.bind, Pure.pure, Except.pure,
+              Backends.lowerRuntimeContractNativeAux]
+    | error err =>
+        simp [Bind.bind, Except.bind]
+  · exact hNoFunc
+
+/-- Singleton non-`funcDef` runtime lowering, preserving the caller's
+reserved-name context and native function table. This is the form needed after
+runtime helper definitions have already populated the native function map. -/
+theorem lowerRuntimeContractNativeAux_single_stmt_eq_lowerStmtsNativeWithSwitchIds
+    (reservedNames : List String)
+    (stmt : YulStmt)
+    (functions : Backends.NativeFunctionMap)
+    (hNoFunc : ∀ name params rets body,
+      stmt ≠ YulStmt.funcDef name params rets body) :
+    (Backends.lowerRuntimeContractNativeAux reservedNames [stmt] [] functions 0 >>=
+      fun a =>
+        pure ({ dispatcher := EvmYul.Yul.Ast.Stmt.Block a.1
+                functions := a.2.1 } : EvmYul.Yul.Ast.YulContract)) =
+      match Backends.lowerStmtsNativeWithSwitchIds reservedNames 0 [stmt] with
+      | .ok (dispatcher, _) =>
+          .ok ({ dispatcher := EvmYul.Yul.Ast.Stmt.Block dispatcher
+                 functions := functions } : EvmYul.Yul.Ast.YulContract)
+      | .error err => .error err := by
+  rw [Backends.lowerRuntimeContractNativeAux_stmt_cons]
+  · rw [Backends.lowerStmtsNativeWithSwitchIds_cons]
+    cases hLower :
+        Backends.lowerStmtGroupNativeWithSwitchIds reservedNames 0 stmt with
+    | ok pair =>
+        cases pair with
+        | mk lowered next =>
+            simp [Bind.bind, Except.bind, Pure.pure, Except.pure,
+              Backends.lowerRuntimeContractNativeAux]
+    | error err =>
+        simp [Bind.bind, Except.bind]
+  · exact hNoFunc
+
+/-- Helper-free, no-fallback/no-receive emitted runtimes are exactly the
+single generated dispatcher shell. -/
+theorem emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive
+    (contract : IRContract)
+    (hNoMapping : contract.usesMapping = false)
+    (hInternals : contract.internalFunctions = [])
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none) :
+    (Compiler.emitYul contract).runtimeCode =
+      [Compiler.CodegenCommon.buildSwitch contract.functions none none] := by
+  simp [Compiler.emitYul, Compiler.CodegenCommon.emitYul,
+    Compiler.CodegenCommon.runtimeCode, hNoMapping, hInternals, hNoFallback,
+    hNoReceive]
+
+/-- In the helper-free, no-fallback/no-receive generated case, native runtime
+lowering reduces to lowering the single dispatcher shell. -/
+theorem lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive
+    (contract : IRContract)
+    (hNoMapping : contract.usesMapping = false)
+    (hInternals : contract.internalFunctions = [])
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none) :
+    Backends.lowerRuntimeContractNative (Compiler.emitYul contract).runtimeCode =
+      match Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch contract.functions none none] with
+      | .ok dispatcher =>
+          .ok { dispatcher := .Block dispatcher
+                functions := (∅ : Backends.NativeFunctionMap) }
+      | .error err => .error err := by
+  rw [emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive
+    contract hNoMapping hInternals hNoFallback hNoReceive]
+  exact lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
+    (Compiler.CodegenCommon.buildSwitch contract.functions none none)
+    (by
+      intro name params rets body h
+      simp [Compiler.CodegenCommon.buildSwitch] at h)
+
+/-- If helper-free emitted runtime lowering succeeds, the successful contract is
+exactly the native dispatcher shell produced by lowering the generated
+dispatcher statement. -/
+theorem lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher
+    (contract : IRContract)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hNoMapping : contract.usesMapping = false)
+    (hInternals : contract.internalFunctions = [])
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hLower :
+      Backends.lowerRuntimeContractNative (Compiler.emitYul contract).runtimeCode =
+        .ok nativeContract) :
+    ∃ dispatcher : List EvmYul.Yul.Ast.Stmt,
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch contract.functions none none] =
+        .ok dispatcher ∧
+      nativeContract =
+        { dispatcher := .Block dispatcher
+          functions := (∅ : Backends.NativeFunctionMap) } := by
+  rw [lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive
+    contract hNoMapping hInternals hNoFallback hNoReceive] at hLower
+  cases hDispatcher :
+      Backends.lowerStmtsNative
+        [Compiler.CodegenCommon.buildSwitch contract.functions none none] with
+  | ok dispatcher =>
+      rw [hDispatcher] at hLower
+      simp only [Except.ok.injEq] at hLower
+      exact ⟨dispatcher, rfl, hLower.symm⟩
+  | error err =>
+      rw [hDispatcher] at hLower
+      simp at hLower
+
+/-- A `.block` head in native lowering surfaces as a singleton `.Block` output
+when the lowering succeeds. -/
+theorem lowerStmtsNative_single_block_ok_singleton
+    (stmts : List YulStmt)
+    (lowered : List EvmYul.Yul.Ast.Stmt)
+    (h : Backends.lowerStmtsNative [YulStmt.block stmts] = .ok lowered) :
+    ∃ inner, lowered = [.Block inner] := by
+  unfold Backends.lowerStmtsNative at h
+  dsimp at h
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons] at h
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_block] at h
+  cases hInner :
+      Backends.lowerStmtsNativeWithSwitchIds
+        (Backends.yulStmtsIdentifierNames [YulStmt.block stmts])
+        0 stmts with
+  | error err =>
+      rw [hInner] at h
+      simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok pair =>
+      cases pair with
+      | mk inner next =>
+          rw [hInner] at h
+          simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+            Backends.lowerStmtsNativeWithSwitchIds_nil, List.append_nil,
+            Except.ok.injEq] at h
+          exact ⟨inner, h.symm⟩
+
+/-- A successful lowering of singleton `[.block stmts]` reveals exactly the
+lowering result for the inner statement list. -/
+theorem lowerStmtsNative_block_stmts_eq
+    (stmts : List YulStmt)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (h : Backends.lowerStmtsNative [YulStmt.block stmts] = .ok [.Block inner]) :
+    ∃ next : Nat,
+      Backends.lowerStmtsNativeWithSwitchIds
+        (Backends.yulStmtsIdentifierNames [YulStmt.block stmts])
+        0 stmts = .ok (inner, next) := by
+  unfold Backends.lowerStmtsNative at h
+  dsimp at h
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons] at h
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_block] at h
+  cases hInner :
+      Backends.lowerStmtsNativeWithSwitchIds
+        (Backends.yulStmtsIdentifierNames [YulStmt.block stmts])
+        0 stmts with
+  | error err =>
+      rw [hInner] at h
+      simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok pair =>
+      cases pair with
+      | mk inner' next =>
+          rw [hInner] at h
+          simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+            Backends.lowerStmtsNativeWithSwitchIds_nil, List.append_nil,
+            Except.ok.injEq] at h
+          injection h with hStmt _
+          injection hStmt with hEq
+          subst hEq
+          exact ⟨next, rfl⟩
+
+/-- A successful reserved-context lowering of singleton `[.block stmts]` reveals
+exactly the lowering result for the inner statement list. -/
+theorem lowerStmtsNativeWithSwitchIds_block_stmts_eq
+    (reservedNames : List String) (n0 : Nat)
+    (stmts : List YulStmt)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        [YulStmt.block stmts] = .ok ([.Block inner], next)) :
+    Backends.lowerStmtsNativeWithSwitchIds reservedNames n0 stmts =
+      .ok (inner, next) := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons] at h
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_block] at h
+  cases hInner :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0 stmts with
+  | error err =>
+      rw [hInner] at h
+      simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok pair =>
+      cases pair with
+      | mk inner' next' =>
+          rw [hInner] at h
+          simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+            Backends.lowerStmtsNativeWithSwitchIds_nil, List.append_nil,
+            Except.ok.injEq, Prod.mk.injEq] at h
+          obtain ⟨hList, hNext⟩ := h
+          injection hList with hBlock
+          injection hBlock with hInnerEq
+          subst hInnerEq
+          subst hNext
+          rfl
+
+/-- A `.let_`-headed statement-list lowering peels its head into a singleton
+`.Let` statement and threads the unchanged switch counter through the tail. -/
+theorem lowerStmtsNativeWithSwitchIds_let_head_eq
+    (reservedNames : List String) (n0 : Nat)
+    (name : String) (value : YulExpr)
+    (rest : List YulStmt)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            (YulStmt.let_ name value :: rest) = .ok (inner, next)) :
+    ∃ rest' : List EvmYul.Yul.Ast.Stmt,
+      inner = EvmYul.Yul.Ast.Stmt.Let [name]
+                (some (Backends.lowerExprNative value)) :: rest' ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0 rest =
+        .ok (rest', next) := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_let] at h
+  simp only [Bind.bind, Except.bind] at h
+  cases hRest : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0 rest with
+  | error err =>
+      rw [hRest] at h
+      simp only [reduceCtorEq] at h
+  | ok pair =>
+      cases pair with
+      | mk rest' n =>
+          rw [hRest] at h
+          simp only [Pure.pure, Except.pure, List.singleton_append,
+            Except.ok.injEq, Prod.mk.injEq] at h
+          obtain ⟨hList, hNat⟩ := h
+          subst hNat
+          exact ⟨rest', hList.symm, rfl⟩
+
+/-- A `.comment`-headed statement-list lowering emits a native no-op
+`.Block []` and threads the switch counter through the tail unchanged.
+Generated dispatch cases start with such a label comment, so this is the first
+peel needed before reasoning about their executable guards. -/
+theorem lowerStmtsNativeWithSwitchIds_comment_head_eq
+    (reservedNames : List String) (n0 : Nat)
+    (text : String)
+    (rest : List YulStmt)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            (YulStmt.comment text :: rest) = .ok (inner, next)) :
+    ∃ rest' : List EvmYul.Yul.Ast.Stmt,
+      inner = EvmYul.Yul.Ast.Stmt.Block [] :: rest' ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0 rest =
+        .ok (rest', next) := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_comment] at h
+  simp only [Bind.bind, Except.bind] at h
+  cases hRest : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0 rest with
+  | error err =>
+      rw [hRest] at h
+      simp only [reduceCtorEq] at h
+  | ok pair =>
+      cases pair with
+      | mk rest' n =>
+          rw [hRest] at h
+          simp only [Pure.pure, Except.pure, List.singleton_append,
+            Except.ok.injEq, Prod.mk.injEq] at h
+          obtain ⟨hList, hNat⟩ := h
+          subst hNat
+          exact ⟨rest', hList.symm, rfl⟩
+
+/-- An `.if_`-headed statement-list lowering peels its head into a singleton
+`.If` statement and threads the body's switch-counter advance through the tail. -/
+theorem lowerStmtsNativeWithSwitchIds_if_head_eq
+    (reservedNames : List String) (n0 : Nat)
+    (cond : YulExpr) (body : List YulStmt)
+    (rest : List YulStmt)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            (YulStmt.if_ cond body :: rest) = .ok (inner, next)) :
+    ∃ (body' : List EvmYul.Yul.Ast.Stmt) (midN : Nat)
+      (rest' : List EvmYul.Yul.Ast.Stmt),
+      inner = EvmYul.Yul.Ast.Stmt.If
+                (Backends.lowerExprNative cond) body' :: rest' ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0 body =
+        .ok (body', midN) ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames midN rest =
+        .ok (rest', next) := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_if] at h
+  cases hBody : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0 body with
+  | error _ => rw [hBody] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok bodyPair =>
+    obtain ⟨body', midN⟩ := bodyPair
+    rw [hBody] at h
+    simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
+    cases hRest : Backends.lowerStmtsNativeWithSwitchIds reservedNames midN rest with
+    | error _ =>
+      rw [hRest] at h; simp only [reduceCtorEq] at h
+    | ok restPair =>
+      obtain ⟨rest', _⟩ := restPair
+      rw [hRest] at h
+      simp only [List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+      obtain ⟨hList, hNat⟩ := h
+      subst hNat
+      exact ⟨body', midN, rest', hList.symm, rfl, hRest⟩
+
+/-- Successful native lowering of a payable generated switch-case body exposes
+the label no-op, the calldata-size guard, and the lowered user body tail. -/
+theorem lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq
+    (reservedNames : List String) (n0 : Nat)
+    (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (hPayable : fn.payable = true)
+    (h :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (inner, next)) :
+    ∃ (guardBody bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      inner =
+        EvmYul.Yul.Ast.Stmt.Block [] ::
+        EvmYul.Yul.Ast.Stmt.If
+          (Backends.lowerExprNative
+            (Yul.YulExpr.call "lt"
+              [Yul.YulExpr.call "calldatasize" [],
+               Yul.YulExpr.lit (4 + fn.params.length * 32)]))
+          guardBody ::
+        bodyNative ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) := by
+  have hShape :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (YulStmt.comment s!"{fn.name}()" ::
+          Compiler.CodegenCommon.calldatasizeGuard fn.params.length ::
+          fn.body) = .ok (inner, next) := by
+    simpa [switchCaseBody, Compiler.CodegenCommon.dispatchBody,
+      Compiler.CodegenCommon.callvalueGuard, hPayable] using h
+  rcases lowerStmtsNativeWithSwitchIds_comment_head_eq
+      reservedNames n0 s!"{fn.name}()"
+      (Compiler.CodegenCommon.calldatasizeGuard fn.params.length :: fn.body)
+      inner next hShape with
+    ⟨afterComment, hInner, hAfterComment⟩
+  rcases lowerStmtsNativeWithSwitchIds_if_head_eq
+      reservedNames n0
+      (Yul.YulExpr.call "lt"
+        [Yul.YulExpr.call "calldatasize" [],
+         Yul.YulExpr.lit (4 + fn.params.length * 32)])
+      [YulStmt.expr (Yul.YulExpr.call "revert" [Yul.YulExpr.lit 0,
+        Yul.YulExpr.lit 0])]
+      fn.body afterComment next hAfterComment with
+    ⟨guardBody, bodyStart, bodyNative, hAfterCommentShape, _hGuard,
+      hBody⟩
+  refine ⟨guardBody, bodyNative, bodyStart, ?_, hBody⟩
+  rw [hInner, hAfterCommentShape]
+
+/-- Successful native lowering of a non-payable generated switch-case body
+exposes the label no-op, the callvalue guard, the calldata-size guard, and the
+lowered user body tail. -/
+theorem lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq
+    (reservedNames : List String) (n0 : Nat)
+    (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (hPayable : fn.payable = false)
+    (h :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (inner, next)) :
+    ∃ (callvalueGuardBody calldataGuardBody bodyNative :
+          List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      inner =
+        EvmYul.Yul.Ast.Stmt.Block [] ::
+        EvmYul.Yul.Ast.Stmt.If
+          (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+          callvalueGuardBody ::
+        EvmYul.Yul.Ast.Stmt.If
+          (Backends.lowerExprNative
+            (Yul.YulExpr.call "lt"
+              [Yul.YulExpr.call "calldatasize" [],
+               Yul.YulExpr.lit (4 + fn.params.length * 32)]))
+          calldataGuardBody ::
+        bodyNative ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) := by
+  have hShape :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (YulStmt.comment s!"{fn.name}()" ::
+          Compiler.CodegenCommon.callvalueGuard ::
+          Compiler.CodegenCommon.calldatasizeGuard fn.params.length ::
+          fn.body) = .ok (inner, next) := by
+    simpa [switchCaseBody, Compiler.CodegenCommon.dispatchBody,
+      Compiler.CodegenCommon.callvalueGuard, hPayable] using h
+  rcases lowerStmtsNativeWithSwitchIds_comment_head_eq
+      reservedNames n0 s!"{fn.name}()"
+      (Compiler.CodegenCommon.callvalueGuard ::
+        Compiler.CodegenCommon.calldatasizeGuard fn.params.length :: fn.body)
+      inner next hShape with
+    ⟨afterComment, hInner, hAfterComment⟩
+  rcases lowerStmtsNativeWithSwitchIds_if_head_eq
+      reservedNames n0
+      (Yul.YulExpr.call "callvalue" [])
+      [YulStmt.expr (Yul.YulExpr.call "revert" [Yul.YulExpr.lit 0,
+        Yul.YulExpr.lit 0])]
+      (Compiler.CodegenCommon.calldatasizeGuard fn.params.length :: fn.body)
+      afterComment next hAfterComment with
+    ⟨callvalueGuardBody, calldataGuardStart, afterCallvalue,
+      hAfterCommentShape, _hCallvalueGuard, hAfterCallvalue⟩
+  rcases lowerStmtsNativeWithSwitchIds_if_head_eq
+      reservedNames calldataGuardStart
+      (Yul.YulExpr.call "lt"
+        [Yul.YulExpr.call "calldatasize" [],
+         Yul.YulExpr.lit (4 + fn.params.length * 32)])
+      [YulStmt.expr (Yul.YulExpr.call "revert" [Yul.YulExpr.lit 0,
+        Yul.YulExpr.lit 0])]
+      fn.body afterCallvalue next hAfterCallvalue with
+    ⟨calldataGuardBody, bodyStart, bodyNative, hAfterCallvalueShape,
+      _hCalldataGuard, hBody⟩
+  refine ⟨callvalueGuardBody, calldataGuardBody, bodyNative, bodyStart,
+    ?_, hBody⟩
+  rw [hInner, hAfterCommentShape, hAfterCallvalueShape]
+
+set_option linter.unusedSimpArgs false in
+/-- A singleton `.switch`-headed statement-list lowering reduces to a singleton
+`.lowerNativeSwitchBlock` over the same source expression. -/
+theorem lowerStmtsNativeWithSwitchIds_singleton_switch_eq
+    (reservedNames : List String) (n0 : Nat)
+    (expr : YulExpr) (cases : List (Nat × List YulStmt))
+    (defaultCase : Option (List YulStmt))
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            [YulStmt.switch expr cases defaultCase] = .ok (inner, next)) :
+    ∃ (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (default' : List EvmYul.Yul.Ast.Stmt),
+      inner = [Backends.lowerNativeSwitchBlock expr
+        (Backends.freshNativeSwitchId reservedNames n0) cases' default'] := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_switch] at h
+  dsimp only [] at h
+  cases hCases : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) cases with
+  | error _ =>
+      rw [hCases] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok casesPair =>
+      obtain ⟨cases', midN⟩ := casesPair
+      rw [hCases] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
+      cases defaultCase with
+      | none =>
+          simp only [Backends.lowerStmtsNativeWithSwitchIds_nil,
+            List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+          exact ⟨cases', [], h.1.symm⟩
+      | some defaultBody =>
+          dsimp only [] at h
+          cases hDef : Backends.lowerStmtsNativeWithSwitchIds
+              reservedNames midN defaultBody with
+          | error _ =>
+              rw [hDef] at h
+              simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+          | ok defaultPair =>
+              obtain ⟨default', _⟩ := defaultPair
+              rw [hDef] at h
+              simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+                Backends.lowerStmtsNativeWithSwitchIds_nil,
+                List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+              exact ⟨cases', default', h.1.symm⟩
+
+def nativeRevertZeroZeroStmt : EvmYul.Yul.Ast.Stmt :=
+  .ExprStmtCall
+    (.Call (Sum.inl (EvmYul.Operation.REVERT : EvmYul.Operation .Yul))
+      [.Lit (EvmYul.UInt256.ofNat 0), .Lit (EvmYul.UInt256.ofNat 0)])
+
+/-- The singleton default-revert body lowers to the native `revert(0,0)` stmt
+without advancing the native switch counter. -/
+theorem lowerStmtsNativeWithSwitchIds_revert_zero_zero
+    (reservedNames : List String) (n : Nat) :
+    Backends.lowerStmtsNativeWithSwitchIds reservedNames n
+        [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])] =
+      .ok ([nativeRevertZeroZeroStmt], n) := by
+  simp [Backends.lowerStmtsNativeWithSwitchIds, nativeRevertZeroZeroStmt,
+    Backends.lowerExprNative, Backends.lookupRuntimePrimOp]
+  rfl
+
+set_option linter.unusedSimpArgs false in
+/-- A singleton switch whose default is `revert(0,0)` lowers to a singleton
+native switch block with concrete `[nativeRevertZeroZeroStmt]` default body. -/
+theorem lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
+    (reservedNames : List String) (n0 : Nat)
+    (expr : YulExpr) (cases : List (Nat × List YulStmt))
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            [YulStmt.switch expr cases
+              (some [YulStmt.expr (YulExpr.call "revert"
+                [YulExpr.lit 0, YulExpr.lit 0])])] = .ok (inner, next)) :
+    ∃ (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
+      inner = [Backends.lowerNativeSwitchBlock expr
+        (Backends.freshNativeSwitchId reservedNames n0) cases'
+        [nativeRevertZeroZeroStmt]] := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_switch] at h
+  dsimp only [] at h
+  cases hCases : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) cases with
+  | error _ =>
+      rw [hCases] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok casesPair =>
+      obtain ⟨cases', midN⟩ := casesPair
+      rw [hCases] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
+      rw [lowerStmtsNativeWithSwitchIds_revert_zero_zero] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+        Backends.lowerStmtsNativeWithSwitchIds_nil,
+        List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+      exact ⟨cases', h.1.symm⟩
+
+set_option linter.unusedSimpArgs false in
+/-- Source-lowered companion exposing the case-list lowering equation for a
+singleton switch whose default is `revert(0,0)`. -/
+theorem lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
+    (reservedNames : List String) (n0 : Nat)
+    (expr : YulExpr) (cases : List (Nat × List YulStmt))
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            [YulStmt.switch expr cases
+              (some [YulStmt.expr (YulExpr.call "revert"
+                [YulExpr.lit 0, YulExpr.lit 0])])] = .ok (inner, next)) :
+    ∃ (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      inner = [Backends.lowerNativeSwitchBlock expr
+        (Backends.freshNativeSwitchId reservedNames n0) cases'
+        [nativeRevertZeroZeroStmt]] ∧
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1) cases =
+          .ok (cases', midN) := by
+  rw [Backends.lowerStmtsNativeWithSwitchIds_cons,
+      Backends.lowerStmtGroupNativeWithSwitchIds_switch] at h
+  dsimp only [] at h
+  cases hCases : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) cases with
+  | error _ =>
+      rw [hCases] at h; simp only [Bind.bind, Except.bind, reduceCtorEq] at h
+  | ok casesPair =>
+      obtain ⟨cases', midN⟩ := casesPair
+      rw [hCases] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at h
+      rw [lowerStmtsNativeWithSwitchIds_revert_zero_zero] at h
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure,
+        Backends.lowerStmtsNativeWithSwitchIds_nil,
+        List.singleton_append, Except.ok.injEq, Prod.mk.injEq] at h
+      exact ⟨cases', midN, h.1.symm, rfl⟩
+
+/-- Generic native-lowering shape of the no-fallback/no-receive generated
+dispatcher.
+
+This theorem peels the actual `buildSwitch funcs none none` source emitted by
+codegen: the lowered inner block is the generated selector prologue, the
+selector-miss default lowers to native `revert(0,0)`, and the selector-hit
+switch is linked to the native lowering of the source case list emitted by
+`buildSwitch`. -/
+theorem buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered
+    (funcs : List IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (h : Backends.lowerStmtsNative
+            [Compiler.CodegenCommon.buildSwitch funcs none none] =
+          .ok [.Block inner]) :
+    ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      inner =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some (Backends.lowerExprNative (YulExpr.call "iszero"
+              [YulExpr.call "lt"
+                [YulExpr.call "calldatasize" [], YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (YulExpr.call "iszero" [YulExpr.ident "__has_selector"])) body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]]] ∧
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) := by
+  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ h
+  obtain ⟨_, hLet, hRestLowering⟩ :=
+    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
+  obtain ⟨body1', _, _, hIf1, _, hRest1⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRestLowering
+  obtain ⟨_, _, _, hIf2, hBody2, hRest2⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRest1
+  rw [Backends.lowerStmtsNativeWithSwitchIds_nil,
+      Except.ok.injEq, Prod.mk.injEq] at hRest2
+  obtain ⟨hNil, _⟩ := hRest2
+  subst hNil
+  obtain ⟨cases', midN, hBody2Eq, hLowerCases⟩ :=
+    lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
+      _ _ _ _ _ _ hBody2
+  rw [hBody2Eq] at hIf2; rw [hIf2] at hIf1; rw [hIf1] at hLet
+  exact ⟨body1', _, _, cases', midN, hLet, hLowerCases⟩
+
+/-- Reserved-context version of
+`buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered`, used when the
+generated dispatcher is lowered after helper functions have populated the
+native runtime's reserved-name context. -/
+theorem buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered_withSwitchIds
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            [Compiler.CodegenCommon.buildSwitch funcs none none] =
+          .ok ([.Block inner], next)) :
+    ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      inner =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some (Backends.lowerExprNative (YulExpr.call "iszero"
+              [YulExpr.call "lt"
+                [YulExpr.call "calldatasize" [], YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (YulExpr.call "iszero" [YulExpr.ident "__has_selector"])) body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+              [nativeRevertZeroZeroStmt]]] ∧
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) := by
+  have hInner :=
+    lowerStmtsNativeWithSwitchIds_block_stmts_eq reservedNames n0 _ inner next h
+  obtain ⟨_, hLet, hRestLowering⟩ :=
+    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
+  obtain ⟨body1', _, _, hIf1, _, hRest1⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRestLowering
+  obtain ⟨_, _, _, hIf2, hBody2, hRest2⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRest1
+  rw [Backends.lowerStmtsNativeWithSwitchIds_nil,
+      Except.ok.injEq, Prod.mk.injEq] at hRest2
+  obtain ⟨hNil, _⟩ := hRest2
+  subst hNil
+  obtain ⟨cases', midN, hBody2Eq, hLowerCases⟩ :=
+    lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
+      _ _ _ _ _ _ hBody2
+  rw [hBody2Eq] at hIf2; rw [hIf2] at hIf1; rw [hIf1] at hLet
+  exact ⟨body1', _, cases', midN, hLet, hLowerCases⟩
+
+/-- Selector-hit companion of
+`buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered`: opening the
+generated dispatcher lowering also lifts an `IRFunction` lookup hit through
+the lowered native switch cases. -/
+theorem buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+    (funcs : List IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (selector : Nat) (fn : IRFunction)
+    (h : Backends.lowerStmtsNative
+            [Compiler.CodegenCommon.buildSwitch funcs none none] =
+          .ok [.Block inner])
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn) :
+    ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+      inner =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some (Backends.lowerExprNative (YulExpr.call "iszero"
+              [YulExpr.call "lt"
+                [YulExpr.call "calldatasize" [], YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (YulExpr.call "iszero" [YulExpr.ident "__has_selector"])) body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]]] ∧
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, hInner, hLowerCases⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered funcs inner h
+  obtain ⟨body', bodyStart, bodyEnd, hCase, hBodyLower⟩ :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function
+      reservedNames (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+      selector funcs fn cases' hLowerCases hFind
+  exact ⟨body1, reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+    hInner, hLowerCases, hCase, hBodyLower⟩
+
+/-- Reserved-context selector-hit companion of
+`buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered_withSwitchIds`. -/
+theorem buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (selector : Nat) (fn : IRFunction)
+    (h : Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+            [Compiler.CodegenCommon.buildSwitch funcs none none] =
+          .ok ([.Block inner], next))
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn) :
+    ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+      inner =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some (Backends.lowerExprNative (YulExpr.call "iszero"
+              [YulExpr.call "lt"
+                [YulExpr.call "calldatasize" [], YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (YulExpr.call "iszero" [YulExpr.ident "__has_selector"])) body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+              [nativeRevertZeroZeroStmt]]] ∧
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) := by
+  obtain ⟨body1, switchStart, cases', midN, hInner, hLowerCases⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered_withSwitchIds
+      reservedNames n0 funcs inner next h
+  obtain ⟨body', bodyStart, bodyEnd, hCase, hBodyLower⟩ :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function
+      reservedNames (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+      selector funcs fn cases' hLowerCases hFind
+  exact ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+    hInner, hLowerCases, hCase, hBodyLower⟩
+
+/-- Selector-miss companion of
+`buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered`: opening the
+generated dispatcher lowering also lifts an `IRFunction` lookup miss through
+the lowered native switch cases. -/
+theorem buildSwitch_noFallback_noReceive_lowered_inner_find?_none_of_find_function
+    (funcs : List IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (selector : Nat)
+    (h : Backends.lowerStmtsNative
+            [Compiler.CodegenCommon.buildSwitch funcs none none] =
+          .ok [.Block inner])
+    (hFind : funcs.find? (fun f => f.selector == selector) = none) :
+    ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
+      inner =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some (Backends.lowerExprNative (YulExpr.call "iszero"
+              [YulExpr.call "lt"
+                [YulExpr.call "calldatasize" [], YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (YulExpr.call "iszero" [YulExpr.ident "__has_selector"])) body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]]] ∧
+      cases'.find? (fun entry => entry.1 == selector) = none := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, hInner, hLowerCases⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered funcs inner h
+  have hCase :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+      reservedNames (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+      selector funcs cases' hLowerCases hFind
+  exact ⟨body1, reservedNames, n0, cases', hInner, hCase⟩
+
+theorem generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
+    (funcs : List IRFunction)
+    (hBodies : ∀ fn, fn ∈ funcs → yulStmtsContainFuncDef fn.body = false) :
+    generatedRuntimeDispatcherHasNoFuncDefs
+      [Compiler.CodegenCommon.buildSwitch funcs none none] = true := by
+  have hNoFunc : ∀ name params rets body,
+      Compiler.CodegenCommon.buildSwitch funcs none none ≠
+        YulStmt.funcDef name params rets body := by
+    intro name params rets body h
+    simp [Compiler.CodegenCommon.buildSwitch] at h
+  rw [generatedRuntimeDispatcherHasNoFuncDefs_nonFunc_cons
+    (Compiler.CodegenCommon.buildSwitch funcs none none) [] hNoFunc]
+  simp [generatedRuntimeDispatcherHasNoFuncDefs,
+    buildSwitch_noFuncDefs_noFallback_noReceive funcs hBodies]
+
+theorem generatedRuntimeDispatcherHasNoFuncDefs_funcDef_prefix_append
+    (funcPrefix suffix : List YulStmt)
+    (hFuncDefs : ∀ stmt, stmt ∈ funcPrefix →
+      ∃ name params rets body, stmt = YulStmt.funcDef name params rets body) :
+    generatedRuntimeDispatcherHasNoFuncDefs (funcPrefix ++ suffix) =
+      generatedRuntimeDispatcherHasNoFuncDefs suffix := by
+  induction funcPrefix with
+  | nil => rfl
+  | cons stmt rest ih =>
+      rcases hFuncDefs stmt (by simp) with ⟨name, params, rets, body, rfl⟩
+      simp [ih (by
+        intro stmt hmem
+        exact hFuncDefs stmt (by simp [hmem]))]
+
+theorem generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive
+    (contract : IRContract)
+    (hInternals : ∀ stmt, stmt ∈ contract.internalFunctions →
+      ∃ name params rets body, stmt = YulStmt.funcDef name params rets body)
+    (hBodies : ∀ fn, fn ∈ contract.functions →
+      yulStmtsContainFuncDef fn.body = false)
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none) :
+    generatedRuntimeDispatcherHasNoFuncDefs (Compiler.runtimeCode contract) = true := by
+  let runtimePrefix :=
+    (if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+      contract.internalFunctions
+  have hPrefix :
+      ∀ stmt, stmt ∈ runtimePrefix →
+        ∃ name params rets body, stmt = YulStmt.funcDef name params rets body := by
+    intro stmt hmem
+    simp only [runtimePrefix, List.mem_append] at hmem
+    rcases hmem with hMapping | hInternal
+    · split at hMapping <;> simp at hMapping
+      subst hMapping
+      exact ⟨"mappingSlot", ["baseSlot", "key"], ["slot"], _, rfl⟩
+    · exact hInternals stmt hInternal
+  rw [Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode]
+  simp [hNoFallback, hNoReceive]
+  rw [← List.append_assoc]
+  change generatedRuntimeDispatcherHasNoFuncDefs
+      (runtimePrefix ++ [Compiler.CodegenCommon.buildSwitch contract.functions none none]) =
+    true
+  rw [generatedRuntimeDispatcherHasNoFuncDefs_funcDef_prefix_append runtimePrefix
+    [Compiler.CodegenCommon.buildSwitch contract.functions none none] hPrefix]
+  exact generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
+    contract.functions hBodies
+
+theorem generatedRuntimeDispatcherHasNoFuncDefs_emitYul_runtimeCode_noFallback_noReceive
+    (contract : IRContract)
+    (hInternals : ∀ stmt, stmt ∈ contract.internalFunctions →
+      ∃ name params rets body, stmt = YulStmt.funcDef name params rets body)
+    (hBodies : ∀ fn, fn ∈ contract.functions →
+      yulStmtsContainFuncDef fn.body = false)
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none) :
+    generatedRuntimeDispatcherHasNoFuncDefs
+      (Compiler.emitYul contract).runtimeCode = true := by
+  simpa [Compiler.emitYul, Compiler.CodegenCommon.emitYul] using
+    generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive
+      contract hInternals hBodies hNoFallback hNoReceive
+
+theorem generatedRuntimeFunctionNamesUnique_append_nonFunc_suffix
+    (funcPrefix suffix : List YulStmt)
+    (hSuffix : ∀ stmt, stmt ∈ suffix →
+      ∀ name params rets body, stmt ≠ YulStmt.funcDef name params rets body) :
+    generatedRuntimeFunctionNamesUnique (funcPrefix ++ suffix) =
+      generatedRuntimeFunctionNamesUnique funcPrefix := by
+  simp [generatedRuntimeFunctionNamesUnique,
+    yulRuntimeTopLevelFunctionNames_eq_nil_of_all_nonFunc suffix hSuffix]
+
+theorem generatedRuntimeFunctionNamesUnique_buildSwitch_append
+    (funcPrefix : List YulStmt)
+    (funcs : List IRFunction)
+    (fallback : Option IREntrypoint)
+    (receive : Option IREntrypoint) :
+    generatedRuntimeFunctionNamesUnique
+      (funcPrefix ++ [Compiler.CodegenCommon.buildSwitch funcs fallback receive]) =
+      generatedRuntimeFunctionNamesUnique funcPrefix := by
+  apply generatedRuntimeFunctionNamesUnique_append_nonFunc_suffix
+  intro stmt hmem name params rets body h
+  simp only [List.mem_singleton] at hmem
+  subst hmem
+  cases fallback <;> cases receive <;>
+    simp [Compiler.CodegenCommon.buildSwitch] at h
+
+theorem generatedRuntimeFunctionNamesUnique_runtimeCode
+    (contract : IRContract)
+    (hPrefixUnique : generatedRuntimeFunctionNamesUnique
+      ((if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+        contract.internalFunctions) = true) :
+    generatedRuntimeFunctionNamesUnique (Compiler.runtimeCode contract) = true := by
+  let runtimePrefix :=
+    (if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+      contract.internalFunctions
+  rw [Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode]
+  change generatedRuntimeFunctionNamesUnique
+      (runtimePrefix ++ [Compiler.CodegenCommon.buildSwitch contract.functions
+        contract.fallbackEntrypoint contract.receiveEntrypoint]) = true
+  rw [generatedRuntimeFunctionNamesUnique_buildSwitch_append]
+  exact hPrefixUnique
+
+theorem generatedRuntimeFunctionNamesUnique_emitYul_runtimeCode
+    (contract : IRContract)
+    (hPrefixUnique : generatedRuntimeFunctionNamesUnique
+      ((if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+        contract.internalFunctions) = true) :
+    generatedRuntimeFunctionNamesUnique
+      (Compiler.emitYul contract).runtimeCode = true := by
+  simpa [Compiler.emitYul, Compiler.CodegenCommon.emitYul] using
+    generatedRuntimeFunctionNamesUnique_runtimeCode contract hPrefixUnique
+
+theorem mappingSlotFuncAt_body_noFuncDefs (scratchBase : Nat) :
+    yulStmtsContainFuncDef
+      (match Compiler.mappingSlotFuncAt scratchBase with
+      | YulStmt.funcDef _ _ _ body => body
+      | _ => []) = false := by
+  simp [Compiler.mappingSlotFuncAt, Compiler.CodegenCommon.mappingSlotFuncAt,
+    yulStmtContainsFuncDef, yulStmtsContainFuncDef]
+
+/-- Native EVMYulLean definition produced by lowering the generated
+`mappingSlot` helper at scratch base zero. -/
+def nativeMappingSlotFunctionDefinition : EvmYul.Yul.Ast.FunctionDefinition :=
+  EvmYul.Yul.Ast.FunctionDefinition.Def ["baseSlot", "key"] ["slot"]
+    [ .ExprStmtCall (.Call (.inl EvmYul.Operation.MSTORE)
+        [.Lit (EvmYul.UInt256.ofNat 0), .Var "key"])
+    , .ExprStmtCall (.Call (.inl EvmYul.Operation.MSTORE)
+        [.Lit (EvmYul.UInt256.ofNat 32), .Var "baseSlot"])
+    , .Let ["slot"] (some (.Call (.inl EvmYul.Operation.KECCAK256)
+        [.Lit (EvmYul.UInt256.ofNat 0), .Lit (EvmYul.UInt256.ofNat 64)]))
+    ]
+
+/-- The generated `mappingSlot` helper at scratch base zero lowers to the
+corresponding native EVMYulLean helper function definition for any ambient
+reserved-name set. -/
+theorem lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero
+    (globalReservedNames : List String) :
+    Backends.lowerFunctionDefinitionNativeWithReserved
+      globalReservedNames ["baseSlot", "key"] ["slot"]
+      (match Compiler.mappingSlotFuncAt 0 with
+      | YulStmt.funcDef _ _ _ body => body
+      | _ => []) = .ok nativeMappingSlotFunctionDefinition := by
+  simp [Backends.lowerFunctionDefinitionNativeWithReserved,
+    Compiler.mappingSlotFuncAt, Compiler.CodegenCommon.mappingSlotFuncAt,
+    Backends.lowerStmtsNativeWithSwitchIds, Backends.lowerExprNative,
+    Backends.lowerAssignNative, Backends.lookupRuntimePrimOp,
+    nativeMappingSlotFunctionDefinition, Bind.bind, Except.bind, Pure.pure,
+    Except.pure]
+
+/-- Body-form variant of
+`lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero`, for proof
+sites that have already unfolded the generated helper. -/
+theorem lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero_body
+    (globalReservedNames : List String) :
+    Backends.lowerFunctionDefinitionNativeWithReserved
+      globalReservedNames ["baseSlot", "key"] ["slot"]
+      [YulStmt.expr
+        (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.ident "key"]),
+       YulStmt.expr
+        (YulExpr.call "mstore"
+          [YulExpr.lit (0 + 32), YulExpr.ident "baseSlot"]),
+       YulStmt.assign "slot"
+        (YulExpr.call "keccak256" [YulExpr.lit 0, YulExpr.lit 64])] =
+      .ok nativeMappingSlotFunctionDefinition := by
+  simp [Backends.lowerFunctionDefinitionNativeWithReserved,
+    Backends.lowerStmtsNativeWithSwitchIds, Backends.lowerExprNative,
+    Backends.lowerAssignNative, Backends.lookupRuntimePrimOp,
+    nativeMappingSlotFunctionDefinition, Bind.bind, Except.bind, Pure.pure,
+    Except.pure]
+
+def nativeMappingSlotFunctionBody : List EvmYul.Yul.Ast.Stmt :=
+  [ .ExprStmtCall (.Call (.inl EvmYul.Operation.MSTORE)
+      [.Lit (EvmYul.UInt256.ofNat 0), .Var "key"])
+  , .ExprStmtCall (.Call (.inl EvmYul.Operation.MSTORE)
+      [.Lit (EvmYul.UInt256.ofNat 32), .Var "baseSlot"])
+  , .Let ["slot"] (some (.Call (.inl EvmYul.Operation.KECCAK256)
+      [.Lit (EvmYul.UInt256.ofNat 0), .Lit (EvmYul.UInt256.ofNat 64)]))
+  ]
+
+theorem nativeMappingSlotFunctionDefinition_body :
+    nativeMappingSlotFunctionDefinition.body = nativeMappingSlotFunctionBody := by
+  rfl
+
+/-- Mapping-helper, no-internal/no-fallback/no-receive emitted runtimes lower
+by first packaging the generated `mappingSlot` helper into the native function
+map, then lowering the dispatcher in the full emitted-runtime reserved-name
+context. -/
+theorem lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved
+    (contract : IRContract)
+    (hMapping : contract.usesMapping = true)
+    (hInternals : contract.internalFunctions = [])
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none) :
+    Backends.lowerRuntimeContractNative (Compiler.emitYul contract).runtimeCode =
+      match Backends.lowerStmtsNativeWithSwitchIds
+          (Backends.yulStmtsIdentifierNames
+            (Compiler.emitYul contract).runtimeCode)
+          0 [Compiler.CodegenCommon.buildSwitch contract.functions none none] with
+      | .ok (dispatcher, _) =>
+          .ok { dispatcher := .Block dispatcher
+                functions := ((∅ : Backends.NativeFunctionMap).insert
+                  "mappingSlot" nativeMappingSlotFunctionDefinition) }
+      | .error err => .error err := by
+  unfold Backends.lowerRuntimeContractNative
+  simp only [Compiler.emitYul, Compiler.CodegenCommon.emitYul,
+    Compiler.CodegenCommon.runtimeCode, hMapping, hInternals, hNoFallback,
+    hNoReceive, if_true]
+  simp only [List.singleton_append, List.append_nil]
+  simp only [Compiler.CodegenCommon.mappingSlotFuncAt]
+  rw [Backends.lowerRuntimeContractNativeAux_funcDef_cons_empty_of_lowerFunctionDefinition
+    (definition := nativeMappingSlotFunctionDefinition)]
+  · rw [lowerRuntimeContractNativeAux_single_stmt_eq_lowerStmtsNativeWithSwitchIds]
+    intro name params rets body h
+    simp [Compiler.CodegenCommon.buildSwitch] at h
+  · exact lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero_body _
+
+/-- If mapping-helper emitted runtime lowering succeeds, the successful
+contract is exactly the native dispatcher shell plus the generated native
+`mappingSlot` helper. -/
+theorem lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved
+    (contract : IRContract)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hMapping : contract.usesMapping = true)
+    (hInternals : contract.internalFunctions = [])
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none)
+    (hLower :
+      Backends.lowerRuntimeContractNative (Compiler.emitYul contract).runtimeCode =
+        .ok nativeContract) :
+    ∃ (dispatcher : List EvmYul.Yul.Ast.Stmt) (nextSwitchId : Nat),
+      Backends.lowerStmtsNativeWithSwitchIds
+          (Backends.yulStmtsIdentifierNames
+            (Compiler.emitYul contract).runtimeCode)
+          0 [Compiler.CodegenCommon.buildSwitch contract.functions none none] =
+        .ok (dispatcher, nextSwitchId) ∧
+      nativeContract =
+        { dispatcher := .Block dispatcher
+          functions := ((∅ : Backends.NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) } := by
+  rw [lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved
+    contract hMapping hInternals hNoFallback hNoReceive] at hLower
+  cases hDispatcher :
+      Backends.lowerStmtsNativeWithSwitchIds
+        (Backends.yulStmtsIdentifierNames (Compiler.emitYul contract).runtimeCode)
+        0 [Compiler.CodegenCommon.buildSwitch contract.functions none none] with
+  | ok pair =>
+      rcases pair with ⟨dispatcher, nextSwitchId⟩
+      rw [hDispatcher] at hLower
+      simp only [Except.ok.injEq] at hLower
+      exact ⟨dispatcher, nextSwitchId, rfl, hLower.symm⟩
+  | error err =>
+      rw [hDispatcher] at hLower
+      simp at hLower
+
+theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
+    (left right : List YulStmt)
+    (hLeft : generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs left = true)
+    (hRight : generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs right = true) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs (left ++ right) = true := by
+  induction left with
+  | nil => simpa using hRight
+  | cons stmt rest ih =>
+      cases stmt <;> simp at hLeft ⊢ <;> try exact ih hLeft
+      case funcDef name params rets body =>
+        exact ⟨hLeft.1, ih hLeft.2⟩
+
+theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_internalFunctions
+    (internals : List YulStmt)
+    (hBodies : ∀ name params rets body,
+      YulStmt.funcDef name params rets body ∈ internals →
+        yulStmtsContainFuncDef body = false) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs internals = true := by
+  induction internals with
+  | nil => rfl
+  | cons stmt rest ih =>
+      have hRest : ∀ name params rets body,
+          YulStmt.funcDef name params rets body ∈ rest →
+            yulStmtsContainFuncDef body = false := by
+        intro name params rets body hmem
+        exact hBodies name params rets body (by simp [hmem])
+      cases stmt <;> simp [ih hRest]
+      case funcDef name params rets body =>
+        exact hBodies name params rets body (by simp)
+
+theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_buildSwitch
+    (funcs : List IRFunction)
+    (fallback : Option IREntrypoint)
+    (receive : Option IREntrypoint) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+      [Compiler.CodegenCommon.buildSwitch funcs fallback receive] = true := by
+  have hNoFunc : ∀ name params rets body,
+      Compiler.CodegenCommon.buildSwitch funcs fallback receive ≠
+        YulStmt.funcDef name params rets body := by
+    intro name params rets body h
+    cases fallback <;> cases receive <;>
+      simp [Compiler.CodegenCommon.buildSwitch] at h
+  rw [generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_nonFunc_cons
+    (Compiler.CodegenCommon.buildSwitch funcs fallback receive) [] hNoFunc]
+  rfl
+
+theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_runtimeCode
+    (contract : IRContract)
+    (hInternalBodies : ∀ name params rets body,
+      YulStmt.funcDef name params rets body ∈ contract.internalFunctions →
+        yulStmtsContainFuncDef body = false) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+      (Compiler.runtimeCode contract) = true := by
+  let mapping := if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []
+  have hMapping :
+      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs mapping = true := by
+    by_cases hUsesMapping : contract.usesMapping
+    · simp [mapping, hUsesMapping, generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs,
+        Compiler.mappingSlotFuncAt, Compiler.CodegenCommon.mappingSlotFuncAt,
+        yulFunctionBodies, yulStmtContainsFuncDef, yulStmtsContainFuncDef]
+    · simp [mapping, hUsesMapping, generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs]
+  have hInternals :
+      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+        contract.internalFunctions = true :=
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_internalFunctions
+      contract.internalFunctions hInternalBodies
+  have hSwitch :
+      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+        [Compiler.CodegenCommon.buildSwitch contract.functions
+          contract.fallbackEntrypoint contract.receiveEntrypoint] = true :=
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_buildSwitch
+      contract.functions contract.fallbackEntrypoint contract.receiveEntrypoint
+  rw [Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode]
+  change generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+      (mapping ++ contract.internalFunctions ++
+        [Compiler.CodegenCommon.buildSwitch contract.functions
+          contract.fallbackEntrypoint contract.receiveEntrypoint]) = true
+  rw [List.append_assoc]
+  exact generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
+    mapping (contract.internalFunctions ++
+      [Compiler.CodegenCommon.buildSwitch contract.functions
+        contract.fallbackEntrypoint contract.receiveEntrypoint])
+    hMapping
+    (generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
+      contract.internalFunctions
+      [Compiler.CodegenCommon.buildSwitch contract.functions
+        contract.fallbackEntrypoint contract.receiveEntrypoint]
+      hInternals hSwitch)
+
+theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_emitYul_runtimeCode
+    (contract : IRContract)
+    (hInternalBodies : ∀ name params rets body,
+      YulStmt.funcDef name params rets body ∈ contract.internalFunctions →
+        yulStmtsContainFuncDef body = false) :
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+      (Compiler.emitYul contract).runtimeCode = true := by
+  simpa [Compiler.emitYul, Compiler.CodegenCommon.emitYul] using
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_runtimeCode
+      contract hInternalBodies
+
 /-- Executable characterization for the generated runtime shape that the
     native EVMYulLean lowering path currently accepts: top-level `funcDef`
     statements are helpers, dispatcher statements contain no nested function
@@ -232,6 +1769,30 @@ def generatedRuntimeNativeFragment (runtimeCode : List YulStmt) : Bool :=
   generatedRuntimeFunctionNamesUnique runtimeCode &&
     generatedRuntimeDispatcherHasNoFuncDefs runtimeCode &&
     generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs runtimeCode
+
+theorem generatedRuntimeNativeFragment_emitYul_runtimeCode_noFallback_noReceive
+    (contract : IRContract)
+    (hPrefixUnique : generatedRuntimeFunctionNamesUnique
+      ((if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+        contract.internalFunctions) = true)
+    (hInternals : ∀ stmt, stmt ∈ contract.internalFunctions →
+      ∃ name params rets body, stmt = YulStmt.funcDef name params rets body)
+    (hExternalBodies : ∀ fn, fn ∈ contract.functions →
+      yulStmtsContainFuncDef fn.body = false)
+    (hInternalBodies : ∀ name params rets body,
+      YulStmt.funcDef name params rets body ∈ contract.internalFunctions →
+        yulStmtsContainFuncDef body = false)
+    (hNoFallback : contract.fallbackEntrypoint = none)
+    (hNoReceive : contract.receiveEntrypoint = none) :
+    generatedRuntimeNativeFragment (Compiler.emitYul contract).runtimeCode = true := by
+  have hNames := generatedRuntimeFunctionNamesUnique_emitYul_runtimeCode
+    contract hPrefixUnique
+  have hDispatcher :=
+    generatedRuntimeDispatcherHasNoFuncDefs_emitYul_runtimeCode_noFallback_noReceive
+      contract hInternals hExternalBodies hNoFallback hNoReceive
+  have hBodies := generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_emitYul_runtimeCode
+    contract hInternalBodies
+  simp [generatedRuntimeNativeFragment, hNames, hDispatcher, hBodies]
 
 def unsupportedGeneratedRuntimeNativeFragmentError : AdapterError :=
   "native EVMYulLean generated runtime fragment check failed"
@@ -375,7 +1936,8 @@ def nativeRuntimePathUsesBuiltin
     (yulFunctionBodies runtimeCode) runtimeCode
 
 def unsupportedNativeHeaderBuiltinNames : List String :=
-  ["coinbase", "difficulty", "prevrandao", "gaslimit", "basefee", "gasprice"]
+  ["coinbase", "difficulty", "prevrandao", "gaslimit", "basefee", "gasprice",
+   "selfbalance"]
 
 def nativeRuntimePathUsesAnyBuiltin
     (builtins : List String)
@@ -405,8 +1967,8 @@ def unsupportedNativeChainIdError : AdapterError :=
   current bridge supports only EVMYulLean global chain id"
 
 def unsupportedNativeHeaderBuiltinError : AdapterError :=
-  "native EVMYulLean selected runtime path uses a header builtin that is not \
-  represented in Verity's YulTransaction bridge"
+  "native EVMYulLean selected runtime path uses a header/account builtin that \
+  is not represented in Verity's YulTransaction bridge"
 
 def validateNativeRuntimeEnvironment
     (runtimeCode : List YulStmt)
@@ -462,6 +2024,34 @@ def validateNativeRuntimeEnvironment
       nativeRuntimePathUsesUnsupportedHeaderBuiltin runtimeCode tx = false) :
     validateNativeRuntimeEnvironment runtimeCode tx = .ok () := by
   simp [validateNativeRuntimeEnvironment, hChainId, hBlobBaseFee, hNoHeader]
+
+@[simp] theorem validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+    (runtimeCode : List YulStmt)
+    (tx : IRTransaction)
+    (hChainId : nativeChainIdRepresentable tx.chainId = true)
+    (hBlobBaseFee : nativeBlobBaseFeeRepresentable tx.blobBaseFee = true)
+    (hNoHeader :
+      nativeRuntimePathUsesUnsupportedHeaderBuiltin runtimeCode
+        (YulTransaction.ofIR tx) = false) :
+    validateNativeRuntimeEnvironment runtimeCode (YulTransaction.ofIR tx) =
+      .ok () := by
+  simpa [YulTransaction.ofIR] using
+    validateNativeRuntimeEnvironment_representableEnvironment
+      runtimeCode (YulTransaction.ofIR tx) hChainId hBlobBaseFee hNoHeader
+
+@[simp] theorem validateNativeRuntimeEnvironment_ofIR_globalDefaults
+    (runtimeCode : List YulStmt)
+    (tx : IRTransaction)
+    (hChainId : tx.chainId = EvmYul.chainId)
+    (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
+    (hNoHeader :
+      nativeRuntimePathUsesUnsupportedHeaderBuiltin runtimeCode
+        (YulTransaction.ofIR tx) = false) :
+    validateNativeRuntimeEnvironment runtimeCode (YulTransaction.ofIR tx) =
+      .ok () := by
+  simpa [YulTransaction.ofIR, hChainId, hBlobBaseFee] using
+    validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+      runtimeCode tx (by simp [hChainId]) (by simp [hBlobBaseFee]) hNoHeader
 
 @[simp] theorem validateNativeRuntimeEnvironment_unsupportedChainId
     (runtimeCode : List YulStmt)
@@ -905,7 +2495,7 @@ theorem initialState_calldataReadWord_selectorPrefix
 /-- Recompose the four ABI selector bytes into the normalized 32-bit
     dispatcher selector. This isolates the remaining native byte-decoding proof:
     once `calldataload(0) >>> 224` is reduced to the four high calldata bytes,
-    this theorem closes the arithmetic side against the interpreter oracle. -/
+    this theorem closes the arithmetic side against the EVMYulLean fuel wrapper. -/
 theorem selectorBytesAsNat (selector : Nat) :
     (selector / 2^24 % 256) * 2^24 +
       (selector / 2^16 % 256) * 2^16 +
@@ -1625,15 +3215,36 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.calldata.size)) := by
   rfl
 
+theorem step_calldatasize_any
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLDATASIZE none state values =
+      .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.calldata.size)) := by
+  rfl
+
 @[simp] theorem step_callvalue_ok
     (state : EvmYul.Yul.State) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.CALLVALUE none state [] =
       .ok (state, some state.executionEnv.weiValue) := by
   rfl
 
+theorem step_callvalue_any
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLVALUE none state values =
+      .ok (state, some state.executionEnv.weiValue) := by
+  rfl
+
 @[simp] theorem step_address_ok
     (state : EvmYul.Yul.State) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.ADDRESS none state [] =
+      .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.codeOwner.val)) := by
+  rfl
+
+theorem step_address_any
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.ADDRESS none state values =
       .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.codeOwner.val)) := by
   rfl
 
@@ -1658,9 +3269,23 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.source.val)) := by
   rfl
 
+theorem step_caller_any
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLER none state values =
+      .ok (state, some (EvmYul.UInt256.ofNat state.executionEnv.source.val)) := by
+  rfl
+
 @[simp] theorem step_timestamp_ok
     (state : EvmYul.Yul.State) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.TIMESTAMP none state [] =
+      .ok (state, some state.toState.timeStamp) := by
+  rfl
+
+theorem step_timestamp_any
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.TIMESTAMP none state values =
       .ok (state, some state.toState.timeStamp) := by
   rfl
 
@@ -1670,15 +3295,36 @@ theorem lowerExprNative_selectorExpr :
       .ok (state, some state.toState.number) := by
   rfl
 
+theorem step_number_any
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.NUMBER none state values =
+      .ok (state, some state.toState.number) := by
+  rfl
+
 @[simp] theorem step_chainid_ok
     (state : EvmYul.Yul.State) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.CHAINID none state [] =
       .ok (state, some state.toState.chainId) := by
   rfl
 
+theorem step_chainid_any
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CHAINID none state values =
+      .ok (state, some state.toState.chainId) := by
+  rfl
+
 @[simp] theorem step_blobbasefee_ok
     (state : EvmYul.Yul.State) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.BLOBBASEFEE none state [] =
+      .ok (state, some state.executionEnv.getBlobGasprice) := by
+  rfl
+
+theorem step_blobbasefee_any
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.BLOBBASEFEE none state values =
       .ok (state, some state.executionEnv.getBlobGasprice) := by
   rfl
 
@@ -1721,12 +3367,56 @@ theorem lowerExprNative_selectorExpr :
         none) := by
   rfl
 
+theorem step_mstore_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MSTORE none state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mstore_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MSTORE none state [offset] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mstore_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (offset value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MSTORE none state
+        (offset :: value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
 @[simp] theorem step_mstore8_ok
     (state : EvmYul.Yul.State)
     (offset value : EvmYul.UInt256) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.MSTORE8 none state [offset, value] =
       .ok (state.setMachineState (state.toMachineState.mstore8 offset value),
         none) := by
+  rfl
+
+theorem step_mstore8_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MSTORE8 none state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mstore8_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MSTORE8 none state [offset] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mstore8_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (offset value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.MSTORE8 none state
+        (offset :: value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
   rfl
 
 @[simp] theorem step_sload_ok
@@ -1754,12 +3444,63 @@ theorem lowerExprNative_selectorExpr :
       .ok (state.setMachineState machineState', some value) := by
   rfl
 
+@[simp] theorem step_log0_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG0 none state [] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log0_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG0 none state [offset] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log0_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (offset size extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG0 none state
+        (offset :: size :: extra :: rest) =
+      Except.ok (state, none) := by
+  rfl
+
 @[simp] theorem step_log0_ok
     (state : EvmYul.Yul.State)
     (offset size : EvmYul.UInt256) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.LOG0 none state [offset, size] =
       .ok (state.setSharedState
         (EvmYul.SharedState.logOp offset size #[] state.toSharedState), none) := by
+  rfl
+
+@[simp] theorem step_log1_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG1 none state [] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log1_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG1 none state [offset] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log1_pair_invalid
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG1 none state [offset, size] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log1_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (offset size topic0 extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG1 none state
+        (offset :: size :: topic0 :: extra :: rest) =
+      Except.ok (state, none) := by
   rfl
 
 @[simp] theorem step_log1_ok
@@ -1769,6 +3510,43 @@ theorem lowerExprNative_selectorExpr :
         [offset, size, topic0] =
       .ok (state.setSharedState
         (EvmYul.SharedState.logOp offset size #[topic0] state.toSharedState), none) := by
+  rfl
+
+@[simp] theorem step_log2_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG2 none state [] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log2_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG2 none state [offset] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log2_pair_invalid
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG2 none state [offset, size] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log2_triple_invalid
+    (state : EvmYul.Yul.State)
+    (offset size topic0 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG2 none state
+        [offset, size, topic0] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log2_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG2 none state
+        (offset :: size :: topic0 :: topic1 :: extra :: rest) =
+      Except.ok (state, none) := by
   rfl
 
 @[simp] theorem step_log2_ok
@@ -1781,6 +3559,51 @@ theorem lowerExprNative_selectorExpr :
           state.toSharedState), none) := by
   rfl
 
+@[simp] theorem step_log3_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG3 none state [] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log3_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG3 none state [offset] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log3_pair_invalid
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG3 none state [offset, size] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log3_triple_invalid
+    (state : EvmYul.Yul.State)
+    (offset size topic0 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG3 none state
+        [offset, size, topic0] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log3_quad_invalid
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG3 none state
+        [offset, size, topic0, topic1] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log3_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 topic2 extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG3 none state
+        (offset :: size :: topic0 :: topic1 :: topic2 :: extra :: rest) =
+      Except.ok (state, none) := by
+  rfl
+
 @[simp] theorem step_log3_ok
     (state : EvmYul.Yul.State)
     (offset size topic0 topic1 topic2 : EvmYul.UInt256) :
@@ -1789,6 +3612,59 @@ theorem lowerExprNative_selectorExpr :
       .ok (state.setSharedState
         (EvmYul.SharedState.logOp offset size #[topic0, topic1, topic2]
           state.toSharedState), none) := by
+  rfl
+
+@[simp] theorem step_log4_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG4 none state [] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log4_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG4 none state [offset] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log4_pair_invalid
+    (state : EvmYul.Yul.State)
+    (offset size : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG4 none state [offset, size] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log4_triple_invalid
+    (state : EvmYul.Yul.State)
+    (offset size topic0 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG4 none state
+        [offset, size, topic0] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log4_quad_invalid
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG4 none state
+        [offset, size, topic0, topic1] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log4_quint_invalid
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 topic2 : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG4 none state
+        [offset, size, topic0, topic1, topic2] =
+      Except.ok (state, none) := by
+  rfl
+
+@[simp] theorem step_log4_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (offset size topic0 topic1 topic2 topic3 extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.LOG4 none state
+        (offset :: size :: topic0 :: topic1 :: topic2 :: topic3 :: extra :: rest) =
+      Except.ok (state, none) := by
   rfl
 
 @[simp] theorem step_log4_ok
@@ -1808,6 +3684,28 @@ theorem lowerExprNative_selectorExpr :
       .ok (state.setState (state.toState.sstore slot value), none) := by
   rfl
 
+theorem step_sstore_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.SSTORE none state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sstore_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (slot : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.SSTORE none state [slot] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sstore_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (slot value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.SSTORE none state
+        (slot :: value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
 @[simp] theorem step_tload_ok
     (state : EvmYul.Yul.State)
     (slot : EvmYul.UInt256) :
@@ -1822,6 +3720,28 @@ theorem lowerExprNative_selectorExpr :
     (slot value : EvmYul.UInt256) :
     EvmYul.step (τ := .Yul) EvmYul.Operation.TSTORE none state [slot, value] =
       .ok (state.setState (state.toState.tstore slot value), none) := by
+  rfl
+
+theorem step_tstore_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.TSTORE none state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_tstore_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (slot : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.TSTORE none state [slot] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_tstore_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (slot value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.TSTORE none state
+        (slot :: value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
   rfl
 
 @[simp] theorem step_msize_ok
@@ -1851,6 +3771,37 @@ theorem lowerExprNative_selectorExpr :
         (state.toSharedState.calldatacopy mstart datastart size), none) := by
   rfl
 
+theorem step_calldatacopy_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLDATACOPY none state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_calldatacopy_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (mstart : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLDATACOPY none state
+        [mstart] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_calldatacopy_pair_invalid
+    (state : EvmYul.Yul.State)
+    (mstart datastart : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLDATACOPY none state
+        [mstart, datastart] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_calldatacopy_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (mstart datastart size extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.CALLDATACOPY none state
+        (mstart :: datastart :: size :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
 @[simp] theorem step_returndatacopy_ok
     (state : EvmYul.Yul.State)
     (mstart rstart size : EvmYul.UInt256) :
@@ -1859,6 +3810,37 @@ theorem lowerExprNative_selectorExpr :
       .ok (state.setMachineState
         (state.toSharedState.toMachineState.returndatacopy mstart rstart size),
         none) := by
+  rfl
+
+theorem step_returndatacopy_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.RETURNDATACOPY none state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_returndatacopy_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (mstart : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.RETURNDATACOPY none state
+        [mstart] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_returndatacopy_pair_invalid
+    (state : EvmYul.Yul.State)
+    (mstart rstart : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.RETURNDATACOPY none state
+        [mstart, rstart] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_returndatacopy_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (mstart rstart size extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.RETURNDATACOPY none state
+        (mstart :: rstart :: size :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
   rfl
 
 @[simp] theorem step_pop_ok
@@ -1885,6 +3867,28 @@ theorem lowerExprNative_selectorExpr :
           .error (EvmYul.Yul.Exception.YulHalt s (value.getD ⟨1⟩)) := by
   rfl
 
+theorem step_return_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.RETURN none state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_return_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.RETURN none state [offset] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_return_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (offset size extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.RETURN none state
+        (offset :: size :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
 @[simp] theorem step_revert_ok
     (state : EvmYul.Yul.State)
     (offset size : EvmYul.UInt256) :
@@ -1893,6 +3897,28 @@ theorem lowerExprNative_selectorExpr :
           state [offset, size] with
       | .error e => .error e
       | .ok (_, _) => .error EvmYul.Yul.Exception.Revert := by
+  rfl
+
+theorem step_revert_nil_invalid
+    (state : EvmYul.Yul.State) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.REVERT none state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_revert_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.REVERT none state [offset] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_revert_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (offset size extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.step (τ := .Yul) EvmYul.Operation.REVERT none state
+        (offset :: size :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
   rfl
 
 @[simp] theorem primCall_calldataload_ok
@@ -2000,6 +4026,28 @@ theorem primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
       .ok (state, [EvmYul.UInt256.add left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+theorem step_add_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.ADD none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_add_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.ADD none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_add_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.ADD none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
 @[simp] theorem primCall_sub_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -2008,6 +4056,28 @@ theorem primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
         EvmYul.Operation.SUB [left, right] =
       .ok (state, [EvmYul.UInt256.sub left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
+
+theorem step_sub_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SUB none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sub_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SUB none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sub_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SUB none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
 
 @[simp] theorem primCall_mul_ok
     (fuel : Nat)
@@ -2018,6 +4088,28 @@ theorem primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
       .ok (state, [EvmYul.UInt256.mul left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+theorem step_mul_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.MUL none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mul_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.MUL none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mul_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.MUL none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
 @[simp] theorem primCall_div_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -2027,6 +4119,65 @@ theorem primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
       .ok (state, [EvmYul.UInt256.div left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall] <;> rfl
 
+theorem step_div_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.DIV none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_div_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.DIV none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_div_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.DIV none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem primCall_div_nil_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.DIV [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall, step_div_nil_invalid]
+  | succ fuel' =>
+      simp [EvmYul.Yul.primCall, step_div_nil_invalid]
+
+theorem primCall_div_singleton_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.DIV [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall, step_div_singleton_invalid]
+  | succ fuel' =>
+      simp [EvmYul.Yul.primCall, step_div_singleton_invalid]
+
+theorem primCall_div_overarity_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.DIV
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.primCall, step_div_overarity_invalid]
+  | succ fuel' =>
+      simp [EvmYul.Yul.primCall, step_div_overarity_invalid]
+
 @[simp] theorem primCall_mod_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -2035,6 +4186,53 @@ theorem primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
         EvmYul.Operation.MOD [left, right] =
       .ok (state, [EvmYul.UInt256.mod left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall] <;> rfl
+
+theorem step_mod_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.MOD none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mod_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.MOD none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mod_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.MOD none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem primCall_mod_nil_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.MOD [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_mod_nil_invalid]
+
+theorem primCall_mod_singleton_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.MOD [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_mod_singleton_invalid]
+
+theorem primCall_mod_overarity_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.MOD
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_mod_overarity_invalid]
 
 @[simp] theorem primCall_sdiv_ok
     (fuel : Nat)
@@ -2151,6 +4349,53 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state, [EvmYul.UInt256.eq left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+theorem step_eq_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.EQ none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_eq_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.EQ none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_eq_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.EQ none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem primCall_eq_nil_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.EQ [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_eq_nil_invalid]
+
+theorem primCall_eq_singleton_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.EQ [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_eq_singleton_invalid]
+
+theorem primCall_eq_overarity_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.EQ
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_eq_overarity_invalid]
+
 @[simp] theorem primCall_iszero_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -2159,6 +4404,38 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
         EvmYul.Operation.ISZERO [value] =
       .ok (state, [EvmYul.UInt256.isZero value]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
+
+theorem step_iszero_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.ISZERO none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_iszero_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.ISZERO none) state
+        (value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem primCall_iszero_nil_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.ISZERO [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_iszero_nil_invalid]
+
+theorem primCall_iszero_overarity_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.ISZERO
+        (value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_iszero_overarity_invalid]
 
 @[simp] theorem primCall_lt_ok
     (fuel : Nat)
@@ -2169,6 +4446,53 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state, [EvmYul.UInt256.lt left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+theorem step_lt_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.LT none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_lt_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.LT none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_lt_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.LT none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem primCall_lt_nil_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.LT [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_lt_nil_invalid]
+
+theorem primCall_lt_singleton_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.LT [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_lt_singleton_invalid]
+
+theorem primCall_lt_overarity_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.LT
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_lt_overarity_invalid]
+
 @[simp] theorem primCall_gt_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -2177,6 +4501,53 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
         EvmYul.Operation.GT [left, right] =
       .ok (state, [EvmYul.UInt256.gt left right]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall] <;> rfl
+
+theorem step_gt_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.GT none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_gt_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.GT none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_gt_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.GT none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem primCall_gt_nil_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.GT [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_gt_nil_invalid]
+
+theorem primCall_gt_singleton_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.GT [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_gt_singleton_invalid]
+
+theorem primCall_gt_overarity_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.GT
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_gt_overarity_invalid]
 
 @[simp] theorem primCall_slt_ok
     (fuel : Nat)
@@ -2279,6 +4650,73 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state, [state.executionEnv.getBlobGasprice]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+theorem primCall_calldatasize_any_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.CALLDATASIZE values =
+      .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.calldata.size]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_calldatasize_any]
+
+theorem primCall_callvalue_any_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.CALLVALUE values =
+      .ok (state, [state.executionEnv.weiValue]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_callvalue_any]
+
+theorem primCall_address_any_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.ADDRESS values =
+      .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.codeOwner.val]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_address_any]
+
+theorem primCall_caller_any_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.CALLER values =
+      .ok (state, [EvmYul.UInt256.ofNat state.executionEnv.source.val]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_caller_any]
+
+theorem primCall_timestamp_any_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.TIMESTAMP values =
+      .ok (state, [state.toState.timeStamp]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_timestamp_any]
+
+theorem primCall_number_any_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.NUMBER values =
+      .ok (state, [state.toState.number]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_number_any]
+
+theorem primCall_chainid_any_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.CHAINID values =
+      .ok (state, [state.toState.chainId]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_chainid_any]
+
+theorem primCall_blobbasefee_any_ok
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (values : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.BLOBBASEFEE values =
+      .ok (state, [state.executionEnv.getBlobGasprice]) := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_blobbasefee_any]
+
 @[simp] theorem primCall_gasprice_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State) :
@@ -2347,6 +4785,38 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state, [EvmYul.UInt256.lnot value]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall] <;> rfl
 
+theorem step_not_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.NOT none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_not_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.NOT none) state
+        (value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem primCall_not_nil_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.NOT [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_not_nil_invalid]
+
+theorem primCall_not_overarity_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state EvmYul.Operation.NOT
+        (value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_not_overarity_invalid]
+
 @[simp] theorem primCall_shl_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -2374,6 +4844,432 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state, [EvmYul.UInt256.sar shift value]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall] <;> rfl
 
+theorem step_sdiv_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SDIV none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sdiv_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SDIV none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sdiv_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SDIV none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_smod_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SMOD none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_smod_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SMOD none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_smod_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SMOD none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_exp_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.EXP none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_exp_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.EXP none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_exp_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.EXP none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_signextend_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SIGNEXTEND none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_signextend_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (byteIdx : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SIGNEXTEND none) state [byteIdx] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_signextend_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (byteIdx value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SIGNEXTEND none) state
+        (byteIdx :: value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_slt_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SLT none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_slt_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SLT none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_slt_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SLT none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sgt_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SGT none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sgt_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SGT none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sgt_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SGT none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_and_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.AND none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_and_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.AND none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_and_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.AND none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_or_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.OR none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_or_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.OR none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_or_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.OR none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_xor_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.XOR none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_xor_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.XOR none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_xor_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.XOR none) state
+        (left :: right :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_shl_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SHL none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_shl_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (shift : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SHL none) state [shift] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_shl_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (shift value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SHL none) state
+        (shift :: value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_shr_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SHR none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_shr_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (shift : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SHR none) state [shift] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_shr_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (shift value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SHR none) state
+        (shift :: value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_byte_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.BYTE none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_byte_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (index : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.BYTE none) state [index] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_byte_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (index value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.BYTE none) state
+        (index :: value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sar_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SAR none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sar_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (shift : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SAR none) state [shift] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sar_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (shift value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SAR none) state
+        (shift :: value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sload_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SLOAD none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_sload_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (slot extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.SLOAD none) state
+        (slot :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_calldataload_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.CALLDATALOAD none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_calldataload_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (offset extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.CALLDATALOAD none) state
+        (offset :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mload_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.MLOAD none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mload_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (offset extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.MLOAD none) state
+        (offset :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_tload_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.TLOAD none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_tload_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (slot extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.TLOAD none) state
+        (slot :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_keccak256_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.KECCAK256 none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_keccak256_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.KECCAK256 none) state [offset] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_keccak256_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (offset size extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.KECCAK256 none) state
+        (offset :: size :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_addmod_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.ADDMOD none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_addmod_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.ADDMOD none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_addmod_pair_invalid
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.ADDMOD none) state [left, right] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_addmod_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right modulus extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.ADDMOD none) state
+        (left :: right :: modulus :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mulmod_nil_invalid
+    (state : EvmYul.Yul.State) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.MULMOD none) state [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mulmod_singleton_invalid
+    (state : EvmYul.Yul.State)
+    (left : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.MULMOD none) state [left] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mulmod_pair_invalid
+    (state : EvmYul.Yul.State)
+    (left right : EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.MULMOD none) state [left, right] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
+theorem step_mulmod_overarity_invalid
+    (state : EvmYul.Yul.State)
+    (left right modulus extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    (EvmYul.step (τ := .Yul) EvmYul.Operation.MULMOD none) state
+        (left :: right :: modulus :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  rfl
+
 @[simp] theorem primCall_mstore_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -2384,6 +5280,33 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
         []) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
 
+theorem primCall_mstore_nil_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.MSTORE [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_mstore_nil_invalid]
+
+theorem primCall_mstore_singleton_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.MSTORE [offset] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_mstore_singleton_invalid]
+
+theorem primCall_mstore_overarity_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.MSTORE (offset :: value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_mstore_overarity_invalid]
+
 @[simp] theorem primCall_mstore8_ok
     (fuel : Nat)
     (state : EvmYul.Yul.State)
@@ -2393,6 +5316,33 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       .ok (state.setMachineState (state.toMachineState.mstore8 offset value),
         []) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
+
+theorem primCall_mstore8_nil_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.MSTORE8 [] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_mstore8_nil_invalid]
+
+theorem primCall_mstore8_singleton_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset : EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.MSTORE8 [offset] =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_mstore8_singleton_invalid]
+
+theorem primCall_mstore8_overarity_invalid
+    (fuel : Nat)
+    (state : EvmYul.Yul.State)
+    (offset value extra : EvmYul.UInt256)
+    (rest : List EvmYul.UInt256) :
+    EvmYul.Yul.primCall (fuel + 1) state
+        EvmYul.Operation.MSTORE8 (offset :: value :: extra :: rest) =
+      Except.error EvmYul.Yul.Exception.InvalidArguments := by
+  cases fuel <;> simp [EvmYul.Yul.primCall, step_mstore8_overarity_invalid]
 
 @[simp] theorem primCall_sload_ok
     (fuel : Nat)
@@ -2424,6 +5374,92 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
       let (value, machineState') := state.toMachineState.keccak256 offset size
       .ok (state.setMachineState machineState', [value]) := by
   cases fuel <;> simp [EvmYul.Yul.primCall]
+
+set_option linter.unusedSimpArgs false in
+theorem nativeMappingSlotFunctionDefinition_exec_revivable
+    (fuel : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (calleeState : EvmYul.Yul.State)
+    (hExec :
+      EvmYul.Yul.exec fuel (.Block nativeMappingSlotFunctionDefinition.body)
+        codeOverride (EvmYul.Yul.State.Ok shared store) = .ok calleeState) :
+    ∃ shared' store',
+      calleeState.reviveJump = EvmYul.Yul.State.Ok shared' store' := by
+  rw [nativeMappingSlotFunctionDefinition_body] at hExec
+  unfold nativeMappingSlotFunctionBody at hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ f1 =>
+      cases f1 with
+      | zero =>
+          simp [EvmYul.Yul.exec] at hExec
+      | succ f2 =>
+          cases f2 with
+          | zero =>
+              simp [EvmYul.Yul.exec, EvmYul.Yul.execPrimCall,
+                EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail, EvmYul.Yul.eval,
+                EvmYul.Yul.reverse'] at hExec
+          | succ f3 =>
+              cases f3 with
+              | zero =>
+                  simp [EvmYul.Yul.exec, EvmYul.Yul.execPrimCall,
+                    EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail, EvmYul.Yul.eval,
+                    EvmYul.Yul.reverse'] at hExec
+              | succ f4 =>
+                  cases f4 with
+                  | zero =>
+                      simp [EvmYul.Yul.exec, EvmYul.Yul.execPrimCall,
+                        EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+                        EvmYul.Yul.eval, EvmYul.Yul.cons',
+                        EvmYul.Yul.reverse'] at hExec
+                  | succ f5 =>
+                      cases f5 with
+                      | zero =>
+                          simp [EvmYul.Yul.exec, EvmYul.Yul.execPrimCall,
+                            EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+                            EvmYul.Yul.eval, EvmYul.Yul.cons',
+                            EvmYul.Yul.reverse'] at hExec
+                      | succ f6 =>
+                          cases f6 with
+                          | zero =>
+                              simp [EvmYul.Yul.exec, EvmYul.Yul.execPrimCall,
+                                EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+                                EvmYul.Yul.eval, EvmYul.Yul.cons',
+                                EvmYul.Yul.reverse'] at hExec
+                          | succ f7 =>
+                              cases f7 with
+                              | zero =>
+                                  simp [EvmYul.Yul.exec, EvmYul.Yul.execPrimCall,
+                                    EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+                                    EvmYul.Yul.eval, EvmYul.Yul.cons',
+                                    EvmYul.Yul.reverse', EvmYul.Yul.multifill']
+                                    at hExec
+                              | succ f8 =>
+                                  cases f8 with
+                                  | zero =>
+                                      simp [EvmYul.Yul.exec,
+                                        EvmYul.Yul.execPrimCall,
+                                        EvmYul.Yul.evalArgs,
+                                        EvmYul.Yul.evalTail, EvmYul.Yul.eval,
+                                        EvmYul.Yul.cons', EvmYul.Yul.reverse',
+                                        EvmYul.Yul.multifill'] at hExec
+                                  | succ f9 =>
+                                      simp [EvmYul.Yul.exec,
+                                        EvmYul.Yul.execPrimCall,
+                                        EvmYul.Yul.evalArgs,
+                                        EvmYul.Yul.evalTail, EvmYul.Yul.eval,
+                                        EvmYul.Yul.cons', EvmYul.Yul.reverse',
+                                        EvmYul.Yul.multifill',
+                                        EvmYul.Yul.State.multifill,
+                                        EvmYul.Yul.State.setMachineState,
+                                        EvmYul.Yul.State.lookup!,
+                                        EvmYul.Yul.State.insert,
+                                        EvmYul.Yul.State.reviveJump] at hExec ⊢
+                                      subst calleeState
+                                      simp [EvmYul.Yul.State.reviveJump]
 
 @[simp] theorem primCall_log0_ok
     (fuel : Nat)
@@ -2601,11 +5637,6 @@ theorem primCall_calldataload0_then_shr224_initialState_selector_ok
   all_goals
     cases EvmYul.Yul.binaryMachineStateOp EvmYul.MachineState.evmRevert
       state [offset, size] <;> rfl
-
-def nativeRevertZeroZeroStmt : EvmYul.Yul.Ast.Stmt :=
-  .ExprStmtCall
-    (.Call (Sum.inl (EvmYul.Operation.REVERT : EvmYul.Operation .Yul))
-      [.Lit (EvmYul.UInt256.ofNat 0), .Lit (EvmYul.UInt256.ofNat 0)])
 
 /-- The compiler's proof-side `revert(0, 0)` default lowers to the concrete
     native statement used by the selector-miss execution lemma. -/
@@ -3520,6 +6551,22 @@ theorem exec_block_nil_ok
       .ok state := by
   simp [EvmYul.Yul.exec]
 
+/-- Peel the no-op native statement emitted for a source Yul comment.
+
+Lowering `.comment` produces `.Block []`; this lemma removes that head block
+from an enclosing native block while accounting for the two positive fuel
+steps needed by the outer cons and the inner empty block. -/
+theorem exec_block_noop_block_head_eq
+    (fuel : Nat)
+    (rest : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.exec (Nat.succ (Nat.succ fuel))
+        (.Block (.Block [] :: rest)) codeOverride state =
+      EvmYul.Yul.exec (Nat.succ fuel) (.Block rest) codeOverride state :=
+  exec_block_cons_ok_eq (Nat.succ fuel) (.Block []) rest codeOverride state
+    state (exec_block_nil_ok fuel codeOverride state)
+
 def nativeSwitchPrefixStmts
     (discrName matchedName : EvmYul.Identifier) :
     List EvmYul.Yul.Ast.Stmt :=
@@ -3552,7 +6599,7 @@ def nativeSwitchPrefixFinalState
 
 This packages the first two statements emitted by `lowerNativeSwitchBlock` for
 the generated dispatcher case and leaves the remaining case-chain proof with a
-state whose native switch temporaries are aligned to the interpreter oracle. -/
+state whose native switch temporaries are aligned to the EVMYulLean fuel wrapper. -/
 theorem exec_nativeSwitchPrefix_selector_initialState_ok
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
@@ -3764,6 +6811,38 @@ theorem exec_if_lowerExprNative_callvalue_skip_zero_fuel
   refine exec_if_eval_zero (fuel + 5) _ body codeOverride
     (.Ok shared store) (.Ok shared store) ?_
   rw [eval_lowerExprNative_callvalue_ok_fuel, hWei]
+
+/-- A native `UInt256` literal is zero whenever the source Nat is zero modulo
+the EVM word modulus. -/
+theorem natToUInt256_eq_zero_of_mod_evm
+    (n : Nat) (hZero : n % evmModulus = 0) :
+    natToUInt256 n = (⟨0⟩ : EvmYul.Literal) := by
+  have hZero' : n % EvmYul.UInt256.size = 0 := by
+    simpa [evmModulus, EvmYul.UInt256.size] using hZero
+  change EvmYul.UInt256.ofNat n = EvmYul.UInt256.ofNat 0
+  unfold EvmYul.UInt256.ofNat
+  simp [Id.run, Fin.ofNat, hZero']
+
+/-- In the non-payable branch, `DispatchGuardsSafe` supplies the exact modular
+zero fact needed to skip the lowered native `callvalue()` guard. -/
+theorem DispatchGuardsSafe_msgValue_zero_mod_of_nonpayable
+    (fn : IRFunction) (tx : IRTransaction)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hNonPayable : fn.payable = false) :
+    tx.msgValue % evmModulus = 0 := by
+  rcases hguards with ⟨hValueSafe, _⟩
+  rcases hValueSafe with hPayable | hZero
+  · cases (by simp [hNonPayable] at hPayable : False)
+  · exact hZero
+
+/-- `DispatchGuardsSafe` records that the generated ABI calldata-size guard
+threshold fits in a native EVM word. -/
+theorem DispatchGuardsSafe_calldata_threshold_lt
+    (fn : IRFunction) (tx : IRTransaction)
+    (hguards : DispatchGuardsSafe fn tx) :
+    4 + fn.params.length * 32 < EvmYul.UInt256.size := by
+  exact by
+    simpa [evmModulus, EvmYul.UInt256.size] using hguards.2
 
 /-- General-`k` form of `uint256_lt_ofNat_4_eq_zero_of_ge`: when `k ≤ n` and
     both fit in `UInt256`, the EVMYulLean primitive `LT(ofNat n, ofNat k)`
@@ -4719,6 +7798,17 @@ theorem state_getElem_insert_of_ne
   | Checkpoint jump =>
       simp [EvmYul.Yul.State.insert]
 
+theorem state_getElem_insert_self_ok
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal) :
+    (((EvmYul.Yul.State.Ok shared store : EvmYul.Yul.State).insert
+      name value)[name]!) = value := by
+  simp [EvmYul.Yul.State.insert, EvmYul.Yul.State.lookup!,
+    EvmYul.Yul.State.store, GetElem?.getElem!, decidableGetElem?,
+    GetElem.getElem]
+
 theorem state_getElem_multifill_of_not_mem
     (state : EvmYul.Yul.State)
     (name : EvmYul.Identifier)
@@ -4837,6 +7927,28 @@ theorem NativePrimCallPreservesWord_calldatasize
       cases hExec
       exact hLookup
 
+theorem NativePrimCallPreservesWord_calldatasize_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CALLDATASIZE values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      exact NativePrimCallPreservesWord_calldatasize name expected
+        fuel state final rets hLookup hExec
+  | cons value rest =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          rw [primCall_calldatasize_any_ok] at hExec
+          cases hExec
+          exact hLookup
+
 theorem NativePrimCallPreservesWord_callvalue
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal) :
@@ -4854,6 +7966,28 @@ theorem NativePrimCallPreservesWord_callvalue
       cases hExec
       exact hLookup
 
+theorem NativePrimCallPreservesWord_callvalue_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CALLVALUE values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      exact NativePrimCallPreservesWord_callvalue name expected
+        fuel state final rets hLookup hExec
+  | cons value rest =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          rw [primCall_callvalue_any_ok] at hExec
+          cases hExec
+          exact hLookup
+
 theorem NativePrimCallPreservesWord_address
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal) :
@@ -4870,6 +8004,28 @@ theorem NativePrimCallPreservesWord_address
       rw [primCall_address_ok] at hExec
       cases hExec
       exact hLookup
+
+theorem NativePrimCallPreservesWord_address_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.ADDRESS values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      exact NativePrimCallPreservesWord_address name expected
+        fuel state final rets hLookup hExec
+  | cons value rest =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          rw [primCall_address_any_ok] at hExec
+          cases hExec
+          exact hLookup
 
 theorem NativePrimCallPreservesWord_balance
     (name : EvmYul.Identifier)
@@ -4929,6 +8085,28 @@ theorem NativePrimCallPreservesWord_caller
       cases hExec
       exact hLookup
 
+theorem NativePrimCallPreservesWord_caller_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CALLER values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      exact NativePrimCallPreservesWord_caller name expected
+        fuel state final rets hLookup hExec
+  | cons value rest =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          rw [primCall_caller_any_ok] at hExec
+          cases hExec
+          exact hLookup
+
 theorem NativePrimCallPreservesWord_timestamp
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal) :
@@ -4945,6 +8123,28 @@ theorem NativePrimCallPreservesWord_timestamp
       rw [primCall_timestamp_ok] at hExec
       cases hExec
       exact hLookup
+
+theorem NativePrimCallPreservesWord_timestamp_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.TIMESTAMP values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      exact NativePrimCallPreservesWord_timestamp name expected
+        fuel state final rets hLookup hExec
+  | cons value rest =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          rw [primCall_timestamp_any_ok] at hExec
+          cases hExec
+          exact hLookup
 
 theorem NativePrimCallPreservesWord_number
     (name : EvmYul.Identifier)
@@ -4963,6 +8163,28 @@ theorem NativePrimCallPreservesWord_number
       cases hExec
       exact hLookup
 
+theorem NativePrimCallPreservesWord_number_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.NUMBER values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      exact NativePrimCallPreservesWord_number name expected
+        fuel state final rets hLookup hExec
+  | cons value rest =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          rw [primCall_number_any_ok] at hExec
+          cases hExec
+          exact hLookup
+
 theorem NativePrimCallPreservesWord_chainid
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal) :
@@ -4980,6 +8202,28 @@ theorem NativePrimCallPreservesWord_chainid
       cases hExec
       exact hLookup
 
+theorem NativePrimCallPreservesWord_chainid_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CHAINID values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      exact NativePrimCallPreservesWord_chainid name expected
+        fuel state final rets hLookup hExec
+  | cons value rest =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          rw [primCall_chainid_any_ok] at hExec
+          cases hExec
+          exact hLookup
+
 theorem NativePrimCallPreservesWord_blobbasefee
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal) :
@@ -4996,6 +8240,28 @@ theorem NativePrimCallPreservesWord_blobbasefee
       rw [primCall_blobbasefee_ok] at hExec
       cases hExec
       exact hLookup
+
+theorem NativePrimCallPreservesWord_blobbasefee_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.BLOBBASEFEE values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      exact NativePrimCallPreservesWord_blobbasefee name expected
+        fuel state final rets hLookup hExec
+  | cons value rest =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          rw [primCall_blobbasefee_any_ok] at hExec
+          cases hExec
+          exact hLookup
 
 theorem NativePrimCallPreservesWord_gasprice
     (name : EvmYul.Identifier)
@@ -5086,6 +8352,51 @@ theorem NativePrimCallPreservesWord_unary_same_state
       cases hExec
       exact hLookup
 
+theorem NativePrimCallPreservesWord_unary_same_state_values
+    (op : EvmYul.Operation .Yul)
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (hNil :
+      ∀ fuel state,
+        EvmYul.Yul.primCall (fuel + 1) state op [] =
+          Except.error EvmYul.Yul.Exception.InvalidArguments)
+    (hOverarity :
+      ∀ fuel state value extra rest,
+        EvmYul.Yul.primCall (fuel + 1) state op
+          (value :: extra :: rest) =
+          Except.error EvmYul.Yul.Exception.InvalidArguments)
+    (hPrecise :
+      ∀ value,
+        ∀ fuel state final rets,
+          state[name]! = expected →
+            EvmYul.Yul.primCall fuel state op [value] =
+              .ok (final, rets) →
+            final[name]! = expected) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state op values = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          rw [hNil fuel' state] at hExec
+          simp at hExec
+  | cons value rest =>
+      cases rest with
+      | nil =>
+          exact hPrecise value fuel state final rets hLookup hExec
+      | cons extra tail =>
+          cases fuel with
+          | zero =>
+              simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              rw [hOverarity fuel' state value extra tail] at hExec
+              simp at hExec
+
 theorem NativePrimCallPreservesWord_binary_same_state
     (op : EvmYul.Operation .Yul)
     (name : EvmYul.Identifier)
@@ -5129,6 +8440,137 @@ theorem NativePrimCallPreservesWord_ternary_same_state
       cases hExec
       exact hLookup
 
+theorem NativePrimCallPreservesWord_binary_same_state_values
+    (op : EvmYul.Operation .Yul)
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (hNil :
+      ∀ fuel state,
+        EvmYul.Yul.primCall (fuel + 1) state op [] =
+          Except.error EvmYul.Yul.Exception.InvalidArguments)
+    (hSingleton :
+      ∀ fuel state left,
+        EvmYul.Yul.primCall (fuel + 1) state op [left] =
+          Except.error EvmYul.Yul.Exception.InvalidArguments)
+    (hOverarity :
+      ∀ fuel state left right extra rest,
+        EvmYul.Yul.primCall (fuel + 1) state op
+          (left :: right :: extra :: rest) =
+          Except.error EvmYul.Yul.Exception.InvalidArguments)
+    (hPrecise :
+      ∀ left right,
+        ∀ fuel state final rets,
+          state[name]! = expected →
+            EvmYul.Yul.primCall fuel state op [left, right] =
+              .ok (final, rets) →
+            final[name]! = expected) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state op values = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          rw [hNil fuel' state] at hExec
+          simp at hExec
+  | cons left rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero =>
+              simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              rw [hSingleton fuel' state left] at hExec
+              simp at hExec
+      | cons right rest =>
+          cases rest with
+          | nil =>
+              exact hPrecise left right fuel state final rets hLookup hExec
+          | cons extra tail =>
+              cases fuel with
+              | zero =>
+                  simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  rw [hOverarity fuel' state left right extra tail] at hExec
+                  simp at hExec
+
+theorem NativePrimCallPreservesWord_ternary_same_state_values
+    (op : EvmYul.Operation .Yul)
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (hNil :
+      ∀ fuel state,
+        EvmYul.Yul.primCall (fuel + 1) state op [] =
+          Except.error EvmYul.Yul.Exception.InvalidArguments)
+    (hSingleton :
+      ∀ fuel state first,
+        EvmYul.Yul.primCall (fuel + 1) state op [first] =
+          Except.error EvmYul.Yul.Exception.InvalidArguments)
+    (hPair :
+      ∀ fuel state first second,
+        EvmYul.Yul.primCall (fuel + 1) state op [first, second] =
+          Except.error EvmYul.Yul.Exception.InvalidArguments)
+    (hOverarity :
+      ∀ fuel state first second third extra rest,
+        EvmYul.Yul.primCall (fuel + 1) state op
+          (first :: second :: third :: extra :: rest) =
+          Except.error EvmYul.Yul.Exception.InvalidArguments)
+    (hPrecise :
+      ∀ first second third,
+        ∀ fuel state final rets,
+          state[name]! = expected →
+            EvmYul.Yul.primCall fuel state op [first, second, third] =
+              .ok (final, rets) →
+            final[name]! = expected) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state op values = .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          rw [hNil fuel' state] at hExec
+          simp at hExec
+  | cons first rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero =>
+              simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              rw [hSingleton fuel' state first] at hExec
+              simp at hExec
+      | cons second rest =>
+          cases rest with
+          | nil =>
+              cases fuel with
+              | zero =>
+                  simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  rw [hPair fuel' state first second] at hExec
+                  simp at hExec
+          | cons third rest =>
+              cases rest with
+              | nil =>
+                  exact hPrecise first second third fuel state final rets
+                    hLookup hExec
+              | cons extra tail =>
+                  cases fuel with
+                  | zero =>
+                      simp [EvmYul.Yul.primCall] at hExec
+                  | succ fuel' =>
+                      rw [hOverarity fuel' state first second third extra tail]
+                        at hExec
+                      simp at hExec
+
 theorem NativePrimCallPreservesWord_iszero
     (name : EvmYul.Identifier)
     (expected value : EvmYul.Literal) :
@@ -5140,6 +8582,19 @@ theorem NativePrimCallPreservesWord_iszero
   NativePrimCallPreservesWord_unary_same_state EvmYul.Operation.ISZERO
     name expected value (EvmYul.UInt256.isZero value)
     (by intro fuel state; exact primCall_iszero_ok fuel state value)
+
+theorem NativePrimCallPreservesWord_iszero_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.ISZERO values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_unary_same_state_values EvmYul.Operation.ISZERO
+    name expected primCall_iszero_nil_invalid
+    primCall_iszero_overarity_invalid
+    (fun value => NativePrimCallPreservesWord_iszero name expected value)
 
 theorem NativePrimCallPreservesWord_shr
     (name : EvmYul.Identifier)
@@ -5153,6 +8608,24 @@ theorem NativePrimCallPreservesWord_shr
     name expected shift value (EvmYul.UInt256.shiftRight value shift)
     (by intro fuel state; exact primCall_shr_ok fuel state shift value)
 
+theorem NativePrimCallPreservesWord_shr_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SHR values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.SHR
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_shr_nil_invalid])
+    (by intro fuel state shift; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_shr_singleton_invalid])
+    (by intro fuel state shift value extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_shr_overarity_invalid])
+    (fun shift value => NativePrimCallPreservesWord_shr name expected shift value)
+
 theorem NativePrimCallPreservesWord_add
     (name : EvmYul.Identifier)
     (expected left right : EvmYul.Literal) :
@@ -5164,6 +8637,48 @@ theorem NativePrimCallPreservesWord_add
   NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.ADD
     name expected left right (EvmYul.UInt256.add left right)
     (by intro fuel state; exact primCall_add_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_add_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.ADD values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          simp only [EvmYul.Yul.primCall] at hExec
+          rw [step_add_nil_invalid] at hExec
+          simp at hExec
+  | cons left rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero =>
+              simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              simp only [EvmYul.Yul.primCall] at hExec
+              rw [step_add_singleton_invalid] at hExec
+              simp at hExec
+      | cons right rest =>
+          cases rest with
+          | nil =>
+              exact NativePrimCallPreservesWord_add name expected left right
+                fuel state final rets hLookup hExec
+          | cons extra tail =>
+              cases fuel with
+              | zero =>
+                  simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  simp only [EvmYul.Yul.primCall] at hExec
+                  rw [step_add_overarity_invalid] at hExec
+                  simp at hExec
 
 theorem NativePrimCallPreservesWord_sub
     (name : EvmYul.Identifier)
@@ -5177,6 +8692,48 @@ theorem NativePrimCallPreservesWord_sub
     name expected left right (EvmYul.UInt256.sub left right)
     (by intro fuel state; exact primCall_sub_ok fuel state left right)
 
+theorem NativePrimCallPreservesWord_sub_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SUB values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          simp only [EvmYul.Yul.primCall] at hExec
+          rw [step_sub_nil_invalid] at hExec
+          simp at hExec
+  | cons left rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero =>
+              simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              simp only [EvmYul.Yul.primCall] at hExec
+              rw [step_sub_singleton_invalid] at hExec
+              simp at hExec
+      | cons right rest =>
+          cases rest with
+          | nil =>
+              exact NativePrimCallPreservesWord_sub name expected left right
+                fuel state final rets hLookup hExec
+          | cons extra tail =>
+              cases fuel with
+              | zero =>
+                  simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  simp only [EvmYul.Yul.primCall] at hExec
+                  rw [step_sub_overarity_invalid] at hExec
+                  simp at hExec
+
 theorem NativePrimCallPreservesWord_mul
     (name : EvmYul.Identifier)
     (expected left right : EvmYul.Literal) :
@@ -5188,6 +8745,48 @@ theorem NativePrimCallPreservesWord_mul
   NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.MUL
     name expected left right (EvmYul.UInt256.mul left right)
     (by intro fuel state; exact primCall_mul_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_mul_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MUL values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          simp only [EvmYul.Yul.primCall] at hExec
+          rw [step_mul_nil_invalid] at hExec
+          simp at hExec
+  | cons left rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero =>
+              simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              simp only [EvmYul.Yul.primCall] at hExec
+              rw [step_mul_singleton_invalid] at hExec
+              simp at hExec
+      | cons right rest =>
+          cases rest with
+          | nil =>
+              exact NativePrimCallPreservesWord_mul name expected left right
+                fuel state final rets hLookup hExec
+          | cons extra tail =>
+              cases fuel with
+              | zero =>
+                  simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  simp only [EvmYul.Yul.primCall] at hExec
+                  rw [step_mul_overarity_invalid] at hExec
+                  simp at hExec
 
 theorem NativePrimCallPreservesWord_div
     (name : EvmYul.Identifier)
@@ -5201,6 +8800,19 @@ theorem NativePrimCallPreservesWord_div
     name expected left right (EvmYul.UInt256.div left right)
     (by intro fuel state; exact primCall_div_ok fuel state left right)
 
+theorem NativePrimCallPreservesWord_div_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.DIV values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.DIV
+    name expected primCall_div_nil_invalid primCall_div_singleton_invalid
+    primCall_div_overarity_invalid
+    (fun left right => NativePrimCallPreservesWord_div name expected left right)
+
 theorem NativePrimCallPreservesWord_mod
     (name : EvmYul.Identifier)
     (expected left right : EvmYul.Literal) :
@@ -5212,6 +8824,19 @@ theorem NativePrimCallPreservesWord_mod
   NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.MOD
     name expected left right (EvmYul.UInt256.mod left right)
     (by intro fuel state; exact primCall_mod_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_mod_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MOD values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.MOD
+    name expected primCall_mod_nil_invalid primCall_mod_singleton_invalid
+    primCall_mod_overarity_invalid
+    (fun left right => NativePrimCallPreservesWord_mod name expected left right)
 
 theorem NativePrimCallPreservesWord_sdiv
     (name : EvmYul.Identifier)
@@ -5225,6 +8850,24 @@ theorem NativePrimCallPreservesWord_sdiv
     name expected left right (EvmYul.UInt256.sdiv left right)
     (by intro fuel state; exact primCall_sdiv_ok fuel state left right)
 
+theorem NativePrimCallPreservesWord_sdiv_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SDIV values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.SDIV
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_sdiv_nil_invalid])
+    (by intro fuel state left; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_sdiv_singleton_invalid])
+    (by intro fuel state left right extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_sdiv_overarity_invalid])
+    (fun left right => NativePrimCallPreservesWord_sdiv name expected left right)
+
 theorem NativePrimCallPreservesWord_smod
     (name : EvmYul.Identifier)
     (expected left right : EvmYul.Literal) :
@@ -5236,6 +8879,24 @@ theorem NativePrimCallPreservesWord_smod
   NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.SMOD
     name expected left right (EvmYul.UInt256.smod left right)
     (by intro fuel state; exact primCall_smod_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_smod_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SMOD values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.SMOD
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_smod_nil_invalid])
+    (by intro fuel state left; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_smod_singleton_invalid])
+    (by intro fuel state left right extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_smod_overarity_invalid])
+    (fun left right => NativePrimCallPreservesWord_smod name expected left right)
 
 theorem NativePrimCallPreservesWord_addmod
     (name : EvmYul.Identifier)
@@ -5250,6 +8911,27 @@ theorem NativePrimCallPreservesWord_addmod
     (EvmYul.UInt256.addMod left right modulus)
     (by intro fuel state; exact primCall_addmod_ok fuel state left right modulus)
 
+theorem NativePrimCallPreservesWord_addmod_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.ADDMOD values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_ternary_same_state_values EvmYul.Operation.ADDMOD
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_addmod_nil_invalid])
+    (by intro fuel state left; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_addmod_singleton_invalid])
+    (by intro fuel state left right; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_addmod_pair_invalid])
+    (by intro fuel state left right modulus extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_addmod_overarity_invalid])
+    (fun left right modulus =>
+      NativePrimCallPreservesWord_addmod name expected left right modulus)
+
 theorem NativePrimCallPreservesWord_mulmod
     (name : EvmYul.Identifier)
     (expected left right modulus : EvmYul.Literal) :
@@ -5263,6 +8945,27 @@ theorem NativePrimCallPreservesWord_mulmod
     (EvmYul.UInt256.mulMod left right modulus)
     (by intro fuel state; exact primCall_mulmod_ok fuel state left right modulus)
 
+theorem NativePrimCallPreservesWord_mulmod_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MULMOD values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_ternary_same_state_values EvmYul.Operation.MULMOD
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_mulmod_nil_invalid])
+    (by intro fuel state left; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_mulmod_singleton_invalid])
+    (by intro fuel state left right; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_mulmod_pair_invalid])
+    (by intro fuel state left right modulus extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_mulmod_overarity_invalid])
+    (fun left right modulus =>
+      NativePrimCallPreservesWord_mulmod name expected left right modulus)
+
 theorem NativePrimCallPreservesWord_exp
     (name : EvmYul.Identifier)
     (expected left right : EvmYul.Literal) :
@@ -5274,6 +8977,24 @@ theorem NativePrimCallPreservesWord_exp
   NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.EXP
     name expected left right (EvmYul.UInt256.exp left right)
     (by intro fuel state; exact primCall_exp_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_exp_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.EXP values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.EXP
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_exp_nil_invalid])
+    (by intro fuel state left; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_exp_singleton_invalid])
+    (by intro fuel state left right extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_exp_overarity_invalid])
+    (fun left right => NativePrimCallPreservesWord_exp name expected left right)
 
 theorem NativePrimCallPreservesWord_signextend
     (name : EvmYul.Identifier)
@@ -5287,6 +9008,25 @@ theorem NativePrimCallPreservesWord_signextend
     name expected byteIdx value (EvmYul.UInt256.signextend byteIdx value)
     (by intro fuel state; exact primCall_signextend_ok fuel state byteIdx value)
 
+theorem NativePrimCallPreservesWord_signextend_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SIGNEXTEND values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values
+    EvmYul.Operation.SIGNEXTEND name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_signextend_nil_invalid])
+    (by intro fuel state byteIdx; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_signextend_singleton_invalid])
+    (by intro fuel state byteIdx value extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_signextend_overarity_invalid])
+    (fun byteIdx value =>
+      NativePrimCallPreservesWord_signextend name expected byteIdx value)
+
 theorem NativePrimCallPreservesWord_eq
     (name : EvmYul.Identifier)
     (expected left right : EvmYul.Literal) :
@@ -5298,6 +9038,19 @@ theorem NativePrimCallPreservesWord_eq
   NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.EQ
     name expected left right (EvmYul.UInt256.eq left right)
     (by intro fuel state; exact primCall_eq_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_eq_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.EQ values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.EQ
+    name expected primCall_eq_nil_invalid primCall_eq_singleton_invalid
+    primCall_eq_overarity_invalid
+    (fun left right => NativePrimCallPreservesWord_eq name expected left right)
 
 theorem NativePrimCallPreservesWord_lt
     (name : EvmYul.Identifier)
@@ -5311,6 +9064,19 @@ theorem NativePrimCallPreservesWord_lt
     name expected left right (EvmYul.UInt256.lt left right)
     (by intro fuel state; exact primCall_lt_ok fuel state left right)
 
+theorem NativePrimCallPreservesWord_lt_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LT values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.LT
+    name expected primCall_lt_nil_invalid primCall_lt_singleton_invalid
+    primCall_lt_overarity_invalid
+    (fun left right => NativePrimCallPreservesWord_lt name expected left right)
+
 theorem NativePrimCallPreservesWord_gt
     (name : EvmYul.Identifier)
     (expected left right : EvmYul.Literal) :
@@ -5322,6 +9088,19 @@ theorem NativePrimCallPreservesWord_gt
   NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.GT
     name expected left right (EvmYul.UInt256.gt left right)
     (by intro fuel state; exact primCall_gt_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_gt_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.GT values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.GT
+    name expected primCall_gt_nil_invalid primCall_gt_singleton_invalid
+    primCall_gt_overarity_invalid
+    (fun left right => NativePrimCallPreservesWord_gt name expected left right)
 
 theorem NativePrimCallPreservesWord_slt
     (name : EvmYul.Identifier)
@@ -5335,6 +9114,24 @@ theorem NativePrimCallPreservesWord_slt
     name expected left right (EvmYul.UInt256.slt left right)
     (by intro fuel state; exact primCall_slt_ok fuel state left right)
 
+theorem NativePrimCallPreservesWord_slt_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SLT values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.SLT
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_slt_nil_invalid])
+    (by intro fuel state left; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_slt_singleton_invalid])
+    (by intro fuel state left right extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_slt_overarity_invalid])
+    (fun left right => NativePrimCallPreservesWord_slt name expected left right)
+
 theorem NativePrimCallPreservesWord_sgt
     (name : EvmYul.Identifier)
     (expected left right : EvmYul.Literal) :
@@ -5346,6 +9143,24 @@ theorem NativePrimCallPreservesWord_sgt
   NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.SGT
     name expected left right (EvmYul.UInt256.sgt left right)
     (by intro fuel state; exact primCall_sgt_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_sgt_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SGT values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.SGT
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_sgt_nil_invalid])
+    (by intro fuel state left; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_sgt_singleton_invalid])
+    (by intro fuel state left right extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_sgt_overarity_invalid])
+    (fun left right => NativePrimCallPreservesWord_sgt name expected left right)
 
 theorem NativePrimCallPreservesWord_and
     (name : EvmYul.Identifier)
@@ -5359,6 +9174,24 @@ theorem NativePrimCallPreservesWord_and
     name expected left right (EvmYul.UInt256.land left right)
     (by intro fuel state; exact primCall_and_ok fuel state left right)
 
+theorem NativePrimCallPreservesWord_and_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.AND values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.AND
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_and_nil_invalid])
+    (by intro fuel state left; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_and_singleton_invalid])
+    (by intro fuel state left right extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_and_overarity_invalid])
+    (fun left right => NativePrimCallPreservesWord_and name expected left right)
+
 theorem NativePrimCallPreservesWord_or
     (name : EvmYul.Identifier)
     (expected left right : EvmYul.Literal) :
@@ -5370,6 +9203,24 @@ theorem NativePrimCallPreservesWord_or
   NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.OR
     name expected left right (EvmYul.UInt256.lor left right)
     (by intro fuel state; exact primCall_or_ok fuel state left right)
+
+theorem NativePrimCallPreservesWord_or_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.OR values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.OR
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_or_nil_invalid])
+    (by intro fuel state left; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_or_singleton_invalid])
+    (by intro fuel state left right extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_or_overarity_invalid])
+    (fun left right => NativePrimCallPreservesWord_or name expected left right)
 
 theorem NativePrimCallPreservesWord_xor
     (name : EvmYul.Identifier)
@@ -5383,6 +9234,24 @@ theorem NativePrimCallPreservesWord_xor
     name expected left right (EvmYul.UInt256.xor left right)
     (by intro fuel state; exact primCall_xor_ok fuel state left right)
 
+theorem NativePrimCallPreservesWord_xor_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.XOR values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.XOR
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_xor_nil_invalid])
+    (by intro fuel state left; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_xor_singleton_invalid])
+    (by intro fuel state left right extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_xor_overarity_invalid])
+    (fun left right => NativePrimCallPreservesWord_xor name expected left right)
+
 theorem NativePrimCallPreservesWord_not
     (name : EvmYul.Identifier)
     (expected value : EvmYul.Literal) :
@@ -5394,6 +9263,18 @@ theorem NativePrimCallPreservesWord_not
   NativePrimCallPreservesWord_unary_same_state EvmYul.Operation.NOT
     name expected value (EvmYul.UInt256.lnot value)
     (by intro fuel state; exact primCall_not_ok fuel state value)
+
+theorem NativePrimCallPreservesWord_not_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.NOT values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_unary_same_state_values EvmYul.Operation.NOT
+    name expected primCall_not_nil_invalid primCall_not_overarity_invalid
+    (fun value => NativePrimCallPreservesWord_not name expected value)
 
 theorem NativePrimCallPreservesWord_shl
     (name : EvmYul.Identifier)
@@ -5407,6 +9288,24 @@ theorem NativePrimCallPreservesWord_shl
     name expected shift value (EvmYul.UInt256.shiftLeft value shift)
     (by intro fuel state; exact primCall_shl_ok fuel state shift value)
 
+theorem NativePrimCallPreservesWord_shl_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SHL values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.SHL
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_shl_nil_invalid])
+    (by intro fuel state shift; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_shl_singleton_invalid])
+    (by intro fuel state shift value extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_shl_overarity_invalid])
+    (fun shift value => NativePrimCallPreservesWord_shl name expected shift value)
+
 theorem NativePrimCallPreservesWord_byte
     (name : EvmYul.Identifier)
     (expected index value : EvmYul.Literal) :
@@ -5419,6 +9318,24 @@ theorem NativePrimCallPreservesWord_byte
     name expected index value (EvmYul.UInt256.byteAt index value)
     (by intro fuel state; exact primCall_byte_ok fuel state index value)
 
+theorem NativePrimCallPreservesWord_byte_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.BYTE values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.BYTE
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_byte_nil_invalid])
+    (by intro fuel state index; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_byte_singleton_invalid])
+    (by intro fuel state index value extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_byte_overarity_invalid])
+    (fun index value => NativePrimCallPreservesWord_byte name expected index value)
+
 theorem NativePrimCallPreservesWord_sar
     (name : EvmYul.Identifier)
     (expected shift value : EvmYul.Literal) :
@@ -5430,6 +9347,24 @@ theorem NativePrimCallPreservesWord_sar
   NativePrimCallPreservesWord_binary_same_state EvmYul.Operation.SAR
     name expected shift value (EvmYul.UInt256.sar shift value)
     (by intro fuel state; exact primCall_sar_ok fuel state shift value)
+
+theorem NativePrimCallPreservesWord_sar_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SAR values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.SAR
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_sar_nil_invalid])
+    (by intro fuel state shift; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_sar_singleton_invalid])
+    (by intro fuel state shift value extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_sar_overarity_invalid])
+    (fun shift value => NativePrimCallPreservesWord_sar name expected shift value)
 
 theorem NativePrimCallPreservesWord_sload
     (name : EvmYul.Identifier)
@@ -5452,6 +9387,22 @@ theorem NativePrimCallPreservesWord_sload
           subst final
           rw [state_getElem_setSharedState]
           exact hLookup
+
+theorem NativePrimCallPreservesWord_sload_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SLOAD values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_unary_same_state_values EvmYul.Operation.SLOAD
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_sload_nil_invalid])
+    (by intro fuel state slot extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_sload_overarity_invalid])
+    (fun slot => NativePrimCallPreservesWord_sload name expected slot)
 
 theorem NativePrimCallPreservesWord_calldataload
     (name : EvmYul.Identifier)
@@ -5479,6 +9430,22 @@ theorem NativePrimCallPreservesWord_calldataload
           cases jump <;> simp [EvmYul.Yul.primCall] at hExec <;>
             cases hExec <;> exact hLookup
 
+theorem NativePrimCallPreservesWord_calldataload_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CALLDATALOAD values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_unary_same_state_values
+    EvmYul.Operation.CALLDATALOAD name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_calldataload_nil_invalid])
+    (by intro fuel state offset extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_calldataload_overarity_invalid])
+    (fun offset => NativePrimCallPreservesWord_calldataload name expected offset)
+
 theorem NativePrimCallPreservesWord_mload
     (name : EvmYul.Identifier)
     (expected offset : EvmYul.Literal) :
@@ -5501,6 +9468,22 @@ theorem NativePrimCallPreservesWord_mload
           rw [state_getElem_setMachineState]
           exact hLookup
 
+theorem NativePrimCallPreservesWord_mload_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MLOAD values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_unary_same_state_values EvmYul.Operation.MLOAD
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_mload_nil_invalid])
+    (by intro fuel state offset extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_mload_overarity_invalid])
+    (fun offset => NativePrimCallPreservesWord_mload name expected offset)
+
 theorem NativePrimCallPreservesWord_mstore
     (name : EvmYul.Identifier)
     (expected offset value : EvmYul.Literal) :
@@ -5519,6 +9502,20 @@ theorem NativePrimCallPreservesWord_mstore
       rw [state_getElem_setMachineState]
       exact hLookup
 
+theorem NativePrimCallPreservesWord_mstore_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MSTORE values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.MSTORE
+    name expected primCall_mstore_nil_invalid
+    primCall_mstore_singleton_invalid primCall_mstore_overarity_invalid
+    (fun offset value =>
+      NativePrimCallPreservesWord_mstore name expected offset value)
+
 theorem NativePrimCallPreservesWord_mstore8
     (name : EvmYul.Identifier)
     (expected offset value : EvmYul.Literal) :
@@ -5536,6 +9533,20 @@ theorem NativePrimCallPreservesWord_mstore8
       cases hExec
       rw [state_getElem_setMachineState]
       exact hLookup
+
+theorem NativePrimCallPreservesWord_mstore8_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.MSTORE8 values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.MSTORE8
+    name expected primCall_mstore8_nil_invalid
+    primCall_mstore8_singleton_invalid primCall_mstore8_overarity_invalid
+    (fun offset value =>
+      NativePrimCallPreservesWord_mstore8 name expected offset value)
 
 theorem NativePrimCallPreservesWord_tload
     (name : EvmYul.Identifier)
@@ -5558,6 +9569,22 @@ theorem NativePrimCallPreservesWord_tload
           subst final
           rw [state_getElem_setSharedState]
           exact hLookup
+
+theorem NativePrimCallPreservesWord_tload_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.TLOAD values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_unary_same_state_values EvmYul.Operation.TLOAD
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_tload_nil_invalid])
+    (by intro fuel state slot extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_tload_overarity_invalid])
+    (fun slot => NativePrimCallPreservesWord_tload name expected slot)
 
 theorem NativePrimCallPreservesWord_tstore
     (name : EvmYul.Identifier)
@@ -5585,6 +9612,77 @@ theorem NativePrimCallPreservesWord_tstore
             Except.ok (final, rets) at hExec
         cases hExec
 
+theorem NativePrimCallPreservesWord_tstore_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.TSTORE values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero => simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          by_cases hPerm : state.executionEnv.perm = true
+          · simp [EvmYul.Yul.primCall, hPerm, step_tstore_nil_invalid] at hExec
+          · have hPermFalse : state.executionEnv.perm = false := by
+              cases hp : state.executionEnv.perm
+              · rfl
+              · exact False.elim (hPerm hp)
+            simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+            change
+              (Except.error EvmYul.Yul.Exception.StaticModeViolation :
+                  Except EvmYul.Yul.Exception
+                    (EvmYul.Yul.State × List EvmYul.Literal)) =
+                Except.ok (final, rets) at hExec
+            cases hExec
+  | cons slot rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero => simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              by_cases hPerm : state.executionEnv.perm = true
+              · simp [EvmYul.Yul.primCall, hPerm,
+                  step_tstore_singleton_invalid] at hExec
+              · have hPermFalse : state.executionEnv.perm = false := by
+                  cases hp : state.executionEnv.perm
+                  · rfl
+                  · exact False.elim (hPerm hp)
+                simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                change
+                  (Except.error EvmYul.Yul.Exception.StaticModeViolation :
+                      Except EvmYul.Yul.Exception
+                        (EvmYul.Yul.State × List EvmYul.Literal)) =
+                    Except.ok (final, rets) at hExec
+                cases hExec
+      | cons value rest =>
+          cases rest with
+          | nil =>
+              exact NativePrimCallPreservesWord_tstore name expected slot value
+                fuel state final rets hLookup hExec
+          | cons extra tail =>
+              cases fuel with
+              | zero => simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  by_cases hPerm : state.executionEnv.perm = true
+                  · simp [EvmYul.Yul.primCall, hPerm,
+                      step_tstore_overarity_invalid] at hExec
+                  · have hPermFalse : state.executionEnv.perm = false := by
+                      cases hp : state.executionEnv.perm
+                      · rfl
+                      · exact False.elim (hPerm hp)
+                    simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                    change
+                      (Except.error EvmYul.Yul.Exception.StaticModeViolation :
+                          Except EvmYul.Yul.Exception
+                            (EvmYul.Yul.State × List EvmYul.Literal)) =
+                        Except.ok (final, rets) at hExec
+                    cases hExec
+
 theorem NativePrimCallPreservesWord_sstore
     (name : EvmYul.Identifier)
     (expected slot value : EvmYul.Literal) :
@@ -5610,6 +9708,77 @@ theorem NativePrimCallPreservesWord_sstore
                 (EvmYul.Yul.State × List EvmYul.Literal)) =
             Except.ok (final, rets) at hExec
         cases hExec
+
+theorem NativePrimCallPreservesWord_sstore_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.SSTORE values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero => simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          by_cases hPerm : state.executionEnv.perm = true
+          · simp [EvmYul.Yul.primCall, hPerm, step_sstore_nil_invalid] at hExec
+          · have hPermFalse : state.executionEnv.perm = false := by
+              cases hp : state.executionEnv.perm
+              · rfl
+              · exact False.elim (hPerm hp)
+            simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+            change
+              (Except.error EvmYul.Yul.Exception.StaticModeViolation :
+                  Except EvmYul.Yul.Exception
+                    (EvmYul.Yul.State × List EvmYul.Literal)) =
+                Except.ok (final, rets) at hExec
+            cases hExec
+  | cons slot rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero => simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              by_cases hPerm : state.executionEnv.perm = true
+              · simp [EvmYul.Yul.primCall, hPerm,
+                  step_sstore_singleton_invalid] at hExec
+              · have hPermFalse : state.executionEnv.perm = false := by
+                  cases hp : state.executionEnv.perm
+                  · rfl
+                  · exact False.elim (hPerm hp)
+                simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                change
+                  (Except.error EvmYul.Yul.Exception.StaticModeViolation :
+                      Except EvmYul.Yul.Exception
+                        (EvmYul.Yul.State × List EvmYul.Literal)) =
+                    Except.ok (final, rets) at hExec
+                cases hExec
+      | cons value rest =>
+          cases rest with
+          | nil =>
+              exact NativePrimCallPreservesWord_sstore name expected slot value
+                fuel state final rets hLookup hExec
+          | cons extra tail =>
+              cases fuel with
+              | zero => simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  by_cases hPerm : state.executionEnv.perm = true
+                  · simp [EvmYul.Yul.primCall, hPerm,
+                      step_sstore_overarity_invalid] at hExec
+                  · have hPermFalse : state.executionEnv.perm = false := by
+                      cases hp : state.executionEnv.perm
+                      · rfl
+                      · exact False.elim (hPerm hp)
+                    simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                    change
+                      (Except.error EvmYul.Yul.Exception.StaticModeViolation :
+                          Except EvmYul.Yul.Exception
+                            (EvmYul.Yul.State × List EvmYul.Literal)) =
+                        Except.ok (final, rets) at hExec
+                    cases hExec
 
 theorem NativePrimCallPreservesWord_stop
     (name : EvmYul.Identifier)
@@ -5672,6 +9841,72 @@ theorem NativePrimCallPreservesWord_revert
       | ok ret =>
           rcases ret with ⟨revertState, value⟩
           simp [hRevert] at hExec
+
+theorem NativePrimCallPreservesWord_return_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.RETURN values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero => simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          simp [EvmYul.Yul.primCall, step_return_nil_invalid] at hExec
+  | cons offset rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero => simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              simp [EvmYul.Yul.primCall, step_return_singleton_invalid] at hExec
+      | cons size rest =>
+          cases rest with
+          | nil =>
+              exact NativePrimCallPreservesWord_return name expected offset size
+                fuel state final rets hLookup hExec
+          | cons extra tail =>
+              cases fuel with
+              | zero => simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  simp [EvmYul.Yul.primCall, step_return_overarity_invalid] at hExec
+
+theorem NativePrimCallPreservesWord_revert_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.REVERT values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero => simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          simp [EvmYul.Yul.primCall, step_revert_nil_invalid] at hExec
+  | cons offset rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero => simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              simp [EvmYul.Yul.primCall, step_revert_singleton_invalid] at hExec
+      | cons size rest =>
+          cases rest with
+          | nil =>
+              exact NativePrimCallPreservesWord_revert name expected offset size
+                fuel state final rets hLookup hExec
+          | cons extra tail =>
+              cases fuel with
+              | zero => simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  simp [EvmYul.Yul.primCall, step_revert_overarity_invalid] at hExec
 
 theorem NativePrimCallPreservesWord_msize
     (name : EvmYul.Identifier)
@@ -5760,6 +9995,52 @@ theorem NativePrimCallPreservesWord_returndatacopy
       rw [state_getElem_setMachineState]
       exact hLookup
 
+theorem NativePrimCallPreservesWord_calldatacopy_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.CALLDATACOPY values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_ternary_same_state_values
+    EvmYul.Operation.CALLDATACOPY name expected
+    (by intro fuel state; simp [EvmYul.Yul.primCall,
+      step_calldatacopy_nil_invalid])
+    (by intro fuel state mstart; simp [EvmYul.Yul.primCall,
+      step_calldatacopy_singleton_invalid])
+    (by intro fuel state mstart datastart; simp [EvmYul.Yul.primCall,
+      step_calldatacopy_pair_invalid])
+    (by
+      intro fuel state mstart datastart size extra rest
+      simp [EvmYul.Yul.primCall, step_calldatacopy_overarity_invalid])
+    (fun mstart datastart size =>
+      NativePrimCallPreservesWord_calldatacopy name expected mstart datastart
+        size)
+
+theorem NativePrimCallPreservesWord_returndatacopy_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.RETURNDATACOPY values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_ternary_same_state_values
+    EvmYul.Operation.RETURNDATACOPY name expected
+    (by intro fuel state; simp [EvmYul.Yul.primCall,
+      step_returndatacopy_nil_invalid])
+    (by intro fuel state mstart; simp [EvmYul.Yul.primCall,
+      step_returndatacopy_singleton_invalid])
+    (by intro fuel state mstart rstart; simp [EvmYul.Yul.primCall,
+      step_returndatacopy_pair_invalid])
+    (by
+      intro fuel state mstart rstart size extra rest
+      simp [EvmYul.Yul.primCall, step_returndatacopy_overarity_invalid])
+    (fun mstart rstart size =>
+      NativePrimCallPreservesWord_returndatacopy name expected mstart rstart
+        size)
+
 theorem NativePrimCallPreservesWord_pop
     (name : EvmYul.Identifier)
     (expected value : EvmYul.Literal) :
@@ -5798,6 +10079,25 @@ theorem NativePrimCallPreservesWord_keccak256
           subst final
           rw [state_getElem_setMachineState]
           exact hLookup
+
+theorem NativePrimCallPreservesWord_keccak256_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.KECCAK256 values =
+          .ok (final, rets) →
+        final[name]! = expected :=
+  NativePrimCallPreservesWord_binary_same_state_values EvmYul.Operation.KECCAK256
+    name expected
+    (by intro fuel state; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_keccak256_nil_invalid])
+    (by intro fuel state offset; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_keccak256_singleton_invalid])
+    (by intro fuel state offset size extra rest; cases fuel <;>
+      simp [EvmYul.Yul.primCall, step_keccak256_overarity_invalid])
+    (fun offset size =>
+      NativePrimCallPreservesWord_keccak256 name expected offset size)
 
 theorem NativePrimCallPreservesWord_log0
     (name : EvmYul.Identifier)
@@ -5923,6 +10223,548 @@ theorem NativePrimCallPreservesWord_log4
           · exact False.elim (hPerm hp)
         simp [EvmYul.Yul.primCall, hPermFalse] at hExec
         cases hExec
+
+theorem NativePrimCallPreservesWord_noop_result
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    {state final : EvmYul.Yul.State}
+    {rets : List EvmYul.Literal}
+    (hLookup : state[name]! = expected)
+    (hExec : state = final ∧ rets = []) :
+    final[name]! = expected := by
+  rcases hExec with ⟨hFinal, _⟩
+  subst final
+  exact hLookup
+
+theorem NativePrimCallPreservesWord_log0_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG0 values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero => simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          by_cases hPerm : state.executionEnv.perm = true
+          · simp [EvmYul.Yul.primCall, hPerm] at hExec
+            exact NativePrimCallPreservesWord_noop_result
+              name expected hLookup hExec
+          · have hPermFalse : state.executionEnv.perm = false := by
+              cases hp : state.executionEnv.perm
+              · rfl
+              · exact False.elim (hPerm hp)
+            simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+            cases hExec
+  | cons offset rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero => simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              by_cases hPerm : state.executionEnv.perm = true
+              · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                exact NativePrimCallPreservesWord_noop_result
+                  name expected hLookup hExec
+              · have hPermFalse : state.executionEnv.perm = false := by
+                  cases hp : state.executionEnv.perm
+                  · rfl
+                  · exact False.elim (hPerm hp)
+                simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                cases hExec
+      | cons size rest =>
+          cases rest with
+          | nil =>
+              exact NativePrimCallPreservesWord_log0 name expected offset size
+                fuel state final rets hLookup hExec
+          | cons extra tail =>
+              cases fuel with
+              | zero => simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  by_cases hPerm : state.executionEnv.perm = true
+                  · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                    exact NativePrimCallPreservesWord_noop_result
+                      name expected hLookup hExec
+                  · have hPermFalse : state.executionEnv.perm = false := by
+                      cases hp : state.executionEnv.perm
+                      · rfl
+                      · exact False.elim (hPerm hp)
+                    simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                    cases hExec
+
+theorem NativePrimCallPreservesWord_log1_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG1 values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero => simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          by_cases hPerm : state.executionEnv.perm = true
+          · simp [EvmYul.Yul.primCall, hPerm] at hExec
+            exact NativePrimCallPreservesWord_noop_result
+              name expected hLookup hExec
+          · have hPermFalse : state.executionEnv.perm = false := by
+              cases hp : state.executionEnv.perm
+              · rfl
+              · exact False.elim (hPerm hp)
+            simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+            cases hExec
+  | cons offset rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero => simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              by_cases hPerm : state.executionEnv.perm = true
+              · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                exact NativePrimCallPreservesWord_noop_result
+                  name expected hLookup hExec
+              · have hPermFalse : state.executionEnv.perm = false := by
+                  cases hp : state.executionEnv.perm
+                  · rfl
+                  · exact False.elim (hPerm hp)
+                simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                cases hExec
+      | cons size rest =>
+          cases rest with
+          | nil =>
+              cases fuel with
+              | zero => simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  by_cases hPerm : state.executionEnv.perm = true
+                  · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                    exact NativePrimCallPreservesWord_noop_result
+                      name expected hLookup hExec
+                  · have hPermFalse : state.executionEnv.perm = false := by
+                      cases hp : state.executionEnv.perm
+                      · rfl
+                      · exact False.elim (hPerm hp)
+                    simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                    cases hExec
+          | cons topic0 rest =>
+              cases rest with
+              | nil =>
+                  exact NativePrimCallPreservesWord_log1 name expected offset size
+                    topic0 fuel state final rets hLookup hExec
+              | cons extra tail =>
+                  cases fuel with
+                  | zero => simp [EvmYul.Yul.primCall] at hExec
+                  | succ fuel' =>
+                      by_cases hPerm : state.executionEnv.perm = true
+                      · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                        exact NativePrimCallPreservesWord_noop_result
+                          name expected hLookup hExec
+                      · have hPermFalse : state.executionEnv.perm = false := by
+                          cases hp : state.executionEnv.perm
+                          · rfl
+                          · exact False.elim (hPerm hp)
+                        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                        cases hExec
+
+theorem NativePrimCallPreservesWord_log2_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG2 values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero => simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          by_cases hPerm : state.executionEnv.perm = true
+          · simp [EvmYul.Yul.primCall, hPerm] at hExec
+            exact NativePrimCallPreservesWord_noop_result
+              name expected hLookup hExec
+          · have hPermFalse : state.executionEnv.perm = false := by
+              cases hp : state.executionEnv.perm
+              · rfl
+              · exact False.elim (hPerm hp)
+            simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+            cases hExec
+  | cons offset rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero => simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              by_cases hPerm : state.executionEnv.perm = true
+              · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                exact NativePrimCallPreservesWord_noop_result
+                  name expected hLookup hExec
+              · have hPermFalse : state.executionEnv.perm = false := by
+                  cases hp : state.executionEnv.perm
+                  · rfl
+                  · exact False.elim (hPerm hp)
+                simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                cases hExec
+      | cons size rest =>
+          cases rest with
+          | nil =>
+              cases fuel with
+              | zero => simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  by_cases hPerm : state.executionEnv.perm = true
+                  · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                    exact NativePrimCallPreservesWord_noop_result
+                      name expected hLookup hExec
+                  · have hPermFalse : state.executionEnv.perm = false := by
+                      cases hp : state.executionEnv.perm
+                      · rfl
+                      · exact False.elim (hPerm hp)
+                    simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                    cases hExec
+          | cons topic0 rest =>
+              cases rest with
+              | nil =>
+                  cases fuel with
+                  | zero => simp [EvmYul.Yul.primCall] at hExec
+                  | succ fuel' =>
+                      by_cases hPerm : state.executionEnv.perm = true
+                      · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                        exact NativePrimCallPreservesWord_noop_result
+                          name expected hLookup hExec
+                      · have hPermFalse : state.executionEnv.perm = false := by
+                          cases hp : state.executionEnv.perm
+                          · rfl
+                          · exact False.elim (hPerm hp)
+                        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                        cases hExec
+              | cons topic1 rest =>
+                  cases rest with
+                  | nil =>
+                      exact NativePrimCallPreservesWord_log2 name expected
+                        offset size topic0 topic1 fuel state final rets hLookup
+                        hExec
+                  | cons extra tail =>
+                      cases fuel with
+                      | zero => simp [EvmYul.Yul.primCall] at hExec
+                      | succ fuel' =>
+                          by_cases hPerm : state.executionEnv.perm = true
+                          · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                            exact NativePrimCallPreservesWord_noop_result
+                              name expected hLookup hExec
+                          · have hPermFalse :
+                                state.executionEnv.perm = false := by
+                              cases hp : state.executionEnv.perm
+                              · rfl
+                              · exact False.elim (hPerm hp)
+                            simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                            cases hExec
+
+theorem NativePrimCallPreservesWord_log3_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG3 values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero => simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          by_cases hPerm : state.executionEnv.perm = true
+          · simp [EvmYul.Yul.primCall, hPerm] at hExec
+            exact NativePrimCallPreservesWord_noop_result
+              name expected hLookup hExec
+          · have hPermFalse : state.executionEnv.perm = false := by
+              cases hp : state.executionEnv.perm
+              · rfl
+              · exact False.elim (hPerm hp)
+            simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+            cases hExec
+  | cons offset rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero => simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              by_cases hPerm : state.executionEnv.perm = true
+              · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                exact NativePrimCallPreservesWord_noop_result
+                  name expected hLookup hExec
+              · have hPermFalse : state.executionEnv.perm = false := by
+                  cases hp : state.executionEnv.perm
+                  · rfl
+                  · exact False.elim (hPerm hp)
+                simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                cases hExec
+      | cons size rest =>
+          cases rest with
+          | nil =>
+              cases fuel with
+              | zero => simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  by_cases hPerm : state.executionEnv.perm = true
+                  · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                    exact NativePrimCallPreservesWord_noop_result
+                      name expected hLookup hExec
+                  · have hPermFalse : state.executionEnv.perm = false := by
+                      cases hp : state.executionEnv.perm
+                      · rfl
+                      · exact False.elim (hPerm hp)
+                    simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                    cases hExec
+          | cons topic0 rest =>
+              cases rest with
+              | nil =>
+                  cases fuel with
+                  | zero => simp [EvmYul.Yul.primCall] at hExec
+                  | succ fuel' =>
+                      by_cases hPerm : state.executionEnv.perm = true
+                      · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                        exact NativePrimCallPreservesWord_noop_result
+                          name expected hLookup hExec
+                      · have hPermFalse : state.executionEnv.perm = false := by
+                          cases hp : state.executionEnv.perm
+                          · rfl
+                          · exact False.elim (hPerm hp)
+                        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                        cases hExec
+              | cons topic1 rest =>
+                  cases rest with
+                  | nil =>
+                      cases fuel with
+                      | zero => simp [EvmYul.Yul.primCall] at hExec
+                      | succ fuel' =>
+                          by_cases hPerm : state.executionEnv.perm = true
+                          · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                            exact NativePrimCallPreservesWord_noop_result
+                              name expected hLookup hExec
+                          · have hPermFalse :
+                                state.executionEnv.perm = false := by
+                              cases hp : state.executionEnv.perm
+                              · rfl
+                              · exact False.elim (hPerm hp)
+                            simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                            cases hExec
+                  | cons topic2 rest =>
+                      cases rest with
+                      | nil =>
+                          exact NativePrimCallPreservesWord_log3 name expected
+                            offset size topic0 topic1 topic2 fuel state final
+                            rets hLookup hExec
+                      | cons extra tail =>
+                          cases fuel with
+                          | zero => simp [EvmYul.Yul.primCall] at hExec
+                          | succ fuel' =>
+                              by_cases hPerm :
+                                  state.executionEnv.perm = true
+                              · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                                exact NativePrimCallPreservesWord_noop_result
+                                  name expected hLookup hExec
+                              · have hPermFalse :
+                                    state.executionEnv.perm = false := by
+                                  cases hp : state.executionEnv.perm
+                                  · rfl
+                                  · exact False.elim (hPerm hp)
+                                simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                                cases hExec
+
+theorem NativePrimCallPreservesWord_log4_values
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state EvmYul.Operation.LOG4 values =
+          .ok (final, rets) →
+        final[name]! = expected := by
+  intro fuel state values final rets hLookup hExec
+  cases values with
+  | nil =>
+      cases fuel with
+      | zero => simp [EvmYul.Yul.primCall] at hExec
+      | succ fuel' =>
+          by_cases hPerm : state.executionEnv.perm = true
+          · simp [EvmYul.Yul.primCall, hPerm] at hExec
+            exact NativePrimCallPreservesWord_noop_result
+              name expected hLookup hExec
+          · have hPermFalse : state.executionEnv.perm = false := by
+              cases hp : state.executionEnv.perm
+              · rfl
+              · exact False.elim (hPerm hp)
+            simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+            cases hExec
+  | cons offset rest =>
+      cases rest with
+      | nil =>
+          cases fuel with
+          | zero => simp [EvmYul.Yul.primCall] at hExec
+          | succ fuel' =>
+              by_cases hPerm : state.executionEnv.perm = true
+              · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                exact NativePrimCallPreservesWord_noop_result
+                  name expected hLookup hExec
+              · have hPermFalse : state.executionEnv.perm = false := by
+                  cases hp : state.executionEnv.perm
+                  · rfl
+                  · exact False.elim (hPerm hp)
+                simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                cases hExec
+      | cons size rest =>
+          cases rest with
+          | nil =>
+              cases fuel with
+              | zero => simp [EvmYul.Yul.primCall] at hExec
+              | succ fuel' =>
+                  by_cases hPerm : state.executionEnv.perm = true
+                  · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                    exact NativePrimCallPreservesWord_noop_result
+                      name expected hLookup hExec
+                  · have hPermFalse : state.executionEnv.perm = false := by
+                      cases hp : state.executionEnv.perm
+                      · rfl
+                      · exact False.elim (hPerm hp)
+                    simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                    cases hExec
+          | cons topic0 rest =>
+              cases rest with
+              | nil =>
+                  cases fuel with
+                  | zero => simp [EvmYul.Yul.primCall] at hExec
+                  | succ fuel' =>
+                      by_cases hPerm : state.executionEnv.perm = true
+                      · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                        exact NativePrimCallPreservesWord_noop_result
+                          name expected hLookup hExec
+                      · have hPermFalse : state.executionEnv.perm = false := by
+                          cases hp : state.executionEnv.perm
+                          · rfl
+                          · exact False.elim (hPerm hp)
+                        simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                        cases hExec
+              | cons topic1 rest =>
+                  cases rest with
+                  | nil =>
+                      cases fuel with
+                      | zero => simp [EvmYul.Yul.primCall] at hExec
+                      | succ fuel' =>
+                          by_cases hPerm :
+                              state.executionEnv.perm = true
+                          · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                            exact NativePrimCallPreservesWord_noop_result
+                              name expected hLookup hExec
+                          · have hPermFalse :
+                                state.executionEnv.perm = false := by
+                              cases hp : state.executionEnv.perm
+                              · rfl
+                              · exact False.elim (hPerm hp)
+                            simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                            cases hExec
+                  | cons topic2 rest =>
+                      cases rest with
+                      | nil =>
+                          cases fuel with
+                          | zero => simp [EvmYul.Yul.primCall] at hExec
+                          | succ fuel' =>
+                              by_cases hPerm :
+                                  state.executionEnv.perm = true
+                              · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                                exact NativePrimCallPreservesWord_noop_result
+                                  name expected hLookup hExec
+                              · have hPermFalse :
+                                    state.executionEnv.perm = false := by
+                                  cases hp : state.executionEnv.perm
+                                  · rfl
+                                  · exact False.elim (hPerm hp)
+                                simp [EvmYul.Yul.primCall, hPermFalse] at hExec
+                                cases hExec
+                      | cons topic3 rest =>
+                          cases rest with
+                          | nil =>
+                              exact NativePrimCallPreservesWord_log4 name
+                                expected offset size topic0 topic1 topic2 topic3
+                                fuel state final rets hLookup hExec
+                          | cons extra tail =>
+                              cases fuel with
+                              | zero => simp [EvmYul.Yul.primCall] at hExec
+                              | succ fuel' =>
+                                  by_cases hPerm :
+                                      state.executionEnv.perm = true
+                                  · simp [EvmYul.Yul.primCall, hPerm] at hExec
+                                    exact NativePrimCallPreservesWord_noop_result
+                                      name expected hLookup hExec
+                                  · have hPermFalse :
+                                        state.executionEnv.perm = false := by
+                                      cases hp : state.executionEnv.perm
+                                      · rfl
+                                      · exact False.elim (hPerm hp)
+                                    simp [EvmYul.Yul.primCall, hPermFalse]
+                                      at hExec
+                                    cases hExec
+
+theorem NativePrimCallPreservesWord_of_allowed_lookupRuntimePrimOp
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (op : EvmYul.Operation .Yul)
+    (hAllowed :
+      Compiler.Proofs.YulGeneration.Backends.allowedExprCallName func)
+    (hOp : Backends.lookupRuntimePrimOp func = some op) :
+    ∀ fuel state values final rets,
+      state[name]! = expected →
+        EvmYul.Yul.primCall fuel state op values = .ok (final, rets) →
+        final[name]! = expected := by
+  unfold Backends.lookupRuntimePrimOp at hOp
+  split at hOp <;> cases hOp <;>
+    first
+    | exact NativePrimCallPreservesWord_add_values name expected
+    | exact NativePrimCallPreservesWord_sub_values name expected
+    | exact NativePrimCallPreservesWord_mul_values name expected
+    | exact NativePrimCallPreservesWord_div_values name expected
+    | exact NativePrimCallPreservesWord_sdiv_values name expected
+    | exact NativePrimCallPreservesWord_mod_values name expected
+    | exact NativePrimCallPreservesWord_smod_values name expected
+    | exact NativePrimCallPreservesWord_addmod_values name expected
+    | exact NativePrimCallPreservesWord_mulmod_values name expected
+    | exact NativePrimCallPreservesWord_exp_values name expected
+    | exact NativePrimCallPreservesWord_signextend_values name expected
+    | exact NativePrimCallPreservesWord_lt_values name expected
+    | exact NativePrimCallPreservesWord_gt_values name expected
+    | exact NativePrimCallPreservesWord_slt_values name expected
+    | exact NativePrimCallPreservesWord_sgt_values name expected
+    | exact NativePrimCallPreservesWord_eq_values name expected
+    | exact NativePrimCallPreservesWord_iszero_values name expected
+    | exact NativePrimCallPreservesWord_and_values name expected
+    | exact NativePrimCallPreservesWord_or_values name expected
+    | exact NativePrimCallPreservesWord_xor_values name expected
+    | exact NativePrimCallPreservesWord_not_values name expected
+    | exact NativePrimCallPreservesWord_byte_values name expected
+    | exact NativePrimCallPreservesWord_shl_values name expected
+    | exact NativePrimCallPreservesWord_shr_values name expected
+    | exact NativePrimCallPreservesWord_sar_values name expected
+    | exact NativePrimCallPreservesWord_keccak256_values name expected
+    | exact NativePrimCallPreservesWord_address_values name expected
+    | exact NativePrimCallPreservesWord_caller_values name expected
+    | exact NativePrimCallPreservesWord_callvalue_values name expected
+    | exact NativePrimCallPreservesWord_calldataload_values name expected
+    | exact NativePrimCallPreservesWord_calldatasize_values name expected
+    | exact NativePrimCallPreservesWord_timestamp_values name expected
+    | exact NativePrimCallPreservesWord_number_values name expected
+    | exact NativePrimCallPreservesWord_chainid_values name expected
+    | exact NativePrimCallPreservesWord_blobbasefee_values name expected
+    | exact NativePrimCallPreservesWord_mload_values name expected
+    | exact NativePrimCallPreservesWord_sload_values name expected
+    | exact NativePrimCallPreservesWord_tload_values name expected
+    | exfalso
+      simp [Compiler.Proofs.YulGeneration.Backends.allowedExprCallName,
+        Compiler.Proofs.YulGeneration.Backends.bridgedBuiltins] at hAllowed
 
 theorem NativeExprPreservesWord_var
     (name : EvmYul.Identifier)
@@ -6150,6 +10992,23 @@ theorem NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
                   exact hPrim fuel' argState values.reverse primState (ret :: rest)
                     hArgLookup hPrimCall
 
+theorem NativeExprPreservesWord_call_prim_of_nativeEvalArgs_primCall_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (prim : EvmYul.Yul.Ast.PrimOp)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hPrim :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state prim values = .ok (final, rets) →
+          final[name]! = expected) :
+    NativeExprPreservesWord name expected
+      (.Call (Sum.inl prim) args) codeOverride :=
+  NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
+    name expected prim args codeOverride hArgs hPrim
+
 theorem NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
     (name func : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -6221,6 +11080,20 @@ theorem NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
                       exact hCall callFuel argState values.reverse callState
                         (ret :: rest) hArgLookup hUserCall
 
+theorem NativeExprPreservesWord_call_user_of_nativeEvalArgs_call_preserves
+    (name : EvmYul.Identifier) (expected : EvmYul.Literal)
+    (functionName : EvmYul.Yul.Ast.YulFunctionName) (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hCall :
+      ∀ fuel state values final rets, state[name]! = expected →
+        EvmYul.Yul.call fuel values (some functionName) codeOverride state =
+          .ok (final, rets) → final[name]! = expected) :
+    NativeExprPreservesWord name expected (.Call (Sum.inr functionName) args)
+      codeOverride :=
+  NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
+    name expected functionName args codeOverride hArgs hCall
+
 theorem NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
     (name func : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -6243,6 +11116,46 @@ theorem NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_ca
     name expected func (args.map Backends.lowerExprNative) codeOverride hArgs
     hCall
 
+theorem NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (op : EvmYul.Operation .Yul)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hOp : Backends.lookupRuntimePrimOp func = some op)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hPrim :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state op values = .ok (final, rets) →
+          final[name]! = expected) :
+    NativeExprPreservesWord name expected
+      (Backends.lowerExprNative (.call func args)) codeOverride :=
+  NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+    name func expected args op codeOverride hOp hArgs hPrim
+
+theorem NativeExprPreservesWord_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
+    (name func : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hOp : Backends.lookupRuntimePrimOp func = none)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hCall :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some func) codeOverride state =
+            .ok (final, rets) →
+          final[name]! = expected) :
+    NativeExprPreservesWord name expected
+      (Backends.lowerExprNative (.call func args)) codeOverride :=
+  NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
+    name func expected args codeOverride hOp hArgs hCall
+
 theorem state_getElem_overwrite?_left
     (state next : EvmYul.Yul.State)
     (name : EvmYul.Identifier)
@@ -6261,6 +11174,374 @@ theorem state_getElem_restoreCallFrame_of_ok
   rcases hNext with ⟨shared', store', hNextOk⟩
   simp [EvmYul.Yul.State.overwrite?]
   rw [hNextOk, state_getElem_setStore_ok]
+
+theorem native_call_preserves_lookup_of_revivable_body
+    (name functionName : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (fuel : Nat)
+    (values : List EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (final : EvmYul.Yul.State)
+    (rets : List EvmYul.Literal)
+    (hLookup :
+      ((EvmYul.Yul.State.Ok shared store) : EvmYul.Yul.State)[name]! =
+        expected)
+    (hRevivable :
+      ∀ (yulContract : EvmYul.Account .Yul)
+        (functionDef : EvmYul.Yul.Ast.FunctionDefinition)
+        (calleeState : EvmYul.Yul.State),
+        (codeOverride.getD yulContract.code).functions.lookup functionName =
+          some functionDef →
+        EvmYul.Yul.exec (fuel - 1)
+          (.Block functionDef.body) codeOverride
+          (EvmYul.Yul.State.mkOk
+            (EvmYul.Yul.State.initcall functionDef.params values
+              (EvmYul.Yul.State.Ok shared store))) =
+          .ok calleeState →
+        ∃ shared' store',
+          calleeState.reviveJump = EvmYul.Yul.State.Ok shared' store')
+    (hCall :
+      EvmYul.Yul.call fuel values (some functionName) codeOverride
+          (EvmYul.Yul.State.Ok shared store) =
+        .ok (final, rets)) :
+    final[name]! = expected := by
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.call] at hCall
+  | succ fuel' =>
+      simp only [EvmYul.Yul.call] at hCall
+      cases hCode :
+          (EvmYul.Yul.State.Ok shared store).sharedState.accountMap.find?
+            (EvmYul.Yul.State.Ok shared store).executionEnv.codeOwner with
+      | none =>
+          simp [hCode] at hCall
+      | some yulContract =>
+          simp [hCode] at hCall
+          cases hFunction :
+              (codeOverride.getD yulContract.code).functions.lookup
+                functionName with
+          | none =>
+              simp [hFunction] at hCall
+          | some functionDef =>
+              simp [hFunction] at hCall
+              cases hExec :
+                  EvmYul.Yul.exec fuel'
+                    (.Block functionDef.body) codeOverride
+                    (EvmYul.Yul.State.mkOk
+                      (EvmYul.Yul.State.initcall functionDef.params values
+                        (EvmYul.Yul.State.Ok shared store))) with
+              | error err =>
+                  simp [hExec] at hCall
+              | ok calleeState =>
+                  simp [hExec] at hCall
+                  rcases hCall with ⟨hFinal, _⟩
+                  subst final
+                  exact
+                    state_getElem_restoreCallFrame_of_ok
+                      (EvmYul.Yul.State.Ok shared store) calleeState name
+                      ⟨shared, store, rfl⟩
+                      (hRevivable yulContract functionDef calleeState
+                        hFunction (by simpa using hExec)) ▸ hLookup
+
+theorem nativeMappingSlotFunctionDefinition_exec_revivable_of_ok_state
+    (fuel : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state calleeState : EvmYul.Yul.State)
+    (hState : ∃ shared store, state = EvmYul.Yul.State.Ok shared store)
+    (hExec :
+      EvmYul.Yul.exec fuel (.Block nativeMappingSlotFunctionDefinition.body)
+        codeOverride state = .ok calleeState) :
+    ∃ shared' store',
+      calleeState.reviveJump = EvmYul.Yul.State.Ok shared' store' := by
+  rcases hState with ⟨shared, store, rfl⟩
+  exact
+    nativeMappingSlotFunctionDefinition_exec_revivable fuel codeOverride
+      shared store calleeState hExec
+
+theorem state_foldr_insert_ok_exists
+    (entries : List (EvmYul.Identifier × EvmYul.Literal))
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore) :
+    ∃ shared' store',
+      entries.foldr (fun entry state =>
+          EvmYul.Yul.State.insert entry.1 entry.2 state)
+        (EvmYul.Yul.State.Ok shared store) =
+        EvmYul.Yul.State.Ok shared' store' := by
+  induction entries with
+  | nil =>
+      exact ⟨shared, store, rfl⟩
+  | cons entry entries ih =>
+      rcases ih with ⟨shared', store', h⟩
+      rw [List.foldr_cons, h]
+      exact ⟨shared', store'.insert entry.1 entry.2, rfl⟩
+
+theorem state_mkOk_initcall_ok_exists
+    (params : List EvmYul.Identifier)
+    (values : List EvmYul.Literal)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore) :
+    ∃ shared' store',
+      EvmYul.Yul.State.mkOk
+        (EvmYul.Yul.State.initcall params values
+          (EvmYul.Yul.State.Ok shared store)) =
+        EvmYul.Yul.State.Ok shared' store' := by
+  simp [EvmYul.Yul.State.initcall, EvmYul.Yul.State.setStore,
+    EvmYul.Yul.State.multifill]
+  let emptyStore : EvmYul.Yul.VarStore := Inhabited.default
+  rcases state_foldr_insert_ok_exists (List.zip params values) shared
+      emptyStore with
+    ⟨shared', store', hFill⟩
+  exact ⟨shared', store', by rw [hFill]; rfl⟩
+
+theorem native_mappingSlot_call_preserves_lookup
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (fuel : Nat)
+    (values : List EvmYul.Literal)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (final : EvmYul.Yul.State)
+    (rets : List EvmYul.Literal)
+    (hLookup :
+      ((EvmYul.Yul.State.Ok shared store) : EvmYul.Yul.State)[name]! =
+        expected)
+    (hCall :
+      EvmYul.Yul.call fuel values (some "mappingSlot")
+          (some
+            { dispatcher := dispatcher
+              functions := ((∅ : NativeFunctionMap).insert
+                "mappingSlot" nativeMappingSlotFunctionDefinition) })
+          (EvmYul.Yul.State.Ok shared store) =
+        .ok (final, rets)) :
+    final[name]! = expected := by
+  apply
+    native_call_preserves_lookup_of_revivable_body name "mappingSlot"
+      expected fuel values
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) })
+      shared store final rets hLookup
+  · intro yulContract functionDef calleeState hFunction hExec
+    simp only [Option.getD_some] at hFunction
+    rw [Finmap.lookup_insert] at hFunction
+    injection hFunction with hDef
+    subst functionDef
+    exact
+      nativeMappingSlotFunctionDefinition_exec_revivable_of_ok_state
+        (fuel - 1)
+        (some
+          { dispatcher := dispatcher
+            functions := ((∅ : NativeFunctionMap).insert
+              "mappingSlot" nativeMappingSlotFunctionDefinition) })
+        (EvmYul.Yul.State.mkOk
+          (EvmYul.Yul.State.initcall nativeMappingSlotFunctionDefinition.params
+            values (EvmYul.Yul.State.Ok shared store)))
+        calleeState
+        (state_mkOk_initcall_ok_exists
+          nativeMappingSlotFunctionDefinition.params values shared store)
+        hExec
+  · exact hCall
+
+theorem native_mappingSlot_call_preserves_lookup_state
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (fuel : Nat)
+    (values : List EvmYul.Literal)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (state final : EvmYul.Yul.State)
+    (rets : List EvmYul.Literal)
+    (hLookup : state[name]! = expected)
+    (hCall :
+      EvmYul.Yul.call fuel values (some "mappingSlot")
+          (some
+            { dispatcher := dispatcher
+              functions := ((∅ : NativeFunctionMap).insert
+                "mappingSlot" nativeMappingSlotFunctionDefinition) })
+          state =
+        .ok (final, rets)) :
+    final[name]! = expected := by
+  cases state with
+  | Ok shared store =>
+      exact
+        native_mappingSlot_call_preserves_lookup name expected fuel values
+          dispatcher shared store final rets hLookup hCall
+  | OutOfFuel =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.call] at hCall
+      | succ fuel' =>
+          simp only [EvmYul.Yul.call] at hCall
+          cases hCode :
+              EvmYul.Yul.State.OutOfFuel.sharedState.accountMap.find?
+                EvmYul.Yul.State.OutOfFuel.executionEnv.codeOwner with
+          | none =>
+              simp [hCode] at hCall
+          | some yulContract =>
+              simp [hCode] at hCall
+              cases hExec :
+                  EvmYul.Yul.exec fuel'
+                    (.Block nativeMappingSlotFunctionDefinition.body)
+                    (some
+                      { dispatcher := dispatcher
+                        functions := ((∅ : NativeFunctionMap).insert
+                          "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                    (EvmYul.Yul.State.mkOk
+                      (EvmYul.Yul.State.initcall
+                        nativeMappingSlotFunctionDefinition.params values
+                        EvmYul.Yul.State.OutOfFuel)) with
+              | error err =>
+                  simp [hExec] at hCall
+              | ok calleeState =>
+                  simp [hExec, EvmYul.Yul.State.overwrite?,
+                    EvmYul.Yul.State.setStore] at hCall
+                  rcases hCall with ⟨rfl, _⟩
+                  exact hLookup
+  | Checkpoint jump =>
+      cases fuel with
+      | zero =>
+          simp [EvmYul.Yul.call] at hCall
+      | succ fuel' =>
+          simp only [EvmYul.Yul.call] at hCall
+          cases hCode :
+              (EvmYul.Yul.State.Checkpoint jump).sharedState.accountMap.find?
+                (EvmYul.Yul.State.Checkpoint jump).executionEnv.codeOwner with
+          | none =>
+              simp [hCode] at hCall
+          | some yulContract =>
+              simp [hCode] at hCall
+              cases hExec :
+                  EvmYul.Yul.exec fuel'
+                    (.Block nativeMappingSlotFunctionDefinition.body)
+                    (some
+                      { dispatcher := dispatcher
+                        functions := ((∅ : NativeFunctionMap).insert
+                          "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                    (EvmYul.Yul.State.mkOk
+                      (EvmYul.Yul.State.initcall
+                        nativeMappingSlotFunctionDefinition.params values
+                        (EvmYul.Yul.State.Checkpoint jump))) with
+              | error err =>
+                  simp [hExec] at hCall
+              | ok calleeState =>
+                  simp [hExec, EvmYul.Yul.State.overwrite?,
+                    EvmYul.Yul.State.setStore] at hCall
+                  rcases hCall with ⟨rfl, _⟩
+                  exact hLookup
+
+theorem NativeExprPreservesWord_lowerExprNative_mappingSlot_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse)
+        (some
+          { dispatcher := dispatcher
+            functions := ((∅ : NativeFunctionMap).insert
+              "mappingSlot" nativeMappingSlotFunctionDefinition) })) :
+    NativeExprPreservesWord name expected
+      (Backends.lowerExprNative (.call "mappingSlot" args))
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) :=
+  NativeExprPreservesWord_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
+    name "mappingSlot" expected args
+    (some
+      { dispatcher := dispatcher
+        functions := ((∅ : NativeFunctionMap).insert
+          "mappingSlot" nativeMappingSlotFunctionDefinition) })
+    (by rfl) hArgs
+    (by
+      intro fuel state values final rets hLookup hCall
+      exact
+        native_mappingSlot_call_preserves_lookup_state name expected fuel
+          values dispatcher state final rets hLookup hCall)
+
+theorem NativeExprPreservesWord_lowerExprNative_of_bridgedExpr_mappingContract
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (expr : YulExpr)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (hExpr : Compiler.Proofs.YulGeneration.Backends.BridgedExpr expr) :
+    NativeExprPreservesWord name expected
+      (Backends.lowerExprNative expr)
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  induction hExpr with
+  | lit n =>
+      exact NativeExprPreservesWord_lowerExprNative_lit name expected n _
+  | hex n =>
+      exact NativeExprPreservesWord_lowerExprNative_hex name expected n _
+  | str s =>
+      exact NativeExprPreservesWord_lowerExprNative_str name expected s _
+  | ident ident =>
+      exact NativeExprPreservesWord_lowerExprNative_ident name expected ident _
+  | call func args hName hArgs ih =>
+      have hNativeArgs :
+          NativeEvalArgsPreservesWord name expected
+            ((args.map Backends.lowerExprNative).reverse)
+            (some
+              { dispatcher := dispatcher
+                functions := ((∅ : NativeFunctionMap).insert
+                  "mappingSlot" nativeMappingSlotFunctionDefinition) }) :=
+        NativeEvalArgsPreservesWord_map_lowerExprNative_reverse
+          name expected args _ (by
+            intro arg hArg
+            exact ih arg hArg)
+      by_cases hMapping : func = "mappingSlot"
+      · subst func
+        exact
+          NativeExprPreservesWord_lowerExprNative_mappingSlot_of_nativeEvalArgs
+            name expected args dispatcher hNativeArgs
+      · cases hOp : Backends.lookupRuntimePrimOp func with
+        | some op =>
+            exact
+              NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+                name func expected args op _ hOp hNativeArgs
+                (NativePrimCallPreservesWord_of_allowed_lookupRuntimePrimOp
+                  name func expected op hName hOp)
+        | none =>
+            exfalso
+            unfold Backends.lookupRuntimePrimOp at hOp
+            split at hOp <;> simp at hOp
+            simp [Compiler.Proofs.YulGeneration.Backends.allowedExprCallName,
+              Compiler.Proofs.YulGeneration.Backends.bridgedBuiltins,
+              hMapping] at hName
+            tauto
+
+theorem NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg) :
+    NativeEvalArgsPreservesWord name expected
+      ((args.map Backends.lowerExprNative).reverse)
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) :=
+  NativeEvalArgsPreservesWord_map_lowerExprNative_reverse
+    name expected args
+    (some
+      { dispatcher := dispatcher
+        functions := ((∅ : NativeFunctionMap).insert
+          "mappingSlot" nativeMappingSlotFunctionDefinition) })
+    (by
+      intro arg hArg
+      exact
+        NativeExprPreservesWord_lowerExprNative_of_bridgedExpr_mappingContract
+          name expected arg dispatcher (hArgs arg hArg))
 
 theorem nativeSwitchDiscrTempName_ne_matchedTempName
     (switchId : Nat) :
@@ -6454,8 +11735,83 @@ theorem nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem
   | nil =>
       simp at hMem
   | cons head tail ih =>
-      simp [Backends.nativeStmtsWriteNames,
-        Backends.collectNativeStmtWriteNames] at hFresh hMem
+      simp [Backends.nativeStmtsWriteNames] at hFresh hMem
+      rcases hMem with hEq | hTail
+      · subst stmt
+        exact hFresh.1
+      · exact ih hFresh.2 hTail
+
+theorem nativeStmtWriteNames_let_singleton_not_mem_ne
+    (name target : EvmYul.Identifier)
+    (value : Option EvmYul.Yul.Ast.Expr)
+    (hFresh : name ∉ Backends.nativeStmtWriteNames (.Let [target] value)) :
+    name ≠ target := by
+  intro hEq
+  subst hEq
+  simp [Backends.nativeStmtWriteNames] at hFresh
+
+theorem nativeStmtWriteNames_let_not_mem_vars
+    (name : EvmYul.Identifier)
+    (vars : List EvmYul.Identifier)
+    (value : Option EvmYul.Yul.Ast.Expr)
+    (hFresh : name ∉ Backends.nativeStmtWriteNames (.Let vars value)) :
+    name ∉ vars := by
+  simpa [Backends.nativeStmtWriteNames] using hFresh
+
+theorem nativeStmtWriteNames_lowerAssignNative_not_mem_ne
+    (name target : EvmYul.Identifier)
+    (value : YulExpr)
+    (hFresh :
+      name ∉ Backends.nativeStmtWriteNames
+        (Backends.lowerAssignNative target value)) :
+    name ≠ target := by
+  intro hEq
+  subst hEq
+  simp [Backends.nativeStmtWriteNames, Backends.lowerAssignNative] at hFresh
+
+theorem collectYulStmtWriteNames_append
+    (writeStmt : YulStmt → List String)
+    (left right : List YulStmt) :
+    Backends.collectYulStmtWriteNames writeStmt (left ++ right) =
+      Backends.collectYulStmtWriteNames writeStmt left ++
+        Backends.collectYulStmtWriteNames writeStmt right := by
+  induction left with
+  | nil =>
+      simp [Backends.collectYulStmtWriteNames]
+  | cons head tail ih =>
+      simp [Backends.collectYulStmtWriteNames, ih, List.append_assoc]
+
+theorem yulStmtsWriteNames_append
+    (left right : List YulStmt) :
+    Backends.yulStmtsWriteNames (left ++ right) =
+      Backends.yulStmtsWriteNames left ++ Backends.yulStmtsWriteNames right := by
+  induction left with
+  | nil =>
+      simp [Backends.yulStmtsWriteNames]
+  | cons head tail ih =>
+      simp [Backends.yulStmtsWriteNames, ih, List.append_assoc]
+
+theorem yulStmtsWriteNames_cons
+    (stmt : YulStmt)
+    (rest : List YulStmt) :
+    Backends.yulStmtsWriteNames (stmt :: rest) =
+      Backends.yulStmtWriteNames stmt ++ Backends.yulStmtsWriteNames rest := by
+  simp [Backends.yulStmtsWriteNames]
+
+theorem yulStmtWriteNames_not_mem_of_yulStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier)
+    (body : List YulStmt)
+    (stmt : YulStmt)
+    (hFresh : name ∉ Backends.yulStmtsWriteNames body)
+    (hMem : stmt ∈ body) :
+    name ∉ Backends.yulStmtWriteNames stmt := by
+  induction body with
+  | nil =>
+      simp at hMem
+  | cons head tail ih =>
+      rw [yulStmtsWriteNames_cons] at hFresh
+      simp only [List.mem_append, not_or] at hFresh
+      simp only [List.mem_cons] at hMem
       rcases hMem with hEq | hTail
       · subst stmt
         exact hFresh.1
@@ -6477,14 +11833,18 @@ theorem nativeStmtsWriteNames_append
     (left right : List EvmYul.Yul.Ast.Stmt) :
     Backends.nativeStmtsWriteNames (left ++ right) =
       Backends.nativeStmtsWriteNames left ++ Backends.nativeStmtsWriteNames right := by
-  simp [Backends.nativeStmtsWriteNames, collectNativeStmtWriteNames_append]
+  induction left with
+  | nil =>
+      simp [Backends.nativeStmtsWriteNames]
+  | cons head tail ih =>
+      simp [Backends.nativeStmtsWriteNames, ih, List.append_assoc]
 
 theorem nativeStmtsWriteNames_cons
     (stmt : EvmYul.Yul.Ast.Stmt)
     (rest : List EvmYul.Yul.Ast.Stmt) :
     Backends.nativeStmtsWriteNames (stmt :: rest) =
       Backends.nativeStmtWriteNames stmt ++ Backends.nativeStmtsWriteNames rest := by
-  simp [Backends.nativeStmtsWriteNames, Backends.collectNativeStmtWriteNames]
+  simp [Backends.nativeStmtsWriteNames]
 
 theorem nativeStmtsWriteNames_cons_not_mem_iff
     (name : EvmYul.Identifier)
@@ -6840,6 +12200,248 @@ theorem NativeStmtPreservesWord_if_of_cond_preserves_and_nativeStmtsWriteNames_n
     (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
       name value body codeOverride hFresh hPreserves)
 
+theorem nativeSwitchBranchFold_ok_preserves_word
+    (name : EvmYul.Identifier)
+    (value cond : EvmYul.Literal)
+    (branches :
+      List (EvmYul.Literal × Except EvmYul.Yul.Exception EvmYul.Yul.State))
+    (defaultState final : EvmYul.Yul.State)
+    (hBranches :
+      ∀ tag branchState, (tag, .ok branchState) ∈ branches →
+        branchState[name]! = value)
+    (hDefault : defaultState[name]! = value)
+    (hFold :
+      List.foldr
+        (fun (valᵢ, sᵢ) s => if valᵢ = cond then sᵢ else s)
+        (.ok defaultState) branches = .ok final) :
+    final[name]! = value := by
+  induction branches with
+  | nil =>
+      simp at hFold
+      cases hFold
+      exact hDefault
+  | cons head tail ih =>
+      rcases head with ⟨tag, result⟩
+      by_cases hEq : tag = cond
+      · simp [hEq] at hFold
+        cases result with
+        | error err =>
+            simp at hFold
+        | ok branchState =>
+            have hBranch : branchState[name]! = value :=
+              hBranches tag branchState (by simp)
+            cases hFold
+            exact hBranch
+      · simp [hEq] at hFold
+        exact ih
+          (by
+            intro tag' branchState hMem
+            exact hBranches tag' branchState (by simp [hMem]))
+          hFold
+
+theorem execSwitchCases_ok_branch_preserves_word
+    (name : EvmYul.Identifier) (value : EvmYul.Literal)
+    (cases : List (EvmYul.Literal × List EvmYul.Yul.Ast.Stmt))
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCases : ∀ tag body, (tag, body) ∈ cases → NativeBlockPreservesWord name value body codeOverride) :
+    ∀ fuel state branches, state[name]! = value → EvmYul.Yul.execSwitchCases fuel codeOverride state cases = .ok branches →
+      ∀ tag branchState, (tag, .ok branchState) ∈ branches → branchState[name]! = value := by
+  induction cases with
+  | nil =>
+      intro fuel state branches _ hExec tag branchState hMem
+      simp [EvmYul.Yul.execSwitchCases] at hExec; subst branches; simp at hMem
+  | cons head tail ih =>
+      intro fuel state branches hLookup hExec tag branchState hMem
+      rcases head with ⟨headTag, headBody⟩
+      have hTailCases : ∀ tag' body', (tag', body') ∈ tail →
+          NativeBlockPreservesWord name value body' codeOverride := by
+        intro tag' body' hTailMem; exact hCases tag' body' (by simp [hTailMem])
+      cases fuel with
+      | zero => simp [EvmYul.Yul.execSwitchCases] at hExec
+      | succ fuel' =>
+          cases hHead :
+              EvmYul.Yul.exec fuel' (.Block headBody) codeOverride state with
+          | error err =>
+              cases err <;>
+                cases hTail :
+                    EvmYul.Yul.execSwitchCases fuel' codeOverride state tail with
+                | error tailErr =>
+                    simp [EvmYul.Yul.execSwitchCases, hHead, hTail] at hExec
+                | ok tailBranches =>
+                    simp [EvmYul.Yul.execSwitchCases, hHead, hTail] at hExec
+                    subst branches
+                    simp at hMem
+                    exact ih hTailCases fuel' state tailBranches hLookup hTail
+                      tag branchState hMem
+          | ok headState =>
+              cases hTail :
+                  EvmYul.Yul.execSwitchCases fuel' codeOverride state tail with
+              | error tailErr =>
+                  simp [EvmYul.Yul.execSwitchCases, hHead, hTail] at hExec
+              | ok tailBranches =>
+                  simp [EvmYul.Yul.execSwitchCases, hHead, hTail] at hExec
+                  subst branches
+                  simp at hMem
+                  rcases hMem with hMem | hMem
+                  · rcases hMem with ⟨rfl, rfl⟩
+                    exact hCases tag headBody (by simp)
+                      fuel' state branchState hLookup hHead
+                  · exact ih hTailCases fuel' state tailBranches hLookup hTail
+                      tag branchState hMem
+
+theorem NativeStmtPreservesWord_switch_of_eval_preserves
+    (name : EvmYul.Identifier) (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (cases : List (EvmYul.Literal × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond :
+      ∀ fuel state,
+        state[name]! = value →
+          ∃ condState condValue,
+            EvmYul.Yul.eval fuel cond codeOverride state =
+              .ok (condState, condValue) ∧
+            condState[name]! = value)
+    (hCases : ∀ tag body, (tag, body) ∈ cases →
+      NativeBlockPreservesWord name value body codeOverride)
+    (hDefault :
+      NativeBlockPreservesWord name value defaultBody codeOverride) :
+    NativeStmtPreservesWord name value (.Switch cond cases defaultBody)
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      rcases hCond fuel' state hLookup with
+        ⟨condState, condValue, hEval, hCondLookup⟩
+      simp [EvmYul.Yul.exec, hEval] at hExec
+      cases hSwitch :
+          EvmYul.Yul.execSwitchCases fuel' codeOverride condState cases with
+      | error err =>
+          simp [hSwitch] at hExec
+      | ok branches =>
+          cases hDefaultExec :
+              EvmYul.Yul.exec fuel' (.Block defaultBody) codeOverride
+                condState with
+          | error err =>
+              simp [hSwitch, hDefaultExec] at hExec
+          | ok defaultState =>
+              simp [hSwitch, hDefaultExec] at hExec
+              exact nativeSwitchBranchFold_ok_preserves_word name value
+                condValue branches defaultState final
+                (execSwitchCases_ok_branch_preserves_word name value cases
+                  codeOverride hCases fuel' condState branches hCondLookup
+                  hSwitch)
+                (hDefault fuel' condState defaultState hCondLookup
+                  hDefaultExec)
+                hExec
+
+theorem NativeStmtPreservesWord_switch_of_cond_preserves
+    (name : EvmYul.Identifier) (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (cases : List (EvmYul.Literal × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond : NativeExprPreservesWord name value cond codeOverride)
+    (hCases : ∀ tag body, (tag, body) ∈ cases →
+      NativeBlockPreservesWord name value body codeOverride)
+    (hDefault :
+      NativeBlockPreservesWord name value defaultBody codeOverride) :
+    NativeStmtPreservesWord name value (.Switch cond cases defaultBody)
+      codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [EvmYul.Yul.exec] at hExec
+      cases hEval : EvmYul.Yul.eval fuel' cond codeOverride state with
+      | error err =>
+          simp [hEval] at hExec
+      | ok condResult =>
+          rcases condResult with ⟨condState, condValue⟩
+          have hCondLookup : condState[name]! = value :=
+            hCond fuel' state condState condValue hLookup hEval
+          cases hSwitch :
+              EvmYul.Yul.execSwitchCases fuel' codeOverride condState cases with
+          | error err =>
+              simp [hEval, hSwitch] at hExec
+          | ok branches =>
+              cases hDefaultExec :
+                  EvmYul.Yul.exec fuel' (.Block defaultBody) codeOverride
+                    condState with
+              | error err =>
+                  simp [hEval, hSwitch, hDefaultExec] at hExec
+              | ok defaultState =>
+                  simp [hEval, hSwitch, hDefaultExec] at hExec
+                  exact nativeSwitchBranchFold_ok_preserves_word name value
+                    condValue branches defaultState final
+                    (execSwitchCases_ok_branch_preserves_word name value cases
+                      codeOverride hCases fuel' condState branches hCondLookup
+                      hSwitch)
+                    (hDefault fuel' condState defaultState hCondLookup
+                      hDefaultExec)
+                    hExec
+
+theorem NativeStmtPreservesWord_switch_of_cond_preserves_and_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier) (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (cases : List (EvmYul.Literal × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond : NativeExprPreservesWord name value cond codeOverride)
+    (hCasesFresh : ∀ tag body, (tag, body) ∈ cases →
+      name ∉ Backends.nativeStmtsWriteNames body)
+    (hDefaultFresh : name ∉ Backends.nativeStmtsWriteNames defaultBody)
+    (hPreserves :
+      ∀ stmt, name ∉ Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeStmtPreservesWord name value (.Switch cond cases defaultBody)
+      codeOverride :=
+  NativeStmtPreservesWord_switch_of_cond_preserves name value cond cases
+    defaultBody codeOverride hCond
+    (by
+      intro tag body hMem
+      exact NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+        name value body codeOverride (hCasesFresh tag body hMem)
+        (by intro stmt _ hFresh; exact hPreserves stmt hFresh))
+    (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+      name value defaultBody codeOverride hDefaultFresh
+      (by intro stmt _ hFresh; exact hPreserves stmt hFresh))
+
+theorem NativeStmtPreservesWord_switch_of_eval_preserves_and_nativeStmtsWriteNames_not_mem
+    (name : EvmYul.Identifier) (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (cases : List (EvmYul.Literal × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCond :
+      ∀ fuel state,
+        state[name]! = value →
+          ∃ condState condValue,
+            EvmYul.Yul.eval fuel cond codeOverride state =
+              .ok (condState, condValue) ∧
+            condState[name]! = value)
+    (hCasesFresh : ∀ tag body, (tag, body) ∈ cases →
+      name ∉ Backends.nativeStmtsWriteNames body)
+    (hDefaultFresh : name ∉ Backends.nativeStmtsWriteNames defaultBody)
+    (hPreserves :
+      ∀ stmt, name ∉ Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord name value stmt codeOverride) :
+    NativeStmtPreservesWord name value (.Switch cond cases defaultBody)
+      codeOverride :=
+  NativeStmtPreservesWord_switch_of_eval_preserves name value cond cases
+    defaultBody codeOverride hCond
+    (by
+      intro tag body hMem
+      exact NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+        name value body codeOverride (hCasesFresh tag body hMem)
+        (by intro stmt _ hFresh; exact hPreserves stmt hFresh))
+    (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+      name value defaultBody codeOverride hDefaultFresh
+      (by intro stmt _ hFresh; exact hPreserves stmt hFresh))
+
 theorem NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
     (name target : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7133,6 +12735,42 @@ theorem NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves
                   rw [state_getElem_multifill_of_not_mem callState name vars rets hnot]
                   exact hCallLookup
 
+theorem NativeStmtPreservesWord_let_prim_of_nativeEvalArgs_primCall_preserves
+    (name : EvmYul.Identifier) (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier) (prim : EvmYul.Yul.Ast.PrimOp)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hnot : name ∉ vars)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hPrim :
+      ∀ fuel state values primState rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state prim values = .ok (primState, rets) →
+          primState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (.Call (Sum.inl prim) args))) codeOverride :=
+  NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves
+    name expected vars prim args codeOverride hnot hArgs hPrim
+
+theorem NativeStmtPreservesWord_let_user_of_nativeEvalArgs_call_preserves
+    (name : EvmYul.Identifier) (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (functionName : EvmYul.Yul.Ast.YulFunctionName)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hnot : name ∉ vars)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hCall :
+      ∀ fuel state values callState rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some functionName) codeOverride state =
+            .ok (callState, rets) →
+          callState[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (.Call (Sum.inr functionName) args))) codeOverride :=
+  NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves
+    name expected vars functionName args codeOverride hnot hArgs hCall
+
 theorem NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
     (name func : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7237,6 +12875,39 @@ theorem NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_nativeE
   NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
     name func expected vars args codeOverride hnot hOp hArgs hCall
 
+theorem NativeStmtPreservesWord_let_lowerExprNative_mappingSlot_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (args : List YulExpr)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (hnot : name ∉ vars)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse)
+        (some
+          { dispatcher := dispatcher
+            functions := ((∅ : NativeFunctionMap).insert
+              "mappingSlot" nativeMappingSlotFunctionDefinition) })) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative (.call "mappingSlot" args))))
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) :=
+  NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
+    name "mappingSlot" expected vars args
+    (some
+      { dispatcher := dispatcher
+        functions := ((∅ : NativeFunctionMap).insert
+          "mappingSlot" nativeMappingSlotFunctionDefinition) })
+    hnot (by rfl) hArgs
+    (by
+      intro fuel state values callState rets hLookup hCall
+      exact
+        native_mappingSlot_call_preserves_lookup_state name expected fuel
+          values dispatcher state callState rets hLookup hCall)
+
 theorem NativeStmtPreservesWord_lowerAssignNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
     (name target func : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7335,6 +13006,380 @@ theorem NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_nativeEva
   NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_evalArgs_call_preserves
     name target func expected args codeOverride hne hOp hArgs hCall
 
+theorem NativeStmtPreservesWord_lowerAssignNative_mappingSlot_of_nativeEvalArgs
+    (name target : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (hne : name ≠ target)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse)
+        (some
+          { dispatcher := dispatcher
+            functions := ((∅ : NativeFunctionMap).insert
+              "mappingSlot" nativeMappingSlotFunctionDefinition) })) :
+    NativeStmtPreservesWord name expected
+      (Backends.lowerAssignNative target (.call "mappingSlot" args))
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) :=
+  NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_nativeEvalArgs_call_preserves
+    name target "mappingSlot" expected args
+    (some
+      { dispatcher := dispatcher
+        functions := ((∅ : NativeFunctionMap).insert
+          "mappingSlot" nativeMappingSlotFunctionDefinition) })
+    hne (by rfl) hArgs
+    (by
+      intro fuel state values callState rets hLookup hCall
+      exact
+        native_mappingSlot_call_preserves_lookup_state name expected fuel
+          values dispatcher state callState rets hLookup hCall)
+
+theorem NativeStmtPreservesWord_let_lowerExprNative_of_bridgedExpr_mappingContract
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (target : EvmYul.Identifier)
+    (value : YulExpr)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (hne : name ≠ target)
+    (hValue : Compiler.Proofs.YulGeneration.Backends.BridgedExpr value) :
+    NativeStmtPreservesWord name expected
+      (.Let [target] (some (Backends.lowerExprNative value)))
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  cases value with
+  | lit n =>
+      exact
+        NativeStmtPreservesWord_let_lowerExprNative_lit_of_not_mem
+          name expected [target] n _ (by simp) (by simpa using hne)
+  | hex n =>
+      exact
+        NativeStmtPreservesWord_let_lowerExprNative_hex_of_not_mem
+          name expected [target] n _ (by simp) (by simpa using hne)
+  | str s =>
+      exact
+        NativeStmtPreservesWord_let_lowerExprNative_str_of_not_mem
+          name expected [target] s _ (by simp) (by simpa using hne)
+  | ident ident =>
+      exact
+        NativeStmtPreservesWord_let_lowerExprNative_ident_of_not_mem
+          name expected [target] ident _ (by simp) (by simpa using hne)
+  | call func args =>
+      cases hValue with
+      | call _ _ hName hArgs =>
+          have hNativeArgs :
+              NativeEvalArgsPreservesWord name expected
+                ((args.map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) }) :=
+            NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+              name expected args dispatcher hArgs
+          by_cases hMapping : func = "mappingSlot"
+          · subst func
+            exact
+              NativeStmtPreservesWord_let_lowerExprNative_mappingSlot_of_nativeEvalArgs
+                name expected [target] args dispatcher (by simp [hne])
+                hNativeArgs
+          · cases hOp : Backends.lookupRuntimePrimOp func with
+            | some op =>
+                exact
+                  NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+                    name func expected [target] args op _ (by simp [hne]) hOp
+                    hNativeArgs
+                    (NativePrimCallPreservesWord_of_allowed_lookupRuntimePrimOp
+                      name func expected op hName hOp)
+            | none =>
+                exfalso
+                unfold Backends.lookupRuntimePrimOp at hOp
+                split at hOp <;> simp at hOp
+                simp [Compiler.Proofs.YulGeneration.Backends.allowedExprCallName,
+                  Compiler.Proofs.YulGeneration.Backends.bridgedBuiltins,
+                  hMapping] at hName
+                tauto
+
+theorem NativeStmtPreservesWord_letMany_lowerExprNative_of_bridgedExpr_mappingContract
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (vars : List EvmYul.Identifier)
+    (value : YulExpr)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (hvars : vars ≠ [])
+    (hnot : name ∉ vars)
+    (hValue : Compiler.Proofs.YulGeneration.Backends.BridgedExpr value) :
+    NativeStmtPreservesWord name expected
+      (.Let vars (some (Backends.lowerExprNative value)))
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  cases value with
+  | lit n =>
+      exact
+        NativeStmtPreservesWord_let_lowerExprNative_lit_of_not_mem
+          name expected vars n _ hvars hnot
+  | hex n =>
+      exact
+        NativeStmtPreservesWord_let_lowerExprNative_hex_of_not_mem
+          name expected vars n _ hvars hnot
+  | str s =>
+      exact
+        NativeStmtPreservesWord_let_lowerExprNative_str_of_not_mem
+          name expected vars s _ hvars hnot
+  | ident ident =>
+      exact
+        NativeStmtPreservesWord_let_lowerExprNative_ident_of_not_mem
+          name expected vars ident _ hvars hnot
+  | call func args =>
+      cases hValue with
+      | call _ _ hName hArgs =>
+          have hNativeArgs :
+              NativeEvalArgsPreservesWord name expected
+                ((args.map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) }) :=
+            NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+              name expected args dispatcher hArgs
+          by_cases hMapping : func = "mappingSlot"
+          · subst func
+            exact
+              NativeStmtPreservesWord_let_lowerExprNative_mappingSlot_of_nativeEvalArgs
+                name expected vars args dispatcher hnot hNativeArgs
+          · cases hOp : Backends.lookupRuntimePrimOp func with
+            | some op =>
+                exact
+                  NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+                    name func expected vars args op _ hnot hOp
+                    hNativeArgs
+                    (NativePrimCallPreservesWord_of_allowed_lookupRuntimePrimOp
+                      name func expected op hName hOp)
+            | none =>
+                exfalso
+                unfold Backends.lookupRuntimePrimOp at hOp
+                split at hOp <;> simp at hOp
+                simp [Compiler.Proofs.YulGeneration.Backends.allowedExprCallName,
+                  Compiler.Proofs.YulGeneration.Backends.bridgedBuiltins,
+                  hMapping] at hName
+                tauto
+
+theorem NativeStmtPreservesWord_lowerAssignNative_of_bridgedExpr_mappingContract
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (target : EvmYul.Identifier)
+    (value : YulExpr)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (hne : name ≠ target)
+    (hValue : Compiler.Proofs.YulGeneration.Backends.BridgedExpr value) :
+    NativeStmtPreservesWord name expected
+      (Backends.lowerAssignNative target value)
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  simpa [Backends.lowerAssignNative] using
+    NativeStmtPreservesWord_let_lowerExprNative_of_bridgedExpr_mappingContract
+      name expected target value dispatcher hne hValue
+
+theorem NativeStmtPreservesWord_empty_block
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeStmtPreservesWord name expected (.Block []) codeOverride :=
+  NativeStmtPreservesWord_block name expected [] codeOverride
+    (NativeBlockPreservesWord_nil name expected codeOverride)
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_comment
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (text : String)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.comment text) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_comment] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact NativeStmtPreservesWord_empty_block name expected _
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (target : EvmYul.Identifier)
+    (value : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hValue : Compiler.Proofs.YulGeneration.Backends.BridgedExpr value)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.let_ target value) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hne : name ≠ target) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_let] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_let_lowerExprNative_of_bridgedExpr_mappingContract
+      name expected target value dispatcher hne hValue
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let_of_write_not_mem
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (target : EvmYul.Identifier)
+    (value : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hValue : Compiler.Proofs.YulGeneration.Backends.BridgedExpr value)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.let_ target value) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hFresh : name ∉ Backends.nativeStmtWriteNames nativeStmt) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_let] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  refine
+    NativeStmtPreservesWord_let_lowerExprNative_of_bridgedExpr_mappingContract
+      name expected target value dispatcher
+      (nativeStmtWriteNames_let_singleton_not_mem_ne name target
+        (some (Backends.lowerExprNative value)) hFresh)
+      hValue
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_letMany_of_write_not_mem
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (targets : List EvmYul.Identifier)
+    (value : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hTargets : targets ≠ [])
+    (hValue : Compiler.Proofs.YulGeneration.Backends.BridgedExpr value)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.letMany targets value) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hFresh : name ∉ Backends.nativeStmtWriteNames nativeStmt) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_letMany] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_letMany_lowerExprNative_of_bridgedExpr_mappingContract
+      name expected targets value dispatcher hTargets
+      (nativeStmtWriteNames_let_not_mem_vars name targets
+        (some (Backends.lowerExprNative value)) hFresh)
+      hValue
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_assign
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (target : EvmYul.Identifier)
+    (value : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hValue : Compiler.Proofs.YulGeneration.Backends.BridgedExpr value)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.assign target value) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hne : name ≠ target) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_assign] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_lowerAssignNative_of_bridgedExpr_mappingContract
+      name expected target value dispatcher hne hValue
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_assign_of_write_not_mem
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (target : EvmYul.Identifier)
+    (value : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hValue : Compiler.Proofs.YulGeneration.Backends.BridgedExpr value)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.assign target value) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hFresh : name ∉ Backends.nativeStmtWriteNames nativeStmt) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_assign] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  refine
+    NativeStmtPreservesWord_lowerAssignNative_of_bridgedExpr_mappingContract
+      name expected target value dispatcher
+      (nativeStmtWriteNames_lowerAssignNative_not_mem_ne name target value hFresh)
+      hValue
+
 theorem NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7427,6 +13472,41 @@ theorem NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves
                     hCall callFuel argState values.reverse callState rets
                       hArgLookup hUserCall
                   cases callState <;> simpa using hCallLookup
+
+theorem NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (prim : EvmYul.Yul.Ast.PrimOp)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hPrim :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.primCall fuel state prim values = .ok (final, rets) →
+          final[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl prim) args)) codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves
+    name expected prim args codeOverride hArgs hPrim
+
+theorem NativeStmtPreservesWord_exprStmtCall_user_of_nativeEvalArgs_call_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (functionName : EvmYul.Yul.Ast.YulFunctionName)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hCall :
+      ∀ fuel state values final rets,
+        state[name]! = expected →
+          EvmYul.Yul.call fuel values (some functionName) codeOverride state =
+            .ok (final, rets) →
+          final[name]! = expected) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inr functionName) args)) codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves
+    name expected functionName args codeOverride hArgs hCall
 
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
     (name func : EvmYul.Identifier)
@@ -7524,6 +13604,95 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_o
   NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
     name func expected args codeOverride hOp hArgs hCall
 
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mappingSlot_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse)
+        (some
+          { dispatcher := dispatcher
+            functions := ((∅ : NativeFunctionMap).insert
+              "mappingSlot" nativeMappingSlotFunctionDefinition) })) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "mappingSlot" args)))
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
+    name "mappingSlot" expected args
+    (some
+      { dispatcher := dispatcher
+        functions := ((∅ : NativeFunctionMap).insert
+          "mappingSlot" nativeMappingSlotFunctionDefinition) })
+    (by rfl) hArgs
+    (by
+      intro fuel state values final rets hLookup hCall
+      exact
+        native_mappingSlot_call_preserves_lookup_state name expected fuel
+          values dispatcher state final rets hLookup hCall)
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_call_of_bridgedExpr_mappingContract
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (func : EvmYul.Identifier)
+    (args : List YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hName : Compiler.Proofs.YulGeneration.Backends.allowedExprCallName func)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call func args)) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  have hNativeArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse)
+        (some
+          { dispatcher := dispatcher
+            functions := ((∅ : NativeFunctionMap).insert
+              "mappingSlot" nativeMappingSlotFunctionDefinition) }) :=
+    NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+      name expected args dispatcher hArgs
+  by_cases hMapping : func = "mappingSlot"
+  · subst func
+    exact
+      NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mappingSlot_of_nativeEvalArgs
+        name expected args dispatcher hNativeArgs
+  · cases hOp : Backends.lookupRuntimePrimOp func with
+    | some op =>
+        exact
+          NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+            name func expected args op _ hOp hNativeArgs
+            (NativePrimCallPreservesWord_of_allowed_lookupRuntimePrimOp
+              name func expected op hName hOp)
+    | none =>
+        exfalso
+        unfold Backends.lookupRuntimePrimOp at hOp
+        split at hOp <;> simp at hOp
+        simp [Compiler.Proofs.YulGeneration.Backends.allowedExprCallName,
+          Compiler.Proofs.YulGeneration.Backends.bridgedBuiltins,
+          hMapping] at hName
+        tauto
+
 theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7564,6 +13733,43 @@ theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
               cases jump <;>
                 simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [value, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.MSTORE) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, value, hEval⟩
+      exact ⟨argState, offset, value, hEval,
+        hArgs fuel state argState [value, offset] hLookup hEval⟩)
+
+theorem NativeStmtPreservesWord_exprStmtCall_mstore_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.MSTORE) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.MSTORE args codeOverride hArgs
+    (NativePrimCallPreservesWord_mstore_values name expected)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7583,6 +13789,49 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_
   rw [Backends.lowerExprNative_call_runtimePrimOp "mstore" args
     EvmYul.Operation.MSTORE (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "mstore" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, value, hEval⟩
+      exact ⟨argState, offset, value, hEval,
+        hArgs fuel state argState [value, offset] hLookup hEval⟩)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "mstore" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "mstore" args
+    EvmYul.Operation.MSTORE (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_mstore_of_nativeEvalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
 theorem NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
@@ -7625,6 +13874,43 @@ theorem NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
               cases jump <;>
                 simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_mstore8_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [value, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.MSTORE8) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, value, hEval⟩
+      exact ⟨argState, offset, value, hEval,
+        hArgs fuel state argState [value, offset] hLookup hEval⟩)
+
+theorem NativeStmtPreservesWord_exprStmtCall_mstore8_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.MSTORE8) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.MSTORE8 args codeOverride hArgs
+    (NativePrimCallPreservesWord_mstore8_values name expected)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7644,6 +13930,49 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_evalArgs
   rw [Backends.lowerExprNative_call_runtimePrimOp "mstore8" args
     EvmYul.Operation.MSTORE8 (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "mstore8" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, value, hEval⟩
+      exact ⟨argState, offset, value, hEval,
+        hArgs fuel state argState [value, offset] hLookup hEval⟩)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "mstore8" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "mstore8" args
+    EvmYul.Operation.MSTORE8 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_mstore8_of_nativeEvalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
 theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
@@ -7690,6 +14019,43 @@ theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [value, slot])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.SSTORE) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, slot, value, hEval⟩
+      exact ⟨argState, slot, value, hEval,
+        hArgs fuel state argState [value, slot] hLookup hEval⟩)
+
+theorem NativeStmtPreservesWord_exprStmtCall_sstore_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.SSTORE) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.SSTORE args codeOverride hArgs
+    (NativePrimCallPreservesWord_sstore_values name expected)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7709,6 +14075,49 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_
   rw [Backends.lowerExprNative_call_runtimePrimOp "sstore" args
     EvmYul.Operation.SSTORE (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, slot])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "sstore" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, slot, value, hEval⟩
+      exact ⟨argState, slot, value, hEval,
+        hArgs fuel state argState [value, slot] hLookup hEval⟩)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "sstore" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "sstore" args
+    EvmYul.Operation.SSTORE (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_sstore_of_nativeEvalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
 theorem NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
@@ -7755,6 +14164,43 @@ theorem NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_tstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [value, slot])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.TSTORE) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, slot, value, hEval⟩
+      exact ⟨argState, slot, value, hEval,
+        hArgs fuel state argState [value, slot] hLookup hEval⟩)
+
+theorem NativeStmtPreservesWord_exprStmtCall_tstore_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.TSTORE) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.TSTORE args codeOverride hArgs
+    (NativePrimCallPreservesWord_tstore_values name expected)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7774,6 +14220,49 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_evalArgs_
   rw [Backends.lowerExprNative_call_runtimePrimOp "tstore" args
     EvmYul.Operation.TSTORE (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [value, slot])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "tstore" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, slot, value, hEval⟩
+      exact ⟨argState, slot, value, hEval,
+        hArgs fuel state argState [value, slot] hLookup hEval⟩)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "tstore" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "tstore" args
+    EvmYul.Operation.TSTORE (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_tstore_of_nativeEvalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
 theorem NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
@@ -7816,6 +14305,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
               cases jump <;>
                 simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart datastart size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, datastart, mstart])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.CALLDATACOPY) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, mstart, datastart, size, hEval⟩
+      exact ⟨argState, mstart, datastart, size, hEval,
+        hArgs fuel state argState [size, datastart, mstart] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7836,6 +14349,33 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_eva
     EvmYul.Operation.CALLDATACOPY (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart datastart size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, datastart, mstart])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "calldatacopy" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, mstart, datastart, size, hEval⟩
+      exact ⟨argState, mstart, datastart, size, hEval,
+        hArgs fuel state argState [size, datastart, mstart] hLookup hEval⟩)
 
 theorem NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves
     (name : EvmYul.Identifier)
@@ -7877,6 +14417,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserve
               cases jump <;>
                 simpa [EvmYul.Yul.State.setMachineState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart rstart size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, rstart, mstart])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.RETURNDATACOPY) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, mstart, rstart, size, hEval⟩
+      exact ⟨argState, mstart, rstart, size, hEval,
+        hArgs fuel state argState [size, rstart, mstart] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7896,6 +14460,91 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_e
   rw [Backends.lowerExprNative_call_runtimePrimOp "returndatacopy" args
     EvmYul.Operation.RETURNDATACOPY (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart rstart size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, rstart, mstart])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "returndatacopy" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, mstart, rstart, size, hEval⟩
+      exact ⟨argState, mstart, rstart, size, hEval,
+        hArgs fuel state argState [size, rstart, mstart] hLookup hEval⟩)
+
+theorem NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.CALLDATACOPY) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.CALLDATACOPY args codeOverride hArgs
+    (NativePrimCallPreservesWord_calldatacopy_values name expected)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "calldatacopy" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "calldatacopy" args
+    EvmYul.Operation.CALLDATACOPY (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_nativeEvalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.RETURNDATACOPY) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.RETURNDATACOPY args codeOverride hArgs
+    (NativePrimCallPreservesWord_returndatacopy_values name expected)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "returndatacopy" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "returndatacopy" args
+    EvmYul.Operation.RETURNDATACOPY (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_nativeEvalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
 theorem NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
@@ -7942,6 +14591,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_log0_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG0) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, hEval⟩
+      exact ⟨argState, offset, size, hEval,
+        hArgs fuel state argState [size, offset] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -7962,6 +14635,33 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_evalArgs_pr
     EvmYul.Operation.LOG0 (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log0" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, hEval⟩
+      exact ⟨argState, offset, size, hEval,
+        hArgs fuel state argState [size, offset] hLookup hEval⟩)
 
 theorem NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
     (name : EvmYul.Identifier)
@@ -8007,6 +14707,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_log1_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic0, size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG1) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, topic0, hEval⟩
+      exact ⟨argState, offset, size, topic0, hEval,
+        hArgs fuel state argState [topic0, size, offset] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -8027,6 +14751,33 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_evalArgs_pr
     EvmYul.Operation.LOG1 (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [topic0, size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log1" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, topic0, hEval⟩
+      exact ⟨argState, offset, size, topic0, hEval,
+        hArgs fuel state argState [topic0, size, offset] hLookup hEval⟩)
 
 theorem NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
     (name : EvmYul.Identifier)
@@ -8072,6 +14823,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_log2_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic1, topic0, size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG2) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, topic0, topic1, hEval⟩
+      exact ⟨argState, offset, size, topic0, topic1, hEval,
+        hArgs fuel state argState [topic1, topic0, size, offset] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -8092,6 +14867,33 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_evalArgs_pr
     EvmYul.Operation.LOG2 (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [topic1, topic0, size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log2" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, topic0, topic1, hEval⟩
+      exact ⟨argState, offset, size, topic0, topic1, hEval,
+        hArgs fuel state argState [topic1, topic0, size, offset] hLookup hEval⟩)
 
 theorem NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
     (name : EvmYul.Identifier)
@@ -8137,6 +14939,31 @@ theorem NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_log3_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic2, topic1, topic0, size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG3) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, topic0, topic1, topic2, hEval⟩
+      exact ⟨argState, offset, size, topic0, topic1, topic2, hEval,
+        hArgs fuel state argState [topic2, topic1, topic0, size, offset]
+          hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -8157,6 +14984,34 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_evalArgs_pr
     EvmYul.Operation.LOG3 (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [topic2, topic1, topic0, size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log3" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, topic0, topic1, topic2, hEval⟩
+      exact ⟨argState, offset, size, topic0, topic1, topic2, hEval,
+        hArgs fuel state argState [topic2, topic1, topic0, size, offset]
+          hLookup hEval⟩)
 
 theorem NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
     (name : EvmYul.Identifier)
@@ -8202,6 +15057,31 @@ theorem NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
                 cases jump <;>
                   simpa [EvmYul.Yul.State.setSharedState] using hArgLookup
 
+theorem NativeStmtPreservesWord_exprStmtCall_log4_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2 topic3,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [topic3, topic2, topic1, topic0, size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG4) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, topic0, topic1, topic2, topic3, hEval⟩
+      exact ⟨argState, offset, size, topic0, topic1, topic2, topic3, hEval,
+        hArgs fuel state argState
+          [topic3, topic2, topic1, topic0, size, offset] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -8221,6 +15101,179 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_evalArgs_pr
   rw [Backends.lowerExprNative_call_runtimePrimOp "log4" args
     EvmYul.Operation.LOG4 (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2 topic3,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [topic3, topic2, topic1, topic0, size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log4" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, topic0, topic1, topic2, topic3, hEval⟩
+      exact ⟨argState, offset, size, topic0, topic1, topic2, topic3, hEval,
+        hArgs fuel state argState
+          [topic3, topic2, topic1, topic0, size, offset] hLookup hEval⟩)
+
+theorem NativeStmtPreservesWord_exprStmtCall_log0_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG0) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.LOG0 args codeOverride hArgs
+    (NativePrimCallPreservesWord_log0_values name expected)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log0" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log0" args
+    EvmYul.Operation.LOG0 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log0_of_nativeEvalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log1_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG1) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.LOG1 args codeOverride hArgs
+    (NativePrimCallPreservesWord_log1_values name expected)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log1" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log1" args
+    EvmYul.Operation.LOG1 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log1_of_nativeEvalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log2_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG2) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.LOG2 args codeOverride hArgs
+    (NativePrimCallPreservesWord_log2_values name expected)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log2" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log2" args
+    EvmYul.Operation.LOG2 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log2_of_nativeEvalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log3_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG3) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.LOG3 args codeOverride hArgs
+    (NativePrimCallPreservesWord_log3_values name expected)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log3" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log3" args
+    EvmYul.Operation.LOG3 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log3_of_nativeEvalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_log4_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.LOG4) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.LOG4 args codeOverride hArgs
+    (NativePrimCallPreservesWord_log4_values name expected)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "log4" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "log4" args
+    EvmYul.Operation.LOG4 (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_log4_of_nativeEvalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
 theorem NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
@@ -8261,6 +15314,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
               rcases ret with ⟨returnState, value⟩
               simp [hReturn] at hExec
 
+theorem NativeStmtPreservesWord_exprStmtCall_return_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.RETURN) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, hEval⟩
+      exact ⟨argState, offset, size, hEval,
+        hArgs fuel state argState [size, offset] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -8280,6 +15357,62 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_evalArgs_
   rw [Backends.lowerExprNative_call_runtimePrimOp "return" args
     EvmYul.Operation.RETURN (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "return" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, hEval⟩
+      exact ⟨argState, offset, size, hEval,
+        hArgs fuel state argState [size, offset] hLookup hEval⟩)
+
+theorem NativeStmtPreservesWord_exprStmtCall_return_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.RETURN) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.RETURN args codeOverride hArgs
+    (NativePrimCallPreservesWord_return_values name expected)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "return" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "return" args
+    EvmYul.Operation.RETURN (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_return_of_nativeEvalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
 theorem NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
@@ -8320,6 +15453,30 @@ theorem NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
               rcases ret with ⟨revertState, value⟩
               simp [hRevert] at hExec
 
+theorem NativeStmtPreservesWord_exprStmtCall_revert_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel args.reverse codeOverride state =
+              .ok (argState, [size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.REVERT) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, hEval⟩
+      exact ⟨argState, offset, size, hEval,
+        hArgs fuel state argState [size, offset] hLookup hEval⟩)
+
 theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_evalArgs_preserves
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
@@ -8339,6 +15496,62 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_evalArgs_
   rw [Backends.lowerExprNative_call_runtimePrimOp "revert" args
     EvmYul.Operation.REVERT (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
+    name expected (args.map Backends.lowerExprNative) codeOverride hArgs
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_nativeEvalArgs_and_evalArgs_shape_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse) codeOverride state =
+              .ok (argState, [size, offset])) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "revert" args)))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_evalArgs_preserves
+    name expected args codeOverride
+    (by
+      intro fuel state hLookup
+      rcases hShape fuel state hLookup with
+        ⟨argState, offset, size, hEval⟩
+      exact ⟨argState, offset, size, hEval,
+        hArgs fuel state argState [size, offset] hLookup hEval⟩)
+
+theorem NativeStmtPreservesWord_exprStmtCall_revert_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List EvmYul.Yul.Ast.Expr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs : NativeEvalArgsPreservesWord name expected args.reverse codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (.Call (Sum.inl EvmYul.Operation.REVERT) args))
+      codeOverride :=
+  NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+    name expected EvmYul.Operation.REVERT args codeOverride hArgs
+    (NativePrimCallPreservesWord_revert_values name expected)
+
+theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_nativeEvalArgs_preserves
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (args : List YulExpr)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hArgs :
+      NativeEvalArgsPreservesWord name expected
+        ((args.map Backends.lowerExprNative).reverse) codeOverride) :
+    NativeStmtPreservesWord name expected
+      (.ExprStmtCall (Backends.lowerExprNative (.call "revert" args)))
+      codeOverride := by
+  rw [Backends.lowerExprNative_call_runtimePrimOp "revert" args
+    EvmYul.Operation.REVERT (by rfl)]
+  exact NativeStmtPreservesWord_exprStmtCall_revert_of_nativeEvalArgs_preserves
     name expected (args.map Backends.lowerExprNative) codeOverride hArgs
 
 theorem NativeStmtPreservesWord_exprStmtCall_stop
@@ -8372,6 +15585,1439 @@ theorem NativeStmtPreservesWord_exprStmtCall_lowerExprNative_stop
   rw [Backends.lowerExprNative_call_runtimePrimOp "stop" []
     EvmYul.Operation.STOP (by rfl)]
   exact NativeStmtPreservesWord_exprStmtCall_stop name expected codeOverride
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_stop
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "stop" [])) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact NativeStmtPreservesWord_exprStmtCall_lowerExprNative_stop name expected _
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log0
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (args : List YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "log0" args)) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [size, offset])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected args _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected args dispatcher hArgs)
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log1
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (args : List YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "log1" args)) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [topic0, size, offset])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected args _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected args dispatcher hArgs)
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log2
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (args : List YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "log2" args)) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [topic1, topic0, size, offset])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected args _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected args dispatcher hArgs)
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log3
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (args : List YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "log3" args)) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [topic2, topic1, topic0, size, offset])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected args _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected args dispatcher hArgs)
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log4
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (args : List YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "log4" args)) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size topic0 topic1 topic2 topic3,
+            EvmYul.Yul.evalArgs fuel
+                ((args.map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [topic3, topic2, topic1, topic0, size, offset])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected args _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected args dispatcher hArgs)
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log0_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (args : List YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "log0" args)) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_nativeEvalArgs_preserves
+      name expected args _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected args dispatcher hArgs)
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log1_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (args : List YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "log1" args)) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_nativeEvalArgs_preserves
+      name expected args _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected args dispatcher hArgs)
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log2_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (args : List YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "log2" args)) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_nativeEvalArgs_preserves
+      name expected args _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected args dispatcher hArgs)
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log3_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (args : List YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "log3" args)) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_nativeEvalArgs_preserves
+      name expected args _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected args dispatcher hArgs)
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log4_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (args : List YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hArgs :
+      ∀ arg, arg ∈ args →
+        Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "log4" args)) = .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_nativeEvalArgs_preserves
+      name expected args _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected args dispatcher hArgs)
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_mstore
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (offsetExpr valExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hOffset : Compiler.Proofs.YulGeneration.Backends.BridgedExpr offsetExpr)
+    (hVal : Compiler.Proofs.YulGeneration.Backends.BridgedExpr valExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "mstore" [offsetExpr, valExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel
+                (([offsetExpr, valExpr].map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [value, offset])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected [offsetExpr, valExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [offsetExpr, valExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl
+          · exact hOffset
+          · exact hVal))
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_mstore_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (offsetExpr valExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hOffset : Compiler.Proofs.YulGeneration.Backends.BridgedExpr offsetExpr)
+    (hVal : Compiler.Proofs.YulGeneration.Backends.BridgedExpr valExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "mstore" [offsetExpr, valExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_nativeEvalArgs_preserves
+      name expected [offsetExpr, valExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [offsetExpr, valExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl
+          · exact hOffset
+          · exact hVal))
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_mstore8
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (offsetExpr valExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hOffset : Compiler.Proofs.YulGeneration.Backends.BridgedExpr offsetExpr)
+    (hVal : Compiler.Proofs.YulGeneration.Backends.BridgedExpr valExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "mstore8" [offsetExpr, valExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset value,
+            EvmYul.Yul.evalArgs fuel
+                (([offsetExpr, valExpr].map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [value, offset])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected [offsetExpr, valExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [offsetExpr, valExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl
+          · exact hOffset
+          · exact hVal))
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_mstore8_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (offsetExpr valExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hOffset : Compiler.Proofs.YulGeneration.Backends.BridgedExpr offsetExpr)
+    (hVal : Compiler.Proofs.YulGeneration.Backends.BridgedExpr valExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "mstore8" [offsetExpr, valExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_nativeEvalArgs_preserves
+      name expected [offsetExpr, valExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [offsetExpr, valExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl
+          · exact hOffset
+          · exact hVal))
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_sstore
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (slotExpr valExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hSlot : Compiler.Proofs.YulGeneration.Backends.BridgedExpr slotExpr)
+    (hVal : Compiler.Proofs.YulGeneration.Backends.BridgedExpr valExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "sstore" [slotExpr, valExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel
+                (([slotExpr, valExpr].map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [value, slot])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected [slotExpr, valExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [slotExpr, valExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl
+          · exact hSlot
+          · exact hVal))
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_sstore_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (slotExpr valExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hSlot : Compiler.Proofs.YulGeneration.Backends.BridgedExpr slotExpr)
+    (hVal : Compiler.Proofs.YulGeneration.Backends.BridgedExpr valExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "sstore" [slotExpr, valExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_nativeEvalArgs_preserves
+      name expected [slotExpr, valExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [slotExpr, valExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl
+          · exact hSlot
+          · exact hVal))
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_tstore
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (slotExpr valExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hSlot : Compiler.Proofs.YulGeneration.Backends.BridgedExpr slotExpr)
+    (hVal : Compiler.Proofs.YulGeneration.Backends.BridgedExpr valExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "tstore" [slotExpr, valExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState slot value,
+            EvmYul.Yul.evalArgs fuel
+                (([slotExpr, valExpr].map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [value, slot])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected [slotExpr, valExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [slotExpr, valExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl
+          · exact hSlot
+          · exact hVal))
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_tstore_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (slotExpr valExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hSlot : Compiler.Proofs.YulGeneration.Backends.BridgedExpr slotExpr)
+    (hVal : Compiler.Proofs.YulGeneration.Backends.BridgedExpr valExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "tstore" [slotExpr, valExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_nativeEvalArgs_preserves
+      name expected [slotExpr, valExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [slotExpr, valExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl
+          · exact hSlot
+          · exact hVal))
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_return
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (offsetExpr sizeExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hOffset : Compiler.Proofs.YulGeneration.Backends.BridgedExpr offsetExpr)
+    (hSize : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sizeExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "return" [offsetExpr, sizeExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel
+                (([offsetExpr, sizeExpr].map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [size, offset])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected [offsetExpr, sizeExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [offsetExpr, sizeExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl
+          · exact hOffset
+          · exact hSize))
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_return_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (offsetExpr sizeExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hOffset : Compiler.Proofs.YulGeneration.Backends.BridgedExpr offsetExpr)
+    (hSize : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sizeExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "return" [offsetExpr, sizeExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_nativeEvalArgs_preserves
+      name expected [offsetExpr, sizeExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [offsetExpr, sizeExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl
+          · exact hOffset
+          · exact hSize))
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_revert
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (offsetExpr sizeExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hOffset : Compiler.Proofs.YulGeneration.Backends.BridgedExpr offsetExpr)
+    (hSize : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sizeExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "revert" [offsetExpr, sizeExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState offset size,
+            EvmYul.Yul.evalArgs fuel
+                (([offsetExpr, sizeExpr].map Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [size, offset])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected [offsetExpr, sizeExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [offsetExpr, sizeExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl
+          · exact hOffset
+          · exact hSize))
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_revert_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (offsetExpr sizeExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hOffset : Compiler.Proofs.YulGeneration.Backends.BridgedExpr offsetExpr)
+    (hSize : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sizeExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "revert" [offsetExpr, sizeExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_nativeEvalArgs_preserves
+      name expected [offsetExpr, sizeExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [offsetExpr, sizeExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl
+          · exact hOffset
+          · exact hSize))
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_calldatacopy
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (destOffset sourceOffset sizeExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hDest : Compiler.Proofs.YulGeneration.Backends.BridgedExpr destOffset)
+    (hSource : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sourceOffset)
+    (hSize : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sizeExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "calldatacopy" [destOffset, sourceOffset, sizeExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart datastart size,
+            EvmYul.Yul.evalArgs fuel
+                (([destOffset, sourceOffset, sizeExpr].map
+                  Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [size, datastart, mstart])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected [destOffset, sourceOffset, sizeExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [destOffset, sourceOffset, sizeExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl | rfl
+          · exact hDest
+          · exact hSource
+          · exact hSize))
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_returndatacopy
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (destOffset sourceOffset sizeExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hDest : Compiler.Proofs.YulGeneration.Backends.BridgedExpr destOffset)
+    (hSource : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sourceOffset)
+    (hSize : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sizeExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "returndatacopy" [destOffset, sourceOffset, sizeExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hShape :
+      ∀ fuel state,
+        state[name]! = expected →
+          ∃ argState mstart rstart size,
+            EvmYul.Yul.evalArgs fuel
+                (([destOffset, sourceOffset, sizeExpr].map
+                  Backends.lowerExprNative).reverse)
+                (some
+                  { dispatcher := dispatcher
+                    functions := ((∅ : NativeFunctionMap).insert
+                      "mappingSlot" nativeMappingSlotFunctionDefinition) })
+                state =
+              .ok (argState, [size, rstart, mstart])) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves
+      name expected [destOffset, sourceOffset, sizeExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [destOffset, sourceOffset, sizeExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl | rfl
+          · exact hDest
+          · exact hSource
+          · exact hSize))
+      hShape
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_calldatacopy_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (destOffset sourceOffset sizeExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hDest : Compiler.Proofs.YulGeneration.Backends.BridgedExpr destOffset)
+    (hSource : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sourceOffset)
+    (hSize : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sizeExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "calldatacopy" [destOffset, sourceOffset, sizeExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_nativeEvalArgs_preserves
+      name expected [destOffset, sourceOffset, sizeExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [destOffset, sourceOffset, sizeExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl | rfl
+          · exact hDest
+          · exact hSource
+          · exact hSize))
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_returndatacopy_of_nativeEvalArgs
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (destOffset sourceOffset sizeExpr : YulExpr)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hDest : Compiler.Proofs.YulGeneration.Backends.BridgedExpr destOffset)
+    (hSource : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sourceOffset)
+    (hSize : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sizeExpr)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId
+        (.expr (.call "returndatacopy" [destOffset, sourceOffset, sizeExpr])) =
+          .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  rw [Backends.lowerStmtGroupNativeWithSwitchIds_expr] at hLower
+  cases hLower
+  simp at hMem
+  subst nativeStmt
+  exact
+    NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_nativeEvalArgs_preserves
+      name expected [destOffset, sourceOffset, sizeExpr] _
+      (NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+        name expected [destOffset, sourceOffset, sizeExpr] dispatcher
+        (by
+          intro arg hArg
+          simp at hArg
+          rcases hArg with rfl | rfl | rfl
+          · exact hDest
+          · exact hSource
+          · exact hSize))
+
+inductive NativePreservableStraightStmt : YulStmt → Prop
+  | comment (text : String) :
+      NativePreservableStraightStmt (.comment text)
+  | let_ (target : EvmYul.Identifier) (value : YulExpr)
+      (hValue : Compiler.Proofs.YulGeneration.Backends.BridgedExpr value) :
+      NativePreservableStraightStmt (.let_ target value)
+  | letMany (targets : List EvmYul.Identifier) (value : YulExpr)
+      (hTargets : targets ≠ [])
+      (hValue : Compiler.Proofs.YulGeneration.Backends.BridgedExpr value) :
+      NativePreservableStraightStmt (.letMany targets value)
+  | assign (target : EvmYul.Identifier) (value : YulExpr)
+      (hValue : Compiler.Proofs.YulGeneration.Backends.BridgedExpr value) :
+      NativePreservableStraightStmt (.assign target value)
+  | expr_call (func : EvmYul.Identifier) (args : List YulExpr)
+      (hName : Compiler.Proofs.YulGeneration.Backends.allowedExprCallName func)
+      (hArgs :
+        ∀ arg, arg ∈ args →
+          Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg) :
+      NativePreservableStraightStmt (.expr (.call func args))
+  | expr_sstore (slotExpr valExpr : YulExpr)
+      (hSlot : Compiler.Proofs.YulGeneration.Backends.BridgedExpr slotExpr)
+      (hVal : Compiler.Proofs.YulGeneration.Backends.BridgedExpr valExpr) :
+      NativePreservableStraightStmt (.expr (.call "sstore" [slotExpr, valExpr]))
+  | expr_tstore (slotExpr valExpr : YulExpr)
+      (hSlot : Compiler.Proofs.YulGeneration.Backends.BridgedExpr slotExpr)
+      (hVal : Compiler.Proofs.YulGeneration.Backends.BridgedExpr valExpr) :
+      NativePreservableStraightStmt (.expr (.call "tstore" [slotExpr, valExpr]))
+  | expr_mstore (offsetExpr valExpr : YulExpr)
+      (hOffset : Compiler.Proofs.YulGeneration.Backends.BridgedExpr offsetExpr)
+      (hVal : Compiler.Proofs.YulGeneration.Backends.BridgedExpr valExpr) :
+      NativePreservableStraightStmt (.expr (.call "mstore" [offsetExpr, valExpr]))
+  | expr_mstore8 (offsetExpr valExpr : YulExpr)
+      (hOffset : Compiler.Proofs.YulGeneration.Backends.BridgedExpr offsetExpr)
+      (hVal : Compiler.Proofs.YulGeneration.Backends.BridgedExpr valExpr) :
+      NativePreservableStraightStmt (.expr (.call "mstore8" [offsetExpr, valExpr]))
+  | expr_stop :
+      NativePreservableStraightStmt (.expr (.call "stop" []))
+  | expr_return (offsetExpr sizeExpr : YulExpr)
+      (hOffset : Compiler.Proofs.YulGeneration.Backends.BridgedExpr offsetExpr)
+      (hSize : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sizeExpr) :
+      NativePreservableStraightStmt
+        (.expr (.call "return" [offsetExpr, sizeExpr]))
+  | expr_revert (offsetExpr sizeExpr : YulExpr)
+      (hOffset : Compiler.Proofs.YulGeneration.Backends.BridgedExpr offsetExpr)
+      (hSize : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sizeExpr) :
+      NativePreservableStraightStmt
+        (.expr (.call "revert" [offsetExpr, sizeExpr]))
+  | expr_log0 (args : List YulExpr)
+      (hArgs :
+        ∀ arg, arg ∈ args →
+          Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg) :
+      NativePreservableStraightStmt (.expr (.call "log0" args))
+  | expr_log1 (args : List YulExpr)
+      (hArgs :
+        ∀ arg, arg ∈ args →
+          Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg) :
+      NativePreservableStraightStmt (.expr (.call "log1" args))
+  | expr_log2 (args : List YulExpr)
+      (hArgs :
+        ∀ arg, arg ∈ args →
+          Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg) :
+      NativePreservableStraightStmt (.expr (.call "log2" args))
+  | expr_log3 (args : List YulExpr)
+      (hArgs :
+        ∀ arg, arg ∈ args →
+          Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg) :
+      NativePreservableStraightStmt (.expr (.call "log3" args))
+  | expr_log4 (args : List YulExpr)
+      (hArgs :
+        ∀ arg, arg ∈ args →
+          Compiler.Proofs.YulGeneration.Backends.BridgedExpr arg) :
+      NativePreservableStraightStmt (.expr (.call "log4" args))
+  | expr_calldatacopy (destOffset sourceOffset sizeExpr : YulExpr)
+      (hDest : Compiler.Proofs.YulGeneration.Backends.BridgedExpr destOffset)
+      (hSource : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sourceOffset)
+      (hSize : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sizeExpr) :
+      NativePreservableStraightStmt
+        (.expr (.call "calldatacopy" [destOffset, sourceOffset, sizeExpr]))
+  | expr_returndatacopy (destOffset sourceOffset sizeExpr : YulExpr)
+      (hDest : Compiler.Proofs.YulGeneration.Backends.BridgedExpr destOffset)
+      (hSource : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sourceOffset)
+      (hSize : Compiler.Proofs.YulGeneration.Backends.BridgedExpr sizeExpr) :
+      NativePreservableStraightStmt
+        (.expr (.call "returndatacopy" [destOffset, sourceOffset, sizeExpr]))
+
+def NativePreservableStraightStmts (stmts : List YulStmt) : Prop :=
+  ∀ stmt, stmt ∈ stmts → NativePreservableStraightStmt stmt
+
+theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_of_nativePreservableStraightStmt
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (stmt : YulStmt)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hStmt : NativePreservableStraightStmt stmt)
+    (hLower :
+      Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId stmt =
+        .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hFresh : name ∉ Backends.nativeStmtWriteNames nativeStmt) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  induction hStmt with
+  | comment text =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_comment
+          name expected reservedNames nextSwitchId text native finalSwitchId
+          dispatcher nativeStmt hLower hMem
+  | let_ target value hValue =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let_of_write_not_mem
+          name expected reservedNames nextSwitchId target value native finalSwitchId
+          dispatcher nativeStmt hValue hLower hMem hFresh
+  | letMany targets value hTargets hValue =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_letMany_of_write_not_mem
+          name expected reservedNames nextSwitchId targets value native finalSwitchId
+          dispatcher nativeStmt hTargets hValue hLower hMem hFresh
+  | assign target value hValue =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_assign_of_write_not_mem
+          name expected reservedNames nextSwitchId target value native finalSwitchId
+          dispatcher nativeStmt hValue hLower hMem hFresh
+  | expr_call func args hName hArgs =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_call_of_bridgedExpr_mappingContract
+          name expected reservedNames nextSwitchId func args native finalSwitchId
+          dispatcher nativeStmt hName hArgs hLower hMem
+  | expr_sstore slotExpr valExpr hSlot hVal =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_sstore_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId slotExpr valExpr native
+          finalSwitchId dispatcher nativeStmt hSlot hVal hLower hMem
+  | expr_tstore slotExpr valExpr hSlot hVal =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_tstore_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId slotExpr valExpr native
+          finalSwitchId dispatcher nativeStmt hSlot hVal hLower hMem
+  | expr_mstore offsetExpr valExpr hOffset hVal =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_mstore_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId offsetExpr valExpr native
+          finalSwitchId dispatcher nativeStmt hOffset hVal hLower hMem
+  | expr_mstore8 offsetExpr valExpr hOffset hVal =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_mstore8_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId offsetExpr valExpr native
+          finalSwitchId dispatcher nativeStmt hOffset hVal hLower hMem
+  | expr_stop =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_stop
+          name expected reservedNames nextSwitchId native finalSwitchId
+          dispatcher nativeStmt hLower hMem
+  | expr_return offsetExpr sizeExpr hOffset hSize =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_return_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId offsetExpr sizeExpr native
+          finalSwitchId dispatcher nativeStmt hOffset hSize hLower hMem
+  | expr_revert offsetExpr sizeExpr hOffset hSize =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_revert_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId offsetExpr sizeExpr native
+          finalSwitchId dispatcher nativeStmt hOffset hSize hLower hMem
+  | expr_log0 args hArgs =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log0_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId args native finalSwitchId
+          dispatcher nativeStmt hArgs hLower hMem
+  | expr_log1 args hArgs =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log1_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId args native finalSwitchId
+          dispatcher nativeStmt hArgs hLower hMem
+  | expr_log2 args hArgs =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log2_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId args native finalSwitchId
+          dispatcher nativeStmt hArgs hLower hMem
+  | expr_log3 args hArgs =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log3_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId args native finalSwitchId
+          dispatcher nativeStmt hArgs hLower hMem
+  | expr_log4 args hArgs =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log4_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId args native finalSwitchId
+          dispatcher nativeStmt hArgs hLower hMem
+  | expr_calldatacopy destOffset sourceOffset sizeExpr hDest hSource hSize =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_calldatacopy_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId destOffset sourceOffset sizeExpr
+          native finalSwitchId dispatcher nativeStmt hDest hSource hSize hLower hMem
+  | expr_returndatacopy destOffset sourceOffset sizeExpr hDest hSource hSize =>
+      exact
+        NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_returndatacopy_of_nativeEvalArgs
+          name expected reservedNames nextSwitchId destOffset sourceOffset sizeExpr
+          native finalSwitchId dispatcher nativeStmt hDest hSource hSize hLower hMem
+
+theorem NativeStmtPreservesWord_of_mem_lowerStmtsNativeWithSwitchIds_of_nativePreservableStraightStmts
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (stmts : List YulStmt)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (nativeStmt : EvmYul.Yul.Ast.Stmt)
+    (hStmts : NativePreservableStraightStmts stmts)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId stmts =
+        .ok (native, finalSwitchId))
+    (hMem : nativeStmt ∈ native)
+    (hFresh : name ∉ Backends.nativeStmtWriteNames nativeStmt) :
+    NativeStmtPreservesWord name expected nativeStmt
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) := by
+  induction stmts generalizing nextSwitchId native finalSwitchId with
+  | nil =>
+      rw [Backends.lowerStmtsNativeWithSwitchIds_nil] at hLower
+      cases hLower
+      simp at hMem
+  | cons stmt rest ih =>
+      rw [Backends.lowerStmtsNativeWithSwitchIds_cons] at hLower
+      cases hHeadLower :
+          Backends.lowerStmtGroupNativeWithSwitchIds reservedNames nextSwitchId stmt with
+      | error err =>
+          rw [hHeadLower] at hLower
+          simp only [Bind.bind, Except.bind, reduceCtorEq] at hLower
+      | ok headPair =>
+          rcases headPair with ⟨headNative, midSwitchId⟩
+          rw [hHeadLower] at hLower
+          simp only [Bind.bind, Except.bind] at hLower
+          cases hRestLower :
+              Backends.lowerStmtsNativeWithSwitchIds reservedNames midSwitchId rest with
+          | error err =>
+              rw [hRestLower] at hLower
+              simp only [reduceCtorEq] at hLower
+          | ok restPair =>
+              rcases restPair with ⟨restNative, restSwitchId⟩
+              rw [hRestLower] at hLower
+              simp only [Pure.pure, Except.pure, Except.ok.injEq,
+                Prod.mk.injEq] at hLower
+              obtain ⟨hNative, hFinal⟩ := hLower
+              subst hNative
+              subst hFinal
+              rw [List.mem_append] at hMem
+              rcases hMem with hMem | hMem
+              · exact
+                  NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_of_nativePreservableStraightStmt
+                    name expected reservedNames nextSwitchId stmt headNative
+                    midSwitchId dispatcher nativeStmt
+                    (hStmts stmt (by simp)) hHeadLower hMem hFresh
+              · exact
+                  ih midSwitchId restNative restSwitchId
+                    (by
+                      intro restStmt hRestMem
+                      exact hStmts restStmt (by simp [hRestMem]))
+                    hRestLower hMem
+
+theorem NativeBlockPreservesWord_lowerStmtsNativeWithSwitchIds_of_nativePreservableStraightStmts
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (reservedNames : List String)
+    (nextSwitchId : Nat)
+    (stmts : List YulStmt)
+    (native : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (dispatcher : EvmYul.Yul.Ast.Stmt)
+    (hStmts : NativePreservableStraightStmts stmts)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId stmts =
+        .ok (native, finalSwitchId))
+    (hFresh : name ∉ Backends.nativeStmtsWriteNames native) :
+    NativeBlockPreservesWord name expected native
+      (some
+        { dispatcher := dispatcher
+          functions := ((∅ : NativeFunctionMap).insert
+            "mappingSlot" nativeMappingSlotFunctionDefinition) }) :=
+  NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem name expected native
+    (some
+      { dispatcher := dispatcher
+        functions := ((∅ : NativeFunctionMap).insert
+          "mappingSlot" nativeMappingSlotFunctionDefinition) })
+    hFresh
+    (by
+      intro nativeStmt hMem hStmtFresh
+      exact
+        NativeStmtPreservesWord_of_mem_lowerStmtsNativeWithSwitchIds_of_nativePreservableStraightStmts
+          name expected reservedNames nextSwitchId stmts native finalSwitchId
+          dispatcher nativeStmt hStmts hLower hMem hStmtFresh)
 
 theorem nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
     (switchId tag : Nat)
@@ -10260,6 +18906,358 @@ def nativeSwitchStoreMarkedPrefixStateForId
     switchId store).insert
     (Backends.nativeSwitchMatchedTempName switchId) (EvmYul.UInt256.ofNat 1)
 
+@[simp] theorem nativeSwitchStoreMarkedPrefixStateForId_weiValue
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
+    (switchId : Nat) (store : EvmYul.Yul.VarStore) :
+    (nativeSwitchStoreMarkedPrefixStateForId contract tx storage observableSlots
+      switchId store).sharedState.executionEnv.weiValue =
+      natToUInt256 tx.msgValue := by
+  simp [nativeSwitchStoreMarkedPrefixStateForId,
+    nativeSwitchStorePrefixStateForId, nativeSwitchStoreInitialState,
+    initialState, EvmYul.Yul.State.sharedState, EvmYul.Yul.State.insert,
+    YulState.initial, toSharedState, mkBlockHeader]
+
+@[simp] theorem nativeSwitchStoreMarkedPrefixStateForId_calldata_size
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
+    (switchId : Nat) (store : EvmYul.Yul.VarStore) :
+    (nativeSwitchStoreMarkedPrefixStateForId contract tx storage observableSlots
+      switchId store).sharedState.executionEnv.calldata.size =
+      4 + tx.args.length * 32 := by
+  simp [nativeSwitchStoreMarkedPrefixStateForId,
+    nativeSwitchStorePrefixStateForId, nativeSwitchStoreInitialState,
+    initialState, EvmYul.Yul.State.sharedState, EvmYul.Yul.State.insert,
+    YulState.initial, toSharedState, mkBlockHeader, calldataToByteArray_size]
+
+@[simp] theorem nativeSwitchStoreMarkedPrefixStateForId_matched
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
+    (switchId : Nat) (store : EvmYul.Yul.VarStore) :
+    ∀ matchedName : EvmYul.Identifier,
+      matchedName = Backends.nativeSwitchMatchedTempName switchId →
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store)[matchedName]! =
+          EvmYul.UInt256.ofNat 1 := by
+  intro matchedName hMatchedName
+  subst matchedName
+  simpa [nativeSwitchStoreMarkedPrefixStateForId,
+    nativeSwitchStorePrefixStateForId, nativeSwitchStoreInitialState] using
+    state_getElem_insert_self_ok
+      (initialState contract tx storage observableSlots).sharedState
+      ((store.insert (Backends.nativeSwitchDiscrTempName switchId)
+        (EvmYul.UInt256.ofNat
+          (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+        (Backends.nativeSwitchMatchedTempName switchId)
+        (EvmYul.UInt256.ofNat 0))
+      (Backends.nativeSwitchMatchedTempName switchId) (EvmYul.UInt256.ofNat 1)
+
+/-- Selected-switch-state form of the callvalue guard skip: after the lazy
+switch has selected a function case and marked the matched flag, a modular-zero
+`msgValue` still skips the generated native callvalue revert guard. -/
+theorem exec_if_callvalue_skip_markedPrefix_zero_mod_fuel
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (switchId : Nat)
+    (store : EvmYul.Yul.VarStore)
+    (hZero : tx.msgValue % evmModulus = 0) :
+    EvmYul.Yul.exec (fuel + 6)
+        (.If (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" [])) body)
+        (some contract)
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store) =
+      .ok (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store) := by
+  have hWei :
+      (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+        observableSlots switchId store).sharedState.executionEnv.weiValue =
+        (⟨0⟩ : EvmYul.Literal) := by
+    rw [nativeSwitchStoreMarkedPrefixStateForId_weiValue]
+    exact natToUInt256_eq_zero_of_mod_evm tx.msgValue hZero
+  simpa [nativeSwitchStoreMarkedPrefixStateForId,
+    nativeSwitchStorePrefixStateForId, nativeSwitchStoreInitialState,
+    EvmYul.Yul.State.insert] using
+    exec_if_lowerExprNative_callvalue_skip_zero_fuel fuel body (some contract)
+      (initialState contract tx storage observableSlots).sharedState
+      (((store.insert (Backends.nativeSwitchDiscrTempName switchId)
+          (EvmYul.UInt256.ofNat
+            (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+          (Backends.nativeSwitchMatchedTempName switchId)
+          (EvmYul.UInt256.ofNat 0)).insert
+        (Backends.nativeSwitchMatchedTempName switchId)
+        (EvmYul.UInt256.ofNat 1))
+      hWei
+
+/-- Selected-switch-state form of the calldata-size guard skip: after the lazy
+switch has selected a function case and marked the matched flag, the generated
+`lt(calldatasize(), k)` revert guard skips whenever the current calldata size
+is at least `k`. -/
+theorem exec_if_lt_calldatasize_skip_markedPrefix_ge_fuel
+    (fuel : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (switchId : Nat)
+    (store : EvmYul.Yul.VarStore)
+    (k : Nat)
+    (hSize : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hKSize : k < EvmYul.UInt256.size)
+    (hGe : k ≤ 4 + tx.args.length * 32) :
+    EvmYul.Yul.exec (fuel + 9)
+        (.If (Backends.lowerExprNative
+                (Yul.YulExpr.call "lt"
+                  [Yul.YulExpr.call "calldatasize" [],
+                   Yul.YulExpr.lit k]))
+          body)
+        (some contract)
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store) =
+      .ok (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store) := by
+  have hSize' :
+      (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+        observableSlots switchId store).sharedState.executionEnv.calldata.size <
+        EvmYul.UInt256.size := by
+    simpa using hSize
+  have hGe' :
+      k ≤
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store).sharedState.executionEnv.calldata.size := by
+    simpa using hGe
+  simpa [nativeSwitchStoreMarkedPrefixStateForId,
+    nativeSwitchStorePrefixStateForId, nativeSwitchStoreInitialState,
+    EvmYul.Yul.State.insert] using
+    exec_if_lowerExprNative_lt_calldatasize_skip_ge_fuel fuel body
+      (some contract)
+      (initialState contract tx storage observableSlots).sharedState
+      (((store.insert (Backends.nativeSwitchDiscrTempName switchId)
+          (EvmYul.UInt256.ofNat
+            (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
+          (Backends.nativeSwitchMatchedTempName switchId)
+          (EvmYul.UInt256.ofNat 0)).insert
+        (Backends.nativeSwitchMatchedTempName switchId)
+        (EvmYul.UInt256.ofNat 1))
+      k hSize' hKSize hGe'
+
+/-- Execute a payable selected switch-case prefix as a no-op and continue with
+the lowered user body. The generated case prefix is the lowered comment no-op
+followed by the calldata-size revert guard. -/
+theorem exec_switchCaseBody_payable_prefix_eq
+    (fuel : Nat)
+    (guardBody bodyNative : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (switchId : Nat)
+    (store : EvmYul.Yul.VarStore)
+    (k : Nat)
+    (hSize : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hKSize : k < EvmYul.UInt256.size)
+    (hGe : k ≤ 4 + tx.args.length * 32) :
+    EvmYul.Yul.exec (fuel + 11)
+        (.Block
+          (EvmYul.Yul.Ast.Stmt.Block [] ::
+           EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (Yul.YulExpr.call "lt"
+                [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit k]))
+            guardBody ::
+           bodyNative))
+        (some contract)
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store) =
+      EvmYul.Yul.exec (fuel + 9) (.Block bodyNative)
+        (some contract)
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store) := by
+  have hFuel : fuel + 11 = Nat.succ (Nat.succ (fuel + 9)) := by omega
+  rw [hFuel]
+  rw [exec_block_noop_block_head_eq]
+  apply exec_block_cons_ok_eq (fuel + 9)
+  exact exec_if_lt_calldatasize_skip_markedPrefix_ge_fuel fuel guardBody
+    contract tx storage observableSlots switchId store k hSize hKSize hGe
+
+/-- Execute a non-payable selected switch-case prefix as no-ops and continue
+with the lowered user body. The generated case prefix is the lowered comment
+no-op, the callvalue revert guard, and then the calldata-size revert guard. -/
+theorem exec_switchCaseBody_nonpayable_prefix_eq
+    (fuel : Nat)
+    (callvalueGuardBody calldataGuardBody bodyNative :
+      List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (switchId : Nat)
+    (store : EvmYul.Yul.VarStore)
+    (k : Nat)
+    (hZero : tx.msgValue % evmModulus = 0)
+    (hSize : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hKSize : k < EvmYul.UInt256.size)
+    (hGe : k ≤ 4 + tx.args.length * 32) :
+    EvmYul.Yul.exec (fuel + 12)
+        (.Block
+          (EvmYul.Yul.Ast.Stmt.Block [] ::
+           EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+            callvalueGuardBody ::
+           EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (Yul.YulExpr.call "lt"
+                [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit k]))
+            calldataGuardBody ::
+           bodyNative))
+        (some contract)
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store) =
+      EvmYul.Yul.exec (fuel + 9) (.Block bodyNative)
+        (some contract)
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store) := by
+  have hFuel : fuel + 12 = Nat.succ (Nat.succ (fuel + 10)) := by omega
+  rw [hFuel]
+  rw [exec_block_noop_block_head_eq]
+  calc
+    EvmYul.Yul.exec (Nat.succ (fuel + 10))
+        (.Block
+          (EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+            callvalueGuardBody ::
+           EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (Yul.YulExpr.call "lt"
+                [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit k]))
+            calldataGuardBody ::
+           bodyNative))
+        (some contract)
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store)
+        =
+      EvmYul.Yul.exec (fuel + 10)
+        (.Block
+          (EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (Yul.YulExpr.call "lt"
+                [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit k]))
+            calldataGuardBody ::
+           bodyNative))
+        (some contract)
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store) := by
+          apply exec_block_cons_ok_eq (fuel + 10)
+          exact exec_if_callvalue_skip_markedPrefix_zero_mod_fuel (fuel + 4)
+            callvalueGuardBody contract tx storage observableSlots switchId
+            store hZero
+    _ = EvmYul.Yul.exec (fuel + 9) (.Block bodyNative)
+        (some contract)
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store) := by
+          have hTailFuel : fuel + 10 = Nat.succ (fuel + 9) := by omega
+          rw [hTailFuel]
+          apply exec_block_cons_ok_eq (fuel + 9)
+          exact exec_if_lt_calldatasize_skip_markedPrefix_ge_fuel fuel
+            calldataGuardBody contract tx storage observableSlots switchId
+            store k hSize hKSize hGe
+
+/-- Lowering-aware payable generated-case prefix peel. Starting from the actual
+native lowering result of `switchCaseBody fn`, expose the lowered user body and
+normalize execution of the generated comment/calldata guards to that body. -/
+theorem exec_switchCaseBody_payable_lowered_prefix_eq
+    (fuel : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (fn : IRFunction)
+    (body' : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (switchId : Nat)
+    (store : EvmYul.Yul.VarStore)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (body', next))
+    (hPayable : fn.payable = true)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) ∧
+      EvmYul.Yul.exec (fuel + 11) (.Block body')
+          (some contract)
+          (nativeSwitchStoreMarkedPrefixStateForId contract
+            (YulTransaction.ofIR tx) storage observableSlots switchId store) =
+        EvmYul.Yul.exec (fuel + 9) (.Block bodyNative)
+          (some contract)
+          (nativeSwitchStoreMarkedPrefixStateForId contract
+            (YulTransaction.ofIR tx) storage observableSlots switchId store) := by
+  rcases lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq
+      reservedNames n0 fn body' next hPayable hLower with
+    ⟨guardBody, bodyNative, bodyStart, hBodyShape, hBodyLower⟩
+  refine ⟨bodyNative, bodyStart, hBodyLower, ?_⟩
+  rw [hBodyShape]
+  exact exec_switchCaseBody_payable_prefix_eq fuel guardBody bodyNative
+    contract (YulTransaction.ofIR tx) storage observableSlots switchId store
+    (4 + fn.params.length * 32)
+    (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+    (DispatchGuardsSafe_calldata_threshold_lt fn tx hguards)
+    (by simp; omega)
+
+/-- Lowering-aware non-payable generated-case prefix peel. Starting from the
+actual native lowering result of `switchCaseBody fn`, expose the lowered user
+body and normalize execution of the generated comment/callvalue/calldata guards
+to that body. -/
+theorem exec_switchCaseBody_nonpayable_lowered_prefix_eq
+    (fuel : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (fn : IRFunction)
+    (body' : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (switchId : Nat)
+    (store : EvmYul.Yul.VarStore)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (body', next))
+    (hNonPayable : fn.payable = false)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) ∧
+      EvmYul.Yul.exec (fuel + 12) (.Block body')
+          (some contract)
+          (nativeSwitchStoreMarkedPrefixStateForId contract
+            (YulTransaction.ofIR tx) storage observableSlots switchId store) =
+        EvmYul.Yul.exec (fuel + 9) (.Block bodyNative)
+          (some contract)
+          (nativeSwitchStoreMarkedPrefixStateForId contract
+            (YulTransaction.ofIR tx) storage observableSlots switchId store) := by
+  rcases lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq
+      reservedNames n0 fn body' next hNonPayable hLower with
+    ⟨callvalueGuardBody, calldataGuardBody, bodyNative, bodyStart,
+      hBodyShape, hBodyLower⟩
+  refine ⟨bodyNative, bodyStart, hBodyLower, ?_⟩
+  rw [hBodyShape]
+  exact exec_switchCaseBody_nonpayable_prefix_eq fuel callvalueGuardBody
+    calldataGuardBody bodyNative contract (YulTransaction.ofIR tx) storage
+    observableSlots switchId store (4 + fn.params.length * 32)
+    (DispatchGuardsSafe_msgValue_zero_mod_of_nonpayable fn tx hguards
+      hNonPayable)
+    (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+    (DispatchGuardsSafe_calldata_threshold_lt fn tx hguards)
+    (by simp; omega)
+
 def nativeSwitchHasSelectorStore : EvmYul.Yul.VarStore :=
   (∅ : EvmYul.Yul.VarStore).insert "__has_selector" (EvmYul.UInt256.ofNat 1)
 
@@ -10410,6 +19408,85 @@ theorem exec_lowerNativeSwitchBlock_selector_find_hit_preserved_store_fuel
       simpa [nativeSwitchTailStmts, discrName, matchedName, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm,
         nativeSwitchStorePrefixStateForId, nativeSwitchStoreInitialState,
         nativeSwitchStoreMarkedPrefixStateForId] using hCases)
+
+/-- Store-parametric selector-hit success when the selected body execution and
+    final matched-flag fact are supplied directly. This is useful for generated
+    case-body wrappers that prove the matched flag after peeling their own
+    prefix rather than exposing whole-body preservation. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_finalMatched_store_fuel
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (final : EvmYul.Yul.State)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract) (nativeSwitchStoreMarkedPrefixStateForId contract tx
+          storage observableSlots switchId store) = .ok final)
+    (hFinalMatched :
+      ∀ matchedName : EvmYul.Identifier,
+        matchedName = Backends.nativeSwitchMatchedTempName switchId →
+          final[matchedName]! = EvmYul.UInt256.ofNat 1) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+      (Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+      (some contract)
+      (nativeSwitchStoreInitialState contract tx storage observableSlots store) =
+    .ok final := by
+  let discrName := Backends.nativeSwitchDiscrTempName switchId
+  let matchedName := Backends.nativeSwitchMatchedTempName switchId
+  have hne := nativeSwitchDiscrTempName_ne_matchedTempName switchId
+  have hCasesOnly :
+      EvmYul.Yul.exec (fuel + 1 + cases.length + 9)
+        (.Block (nativeSwitchCaseIfs discrName matchedName cases))
+        (some contract)
+        (nativeSwitchStorePrefixStateForId contract tx storage
+          observableSlots switchId store) = .ok final := by
+    exact exec_nativeSwitchCaseIfs_find_hit_fuel
+      (fuel + 1) selector cases tag body (some contract)
+      (nativeSwitchStorePrefixStateForId contract tx storage observableSlots
+        switchId store) final discrName matchedName hFind
+      (nativeSwitchPrefixStoreState_matched_eq contract tx storage
+        observableSlots store discrName matchedName _)
+      (nativeSwitchPrefixStoreState_discr_eq contract tx storage
+        observableSlots store discrName matchedName selector hne hSelector)
+      hSelectorRange hTagsRange
+      (by
+        intro pre suffix hCases
+        simpa [nativeSwitchStoreMarkedPrefixStateForId,
+          nativeSwitchStorePrefixStateForId, discrName, matchedName,
+          Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+          hBody pre suffix hCases)
+      (by simpa [matchedName] using hFinalMatched)
+  have hCasesDefault :
+      EvmYul.Yul.exec (fuel + 1 + cases.length + 9)
+        (.Block
+          (nativeSwitchCaseIfs discrName matchedName cases ++
+            nativeSwitchDefaultIf matchedName defaultBody))
+        (some contract)
+        (nativeSwitchStorePrefixStateForId contract tx storage
+          observableSlots switchId store) = .ok final := by
+    exact exec_nativeSwitchCaseIfs_with_default_matched_fuel
+      (fuel + 1) cases defaultBody (some contract)
+      (nativeSwitchStorePrefixStateForId contract tx storage
+        observableSlots switchId store) final discrName matchedName
+      hCasesOnly
+      (hFinalMatched matchedName rfl)
+  exact exec_lowerNativeSwitchBlock_storePrefix_tail_ok_fuel
+    (fuel + cases.length) switchId cases defaultBody contract tx storage
+    observableSlots store final (by
+      simpa [nativeSwitchTailStmts, discrName, matchedName, Nat.add_assoc,
+        Nat.add_comm, Nat.add_left_comm, nativeSwitchStorePrefixStateForId,
+        nativeSwitchStoreInitialState] using hCasesDefault)
 
 /-- Store-parametric selector-hit success derived from generated native switch
     freshness. This removes the explicit matched-flag preservation premise for
@@ -11610,7 +20687,7 @@ theorem primCall_mstore0_then_return32_emptyMemory_projectHaltReturn
 /-- The dispatcher-block execution that `EvmYul.Yul.callDispatcher` performs
     after its initial fuel check and empty-argument call-frame setup.
 
-Keeping this expression named lets the native/interpreter bridge target
+Keeping this expression named lets the native/EVMYulLean bridge target
 statement execution of the lowered dispatcher body directly, instead of
 re-opening the full `callDispatcher` wrapper at each EndToEnd proof site. -/
 def callDispatcherBlockResult
@@ -13713,6 +22790,1140 @@ theorem primCall_sload0_then_mstore0_return32_initialState_withStore_projectResu
   | YulEXTCODESIZENotImplemented => rfl
   | Revert => rfl
 
+/-- Guarded selector-hit execution for a fully lowered native switch block,
+    with the projected selected-body error result exposed at the same switch
+    boundary.
+
+Callers prove the selected body reaches the native error or halt and packages
+its `projectResult`; this lemma lifts both facts through the generated
+selector-switch wrapper. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (tag : Nat)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception)
+    (nativeYul : YulResult)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract)
+        (nativeSwitchMarkedPrefixStateForId contract tx storage
+          observableSlots switchId) = .error err)
+    (hProject : projectResult tx storage initialEvents (.error err) = nativeYul) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .error err ∧
+    projectResult tx storage initialEvents (.error err) = nativeYul := by
+  refine ⟨?_, hProject⟩
+  exact exec_lowerNativeSwitchBlock_selector_find_hit_error_fuel
+    fuel selector switchId cases defaultBody tag body contract tx storage
+    observableSlots err hSelector hFind hSelectorRange hTagsRange
+    (by
+      intro pre suffix hCases
+      simpa [nativeSwitchMarkedPrefixStateForId, nativeSwitchPrefixStateForId]
+        using hBody pre suffix hCases)
+
+/-- Store-parametric selector-hit projection for lowered native switches.
+
+This is the projection form used when a generated dispatcher has already
+installed additional local bindings before entering the selector switch. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (err : EvmYul.Yul.Exception)
+    (nativeYul : YulResult)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract)
+        (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+          observableSlots switchId store) = .error err)
+    (hProject : projectResult tx storage initialEvents (.error err) = nativeYul) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+        (some contract)
+        (.Ok (initialState contract tx storage observableSlots).sharedState store) =
+      .error err ∧
+    projectResult tx storage initialEvents (.error err) = nativeYul := by
+  refine ⟨?_, hProject⟩
+  exact exec_lowerNativeSwitchBlock_selector_find_hit_error_store_fuel
+    fuel selector switchId tag cases defaultBody body contract tx storage
+    observableSlots store err hSelector hFind hSelectorRange hTagsRange
+    (by
+      intro pre suffix hCases
+      simpa [nativeSwitchStoreMarkedPrefixStateForId]
+        using hBody pre suffix hCases)
+
+/-- Store-parametric selector-hit projection for a payable generated case body,
+    with the generated comment and calldata-size guard discharged before the
+    selected user body premise. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq_payable_generated_prefix
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (err : EvmYul.Yul.Exception)
+    (nativeYul : YulResult)
+    (reservedNames : List String) (n0 next : Nat)
+    (fn : IRFunction)
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (body, next))
+    (hPayable : fn.payable = true)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) ∧
+      ((∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots switchId store) =
+            .error err) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.error err) = nativeYul →
+        EvmYul.Yul.exec (fuel + cases.length + 16)
+            (Backends.lowerNativeSwitchBlock
+              Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+              defaultBody)
+            (some contract)
+            (.Ok
+              (initialState contract (YulTransaction.ofIR tx) storage
+                observableSlots).sharedState store) =
+          .error err ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.error err) = nativeYul) := by
+  rcases lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq
+      reservedNames n0 fn body next hPayable hLower with
+    ⟨guardBody, bodyNative, bodyStart, hBodyShape, hBodyLower⟩
+  refine ⟨bodyNative, bodyStart, hBodyLower, ?_⟩
+  intro hBodyNative hProject
+  have hExec :=
+    exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq
+      (fuel + 4) selector switchId tag cases defaultBody body contract
+      (YulTransaction.ofIR tx) storage initialEvents observableSlots store err
+      nativeYul hSelector hFind hSelectorRange hTagsRange
+      (by
+        intro pre suffix hCases
+        rw [hBodyShape]
+        have hPrefix := exec_switchCaseBody_payable_prefix_eq
+          (fuel + suffix.length + 1) guardBody bodyNative contract
+          (YulTransaction.ofIR tx) storage observableSlots switchId store
+          (4 + fn.params.length * 32)
+          (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+          (DispatchGuardsSafe_calldata_threshold_lt fn tx hguards)
+          (by simp; omega)
+        simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+          hPrefix.trans (hBodyNative pre suffix hCases))
+      hProject
+  simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hExec
+
+/-- Store-parametric selector-hit projection for a non-payable generated case
+    body, with the generated comment, callvalue guard, and calldata-size guard
+    discharged before the selected user body premise. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq_nonpayable_generated_prefix
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (err : EvmYul.Yul.Exception)
+    (nativeYul : YulResult)
+    (reservedNames : List String) (n0 next : Nat)
+    (fn : IRFunction)
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (body, next))
+    (hNonPayable : fn.payable = false)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) ∧
+      ((∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots switchId store) =
+            .error err) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.error err) = nativeYul →
+        EvmYul.Yul.exec (fuel + cases.length + 17)
+            (Backends.lowerNativeSwitchBlock
+              Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+              defaultBody)
+            (some contract)
+            (.Ok
+              (initialState contract (YulTransaction.ofIR tx) storage
+                observableSlots).sharedState store) =
+          .error err ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.error err) = nativeYul) := by
+  rcases lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq
+      reservedNames n0 fn body next hNonPayable hLower with
+    ⟨callvalueGuardBody, calldataGuardBody, bodyNative, bodyStart,
+      hBodyShape, hBodyLower⟩
+  refine ⟨bodyNative, bodyStart, hBodyLower, ?_⟩
+  intro hBodyNative hProject
+  have hExec :=
+    exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq
+      (fuel + 5) selector switchId tag cases defaultBody body contract
+      (YulTransaction.ofIR tx) storage initialEvents observableSlots store err
+      nativeYul hSelector hFind hSelectorRange hTagsRange
+      (by
+        intro pre suffix hCases
+        rw [hBodyShape]
+        have hPrefix := exec_switchCaseBody_nonpayable_prefix_eq
+          (fuel + suffix.length + 1) callvalueGuardBody calldataGuardBody
+          bodyNative contract (YulTransaction.ofIR tx) storage observableSlots
+          switchId store (4 + fn.params.length * 32)
+          (DispatchGuardsSafe_msgValue_zero_mod_of_nonpayable fn tx hguards
+            hNonPayable)
+          (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+          (DispatchGuardsSafe_calldata_threshold_lt fn tx hguards)
+          (by simp; omega)
+        simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+          hPrefix.trans (hBodyNative pre suffix hCases))
+      hProject
+  simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hExec
+
+/-- Store-parametric selector-hit success projection for a payable generated
+    case body. The generated prefix is discharged before the lowered user body,
+    and matched preservation is required only for that user body. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq_payable_generated_prefix
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (final : EvmYul.Yul.State)
+    (nativeYul : YulResult)
+    (reservedNames : List String) (n0 next : Nat)
+    (fn : IRFunction)
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (body, next))
+    (hPayable : fn.payable = true)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) ∧
+      ((∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots switchId store) =
+            .ok final) →
+        (∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+          NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+            (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul →
+        EvmYul.Yul.exec (fuel + cases.length + 16)
+            (Backends.lowerNativeSwitchBlock
+              Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+              defaultBody)
+            (some contract)
+            (.Ok
+              (initialState contract (YulTransaction.ofIR tx) storage
+                observableSlots).sharedState store) =
+          .ok final ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul) := by
+  rcases lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq
+      reservedNames n0 fn body next hPayable hLower with
+    ⟨guardBody, bodyNative, bodyStart, hBodyShape, hBodyLower⟩
+  refine ⟨bodyNative, bodyStart, hBodyLower, ?_⟩
+  intro hBodyNative hPreservesNative hProject
+  have hExec :=
+    exec_lowerNativeSwitchBlock_selector_find_hit_finalMatched_store_fuel
+      (fuel + 4) selector switchId tag cases defaultBody body contract
+      (YulTransaction.ofIR tx) storage observableSlots store final hSelector
+      hFind hSelectorRange hTagsRange
+      (by
+        intro pre suffix hCases
+        rw [hBodyShape]
+        have hPrefix := exec_switchCaseBody_payable_prefix_eq
+          (fuel + suffix.length + 1) guardBody bodyNative contract
+          (YulTransaction.ofIR tx) storage observableSlots switchId store
+          (4 + fn.params.length * 32)
+          (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+          (DispatchGuardsSafe_calldata_threshold_lt fn tx hguards)
+          (by simp; omega)
+        simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+          hPrefix.trans (hBodyNative pre suffix hCases))
+      (by
+        intro matchedName hMatchedName
+        subst matchedName
+        rcases nativeSwitch_find_hit_split selector cases tag body hFind with
+          ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+        exact hPreservesNative pre suffix hCases
+          (fuel + suffix.length + 10)
+          (nativeSwitchStoreMarkedPrefixStateForId contract
+            (YulTransaction.ofIR tx) storage observableSlots switchId store)
+          final
+          (nativeSwitchStoreMarkedPrefixStateForId_matched contract
+            (YulTransaction.ofIR tx) storage observableSlots switchId store
+            (Backends.nativeSwitchMatchedTempName switchId) rfl)
+          (hBodyNative pre suffix hCases))
+  exact ⟨by
+    simpa [nativeSwitchStoreInitialState, Nat.add_assoc, Nat.add_comm,
+      Nat.add_left_comm] using hExec, hProject⟩
+
+/-- Store-parametric selector-hit success projection for a non-payable
+    generated case body. The generated prefix is discharged before the lowered
+    user body, and matched preservation is required only for that user body. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq_nonpayable_generated_prefix
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (final : EvmYul.Yul.State)
+    (nativeYul : YulResult)
+    (reservedNames : List String) (n0 next : Nat)
+    (fn : IRFunction)
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (body, next))
+    (hNonPayable : fn.payable = false)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) ∧
+      ((∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots switchId store) =
+            .ok final) →
+        (∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+          NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+            (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul →
+        EvmYul.Yul.exec (fuel + cases.length + 17)
+            (Backends.lowerNativeSwitchBlock
+              Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+              defaultBody)
+            (some contract)
+            (.Ok
+              (initialState contract (YulTransaction.ofIR tx) storage
+                observableSlots).sharedState store) =
+          .ok final ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul) := by
+  rcases lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq
+      reservedNames n0 fn body next hNonPayable hLower with
+    ⟨callvalueGuardBody, calldataGuardBody, bodyNative, bodyStart,
+      hBodyShape, hBodyLower⟩
+  refine ⟨bodyNative, bodyStart, hBodyLower, ?_⟩
+  intro hBodyNative hPreservesNative hProject
+  have hExec :=
+    exec_lowerNativeSwitchBlock_selector_find_hit_finalMatched_store_fuel
+      (fuel + 5) selector switchId tag cases defaultBody body contract
+      (YulTransaction.ofIR tx) storage observableSlots store final hSelector
+      hFind hSelectorRange hTagsRange
+      (by
+        intro pre suffix hCases
+        rw [hBodyShape]
+        have hPrefix := exec_switchCaseBody_nonpayable_prefix_eq
+          (fuel + suffix.length + 1) callvalueGuardBody calldataGuardBody
+          bodyNative contract (YulTransaction.ofIR tx) storage observableSlots
+          switchId store (4 + fn.params.length * 32)
+          (DispatchGuardsSafe_msgValue_zero_mod_of_nonpayable fn tx hguards
+            hNonPayable)
+          (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+          (DispatchGuardsSafe_calldata_threshold_lt fn tx hguards)
+          (by simp; omega)
+        simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+          hPrefix.trans (hBodyNative pre suffix hCases))
+      (by
+        intro matchedName hMatchedName
+        subst matchedName
+        rcases nativeSwitch_find_hit_split selector cases tag body hFind with
+          ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+        exact hPreservesNative pre suffix hCases
+          (fuel + suffix.length + 10)
+          (nativeSwitchStoreMarkedPrefixStateForId contract
+            (YulTransaction.ofIR tx) storage observableSlots switchId store)
+          final
+          (nativeSwitchStoreMarkedPrefixStateForId_matched contract
+            (YulTransaction.ofIR tx) storage observableSlots switchId store
+            (Backends.nativeSwitchMatchedTempName switchId) rfl)
+          (hBodyNative pre suffix hCases))
+  exact ⟨by
+    simpa [nativeSwitchStoreInitialState, Nat.add_assoc, Nat.add_comm,
+      Nat.add_left_comm] using hExec, hProject⟩
+
+/-- Store-parametric selector-miss projection for lowered native switches.
+
+This is the miss-case companion to
+`exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq`,
+used when earlier dispatcher-local bindings are present before the selector
+switch falls through to `revert(0, 0)`. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+            [nativeRevertZeroZeroStmt])
+        (some contract)
+        (.Ok (initialState contract tx storage observableSlots).sharedState store) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert) =
+      { success := false
+        returnValue := none
+        finalStorage := storage
+        finalMappings := Compiler.Proofs.storageAsMappings storage
+        events := initialEvents } := by
+  refine ⟨?_, by simp⟩
+  exact exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_fuel
+    fuel selector switchId cases contract tx storage observableSlots store
+    hSelector hFind hSelectorRange hTagsRange
+
+/-- Bridge-shape selector-miss projection on the post-`__has_selector := 1`
+    state. This packages both the block-level native `Revert` endpoint and
+    the exact projected rollback result. -/
+theorem exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_projectResult_eq
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 13)
+      (.Block [Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+        [nativeRevertZeroZeroStmt]])
+      (some contract)
+      ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+          "__has_selector" (EvmYul.UInt256.ofNat 1)) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert) =
+      { success := false
+        returnValue := none
+        finalStorage := storage
+        finalMappings := Compiler.Proofs.storageAsMappings storage
+        events := initialEvents } := by
+  rcases
+    exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq
+      fuel selector switchId cases contract tx storage initialEvents
+      observableSlots nativeSwitchHasSelectorStore hSelector hFind
+      hSelectorRange hTagsRange with
+    ⟨hEndpoint, hProject⟩
+  have hFuelEq : fuel + cases.length + 13 = (fuel + cases.length + 12).succ := by
+    omega
+  rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
+  refine ⟨?_, hProject⟩
+  exact exec_block_cons_error (fuel + cases.length + 12) _ [] _ _
+    EvmYul.Yul.Exception.Revert hEndpoint
+
+/-- Bridge-shape selector-hit error projection on the post-`__has_selector := 1`
+    state. This packages a selected body halt/error with its projected result
+    after the generated dispatcher-local binding has been installed. -/
+theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception)
+    (nativeYul : YulResult)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract) (nativeSwitchStoreMarkedPrefixStateForId contract tx
+          storage observableSlots switchId nativeSwitchHasSelectorStore) =
+        .error err)
+    (hProject : projectResult tx storage initialEvents (.error err) = nativeYul) :
+    EvmYul.Yul.exec (fuel + cases.length + 13)
+      (.Block [Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody])
+      (some contract)
+      ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+          "__has_selector" (EvmYul.UInt256.ofNat 1)) = .error err ∧
+    projectResult tx storage initialEvents (.error err) = nativeYul := by
+  rcases exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq
+      fuel selector switchId tag cases defaultBody body contract tx storage
+      initialEvents observableSlots nativeSwitchHasSelectorStore err nativeYul
+      hSelector hFind hSelectorRange hTagsRange hBody hProject with
+    ⟨hEndpoint, hProject'⟩
+  have hFuelEq : fuel + cases.length + 13 = (fuel + cases.length + 12).succ := by
+    omega
+  rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
+  exact ⟨exec_block_cons_error (fuel + cases.length + 12) _ [] _ _ err hEndpoint,
+    hProject'⟩
+
+/-- Bridge-shape selector-hit error projection for a payable generated case on
+    the post-`__has_selector := 1` state, with generated case guards discharged
+    before the selected user body premise. -/
+theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq_payable_generated_prefix
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception)
+    (nativeYul : YulResult)
+    (reservedNames : List String) (n0 next : Nat)
+    (fn : IRFunction)
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (body, next))
+    (hPayable : fn.payable = true)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) ∧
+      ((∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots switchId
+              nativeSwitchHasSelectorStore) =
+            .error err) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.error err) = nativeYul →
+        EvmYul.Yul.exec (fuel + cases.length + 17)
+            (.Block [Backends.lowerNativeSwitchBlock
+              Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+              defaultBody])
+            (some contract)
+            ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+              storage observableSlots).insert "__has_selector"
+              (EvmYul.UInt256.ofNat 1)) =
+          .error err ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.error err) = nativeYul) := by
+  rcases
+    exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq_payable_generated_prefix
+      fuel selector switchId tag cases defaultBody body contract tx storage
+      initialEvents observableSlots nativeSwitchHasSelectorStore err nativeYul
+      reservedNames n0 next fn hSelector hFind hSelectorRange hTagsRange
+      hLower hPayable hguards hNoWrap hArgs with
+    ⟨bodyNative, bodyStart, hBodyLower, hEndpoint⟩
+  refine ⟨bodyNative, bodyStart, hBodyLower, ?_⟩
+  intro hBody hProject
+  rcases hEndpoint hBody hProject with ⟨hExec, hProject'⟩
+  have hFuelEq : fuel + cases.length + 17 =
+      (fuel + cases.length + 16).succ := by
+    omega
+  rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
+  exact ⟨exec_block_cons_error (fuel + cases.length + 16) _ [] _ _ err hExec,
+    hProject'⟩
+
+/-- Bridge-shape selector-hit error projection for a non-payable generated case
+    on the post-`__has_selector := 1` state, with generated case guards
+    discharged before the selected user body premise. -/
+theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq_nonpayable_generated_prefix
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception)
+    (nativeYul : YulResult)
+    (reservedNames : List String) (n0 next : Nat)
+    (fn : IRFunction)
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (body, next))
+    (hNonPayable : fn.payable = false)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) ∧
+      ((∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots switchId
+              nativeSwitchHasSelectorStore) =
+            .error err) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.error err) = nativeYul →
+        EvmYul.Yul.exec (fuel + cases.length + 18)
+            (.Block [Backends.lowerNativeSwitchBlock
+              Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+              defaultBody])
+            (some contract)
+            ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+              storage observableSlots).insert "__has_selector"
+              (EvmYul.UInt256.ofNat 1)) =
+          .error err ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.error err) = nativeYul) := by
+  rcases
+    exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq_nonpayable_generated_prefix
+      fuel selector switchId tag cases defaultBody body contract tx storage
+      initialEvents observableSlots nativeSwitchHasSelectorStore err nativeYul
+      reservedNames n0 next fn hSelector hFind hSelectorRange hTagsRange
+      hLower hNonPayable hguards hNoWrap hArgs with
+    ⟨bodyNative, bodyStart, hBodyLower, hEndpoint⟩
+  refine ⟨bodyNative, bodyStart, hBodyLower, ?_⟩
+  intro hBody hProject
+  rcases hEndpoint hBody hProject with ⟨hExec, hProject'⟩
+  have hFuelEq : fuel + cases.length + 18 =
+      (fuel + cases.length + 17).succ := by
+    omega
+  rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
+  exact ⟨exec_block_cons_error (fuel + cases.length + 17) _ [] _ _ err hExec,
+    hProject'⟩
+
+/-- Selector-hit success projection for lowered native switches entered from
+    the standard empty-store switch state. This is the normal-result companion
+    to `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq`. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat)) (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hFresh : Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract) (nativeSwitchMarkedPrefixStateForId contract tx
+          storage observableSlots switchId) = .ok final)
+    (hStmtPreserves : ∀ stmt, stmt ∈ body →
+      Backends.nativeSwitchMatchedTempName switchId ∉ Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+          (EvmYul.UInt256.ofNat 1) stmt (some contract))
+    (hProject : projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .ok final ∧
+    projectResult tx storage initialEvents (.ok (final, [])) = nativeYul := by
+  refine ⟨?_, hProject⟩
+  exact exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel
+    fuel selector switchId cases defaultBody tag body contract tx storage
+    observableSlots final hSelector hFind hSelectorRange hTagsRange hFresh
+    hBody hStmtPreserves
+
+/-- Store-parametric selector-hit success projection for lowered native
+    switches. The selected body may finish normally; callers provide the exact
+    projection of that final state at the native result boundary. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat)) (observableSlots : List Nat)
+    (store : EvmYul.Yul.VarStore) (final : EvmYul.Yul.State)
+    (nativeYul : YulResult)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hFresh : Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract) (nativeSwitchStoreMarkedPrefixStateForId contract tx
+          storage observableSlots switchId store) = .ok final)
+    (hStmtPreserves : ∀ stmt, stmt ∈ body →
+      Backends.nativeSwitchMatchedTempName switchId ∉ Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+          (EvmYul.UInt256.ofNat 1) stmt (some contract))
+    (hProject : projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+        (some contract)
+        (.Ok (initialState contract tx storage observableSlots).sharedState store) =
+      .ok final ∧
+    projectResult tx storage initialEvents (.ok (final, [])) = nativeYul := by
+  refine ⟨?_, hProject⟩
+  exact exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel
+    fuel selector switchId tag cases defaultBody body contract tx storage
+    observableSlots store final hSelector hFind hSelectorRange hTagsRange
+    hFresh hBody hStmtPreserves
+
+/-- Bridge-shape selector-hit success projection on the post-`__has_selector`
+    state, deriving default-skip freshness and exposing the projected final
+    native result in one package. -/
+theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat)) (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hFresh : Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract) (nativeSwitchStoreMarkedPrefixStateForId contract tx
+          storage observableSlots switchId nativeSwitchHasSelectorStore) = .ok final)
+    (hStmtPreserves : ∀ stmt, stmt ∈ body →
+      Backends.nativeSwitchMatchedTempName switchId ∉ Backends.nativeStmtWriteNames stmt →
+        NativeStmtPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+          (EvmYul.UInt256.ofNat 1) stmt (some contract))
+    (hProject : projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) :
+    EvmYul.Yul.exec (fuel + cases.length + 13)
+      (.Block [Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody])
+      (some contract)
+      ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+          "__has_selector" (EvmYul.UInt256.ofNat 1)) = .ok final ∧
+    projectResult tx storage initialEvents (.ok (final, [])) = nativeYul := by
+  rcases exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq
+      fuel selector switchId tag cases defaultBody body contract tx storage
+      initialEvents observableSlots nativeSwitchHasSelectorStore final nativeYul
+      hSelector hFind hSelectorRange hTagsRange hFresh hBody hStmtPreserves
+      hProject with
+    ⟨hEndpoint, hProject'⟩
+  have hFuelEq : fuel + cases.length + 13 = (fuel + cases.length + 12).succ := by
+    omega
+  rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
+  exact ⟨exec_block_cons_ok (fuel + cases.length + 12) _ [] _ _ final final
+    hEndpoint (by simp [EvmYul.Yul.exec]), hProject'⟩
+
+/-- Bridge-shape selector-hit success projection on the post-`__has_selector`
+    state, with the selected-body matched-flag preservation supplied directly
+    as a block-level predicate. This is the same boundary as
+    `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq`,
+    but avoids re-exposing per-statement preservation when callers already have
+    a `NativeBlockPreservesWord` proof for the selected body. -/
+theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_preserved
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat)) (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract) (nativeSwitchStoreMarkedPrefixStateForId contract tx
+          storage observableSlots switchId nativeSwitchHasSelectorStore) = .ok final)
+    (hPreservesMatched : ∀ pre suffix,
+      cases = pre ++ (tag, body) :: suffix →
+        NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+          (EvmYul.UInt256.ofNat 1) body (some contract))
+    (hProject : projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) :
+    EvmYul.Yul.exec (fuel + cases.length + 13)
+      (.Block [Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody])
+      (some contract)
+      ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+          "__has_selector" (EvmYul.UInt256.ofNat 1)) = .ok final ∧
+    projectResult tx storage initialEvents (.ok (final, [])) = nativeYul := by
+  refine ⟨?_, hProject⟩
+  have hEndpoint :
+      EvmYul.Yul.exec (fuel + cases.length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+        (some contract)
+        (nativeSwitchHasSelectorInitialState contract tx storage observableSlots) =
+      .ok final := by
+    exact exec_lowerNativeSwitchBlock_selector_find_hit_preserved_store_fuel
+      fuel selector switchId tag cases defaultBody body contract tx storage
+      observableSlots nativeSwitchHasSelectorStore final hSelector hFind
+      hSelectorRange hTagsRange hBody hPreservesMatched
+  have hFuelEq : fuel + cases.length + 13 = (fuel + cases.length + 12).succ := by
+    omega
+  rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
+  exact exec_block_cons_ok (fuel + cases.length + 12) _ [] _ _ final final
+    hEndpoint (by simp [EvmYul.Yul.exec])
+
+/-- Bridge-shape selector-hit success projection for a payable generated case on
+    the post-`__has_selector := 1` state, with generated case guards discharged
+    before the selected user body premise. -/
+theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_payable_generated_prefix
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State)
+    (nativeYul : YulResult)
+    (reservedNames : List String) (n0 next : Nat)
+    (fn : IRFunction)
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (body, next))
+    (hPayable : fn.payable = true)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) ∧
+      ((∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots switchId
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+          NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+            (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul →
+        EvmYul.Yul.exec (fuel + cases.length + 17)
+            (.Block [Backends.lowerNativeSwitchBlock
+              Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+              defaultBody])
+            (some contract)
+            ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+              storage observableSlots).insert "__has_selector"
+              (EvmYul.UInt256.ofNat 1)) =
+          .ok final ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul) := by
+  rcases
+    exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq_payable_generated_prefix
+      fuel selector switchId tag cases defaultBody body contract tx storage
+      initialEvents observableSlots nativeSwitchHasSelectorStore final
+      nativeYul reservedNames n0 next fn hSelector hFind hSelectorRange
+      hTagsRange hLower hPayable hguards hNoWrap hArgs with
+    ⟨bodyNative, bodyStart, hBodyLower, hEndpoint⟩
+  refine ⟨bodyNative, bodyStart, hBodyLower, ?_⟩
+  intro hBody hPreserves hProject
+  rcases hEndpoint hBody hPreserves hProject with ⟨hExec, hProject'⟩
+  have hFuelEq : fuel + cases.length + 17 =
+      (fuel + cases.length + 16).succ := by
+    omega
+  rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
+  exact ⟨exec_block_cons_ok (fuel + cases.length + 16) _ [] _ _
+    final final hExec (by simp [EvmYul.Yul.exec]), hProject'⟩
+
+/-- Bridge-shape selector-hit success projection for a non-payable generated
+    case on the post-`__has_selector := 1` state, with generated case guards
+    discharged before the selected user body premise. -/
+theorem exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_nonpayable_generated_prefix
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State)
+    (nativeYul : YulResult)
+    (reservedNames : List String) (n0 next : Nat)
+    (fn : IRFunction)
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) =
+      some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (body, next))
+    (hNonPayable : fn.payable = false)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) ∧
+      ((∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots switchId
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+          NativeBlockPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+            (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul →
+        EvmYul.Yul.exec (fuel + cases.length + 18)
+            (.Block [Backends.lowerNativeSwitchBlock
+              Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+              defaultBody])
+            (some contract)
+            ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+              storage observableSlots).insert "__has_selector"
+              (EvmYul.UInt256.ofNat 1)) =
+          .ok final ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul) := by
+  rcases
+    exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq_nonpayable_generated_prefix
+      fuel selector switchId tag cases defaultBody body contract tx storage
+      initialEvents observableSlots nativeSwitchHasSelectorStore final
+      nativeYul reservedNames n0 next fn hSelector hFind hSelectorRange
+      hTagsRange hLower hNonPayable hguards hNoWrap hArgs with
+    ⟨bodyNative, bodyStart, hBodyLower, hEndpoint⟩
+  refine ⟨bodyNative, bodyStart, hBodyLower, ?_⟩
+  intro hBody hPreserves hProject
+  rcases hEndpoint hBody hPreserves hProject with ⟨hExec, hProject'⟩
+  have hFuelEq : fuel + cases.length + 18 =
+      (fuel + cases.length + 17).succ := by
+    omega
+  rw [nativeSwitchInitialOkState_insert_hasSelector_eq, hFuelEq]
+  exact ⟨exec_block_cons_ok (fuel + cases.length + 17) _ [] _ _
+    final final hExec (by simp [EvmYul.Yul.exec]), hProject'⟩
+
+/-- Contract-dispatcher boundary for a generated lowered selector-switch hit
+    whose selected body exits through an EVMYulLean error or halt channel. -/
+theorem contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
+    (fuel selector switchId tag : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (dispatcher : EvmYul.Yul.Ast.Stmt) (functions : NativeFunctionMap)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (initialEvents : List (List Nat))
+    (observableSlots : List Nat) (err : EvmYul.Yul.Exception) (nativeYul : YulResult)
+    (hDispatcher : dispatcher = Backends.lowerNativeSwitchBlock
+      Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+    (hContract : contract = { dispatcher := .Block [dispatcher], functions := functions })
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract)
+        (nativeSwitchMarkedPrefixStateForId contract tx storage
+          observableSlots switchId) = .error err)
+    (hProject : projectResult tx storage initialEvents (.error err) = nativeYul) :
+    contractDispatcherExecResult (Nat.succ (Nat.succ (fuel + cases.length + 12)))
+        contract (initialState contract tx storage observableSlots) =
+      .error err ∧
+    projectResult tx storage initialEvents (.error err) = nativeYul := by
+  subst hDispatcher
+  subst hContract
+  let dispatcher' :=
+    Backends.lowerNativeSwitchBlock
+      Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody
+  let contract' : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block [dispatcher'], functions := functions }
+  rcases exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
+      fuel selector switchId cases defaultBody tag body contract' tx storage
+      initialEvents observableSlots err nativeYul hSelector hFind hSelectorRange
+      hTagsRange hBody hProject with
+    ⟨hExec, hProject'⟩
+  rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+    (fuel + cases.length + 12) [dispatcher'] functions tx storage observableSlots]
+  exact
+    ⟨exec_block_cons_error (fuel + cases.length + 12) dispatcher' []
+        (some contract') (nativeSwitchInitialOkState contract' tx storage observableSlots)
+        err hExec,
+      hProject'⟩
+
+/-- Contract-dispatcher boundary for a generated lowered selector-switch hit
+    whose selected body finishes normally. -/
+theorem contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq
+    (fuel selector switchId tag : Nat) (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody body : List EvmYul.Yul.Ast.Stmt)
+    (dispatcher : EvmYul.Yul.Ast.Stmt) (functions : NativeFunctionMap)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (initialEvents : List (List Nat))
+    (observableSlots : List Nat) (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hDispatcher : dispatcher = Backends.lowerNativeSwitchBlock
+      Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody)
+    (hContract : contract = { dispatcher := .Block [dispatcher], functions := functions })
+    (hSelector : selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = some (tag, body))
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange : ∀ tag' body', (tag', body') ∈ cases → tag' < EvmYul.UInt256.size)
+    (hFresh : Backends.nativeSwitchTempsFreshForNativeBodies switchId cases defaultBody)
+    (hBody : ∀ pre suffix, cases = pre ++ (tag, body) :: suffix →
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body)
+        (some contract) (nativeSwitchMarkedPrefixStateForId contract tx storage
+          observableSlots switchId) = .ok final)
+    (hStmtPreserves : ∀ stmt, stmt ∈ body →
+      Backends.nativeSwitchMatchedTempName switchId ∉ Backends.nativeStmtWriteNames stmt →
+      NativeStmtPreservesWord (Backends.nativeSwitchMatchedTempName switchId)
+          (EvmYul.UInt256.ofNat 1) stmt (some contract))
+    (hProject : projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) :
+    contractDispatcherExecResult (Nat.succ (Nat.succ (fuel + cases.length + 12)))
+        contract (initialState contract tx storage observableSlots) = .ok final ∧
+    projectResult tx storage initialEvents (.ok (final, [])) = nativeYul := by
+  subst hDispatcher
+  subst hContract
+  let dispatcher' := Backends.lowerNativeSwitchBlock
+    Compiler.Proofs.YulGeneration.selectorExpr switchId cases defaultBody
+  let contract' : EvmYul.Yul.Ast.YulContract := { dispatcher := .Block [dispatcher'], functions := functions }
+  rcases exec_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq
+      fuel selector switchId tag cases defaultBody body contract' tx storage
+      initialEvents observableSlots final nativeYul hSelector hFind
+      hSelectorRange hTagsRange hFresh hBody hStmtPreserves hProject with
+    ⟨hExec, hProject'⟩
+  rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+    (fuel + cases.length + 12) [dispatcher'] functions tx storage observableSlots]
+  exact
+    ⟨exec_block_cons_ok (fuel + cases.length + 12) dispatcher' []
+        (some contract') (nativeSwitchInitialOkState contract' tx storage observableSlots)
+        final final hExec (by simp [EvmYul.Yul.exec]),
+      hProject'⟩
+
 /-- Guarded selector-miss execution for a fully lowered native switch block,
     lifted through Verity's projected native result boundary. The generated
     `revert(0, 0)` default both executes through the actual native step
@@ -13756,6 +23967,4956 @@ theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_proje
   · intro slot
     simp
 
+/-- Guarded selector-miss execution for a fully lowered native switch block,
+    with the projected revert result exposed as one exact `YulResult`.
+
+This generic package is the native dispatcher boundary needed by generated
+selector-miss proofs: the lowered switch reaches EVMYulLean's `Revert`, and
+Verity's projection rolls storage and events back to the call pre-state. -/
+theorem exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    EvmYul.Yul.exec (fuel + cases.length + 12)
+        (Backends.lowerNativeSwitchBlock
+          Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+            [nativeRevertZeroZeroStmt])
+        (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert) =
+      { success := false
+        returnValue := none
+        finalStorage := storage
+        finalMappings := Compiler.Proofs.storageAsMappings storage
+        events := initialEvents } := by
+  rcases
+    exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult
+      fuel selector switchId cases contract tx storage initialEvents
+      observableSlots hSelector hFind hSelectorRange hTagsRange with
+    ⟨hExec, _hSuccess, _hReturn, _hStorage⟩
+  exact ⟨hExec, by simp⟩
+
+/-- Contract-dispatcher boundary for a generated lowered selector-switch miss.
+
+This lifts the generic `lowerNativeSwitchBlock` selector-miss theorem through
+the actual native dispatcher execution wrapper used by the public EndToEnd
+target. -/
+theorem contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
+    (fuel selector switchId : Nat)
+    (cases : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : cases.find? (fun entry => entry.1 == selector) = none)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases → tag < EvmYul.UInt256.size) :
+    let dispatcher :=
+      Backends.lowerNativeSwitchBlock
+        Compiler.Proofs.YulGeneration.selectorExpr switchId cases
+        [nativeRevertZeroZeroStmt]
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [dispatcher], functions := functions }
+    contractDispatcherExecResult (Nat.succ (Nat.succ (fuel + cases.length + 12)))
+        contract (initialState contract tx storage observableSlots) =
+      .error EvmYul.Yul.Exception.Revert ∧
+    projectResult tx storage initialEvents
+        (.error EvmYul.Yul.Exception.Revert) =
+      { success := false
+        returnValue := none
+        finalStorage := storage
+        finalMappings := Compiler.Proofs.storageAsMappings storage
+        events := initialEvents } := by
+  intro dispatcher contract
+  rcases
+    exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
+      fuel selector switchId cases contract tx storage initialEvents
+      observableSlots hSelector hFind hSelectorRange hTagsRange with
+    ⟨hExec, hProject⟩
+  rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+    (fuel + cases.length + 12) [dispatcher] functions tx storage observableSlots]
+  exact
+    ⟨exec_block_cons_error (fuel + cases.length + 12) dispatcher [] (some contract)
+        (nativeSwitchInitialOkState contract tx storage observableSlots)
+        EvmYul.Yul.Exception.Revert hExec,
+      hProject⟩
+
+/-- Generic selector-miss native execution package for a no-fallback/no-receive
+    generated dispatcher.
+
+This opens the actual native lowering of `buildSwitch funcs none none`, links the
+source function-table miss to the lowered lazy-switch miss, and lifts the result
+through the real `contractDispatcherExecResult` wrapper. The fuel is still the
+structural dispatcher fuel exposed by the current native switch lemmas; the
+canonical theorem-facing fuel remains a separate monotonicity/size-bound step. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_projectResult_eq
+    (fuel selector : Nat)
+    (funcs : List IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun fn => fn.selector == selector) = none)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+          (Backends.freshNativeSwitchId reservedNames n0 + 1)
+          (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      contractDispatcherExecResult (fuel + cases'.length + 19)
+          contract (initialState contract tx storage observableSlots) =
+        .error EvmYul.Yul.Exception.Revert ∧
+      projectResult tx storage initialEvents
+          (.error EvmYul.Yul.Exception.Revert) =
+        { success := false
+          returnValue := none
+          finalStorage := storage
+          finalMappings := Compiler.Proofs.storageAsMappings storage
+          events := initialEvents } := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, hInner, hLowerCases⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered funcs inner hLower
+  refine ⟨reservedNames, n0, cases', midN, ?_, ?_, ?_⟩
+  · exact hLowerCases
+  · let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hLowerFind :
+        cases'.find? (fun entry => entry.1 == selector) = none :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+        reservedNames (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+        selector funcs cases' hLowerCases hFind
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hPeel :
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames n0) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      let contract' : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      have hFuelShape :
+          fuel + cases'.length + 19 =
+            Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+        omega
+      have hDispatcherPeel :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract' (initialState contract' tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner) (some contract')
+              (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+        rw [hFuelShape]
+        change
+          contractDispatcherExecResult
+              (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+              { dispatcher := .Block [.Block inner], functions := functions }
+              (initialState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner)
+              (some { dispatcher := .Block [.Block inner], functions := functions })
+              (nativeSwitchInitialOkState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots)
+        rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+          (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+          tx storage observableSlots]
+        rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+          (some { dispatcher := .Block [.Block inner], functions := functions })
+          (nativeSwitchInitialOkState
+            { dispatcher := .Block [.Block inner], functions := functions }
+            tx storage observableSlots)]
+      calc
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots)
+            = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block
+                [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                    (some
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero"
+                          [YulExpr.call "lt"
+                            [YulExpr.call "calldatasize" [],
+                             YulExpr.lit 4]]))),
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative
+                      (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                    body1,
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                    [Backends.lowerNativeSwitchBlock
+                      (YulExpr.call "shr"
+                        [YulExpr.lit Compiler.Constants.selectorShift,
+                         YulExpr.call "calldataload" [YulExpr.lit 0]])
+                      (Backends.freshNativeSwitchId reservedNames n0) cases'
+                      [nativeRevertZeroZeroStmt]]])
+              (some contract)
+              (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+            exact congrArg
+              (fun body =>
+                EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block body) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots))
+              hInner
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+            have hExec :=
+              exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                (fuel + cases'.length + 5) contract tx storage observableSlots
+                "__has_selector" body1
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]]
+                hNoWrap
+            simpa only [Nat.add_assoc] using hExec
+    rw [hPeel]
+    exact exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error
+      fuel selector (Backends.freshNativeSwitchId reservedNames n0) cases'
+      contract tx storage observableSlots hSelector hLowerFind hSelectorRange
+      hTagsRange
+  · simp
+
+/-- Exact-total-fuel companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_projectResult_eq`.
+
+The theorem opens the generated dispatcher lowering first, exposes the lowered
+case list, and then runs the dispatcher at any total fuel that covers the
+structural selector-miss budget `cases'.length + 19`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_atFuel_projectResult_eq
+    (fuel' selector : Nat)
+    (funcs : List IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun fn => fn.selector == selector) = none)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+          (Backends.freshNativeSwitchId reservedNames n0 + 1)
+          (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      (cases'.length + 19 ≤ fuel' →
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          .error EvmYul.Yul.Exception.Revert ∧
+        projectResult tx storage initialEvents
+            (.error EvmYul.Yul.Exception.Revert) =
+          { success := false
+            returnValue := none
+            finalStorage := storage
+            finalMappings := Compiler.Proofs.storageAsMappings storage
+            events := initialEvents }) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, hInner, hLowerCases⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered funcs inner hLower
+  refine ⟨reservedNames, n0, cases', midN, ?_, ?_⟩
+  · exact hLowerCases
+  · intro hFuel
+    let fuel := fuel' - (cases'.length + 19)
+    have hFuelShape : fuel' = fuel + cases'.length + 19 := by
+      dsimp [fuel]
+      exact (Nat.sub_add_cancel hFuel).symm
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hLowerFind :
+        cases'.find? (fun entry => entry.1 == selector) = none :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+        reservedNames (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+        selector funcs cases' hLowerCases hFind
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hPeel :
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames n0) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      rw [hFuelShape]
+      have hPeelStructural :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+        let contract' : EvmYul.Yul.Ast.YulContract :=
+          { dispatcher := .Block [.Block inner], functions := functions }
+        have hFuelShape' :
+            fuel + cases'.length + 19 =
+              Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+          omega
+        have hDispatcherPeel :
+            contractDispatcherExecResult (fuel + cases'.length + 19)
+                contract' (initialState contract' tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract')
+                (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+          rw [hFuelShape']
+          change
+            contractDispatcherExecResult
+                (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+                { dispatcher := .Block [.Block inner], functions := functions }
+                (initialState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner)
+                (some { dispatcher := .Block [.Block inner], functions := functions })
+                (nativeSwitchInitialOkState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots)
+          rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+            (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+            tx storage observableSlots]
+          rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+            (some { dispatcher := .Block [.Block inner], functions := functions })
+            (nativeSwitchInitialOkState
+              { dispatcher := .Block [.Block inner], functions := functions }
+              tx storage observableSlots)]
+        calc
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots)
+              = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block inner) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block
+                  [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                      (some
+                        (Backends.lowerExprNative
+                          (YulExpr.call "iszero"
+                            [YulExpr.call "lt"
+                              [YulExpr.call "calldatasize" [],
+                               YulExpr.lit 4]]))),
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                      body1,
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                      [Backends.lowerNativeSwitchBlock
+                        (YulExpr.call "shr"
+                          [YulExpr.lit Compiler.Constants.selectorShift,
+                           YulExpr.call "calldataload" [YulExpr.lit 0]])
+                        (Backends.freshNativeSwitchId reservedNames n0) cases'
+                        [nativeRevertZeroZeroStmt]]])
+                (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+              exact congrArg
+                (fun body =>
+                  EvmYul.Yul.exec (fuel + cases'.length + 17)
+                    (.Block body) (some contract)
+                    (nativeSwitchInitialOkState contract tx storage observableSlots))
+                hInner
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+                (.Block
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames n0) cases'
+                    [nativeRevertZeroZeroStmt]])
+                (some contract)
+                ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                  "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+              have hExec :=
+                exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                  (fuel + cases'.length + 5) contract tx storage observableSlots
+                  "__has_selector" body1
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames n0) cases'
+                    [nativeRevertZeroZeroStmt]]
+                  hNoWrap
+              simpa only [Nat.add_assoc] using hExec
+      exact hPeelStructural
+    constructor
+    · rw [hPeel]
+      exact exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error
+        fuel selector (Backends.freshNativeSwitchId reservedNames n0) cases'
+        contract tx storage observableSlots hSelector hLowerFind hSelectorRange
+        hTagsRange
+    · simp
+
+/-- Generic selector-hit native execution package for a no-fallback/no-receive
+generated dispatcher when the selected native body exits through an error/halt
+channel.
+
+The theorem opens `buildSwitch` lowering, exposes the selected lowered body, and
+packages the remaining body-execution premise at the post-selector-match state. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_projectResult_eq
+    (fuel selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .error err) →
+        projectResult tx storage initialEvents (.error err) = nativeYul →
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          .error err ∧
+        projectResult tx storage initialEvents (.error err) = nativeYul) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+      funcs inner selector fn hLower hFind
+  refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd, ?_, ?_, ?_⟩
+  · exact hCase
+  · exact hBodyLower
+  · intro hBody hProject
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hPeel :
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames n0) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      let contract' : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      have hFuelShape :
+          fuel + cases'.length + 19 =
+            Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+        omega
+      have hDispatcherPeel :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract' (initialState contract' tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner) (some contract')
+              (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+        rw [hFuelShape]
+        change
+          contractDispatcherExecResult
+              (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+              { dispatcher := .Block [.Block inner], functions := functions }
+              (initialState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner)
+              (some { dispatcher := .Block [.Block inner], functions := functions })
+              (nativeSwitchInitialOkState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots)
+        rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+          (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+          tx storage observableSlots]
+        rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+          (some { dispatcher := .Block [.Block inner], functions := functions })
+          (nativeSwitchInitialOkState
+            { dispatcher := .Block [.Block inner], functions := functions }
+            tx storage observableSlots)]
+      calc
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots)
+            = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block
+                [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                    (some
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero"
+                          [YulExpr.call "lt"
+                            [YulExpr.call "calldatasize" [],
+                             YulExpr.lit 4]]))),
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative
+                      (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                    body1,
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                    [Backends.lowerNativeSwitchBlock
+                      (YulExpr.call "shr"
+                        [YulExpr.lit Compiler.Constants.selectorShift,
+                         YulExpr.call "calldataload" [YulExpr.lit 0]])
+                      (Backends.freshNativeSwitchId reservedNames n0) cases'
+                      [nativeRevertZeroZeroStmt]]])
+              (some contract)
+              (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+            exact congrArg
+              (fun body =>
+                EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block body) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots))
+              hInner
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+            have hExec :=
+              exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                (fuel + cases'.length + 5) contract tx storage observableSlots
+                "__has_selector" body1
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]]
+                hNoWrap
+            simpa only [Nat.add_assoc] using hExec
+    rw [hPeel]
+    exact exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq
+      fuel selector (Backends.freshNativeSwitchId reservedNames n0) selector
+      cases' [nativeRevertZeroZeroStmt] body' contract tx storage initialEvents
+      observableSlots err nativeYul hSelector hCase hSelectorRange hTagsRange
+      hBody hProject
+
+/-- Structural dispatcher/prologue peel for no-fallback/no-receive generated
+    dispatchers after the selector availability guard succeeds. This isolates
+    the common `__has_selector` setup and lazy native switch entry shape. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_peel
+    (fuel : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (body1 inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (hInner :
+      inner =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some
+              (Backends.lowerExprNative
+                (YulExpr.call "iszero"
+                  [YulExpr.call "lt"
+                    [YulExpr.call "calldatasize" [], YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+            body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]]])
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    contractDispatcherExecResult (fuel + cases'.length + 19)
+        contract (initialState contract tx storage observableSlots) =
+      EvmYul.Yul.exec (fuel + cases'.length + 13)
+        (.Block
+          [Backends.lowerNativeSwitchBlock
+            (YulExpr.call "shr"
+              [YulExpr.lit Compiler.Constants.selectorShift,
+               YulExpr.call "calldataload" [YulExpr.lit 0]])
+            (Backends.freshNativeSwitchId reservedNames n0) cases'
+            [nativeRevertZeroZeroStmt]])
+        (some contract)
+        ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+          "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+  intro contract
+  let contract' : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block [.Block inner], functions := functions }
+  have hFuelShape :
+      fuel + cases'.length + 19 =
+        Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+    omega
+  have hDispatcherPeel :
+      contractDispatcherExecResult (fuel + cases'.length + 19)
+          contract' (initialState contract' tx storage observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 17)
+          (.Block inner) (some contract')
+          (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+    rw [hFuelShape]
+    change
+      contractDispatcherExecResult
+          (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+          { dispatcher := .Block [.Block inner], functions := functions }
+          (initialState
+            { dispatcher := .Block [.Block inner], functions := functions }
+            tx storage observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 17)
+          (.Block inner)
+          (some { dispatcher := .Block [.Block inner], functions := functions })
+          (nativeSwitchInitialOkState
+            { dispatcher := .Block [.Block inner], functions := functions }
+            tx storage observableSlots)
+    rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+      (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+      tx storage observableSlots]
+    rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+      (some { dispatcher := .Block [.Block inner], functions := functions })
+      (nativeSwitchInitialOkState
+        { dispatcher := .Block [.Block inner], functions := functions }
+        tx storage observableSlots)]
+  calc
+    contractDispatcherExecResult (fuel + cases'.length + 19)
+        contract (initialState contract tx storage observableSlots)
+        = EvmYul.Yul.exec (fuel + cases'.length + 17)
+            (.Block inner) (some contract)
+            (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+    _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+          (.Block
+            [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                (some
+                  (Backends.lowerExprNative
+                    (YulExpr.call "iszero"
+                      [YulExpr.call "lt"
+                        [YulExpr.call "calldatasize" [],
+                         YulExpr.lit 4]]))),
+             EvmYul.Yul.Ast.Stmt.If
+                (Backends.lowerExprNative
+                  (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                body1,
+             EvmYul.Yul.Ast.Stmt.If
+                (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]]])
+          (some contract)
+          (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+        exact congrArg
+          (fun body =>
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block body) (some contract)
+              (nativeSwitchInitialOkState contract tx storage observableSlots))
+          hInner
+    _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+          (.Block
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]])
+          (some contract)
+          ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+            "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+        have hExec :=
+          exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+            (fuel + cases'.length + 5) contract tx storage observableSlots
+            "__has_selector" body1
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]]
+            hNoWrap
+        simpa only [Nat.add_assoc] using hExec
+
+/-- Generated-prefix variant of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_projectResult_eq`
+for payable functions.
+
+The public selected-body premise is over the lowered user body `fn.body`, not
+the whole generated `switchCaseBody fn`; this theorem discharges the generated
+comment no-op and calldata-size guard before applying the existing dispatcher
+selector-hit wrapper at the correspondingly larger structural fuel. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_payable_generated_prefix_projectResult_eq
+    (fuel selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size)
+    (hPayable : fn.payable = true)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd userBodyStart : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+        fn.body = .ok (bodyNative, bodyEnd) ∧
+      ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots
+              (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .error err) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.error err) = nativeYul →
+        contractDispatcherExecResult (fuel + cases'.length + 23)
+            contract
+            (initialState contract (YulTransaction.ofIR tx) storage
+              observableSlots) =
+          .error err ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.error err) = nativeYul) := by
+  obtain ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
+      hCase, hBodyLower, hCont⟩ :=
+    contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_projectResult_eq
+      (fuel + 4) selector funcs fn inner functions (YulTransaction.ofIR tx)
+      storage initialEvents observableSlots err nativeYul hLower hSelector
+      hFind (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+      hSelectorRange hFunctionSelectorsRange
+  rcases lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq
+      reservedNames bodyStart fn body' bodyEnd hPayable hBodyLower with
+    ⟨guardBody, bodyNative, userBodyStart, hBodyShape, hUserBodyLower⟩
+  refine ⟨reservedNames, n0, cases', body', bodyNative, bodyStart, bodyEnd,
+    userBodyStart, hCase, hBodyLower, hUserBodyLower, ?_⟩
+  intro hUserBody hProject
+  have hWholeBody :
+      ∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+        EvmYul.Yul.exec (((fuel + 4) + 1) + suffix.length + 7)
+          (.Block body') (some
+            ({ dispatcher := .Block [.Block inner], functions := functions } :
+              EvmYul.Yul.Ast.YulContract))
+          (nativeSwitchStoreMarkedPrefixStateForId
+            ({ dispatcher := .Block [.Block inner], functions := functions } :
+              EvmYul.Yul.Ast.YulContract)
+            (YulTransaction.ofIR tx) storage observableSlots
+            (Backends.freshNativeSwitchId reservedNames n0)
+            nativeSwitchHasSelectorStore) = .error err := by
+    intro pre suffix hCases
+    rw [hBodyShape]
+    have hPrefix := exec_switchCaseBody_payable_prefix_eq
+      (fuel + suffix.length + 1) guardBody bodyNative
+      ({ dispatcher := .Block [.Block inner], functions := functions } :
+        EvmYul.Yul.Ast.YulContract)
+      (YulTransaction.ofIR tx) storage observableSlots
+      (Backends.freshNativeSwitchId reservedNames n0)
+      nativeSwitchHasSelectorStore (4 + fn.params.length * 32)
+      (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+      (DispatchGuardsSafe_calldata_threshold_lt fn tx hguards)
+      (by simp; omega)
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+      hPrefix.trans (hUserBody pre suffix hCases)
+  have hResult := hCont hWholeBody hProject
+  simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hResult
+
+/-- Generated-prefix variant of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_projectResult_eq`
+for non-payable functions.
+
+The public selected-body premise is over the lowered user body `fn.body`; this
+theorem discharges the generated comment no-op, callvalue guard, and
+calldata-size guard before applying the existing dispatcher selector-hit
+wrapper at the correspondingly larger structural fuel. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_nonpayable_generated_prefix_projectResult_eq
+    (fuel selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size)
+    (hNonPayable : fn.payable = false)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd userBodyStart : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+        fn.body = .ok (bodyNative, bodyEnd) ∧
+      ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots
+              (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .error err) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.error err) = nativeYul →
+        contractDispatcherExecResult (fuel + cases'.length + 24)
+            contract
+            (initialState contract (YulTransaction.ofIR tx) storage
+              observableSlots) =
+          .error err ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.error err) = nativeYul) := by
+  obtain ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
+      hCase, hBodyLower, hCont⟩ :=
+    contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_projectResult_eq
+      (fuel + 5) selector funcs fn inner functions (YulTransaction.ofIR tx)
+      storage initialEvents observableSlots err nativeYul hLower hSelector
+      hFind (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+      hSelectorRange hFunctionSelectorsRange
+  rcases lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq
+      reservedNames bodyStart fn body' bodyEnd hNonPayable hBodyLower with
+    ⟨callvalueGuardBody, calldataGuardBody, bodyNative, userBodyStart,
+      hBodyShape, hUserBodyLower⟩
+  refine ⟨reservedNames, n0, cases', body', bodyNative, bodyStart, bodyEnd,
+    userBodyStart, hCase, hBodyLower, hUserBodyLower, ?_⟩
+  intro hUserBody hProject
+  have hWholeBody :
+      ∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+        EvmYul.Yul.exec (((fuel + 5) + 1) + suffix.length + 7)
+          (.Block body') (some
+            ({ dispatcher := .Block [.Block inner], functions := functions } :
+              EvmYul.Yul.Ast.YulContract))
+          (nativeSwitchStoreMarkedPrefixStateForId
+            ({ dispatcher := .Block [.Block inner], functions := functions } :
+              EvmYul.Yul.Ast.YulContract)
+            (YulTransaction.ofIR tx) storage observableSlots
+            (Backends.freshNativeSwitchId reservedNames n0)
+            nativeSwitchHasSelectorStore) = .error err := by
+    intro pre suffix hCases
+    rw [hBodyShape]
+    have hPrefix := exec_switchCaseBody_nonpayable_prefix_eq
+      (fuel + suffix.length + 1) callvalueGuardBody calldataGuardBody
+      bodyNative
+      ({ dispatcher := .Block [.Block inner], functions := functions } :
+        EvmYul.Yul.Ast.YulContract)
+      (YulTransaction.ofIR tx) storage observableSlots
+      (Backends.freshNativeSwitchId reservedNames n0)
+      nativeSwitchHasSelectorStore (4 + fn.params.length * 32)
+      (DispatchGuardsSafe_msgValue_zero_mod_of_nonpayable fn tx hguards
+        hNonPayable)
+      (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+      (DispatchGuardsSafe_calldata_threshold_lt fn tx hguards)
+      (by simp; omega)
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+      hPrefix.trans (hUserBody pre suffix hCases)
+  have hResult := hCont hWholeBody hProject
+  simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hResult
+
+/-- Generated-prefix success variant for payable selector hits. The public
+    selected-body premises are over the lowered user body `fn.body`, not over
+    the generated `switchCaseBody fn` wrapper. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_payable_generated_prefix_projectResult_eq
+    (fuel selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size)
+    (hPayable : fn.payable = true)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd userBodyStart : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+        fn.body = .ok (bodyNative, bodyEnd) ∧
+      ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots
+              (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          NativeBlockPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames n0))
+            (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult (fuel + cases'.length + 23)
+            contract
+            (initialState contract (YulTransaction.ofIR tx) storage
+              observableSlots) =
+          .ok final ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+      funcs inner selector fn hLower hFind
+  let contract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block [.Block inner], functions := functions }
+  have hTagsEq :
+      cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+    Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+      (buildSwitchSourceCases funcs) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) := by
+      exact List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [buildSwitchSourceCases] at hTagMem
+    rcases hTagMem with ⟨fn, hFn, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange _ hFn
+  have hPeel :=
+    contractDispatcherExecResult_buildSwitch_noFallback_noReceive_peel
+      (fuel + 4) reservedNames n0 cases' body1 inner functions
+      (YulTransaction.ofIR tx) storage observableSlots hInner
+      (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+  have hPeel' :
+      contractDispatcherExecResult (fuel + cases'.length + 23)
+          contract
+          (initialState contract (YulTransaction.ofIR tx) storage
+            observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 17)
+          (.Block
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]])
+          (some contract)
+          ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+            storage observableSlots).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)) := by
+    simpa [contract, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+      using hPeel
+  have hBlock :=
+    exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_payable_generated_prefix
+      fuel selector (Backends.freshNativeSwitchId reservedNames n0) selector
+      cases' [nativeRevertZeroZeroStmt] body' contract tx storage
+      initialEvents observableSlots final nativeYul reservedNames bodyStart
+      bodyEnd fn hSelector hCase hSelectorRange hTagsRange hBodyLower
+      hPayable hguards hNoWrap hArgs
+  rcases hBlock with ⟨bodyNative, userBodyStart, hUserBodyLower, hCont⟩
+  refine ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart,
+    bodyEnd, userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower,
+    ?_⟩
+  intro hUserBody hPreservesUser hProject
+  rw [hPeel']
+  have hResult := hCont hUserBody hPreservesUser hProject
+  simpa [contract, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hResult
+
+/-- Generated-prefix success variant for non-payable selector hits. The public
+    selected-body premises are over the lowered user body `fn.body`, not over
+    the generated `switchCaseBody fn` wrapper. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_nonpayable_generated_prefix_projectResult_eq
+    (fuel selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size)
+    (hNonPayable : fn.payable = false)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd userBodyStart : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+        fn.body = .ok (bodyNative, bodyEnd) ∧
+      ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots
+              (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          NativeBlockPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames n0))
+            (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult (fuel + cases'.length + 24)
+            contract
+            (initialState contract (YulTransaction.ofIR tx) storage
+              observableSlots) =
+          .ok final ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+      funcs inner selector fn hLower hFind
+  let contract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block [.Block inner], functions := functions }
+  have hTagsEq :
+      cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+    Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+      (buildSwitchSourceCases funcs) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) := by
+      exact List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [buildSwitchSourceCases] at hTagMem
+    rcases hTagMem with ⟨fn, hFn, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange _ hFn
+  have hPeel :=
+    contractDispatcherExecResult_buildSwitch_noFallback_noReceive_peel
+      (fuel + 5) reservedNames n0 cases' body1 inner functions
+      (YulTransaction.ofIR tx) storage observableSlots hInner
+      (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+  have hPeel' :
+      contractDispatcherExecResult (fuel + cases'.length + 24)
+          contract
+          (initialState contract (YulTransaction.ofIR tx) storage
+            observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 18)
+          (.Block
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]])
+          (some contract)
+          ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+            storage observableSlots).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)) := by
+    simpa [contract, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+      using hPeel
+  have hBlock :=
+    exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_nonpayable_generated_prefix
+      fuel selector (Backends.freshNativeSwitchId reservedNames n0) selector
+      cases' [nativeRevertZeroZeroStmt] body' contract tx storage
+      initialEvents observableSlots final nativeYul reservedNames bodyStart
+      bodyEnd fn hSelector hCase hSelectorRange hTagsRange hBodyLower
+      hNonPayable hguards hNoWrap hArgs
+  rcases hBlock with ⟨bodyNative, userBodyStart, hUserBodyLower, hCont⟩
+  refine ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart, bodyEnd,
+    userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
+  intro hUserBody hPreservesUser hProject
+  rw [hPeel']
+  have hResult := hCont hUserBody hPreservesUser hProject
+  simpa [contract, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hResult
+
+/-- Reserved-context generated-prefix success variant for payable selector hits.
+    The selected-body premises are over the lowered user body `fn.body`, not
+    over the generated `switchCaseBody fn` wrapper. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_payable_withSwitchIds_generated_prefix_projectResult_eq
+    (fuel selector : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : NativeFunctionMap)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], next))
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size)
+    (hPayable : fn.payable = true)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd userBodyStart : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+        fn.body = .ok (bodyNative, bodyEnd) ∧
+      ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots
+              (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          NativeBlockPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames switchStart))
+            (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult (fuel + cases'.length + 23)
+            contract
+            (initialState contract (YulTransaction.ofIR tx) storage
+              observableSlots) =
+          .ok final ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames n0 funcs inner next selector fn hLower hFind
+  let contract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block [.Block inner], functions := functions }
+  have hTagsEq :
+      cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+    Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+      (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+      (buildSwitchSourceCases funcs) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) := by
+      exact List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [buildSwitchSourceCases] at hTagMem
+    rcases hTagMem with ⟨fn, hFn, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange _ hFn
+  have hPeel :=
+    contractDispatcherExecResult_buildSwitch_noFallback_noReceive_peel
+      (fuel + 4) reservedNames switchStart cases' body1 inner functions
+      (YulTransaction.ofIR tx) storage observableSlots hInner
+      (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+  have hPeel' :
+      contractDispatcherExecResult (fuel + cases'.length + 23)
+          contract
+          (initialState contract (YulTransaction.ofIR tx) storage
+            observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 17)
+          (.Block
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+              [nativeRevertZeroZeroStmt]])
+          (some contract)
+          ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+            storage observableSlots).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)) := by
+    simpa [contract, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+      using hPeel
+  have hBlock :=
+    exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_payable_generated_prefix
+      fuel selector (Backends.freshNativeSwitchId reservedNames switchStart)
+      selector cases' [nativeRevertZeroZeroStmt] body' contract tx storage
+      initialEvents observableSlots final nativeYul reservedNames bodyStart
+      bodyEnd fn hSelector hCase hSelectorRange hTagsRange hBodyLower
+      hPayable hguards hNoWrap hArgs
+  rcases hBlock with ⟨bodyNative, userBodyStart, hUserBodyLower, hCont⟩
+  refine ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
+    userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
+  intro hUserBody hPreservesUser hProject
+  rw [hPeel']
+  have hResult := hCont hUserBody hPreservesUser hProject
+  simpa [contract, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hResult
+
+/-- Reserved-context generated-prefix success variant for non-payable selector
+    hits. The selected-body premises are over the lowered user body `fn.body`,
+    not over the generated `switchCaseBody fn` wrapper. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_nonpayable_withSwitchIds_generated_prefix_projectResult_eq
+    (fuel selector : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : NativeFunctionMap)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], next))
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size)
+    (hNonPayable : fn.payable = false)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd userBodyStart : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+        fn.body = .ok (bodyNative, bodyEnd) ∧
+      ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots
+              (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          NativeBlockPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames switchStart))
+            (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult (fuel + cases'.length + 24)
+            contract
+            (initialState contract (YulTransaction.ofIR tx) storage
+              observableSlots) =
+          .ok final ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames n0 funcs inner next selector fn hLower hFind
+  let contract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block [.Block inner], functions := functions }
+  have hTagsEq :
+      cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+    Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+      (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+      (buildSwitchSourceCases funcs) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) := by
+      exact List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [buildSwitchSourceCases] at hTagMem
+    rcases hTagMem with ⟨fn, hFn, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange _ hFn
+  have hPeel :=
+    contractDispatcherExecResult_buildSwitch_noFallback_noReceive_peel
+      (fuel + 5) reservedNames switchStart cases' body1 inner functions
+      (YulTransaction.ofIR tx) storage observableSlots hInner
+      (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+  have hPeel' :
+      contractDispatcherExecResult (fuel + cases'.length + 24)
+          contract
+          (initialState contract (YulTransaction.ofIR tx) storage
+            observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 18)
+          (.Block
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+              [nativeRevertZeroZeroStmt]])
+          (some contract)
+          ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+            storage observableSlots).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)) := by
+    simpa [contract, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+      using hPeel
+  have hBlock :=
+    exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_nonpayable_generated_prefix
+      fuel selector (Backends.freshNativeSwitchId reservedNames switchStart)
+      selector cases' [nativeRevertZeroZeroStmt] body' contract tx storage
+      initialEvents observableSlots final nativeYul reservedNames bodyStart
+      bodyEnd fn hSelector hCase hSelectorRange hTagsRange hBodyLower
+      hNonPayable hguards hNoWrap hArgs
+  rcases hBlock with ⟨bodyNative, userBodyStart, hUserBodyLower, hCont⟩
+  refine ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
+    userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
+  intro hUserBody hPreservesUser hProject
+  rw [hPeel']
+  have hResult := hCont hUserBody hPreservesUser hProject
+  simpa [contract, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hResult
+
+/-- Exact-total-fuel companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_payable_generated_prefix_projectResult_eq`.
+
+The selected-body execution premise remains over the lowered user body
+`fn.body`, while the dispatcher result is stated at an externally supplied
+total fuel `fuel'`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_payable_generated_prefix_atFuel_projectResult_eq
+    (fuel' selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size)
+    (hPayable : fn.payable = true)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd userBodyStart : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+        fn.body = .ok (bodyNative, bodyEnd) ∧
+      (cases'.length + 23 ≤ fuel' →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel' - (cases'.length + 23)) +
+              suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots
+              (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          NativeBlockPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames n0))
+            (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult fuel'
+            contract
+            (initialState contract (YulTransaction.ofIR tx) storage
+              observableSlots) =
+          .ok final ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+      funcs inner selector fn hLower hFind
+  let contract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block [.Block inner], functions := functions }
+  have hTagsEq :
+      cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+    Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+      (buildSwitchSourceCases funcs) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) := by
+      exact List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [buildSwitchSourceCases] at hTagMem
+    rcases hTagMem with ⟨fn, hFn, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange _ hFn
+  have hBlock :
+      ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (userBodyStart : Nat),
+        Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+          fn.body = .ok (bodyNative, bodyEnd) ∧
+        ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+            EvmYul.Yul.exec ((fuel' - (cases'.length + 23)) +
+                suffix.length + 10) (.Block bodyNative)
+              (some contract)
+              (nativeSwitchStoreMarkedPrefixStateForId contract
+                (YulTransaction.ofIR tx) storage observableSlots
+                (Backends.freshNativeSwitchId reservedNames n0)
+                nativeSwitchHasSelectorStore) = .ok final) →
+          (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+            NativeBlockPreservesWord
+              (Backends.nativeSwitchMatchedTempName
+                (Backends.freshNativeSwitchId reservedNames n0))
+              (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+          projectResult (YulTransaction.ofIR tx) storage initialEvents
+              (.ok (final, [])) = nativeYul →
+          EvmYul.Yul.exec ((fuel' - (cases'.length + 23)) + cases'.length + 17)
+              (.Block [Backends.lowerNativeSwitchBlock
+                Compiler.Proofs.YulGeneration.selectorExpr
+                (Backends.freshNativeSwitchId reservedNames n0) cases'
+                [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+                storage observableSlots).insert "__has_selector"
+                (EvmYul.UInt256.ofNat 1)) =
+            .ok final ∧
+          projectResult (YulTransaction.ofIR tx) storage initialEvents
+              (.ok (final, [])) = nativeYul) := by
+    simpa [contract] using
+      (exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_payable_generated_prefix
+        (fuel' - (cases'.length + 23)) selector
+        (Backends.freshNativeSwitchId reservedNames n0) selector
+        cases' [nativeRevertZeroZeroStmt] body' contract tx storage
+        initialEvents observableSlots final nativeYul reservedNames bodyStart
+        bodyEnd fn hSelector hCase hSelectorRange hTagsRange hBodyLower
+        hPayable hguards hNoWrap hArgs)
+  rcases hBlock with ⟨bodyNative, userBodyStart, hUserBodyLower, hCont⟩
+  refine ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart, bodyEnd,
+    userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
+  intro hFuel hUserBody hPreservesUser hProject
+  let fuel := fuel' - (cases'.length + 23)
+  have hFuelShape : fuel' = fuel + cases'.length + 23 := by
+    dsimp [fuel]
+    exact (Nat.sub_add_cancel hFuel).symm
+  have hPeel :=
+    contractDispatcherExecResult_buildSwitch_noFallback_noReceive_peel
+      (fuel + 4) reservedNames n0 cases' body1 inner functions
+      (YulTransaction.ofIR tx) storage observableSlots hInner
+      (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+  have hPeel' :
+      contractDispatcherExecResult fuel'
+          contract
+          (initialState contract (YulTransaction.ofIR tx) storage
+            observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 17)
+          (.Block
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]])
+          (some contract)
+          ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+            storage observableSlots).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)) := by
+    rw [hFuelShape]
+    have hDispatcherFuel :
+        fuel + cases'.length + 23 =
+          (fuel + 4) + cases'.length + 19 := by
+      omega
+    have hSwitchFuel :
+        fuel + cases'.length + 17 =
+          (fuel + 4) + cases'.length + 13 := by
+      omega
+    rw [hDispatcherFuel, hSwitchFuel]
+    simpa [contract] using hPeel
+  rw [hPeel']
+  have hUserBody' :
+      ∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+        EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+          (some contract)
+          (nativeSwitchStoreMarkedPrefixStateForId contract
+            (YulTransaction.ofIR tx) storage observableSlots
+            (Backends.freshNativeSwitchId reservedNames n0)
+            nativeSwitchHasSelectorStore) = .ok final := by
+    intro pre suffix hCases
+    simpa [fuel, contract, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+      using hUserBody pre suffix hCases
+  have hResult := hCont hUserBody' hPreservesUser hProject
+  simpa [contract, fuel, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using hResult
+
+/-- Exact-total-fuel companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_nonpayable_generated_prefix_projectResult_eq`.
+
+The selected-body execution premise remains over the lowered user body
+`fn.body`, while the dispatcher result is stated at an externally supplied
+total fuel `fuel'`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_nonpayable_generated_prefix_atFuel_projectResult_eq
+    (fuel' selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size)
+    (hNonPayable : fn.payable = false)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd userBodyStart : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+        fn.body = .ok (bodyNative, bodyEnd) ∧
+      (cases'.length + 24 ≤ fuel' →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel' - (cases'.length + 24)) +
+              suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots
+              (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          NativeBlockPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames n0))
+            (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult fuel'
+            contract
+            (initialState contract (YulTransaction.ofIR tx) storage
+              observableSlots) =
+          .ok final ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+      funcs inner selector fn hLower hFind
+  let contract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block [.Block inner], functions := functions }
+  have hTagsEq :
+      cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+    Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+      (buildSwitchSourceCases funcs) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) := by
+      exact List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [buildSwitchSourceCases] at hTagMem
+    rcases hTagMem with ⟨fn, hFn, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange _ hFn
+  have hBlock :
+      ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (userBodyStart : Nat),
+        Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+          fn.body = .ok (bodyNative, bodyEnd) ∧
+        ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+            EvmYul.Yul.exec ((fuel' - (cases'.length + 24)) +
+                suffix.length + 10) (.Block bodyNative)
+              (some contract)
+              (nativeSwitchStoreMarkedPrefixStateForId contract
+                (YulTransaction.ofIR tx) storage observableSlots
+                (Backends.freshNativeSwitchId reservedNames n0)
+                nativeSwitchHasSelectorStore) = .ok final) →
+          (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+            NativeBlockPreservesWord
+              (Backends.nativeSwitchMatchedTempName
+                (Backends.freshNativeSwitchId reservedNames n0))
+              (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+          projectResult (YulTransaction.ofIR tx) storage initialEvents
+              (.ok (final, [])) = nativeYul →
+          EvmYul.Yul.exec ((fuel' - (cases'.length + 24)) + cases'.length + 18)
+              (.Block [Backends.lowerNativeSwitchBlock
+                Compiler.Proofs.YulGeneration.selectorExpr
+                (Backends.freshNativeSwitchId reservedNames n0) cases'
+                [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+                storage observableSlots).insert "__has_selector"
+                (EvmYul.UInt256.ofNat 1)) =
+            .ok final ∧
+          projectResult (YulTransaction.ofIR tx) storage initialEvents
+              (.ok (final, [])) = nativeYul) := by
+    simpa [contract] using
+      (exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_nonpayable_generated_prefix
+        (fuel' - (cases'.length + 24)) selector
+        (Backends.freshNativeSwitchId reservedNames n0) selector
+        cases' [nativeRevertZeroZeroStmt] body' contract tx storage
+        initialEvents observableSlots final nativeYul reservedNames bodyStart
+        bodyEnd fn hSelector hCase hSelectorRange hTagsRange hBodyLower
+        hNonPayable hguards hNoWrap hArgs)
+  rcases hBlock with ⟨bodyNative, userBodyStart, hUserBodyLower, hCont⟩
+  refine ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart, bodyEnd,
+    userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
+  intro hFuel hUserBody hPreservesUser hProject
+  let fuel := fuel' - (cases'.length + 24)
+  have hFuelShape : fuel' = fuel + cases'.length + 24 := by
+    dsimp [fuel]
+    exact (Nat.sub_add_cancel hFuel).symm
+  have hPeel :=
+    contractDispatcherExecResult_buildSwitch_noFallback_noReceive_peel
+      (fuel + 5) reservedNames n0 cases' body1 inner functions
+      (YulTransaction.ofIR tx) storage observableSlots hInner
+      (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+  have hPeel' :
+      contractDispatcherExecResult fuel'
+          contract
+          (initialState contract (YulTransaction.ofIR tx) storage
+            observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 18)
+          (.Block
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames n0) cases'
+              [nativeRevertZeroZeroStmt]])
+          (some contract)
+          ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+            storage observableSlots).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)) := by
+    rw [hFuelShape]
+    have hDispatcherFuel :
+        fuel + cases'.length + 24 =
+          (fuel + 5) + cases'.length + 19 := by
+      omega
+    have hSwitchFuel :
+        fuel + cases'.length + 18 =
+          (fuel + 5) + cases'.length + 13 := by
+      omega
+    rw [hDispatcherFuel, hSwitchFuel]
+    simpa [contract] using hPeel
+  rw [hPeel']
+  have hUserBody' :
+      ∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+        EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+          (some contract)
+          (nativeSwitchStoreMarkedPrefixStateForId contract
+            (YulTransaction.ofIR tx) storage observableSlots
+            (Backends.freshNativeSwitchId reservedNames n0)
+            nativeSwitchHasSelectorStore) = .ok final := by
+    intro pre suffix hCases
+    simpa [fuel, contract, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+      using hUserBody pre suffix hCases
+  have hResult := hCont hUserBody' hPreservesUser hProject
+  simpa [contract, fuel, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using hResult
+
+/-- Exact-total-fuel reserved-context companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_payable_withSwitchIds_generated_prefix_projectResult_eq`.
+
+The selected-body execution premise remains over the lowered user body
+`fn.body`, while the dispatcher result is stated at an externally supplied
+total fuel `fuel'`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_payable_withSwitchIds_generated_prefix_atFuel_projectResult_eq
+    (fuel' selector : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : NativeFunctionMap)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], next))
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size)
+    (hPayable : fn.payable = true)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd userBodyStart : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+        fn.body = .ok (bodyNative, bodyEnd) ∧
+      (cases'.length + 23 ≤ fuel' →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel' - (cases'.length + 23)) +
+              suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots
+              (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          NativeBlockPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames switchStart))
+            (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult fuel'
+            contract
+            (initialState contract (YulTransaction.ofIR tx) storage
+              observableSlots) =
+          .ok final ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames n0 funcs inner next selector fn hLower hFind
+  let contract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block [.Block inner], functions := functions }
+  have hTagsEq :
+      cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+    Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+      (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+      (buildSwitchSourceCases funcs) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) := by
+      exact List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [buildSwitchSourceCases] at hTagMem
+    rcases hTagMem with ⟨fn, hFn, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange _ hFn
+  have hBlock :
+      ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (userBodyStart : Nat),
+        Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+          fn.body = .ok (bodyNative, bodyEnd) ∧
+        ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+            EvmYul.Yul.exec ((fuel' - (cases'.length + 23)) +
+                suffix.length + 10) (.Block bodyNative)
+              (some contract)
+              (nativeSwitchStoreMarkedPrefixStateForId contract
+                (YulTransaction.ofIR tx) storage observableSlots
+                (Backends.freshNativeSwitchId reservedNames switchStart)
+                nativeSwitchHasSelectorStore) = .ok final) →
+          (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+            NativeBlockPreservesWord
+              (Backends.nativeSwitchMatchedTempName
+                (Backends.freshNativeSwitchId reservedNames switchStart))
+              (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+          projectResult (YulTransaction.ofIR tx) storage initialEvents
+              (.ok (final, [])) = nativeYul →
+          EvmYul.Yul.exec ((fuel' - (cases'.length + 23)) + cases'.length + 17)
+              (.Block [Backends.lowerNativeSwitchBlock
+                Compiler.Proofs.YulGeneration.selectorExpr
+                (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+                storage observableSlots).insert "__has_selector"
+                (EvmYul.UInt256.ofNat 1)) =
+            .ok final ∧
+          projectResult (YulTransaction.ofIR tx) storage initialEvents
+              (.ok (final, [])) = nativeYul) := by
+    simpa [contract] using
+      (exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_payable_generated_prefix
+        (fuel' - (cases'.length + 23)) selector
+        (Backends.freshNativeSwitchId reservedNames switchStart) selector
+        cases' [nativeRevertZeroZeroStmt] body' contract tx storage
+        initialEvents observableSlots final nativeYul reservedNames bodyStart
+        bodyEnd fn hSelector hCase hSelectorRange hTagsRange hBodyLower
+        hPayable hguards hNoWrap hArgs)
+  rcases hBlock with ⟨bodyNative, userBodyStart, hUserBodyLower, hCont⟩
+  refine ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
+    userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
+  intro hFuel hUserBody hPreservesUser hProject
+  let fuel := fuel' - (cases'.length + 23)
+  have hFuelShape : fuel' = fuel + cases'.length + 23 := by
+    dsimp [fuel]
+    exact (Nat.sub_add_cancel hFuel).symm
+  have hPeel :=
+    contractDispatcherExecResult_buildSwitch_noFallback_noReceive_peel
+      (fuel + 4) reservedNames switchStart cases' body1 inner functions
+      (YulTransaction.ofIR tx) storage observableSlots hInner
+      (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+  have hPeel' :
+      contractDispatcherExecResult fuel'
+          contract
+          (initialState contract (YulTransaction.ofIR tx) storage
+            observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 17)
+          (.Block
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+              [nativeRevertZeroZeroStmt]])
+          (some contract)
+          ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+            storage observableSlots).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)) := by
+    rw [hFuelShape]
+    have hDispatcherFuel :
+        fuel + cases'.length + 23 =
+          (fuel + 4) + cases'.length + 19 := by
+      omega
+    have hSwitchFuel :
+        fuel + cases'.length + 17 =
+          (fuel + 4) + cases'.length + 13 := by
+      omega
+    rw [hDispatcherFuel, hSwitchFuel]
+    simpa [contract] using hPeel
+  rw [hPeel']
+  have hUserBody' :
+      ∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+        EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+          (some contract)
+          (nativeSwitchStoreMarkedPrefixStateForId contract
+            (YulTransaction.ofIR tx) storage observableSlots
+            (Backends.freshNativeSwitchId reservedNames switchStart)
+            nativeSwitchHasSelectorStore) = .ok final := by
+    intro pre suffix hCases
+    simpa [fuel, contract, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+      using hUserBody pre suffix hCases
+  have hResult := hCont hUserBody' hPreservesUser hProject
+  simpa [contract, fuel, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using hResult
+
+/-- Exact-total-fuel reserved-context companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_nonpayable_withSwitchIds_generated_prefix_projectResult_eq`.
+
+The selected-body execution premise remains over the lowered user body
+`fn.body`, while the dispatcher result is stated at an externally supplied
+total fuel `fuel'`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_nonpayable_withSwitchIds_generated_prefix_atFuel_projectResult_eq
+    (fuel' selector : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : NativeFunctionMap)
+    (tx : IRTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], next))
+    (hSelector :
+      selector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size)
+    (hNonPayable : fn.payable = false)
+    (hguards : DispatchGuardsSafe fn tx)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd userBodyStart : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+        fn.body = .ok (bodyNative, bodyEnd) ∧
+      (cases'.length + 24 ≤ fuel' →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel' - (cases'.length + 24)) +
+              suffix.length + 10) (.Block bodyNative)
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract
+              (YulTransaction.ofIR tx) storage observableSlots
+              (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          NativeBlockPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames switchStart))
+            (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult fuel'
+            contract
+            (initialState contract (YulTransaction.ofIR tx) storage
+              observableSlots) =
+          .ok final ∧
+        projectResult (YulTransaction.ofIR tx) storage initialEvents
+            (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames n0 funcs inner next selector fn hLower hFind
+  let contract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block [.Block inner], functions := functions }
+  have hTagsEq :
+      cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+    Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+      (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+      (buildSwitchSourceCases funcs) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) := by
+      exact List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [buildSwitchSourceCases] at hTagMem
+    rcases hTagMem with ⟨fn, hFn, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange _ hFn
+  have hBlock :
+      ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (userBodyStart : Nat),
+        Backends.lowerStmtsNativeWithSwitchIds reservedNames userBodyStart
+          fn.body = .ok (bodyNative, bodyEnd) ∧
+        ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+            EvmYul.Yul.exec ((fuel' - (cases'.length + 24)) +
+                suffix.length + 10) (.Block bodyNative)
+              (some contract)
+              (nativeSwitchStoreMarkedPrefixStateForId contract
+                (YulTransaction.ofIR tx) storage observableSlots
+                (Backends.freshNativeSwitchId reservedNames switchStart)
+                nativeSwitchHasSelectorStore) = .ok final) →
+          (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+            NativeBlockPreservesWord
+              (Backends.nativeSwitchMatchedTempName
+                (Backends.freshNativeSwitchId reservedNames switchStart))
+              (EvmYul.UInt256.ofNat 1) bodyNative (some contract)) →
+          projectResult (YulTransaction.ofIR tx) storage initialEvents
+              (.ok (final, [])) = nativeYul →
+          EvmYul.Yul.exec ((fuel' - (cases'.length + 24)) + cases'.length + 18)
+              (.Block [Backends.lowerNativeSwitchBlock
+                Compiler.Proofs.YulGeneration.selectorExpr
+                (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+                storage observableSlots).insert "__has_selector"
+                (EvmYul.UInt256.ofNat 1)) =
+            .ok final ∧
+          projectResult (YulTransaction.ofIR tx) storage initialEvents
+              (.ok (final, [])) = nativeYul) := by
+    simpa [contract] using
+      (exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_nonpayable_generated_prefix
+        (fuel' - (cases'.length + 24)) selector
+        (Backends.freshNativeSwitchId reservedNames switchStart) selector
+        cases' [nativeRevertZeroZeroStmt] body' contract tx storage
+        initialEvents observableSlots final nativeYul reservedNames bodyStart
+        bodyEnd fn hSelector hCase hSelectorRange hTagsRange hBodyLower
+        hNonPayable hguards hNoWrap hArgs)
+  rcases hBlock with ⟨bodyNative, userBodyStart, hUserBodyLower, hCont⟩
+  refine ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
+    userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
+  intro hFuel hUserBody hPreservesUser hProject
+  let fuel := fuel' - (cases'.length + 24)
+  have hFuelShape : fuel' = fuel + cases'.length + 24 := by
+    dsimp [fuel]
+    exact (Nat.sub_add_cancel hFuel).symm
+  have hPeel :=
+    contractDispatcherExecResult_buildSwitch_noFallback_noReceive_peel
+      (fuel + 5) reservedNames switchStart cases' body1 inner functions
+      (YulTransaction.ofIR tx) storage observableSlots hInner
+      (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+  have hPeel' :
+      contractDispatcherExecResult fuel'
+          contract
+          (initialState contract (YulTransaction.ofIR tx) storage
+            observableSlots) =
+        EvmYul.Yul.exec (fuel + cases'.length + 18)
+          (.Block
+            [Backends.lowerNativeSwitchBlock
+              (YulExpr.call "shr"
+                [YulExpr.lit Compiler.Constants.selectorShift,
+                 YulExpr.call "calldataload" [YulExpr.lit 0]])
+              (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+              [nativeRevertZeroZeroStmt]])
+          (some contract)
+          ((nativeSwitchInitialOkState contract (YulTransaction.ofIR tx)
+            storage observableSlots).insert "__has_selector"
+            (EvmYul.UInt256.ofNat 1)) := by
+    rw [hFuelShape]
+    have hDispatcherFuel :
+        fuel + cases'.length + 24 =
+          (fuel + 5) + cases'.length + 19 := by
+      omega
+    have hSwitchFuel :
+        fuel + cases'.length + 18 =
+          (fuel + 5) + cases'.length + 13 := by
+      omega
+    rw [hDispatcherFuel, hSwitchFuel]
+    simpa [contract] using hPeel
+  rw [hPeel']
+  have hUserBody' :
+      ∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+        EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+          (some contract)
+          (nativeSwitchStoreMarkedPrefixStateForId contract
+            (YulTransaction.ofIR tx) storage observableSlots
+            (Backends.freshNativeSwitchId reservedNames switchStart)
+            nativeSwitchHasSelectorStore) = .ok final := by
+    intro pre suffix hCases
+    simpa [fuel, contract, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+      using hUserBody pre suffix hCases
+  have hResult := hCont hUserBody' hPreservesUser hProject
+  simpa [contract, fuel, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    using hResult
+
+/-- Exact-total-fuel companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_projectResult_eq`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_atFuel_projectResult_eq
+    (fuel' selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (midN : Nat) (body' : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      (cases'.length + 19 ≤ fuel' →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec (((fuel' - (cases'.length + 19)) + 1) +
+              suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .error err) →
+        projectResult tx storage initialEvents (.error err) = nativeYul →
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          .error err ∧
+        projectResult tx storage initialEvents (.error err) = nativeYul) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+      funcs inner selector fn hLower hFind
+  refine ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+    ?_, ?_, ?_, ?_⟩
+  · exact hLowerCases
+  · exact hCase
+  · exact hBodyLower
+  · intro hFuel hBody hProject
+    let fuel := fuel' - (cases'.length + 19)
+    have hFuelShape : fuel' = fuel + cases'.length + 19 := by
+      dsimp [fuel]
+      exact (Nat.sub_add_cancel hFuel).symm
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hBody' :
+        ∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .error err := by
+      intro pre suffix hcases
+      simpa [fuel, contract, Nat.add_assoc] using hBody pre suffix hcases
+    have hPeel :
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames n0) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      rw [hFuelShape]
+      have hPeelStructural :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+        let contract' : EvmYul.Yul.Ast.YulContract :=
+          { dispatcher := .Block [.Block inner], functions := functions }
+        have hFuelShape' :
+            fuel + cases'.length + 19 =
+              Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+          omega
+        have hDispatcherPeel :
+            contractDispatcherExecResult (fuel + cases'.length + 19)
+                contract' (initialState contract' tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract')
+                (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+          rw [hFuelShape']
+          change
+            contractDispatcherExecResult
+                (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+                { dispatcher := .Block [.Block inner], functions := functions }
+                (initialState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner)
+                (some { dispatcher := .Block [.Block inner], functions := functions })
+                (nativeSwitchInitialOkState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots)
+          rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+            (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+            tx storage observableSlots]
+          rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+            (some { dispatcher := .Block [.Block inner], functions := functions })
+            (nativeSwitchInitialOkState
+              { dispatcher := .Block [.Block inner], functions := functions }
+              tx storage observableSlots)]
+        calc
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots)
+              = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block inner) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block
+                  [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                      (some
+                        (Backends.lowerExprNative
+                          (YulExpr.call "iszero"
+                            [YulExpr.call "lt"
+                              [YulExpr.call "calldatasize" [],
+                               YulExpr.lit 4]]))),
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                      body1,
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                      [Backends.lowerNativeSwitchBlock
+                        (YulExpr.call "shr"
+                          [YulExpr.lit Compiler.Constants.selectorShift,
+                           YulExpr.call "calldataload" [YulExpr.lit 0]])
+                        (Backends.freshNativeSwitchId reservedNames n0) cases'
+                        [nativeRevertZeroZeroStmt]]])
+                (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+              exact congrArg
+                (fun body =>
+                  EvmYul.Yul.exec (fuel + cases'.length + 17)
+                    (.Block body) (some contract)
+                    (nativeSwitchInitialOkState contract tx storage observableSlots))
+                hInner
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+                (.Block
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames n0) cases'
+                    [nativeRevertZeroZeroStmt]])
+                (some contract)
+                ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                  "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+              have hExec :=
+                exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                  (fuel + cases'.length + 5) contract tx storage observableSlots
+                  "__has_selector" body1
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames n0) cases'
+                    [nativeRevertZeroZeroStmt]]
+                  hNoWrap
+              simpa only [Nat.add_assoc] using hExec
+      exact hPeelStructural
+    constructor
+    · rw [hPeel]
+      exact (exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq
+        fuel selector (Backends.freshNativeSwitchId reservedNames n0) selector
+        cases' [nativeRevertZeroZeroStmt] body' contract tx storage initialEvents
+        observableSlots err nativeYul hSelector hCase hSelectorRange hTagsRange
+        hBody' hProject).1
+    · exact hProject
+
+/-- Generic selector-hit native execution package for a no-fallback/no-receive
+generated dispatcher when the selected native body finishes normally.
+
+The selected-body execution, switch-temporary freshness, matched-flag
+preservation, and final-state projection remain explicit premises; this theorem
+packages the dispatcher/prologue/lazy-switch execution around them. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_projectResult_eq
+    (fuel selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      ((Backends.nativeSwitchTempsFreshForNativeBodies
+          (Backends.freshNativeSwitchId reservedNames n0) cases'
+          [nativeRevertZeroZeroStmt]) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ stmt, stmt ∈ body' →
+          Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames n0) ∉
+            Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames n0))
+            (EvmYul.UInt256.ofNat 1) stmt (some contract)) →
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          .ok final ∧
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+      funcs inner selector fn hLower hFind
+  refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd, ?_, ?_, ?_⟩
+  · exact hCase
+  · exact hBodyLower
+  · intro hFresh hBody hStmtPreserves hProject
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hPeel :
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames n0) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      let contract' : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      have hFuelShape :
+          fuel + cases'.length + 19 =
+            Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+        omega
+      have hDispatcherPeel :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract' (initialState contract' tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner) (some contract')
+              (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+        rw [hFuelShape]
+        change
+          contractDispatcherExecResult
+              (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+              { dispatcher := .Block [.Block inner], functions := functions }
+              (initialState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner)
+              (some { dispatcher := .Block [.Block inner], functions := functions })
+              (nativeSwitchInitialOkState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots)
+        rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+          (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+          tx storage observableSlots]
+        rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+          (some { dispatcher := .Block [.Block inner], functions := functions })
+          (nativeSwitchInitialOkState
+            { dispatcher := .Block [.Block inner], functions := functions }
+            tx storage observableSlots)]
+      calc
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots)
+            = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block
+                [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                    (some
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero"
+                          [YulExpr.call "lt"
+                            [YulExpr.call "calldatasize" [],
+                             YulExpr.lit 4]]))),
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative
+                      (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                    body1,
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                    [Backends.lowerNativeSwitchBlock
+                      (YulExpr.call "shr"
+                        [YulExpr.lit Compiler.Constants.selectorShift,
+                         YulExpr.call "calldataload" [YulExpr.lit 0]])
+                      (Backends.freshNativeSwitchId reservedNames n0) cases'
+                      [nativeRevertZeroZeroStmt]]])
+              (some contract)
+              (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+            exact congrArg
+              (fun body =>
+                EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block body) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots))
+              hInner
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+            have hExec :=
+              exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                (fuel + cases'.length + 5) contract tx storage observableSlots
+                "__has_selector" body1
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]]
+                hNoWrap
+            simpa only [Nat.add_assoc] using hExec
+    rw [hPeel]
+    exact exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq
+      fuel selector (Backends.freshNativeSwitchId reservedNames n0) selector
+      cases' [nativeRevertZeroZeroStmt] body' contract tx storage initialEvents
+      observableSlots final nativeYul hSelector hCase hSelectorRange hTagsRange
+      hFresh hBody hStmtPreserves hProject
+
+/-- Block-preservation companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_projectResult_eq`.
+
+This packages the dispatcher/prologue/lazy-switch execution while taking the
+selected-body matched-word preservation as a block-level fact, avoiding a public
+per-statement preservation/freshness obligation at this layer. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_projectResult_eq_preserved
+    (fuel selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          NativeBlockPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames n0))
+            (EvmYul.UInt256.ofNat 1) body' (some contract)) →
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          .ok final ∧
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+      funcs inner selector fn hLower hFind
+  refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd, ?_, ?_, ?_⟩
+  · exact hCase
+  · exact hBodyLower
+  · intro hBody hPreservesMatched hProject
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hPeel :
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames n0) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      let contract' : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      have hFuelShape :
+          fuel + cases'.length + 19 =
+            Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+        omega
+      have hDispatcherPeel :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract' (initialState contract' tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner) (some contract')
+              (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+        rw [hFuelShape]
+        change
+          contractDispatcherExecResult
+              (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+              { dispatcher := .Block [.Block inner], functions := functions }
+              (initialState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner)
+              (some { dispatcher := .Block [.Block inner], functions := functions })
+              (nativeSwitchInitialOkState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots)
+        rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+          (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+          tx storage observableSlots]
+        rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+          (some { dispatcher := .Block [.Block inner], functions := functions })
+          (nativeSwitchInitialOkState
+            { dispatcher := .Block [.Block inner], functions := functions }
+            tx storage observableSlots)]
+      calc
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots)
+            = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block
+                [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                    (some
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero"
+                          [YulExpr.call "lt"
+                            [YulExpr.call "calldatasize" [],
+                             YulExpr.lit 4]]))),
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative
+                      (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                    body1,
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                    [Backends.lowerNativeSwitchBlock
+                      (YulExpr.call "shr"
+                        [YulExpr.lit Compiler.Constants.selectorShift,
+                         YulExpr.call "calldataload" [YulExpr.lit 0]])
+                      (Backends.freshNativeSwitchId reservedNames n0) cases'
+                      [nativeRevertZeroZeroStmt]]])
+              (some contract)
+              (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+            exact congrArg
+              (fun body =>
+                EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block body) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots))
+              hInner
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+            have hExec :=
+              exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                (fuel + cases'.length + 5) contract tx storage observableSlots
+                "__has_selector" body1
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]]
+                hNoWrap
+            simpa only [Nat.add_assoc] using hExec
+    rw [hPeel]
+    exact exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_preserved
+      fuel selector (Backends.freshNativeSwitchId reservedNames n0) selector
+      cases' [nativeRevertZeroZeroStmt] body' contract tx storage initialEvents
+      observableSlots final nativeYul hSelector hCase hSelectorRange hTagsRange
+      hBody hPreservesMatched hProject
+
+/-- Exact-total-fuel companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_projectResult_eq`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_atFuel_projectResult_eq
+    (fuel' selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (midN : Nat) (body' : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      (cases'.length + 19 ≤ fuel' →
+        (Backends.nativeSwitchTempsFreshForNativeBodies
+          (Backends.freshNativeSwitchId reservedNames n0) cases'
+          [nativeRevertZeroZeroStmt]) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec (((fuel' - (cases'.length + 19)) + 1) +
+              suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ stmt, stmt ∈ body' →
+          Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames n0) ∉
+            Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames n0))
+            (EvmYul.UInt256.ofNat 1) stmt (some contract)) →
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          .ok final ∧
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+      funcs inner selector fn hLower hFind
+  refine ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+    ?_, ?_, ?_, ?_⟩
+  · exact hLowerCases
+  · exact hCase
+  · exact hBodyLower
+  · intro hFuel hFresh hBody hStmtPreserves hProject
+    let fuel := fuel' - (cases'.length + 19)
+    have hFuelShape : fuel' = fuel + cases'.length + 19 := by
+      dsimp [fuel]
+      exact (Nat.sub_add_cancel hFuel).symm
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hBody' :
+        ∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .ok final := by
+      intro pre suffix hcases
+      simpa [fuel, contract, Nat.add_assoc] using hBody pre suffix hcases
+    have hPeel :
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames n0) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      rw [hFuelShape]
+      have hPeelStructural :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+        let contract' : EvmYul.Yul.Ast.YulContract :=
+          { dispatcher := .Block [.Block inner], functions := functions }
+        have hFuelShape' :
+            fuel + cases'.length + 19 =
+              Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+          omega
+        have hDispatcherPeel :
+            contractDispatcherExecResult (fuel + cases'.length + 19)
+                contract' (initialState contract' tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract')
+                (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+          rw [hFuelShape']
+          change
+            contractDispatcherExecResult
+                (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+                { dispatcher := .Block [.Block inner], functions := functions }
+                (initialState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner)
+                (some { dispatcher := .Block [.Block inner], functions := functions })
+                (nativeSwitchInitialOkState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots)
+          rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+            (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+            tx storage observableSlots]
+          rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+            (some { dispatcher := .Block [.Block inner], functions := functions })
+            (nativeSwitchInitialOkState
+              { dispatcher := .Block [.Block inner], functions := functions }
+              tx storage observableSlots)]
+        calc
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots)
+              = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block inner) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block
+                  [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                      (some
+                        (Backends.lowerExprNative
+                          (YulExpr.call "iszero"
+                            [YulExpr.call "lt"
+                              [YulExpr.call "calldatasize" [],
+                               YulExpr.lit 4]]))),
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                      body1,
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                      [Backends.lowerNativeSwitchBlock
+                        (YulExpr.call "shr"
+                          [YulExpr.lit Compiler.Constants.selectorShift,
+                           YulExpr.call "calldataload" [YulExpr.lit 0]])
+                        (Backends.freshNativeSwitchId reservedNames n0) cases'
+                        [nativeRevertZeroZeroStmt]]])
+                (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+              exact congrArg
+                (fun body =>
+                  EvmYul.Yul.exec (fuel + cases'.length + 17)
+                    (.Block body) (some contract)
+                    (nativeSwitchInitialOkState contract tx storage observableSlots))
+                hInner
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+                (.Block
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames n0) cases'
+                    [nativeRevertZeroZeroStmt]])
+                (some contract)
+                ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                  "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+              have hExec :=
+                exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                  (fuel + cases'.length + 5) contract tx storage observableSlots
+                  "__has_selector" body1
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames n0) cases'
+                    [nativeRevertZeroZeroStmt]]
+                  hNoWrap
+              simpa only [Nat.add_assoc] using hExec
+      exact hPeelStructural
+    rw [hPeel]
+    exact exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq
+      fuel selector (Backends.freshNativeSwitchId reservedNames n0) selector
+      cases' [nativeRevertZeroZeroStmt] body' contract tx storage initialEvents
+      observableSlots final nativeYul hSelector hCase hSelectorRange hTagsRange
+      hFresh hBody' hStmtPreserves hProject
+
+/-- Exact-total-fuel companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_projectResult_eq_preserved`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_atFuel_projectResult_eq_preserved
+    (fuel' selector : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok [.Block inner])
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (midN : Nat) (body' : List EvmYul.Yul.Ast.Stmt)
+      (bodyStart bodyEnd : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      (cases'.length + 19 ≤ fuel' →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec (((fuel' - (cases'.length + 19)) + 1) +
+              suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          NativeBlockPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames n0))
+            (EvmYul.UInt256.ofNat 1) body' (some contract)) →
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          .ok final ∧
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+      funcs inner selector fn hLower hFind
+  refine ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+    ?_, ?_, ?_, ?_⟩
+  · exact hLowerCases
+  · exact hCase
+  · exact hBodyLower
+  · intro hFuel hBody hPreservesMatched hProject
+    let fuel := fuel' - (cases'.length + 19)
+    have hFuelShape : fuel' = fuel + cases'.length + 19 := by
+      dsimp [fuel]
+      exact (Nat.sub_add_cancel hFuel).symm
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hBody' :
+        ∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames n0)
+              nativeSwitchHasSelectorStore) = .ok final := by
+      intro pre suffix hcases
+      simpa [fuel, contract, Nat.add_assoc] using hBody pre suffix hcases
+    have hPeel :
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames n0) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      rw [hFuelShape]
+      have hPeelStructural :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames n0) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+        let contract' : EvmYul.Yul.Ast.YulContract :=
+          { dispatcher := .Block [.Block inner], functions := functions }
+        have hFuelShape' :
+            fuel + cases'.length + 19 =
+              Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+          omega
+        have hDispatcherPeel :
+            contractDispatcherExecResult (fuel + cases'.length + 19)
+                contract' (initialState contract' tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract')
+                (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+          rw [hFuelShape']
+          change
+            contractDispatcherExecResult
+                (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+                { dispatcher := .Block [.Block inner], functions := functions }
+                (initialState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner)
+                (some { dispatcher := .Block [.Block inner], functions := functions })
+                (nativeSwitchInitialOkState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots)
+          rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+            (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+            tx storage observableSlots]
+          rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+            (some { dispatcher := .Block [.Block inner], functions := functions })
+            (nativeSwitchInitialOkState
+              { dispatcher := .Block [.Block inner], functions := functions }
+              tx storage observableSlots)]
+        calc
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots)
+              = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block inner) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block
+                  [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                      (some
+                        (Backends.lowerExprNative
+                          (YulExpr.call "iszero"
+                            [YulExpr.call "lt"
+                              [YulExpr.call "calldatasize" [],
+                               YulExpr.lit 4]]))),
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                      body1,
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                      [Backends.lowerNativeSwitchBlock
+                        (YulExpr.call "shr"
+                          [YulExpr.lit Compiler.Constants.selectorShift,
+                           YulExpr.call "calldataload" [YulExpr.lit 0]])
+                        (Backends.freshNativeSwitchId reservedNames n0) cases'
+                        [nativeRevertZeroZeroStmt]]])
+                (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+              exact congrArg
+                (fun body =>
+                  EvmYul.Yul.exec (fuel + cases'.length + 17)
+                    (.Block body) (some contract)
+                    (nativeSwitchInitialOkState contract tx storage observableSlots))
+                hInner
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+                (.Block
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames n0) cases'
+                    [nativeRevertZeroZeroStmt]])
+                (some contract)
+                ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                  "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+              have hExec :=
+                exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                  (fuel + cases'.length + 5) contract tx storage observableSlots
+                  "__has_selector" body1
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames n0) cases'
+                    [nativeRevertZeroZeroStmt]]
+                  hNoWrap
+              simpa only [Nat.add_assoc] using hExec
+      exact hPeelStructural
+    rw [hPeel]
+    exact exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_preserved
+      fuel selector (Backends.freshNativeSwitchId reservedNames n0) selector
+      cases' [nativeRevertZeroZeroStmt] body' contract tx storage initialEvents
+      observableSlots final nativeYul hSelector hCase hSelectorRange hTagsRange
+      hBody' hPreservesMatched hProject
+
+/-- Reserved-context companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_projectResult_eq`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_withSwitchIds_projectResult_eq
+    (fuel selector : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], next))
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .error err) →
+        projectResult tx storage initialEvents (.error err) = nativeYul →
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          .error err ∧
+        projectResult tx storage initialEvents (.error err) = nativeYul) := by
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames n0 funcs inner next selector fn hLower hFind
+  refine ⟨switchStart, cases', body', bodyStart, bodyEnd, ?_, ?_, ?_⟩
+  · exact hCase
+  · exact hBodyLower
+  · intro hBody hProject
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hPeel :
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      let contract' : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      have hFuelShape :
+          fuel + cases'.length + 19 =
+            Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+        omega
+      have hDispatcherPeel :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract' (initialState contract' tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner) (some contract')
+              (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+        rw [hFuelShape]
+        change
+          contractDispatcherExecResult
+              (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+              { dispatcher := .Block [.Block inner], functions := functions }
+              (initialState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner)
+              (some { dispatcher := .Block [.Block inner], functions := functions })
+              (nativeSwitchInitialOkState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots)
+        rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+          (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+          tx storage observableSlots]
+        rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+          (some { dispatcher := .Block [.Block inner], functions := functions })
+          (nativeSwitchInitialOkState
+            { dispatcher := .Block [.Block inner], functions := functions }
+            tx storage observableSlots)]
+      calc
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots)
+            = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block
+                [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                    (some
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero"
+                          [YulExpr.call "lt"
+                            [YulExpr.call "calldatasize" [],
+                             YulExpr.lit 4]]))),
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative
+                      (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                    body1,
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                    [Backends.lowerNativeSwitchBlock
+                      (YulExpr.call "shr"
+                        [YulExpr.lit Compiler.Constants.selectorShift,
+                         YulExpr.call "calldataload" [YulExpr.lit 0]])
+                      (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                      [nativeRevertZeroZeroStmt]]])
+              (some contract)
+              (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+            exact congrArg
+              (fun body =>
+                EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block body) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots))
+              hInner
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+            have hExec :=
+              exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                (fuel + cases'.length + 5) contract tx storage observableSlots
+                "__has_selector" body1
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                  [nativeRevertZeroZeroStmt]]
+                hNoWrap
+            simpa only [Nat.add_assoc] using hExec
+    rw [hPeel]
+    exact exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq
+      fuel selector (Backends.freshNativeSwitchId reservedNames switchStart) selector
+      cases' [nativeRevertZeroZeroStmt] body' contract tx storage initialEvents
+      observableSlots err nativeYul hSelector hCase hSelectorRange hTagsRange
+      hBody hProject
+
+/-- Exact-total-fuel companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_withSwitchIds_projectResult_eq`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_withSwitchIds_atFuel_projectResult_eq
+    (fuel' selector : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (err : EvmYul.Yul.Exception) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], next))
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      (cases'.length + 19 ≤ fuel' →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec (((fuel' - (cases'.length + 19)) + 1) +
+              suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .error err) →
+        projectResult tx storage initialEvents (.error err) = nativeYul →
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          .error err ∧
+        projectResult tx storage initialEvents (.error err) = nativeYul) := by
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames n0 funcs inner next selector fn hLower hFind
+  refine ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
+    ?_, ?_, ?_, ?_⟩
+  · exact hLowerCases
+  · exact hCase
+  · exact hBodyLower
+  · intro hFuel hBody hProject
+    let fuel := fuel' - (cases'.length + 19)
+    have hFuelShape : fuel' = fuel + cases'.length + 19 := by
+      dsimp [fuel]
+      exact (Nat.sub_add_cancel hFuel).symm
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hBody' :
+        ∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .error err := by
+      intro pre suffix hcases
+      simpa [fuel, contract, Nat.add_assoc] using hBody pre suffix hcases
+    have hPeel :
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      rw [hFuelShape]
+      have hPeelStructural :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+        let contract' : EvmYul.Yul.Ast.YulContract :=
+          { dispatcher := .Block [.Block inner], functions := functions }
+        have hFuelShape' :
+            fuel + cases'.length + 19 =
+              Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+          omega
+        have hDispatcherPeel :
+            contractDispatcherExecResult (fuel + cases'.length + 19)
+                contract' (initialState contract' tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract')
+                (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+          rw [hFuelShape']
+          change
+            contractDispatcherExecResult
+                (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+                { dispatcher := .Block [.Block inner], functions := functions }
+                (initialState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner)
+                (some { dispatcher := .Block [.Block inner], functions := functions })
+                (nativeSwitchInitialOkState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots)
+          rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+            (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+            tx storage observableSlots]
+          rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+            (some { dispatcher := .Block [.Block inner], functions := functions })
+            (nativeSwitchInitialOkState
+              { dispatcher := .Block [.Block inner], functions := functions }
+              tx storage observableSlots)]
+        calc
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots)
+              = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block inner) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block
+                  [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                      (some
+                        (Backends.lowerExprNative
+                          (YulExpr.call "iszero"
+                            [YulExpr.call "lt"
+                              [YulExpr.call "calldatasize" [],
+                               YulExpr.lit 4]]))),
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                      body1,
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                      [Backends.lowerNativeSwitchBlock
+                        (YulExpr.call "shr"
+                          [YulExpr.lit Compiler.Constants.selectorShift,
+                           YulExpr.call "calldataload" [YulExpr.lit 0]])
+                        (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                        [nativeRevertZeroZeroStmt]]])
+                (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+              exact congrArg
+                (fun body =>
+                  EvmYul.Yul.exec (fuel + cases'.length + 17)
+                    (.Block body) (some contract)
+                    (nativeSwitchInitialOkState contract tx storage observableSlots))
+                hInner
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+                (.Block
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                    [nativeRevertZeroZeroStmt]])
+                (some contract)
+                ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                  "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+              have hExec :=
+                exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                  (fuel + cases'.length + 5) contract tx storage observableSlots
+                  "__has_selector" body1
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                    [nativeRevertZeroZeroStmt]]
+                  hNoWrap
+              simpa only [Nat.add_assoc] using hExec
+      exact hPeelStructural
+    constructor
+    · rw [hPeel]
+      exact (exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq
+        fuel selector (Backends.freshNativeSwitchId reservedNames switchStart) selector
+        cases' [nativeRevertZeroZeroStmt] body' contract tx storage initialEvents
+        observableSlots err nativeYul hSelector hCase hSelectorRange hTagsRange
+        hBody' hProject).1
+    · exact hProject
+
+/-- Reserved-context companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_projectResult_eq`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_projectResult_eq
+    (fuel selector : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], next))
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      ((Backends.nativeSwitchTempsFreshForNativeBodies
+          (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+          [nativeRevertZeroZeroStmt]) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ stmt, stmt ∈ body' →
+          Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames switchStart) ∉
+            Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames switchStart))
+            (EvmYul.UInt256.ofNat 1) stmt (some contract)) →
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          .ok final ∧
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames n0 funcs inner next selector fn hLower hFind
+  refine ⟨switchStart, cases', body', bodyStart, bodyEnd, ?_, ?_, ?_⟩
+  · exact hCase
+  · exact hBodyLower
+  · intro hFresh hBody hStmtPreserves hProject
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hPeel :
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      let contract' : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      have hFuelShape :
+          fuel + cases'.length + 19 =
+            Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+        omega
+      have hDispatcherPeel :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract' (initialState contract' tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner) (some contract')
+              (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+        rw [hFuelShape]
+        change
+          contractDispatcherExecResult
+              (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+              { dispatcher := .Block [.Block inner], functions := functions }
+              (initialState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner)
+              (some { dispatcher := .Block [.Block inner], functions := functions })
+              (nativeSwitchInitialOkState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots)
+        rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+          (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+          tx storage observableSlots]
+        rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+          (some { dispatcher := .Block [.Block inner], functions := functions })
+          (nativeSwitchInitialOkState
+            { dispatcher := .Block [.Block inner], functions := functions }
+            tx storage observableSlots)]
+      calc
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots)
+            = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block
+                [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                    (some
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero"
+                          [YulExpr.call "lt"
+                            [YulExpr.call "calldatasize" [],
+                             YulExpr.lit 4]]))),
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative
+                      (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                    body1,
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                    [Backends.lowerNativeSwitchBlock
+                      (YulExpr.call "shr"
+                        [YulExpr.lit Compiler.Constants.selectorShift,
+                         YulExpr.call "calldataload" [YulExpr.lit 0]])
+                      (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                      [nativeRevertZeroZeroStmt]]])
+              (some contract)
+              (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+            exact congrArg
+              (fun body =>
+                EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block body) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots))
+              hInner
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+            have hExec :=
+              exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                (fuel + cases'.length + 5) contract tx storage observableSlots
+                "__has_selector" body1
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                  [nativeRevertZeroZeroStmt]]
+                hNoWrap
+            simpa only [Nat.add_assoc] using hExec
+    rw [hPeel]
+    exact exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq
+      fuel selector (Backends.freshNativeSwitchId reservedNames switchStart) selector
+      cases' [nativeRevertZeroZeroStmt] body' contract tx storage initialEvents
+      observableSlots final nativeYul hSelector hCase hSelectorRange hTagsRange
+      hFresh hBody hStmtPreserves hProject
+
+/-- Block-preservation reserved-context companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_projectResult_eq`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_projectResult_eq_preserved
+    (fuel selector : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], next))
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+      (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      ((∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          NativeBlockPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames switchStart))
+            (EvmYul.UInt256.ofNat 1) body' (some contract)) →
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          .ok final ∧
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames n0 funcs inner next selector fn hLower hFind
+  refine ⟨switchStart, cases', body', bodyStart, bodyEnd, ?_, ?_, ?_⟩
+  · exact hCase
+  · exact hBodyLower
+  · intro hBody hPreservesMatched hProject
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hPeel :
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      let contract' : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      have hFuelShape :
+          fuel + cases'.length + 19 =
+            Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+        omega
+      have hDispatcherPeel :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract' (initialState contract' tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner) (some contract')
+              (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+        rw [hFuelShape]
+        change
+          contractDispatcherExecResult
+              (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+              { dispatcher := .Block [.Block inner], functions := functions }
+              (initialState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner)
+              (some { dispatcher := .Block [.Block inner], functions := functions })
+              (nativeSwitchInitialOkState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots)
+        rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+          (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+          tx storage observableSlots]
+        rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+          (some { dispatcher := .Block [.Block inner], functions := functions })
+          (nativeSwitchInitialOkState
+            { dispatcher := .Block [.Block inner], functions := functions }
+            tx storage observableSlots)]
+      calc
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots)
+            = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block
+                [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                    (some
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero"
+                          [YulExpr.call "lt"
+                            [YulExpr.call "calldatasize" [],
+                             YulExpr.lit 4]]))),
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative
+                      (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                    body1,
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                    [Backends.lowerNativeSwitchBlock
+                      (YulExpr.call "shr"
+                        [YulExpr.lit Compiler.Constants.selectorShift,
+                         YulExpr.call "calldataload" [YulExpr.lit 0]])
+                      (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                      [nativeRevertZeroZeroStmt]]])
+              (some contract)
+              (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+            exact congrArg
+              (fun body =>
+                EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block body) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots))
+              hInner
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+            have hExec :=
+              exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                (fuel + cases'.length + 5) contract tx storage observableSlots
+                "__has_selector" body1
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                  [nativeRevertZeroZeroStmt]]
+                hNoWrap
+            simpa only [Nat.add_assoc] using hExec
+    rw [hPeel]
+    exact exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_preserved
+      fuel selector (Backends.freshNativeSwitchId reservedNames switchStart) selector
+      cases' [nativeRevertZeroZeroStmt] body' contract tx storage initialEvents
+      observableSlots final nativeYul hSelector hCase hSelectorRange hTagsRange
+      hBody hPreservesMatched hProject
+
+/-- Exact-total-fuel reserved-context companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_projectResult_eq`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_atFuel_projectResult_eq
+    (fuel' selector : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], next))
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      (cases'.length + 19 ≤ fuel' →
+        (Backends.nativeSwitchTempsFreshForNativeBodies
+          (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+          [nativeRevertZeroZeroStmt]) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec (((fuel' - (cases'.length + 19)) + 1) +
+              suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ stmt, stmt ∈ body' →
+          Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames switchStart) ∉
+            Backends.nativeStmtWriteNames stmt →
+          NativeStmtPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames switchStart))
+            (EvmYul.UInt256.ofNat 1) stmt (some contract)) →
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          .ok final ∧
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames n0 funcs inner next selector fn hLower hFind
+  refine ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
+    ?_, ?_, ?_, ?_⟩
+  · exact hLowerCases
+  · exact hCase
+  · exact hBodyLower
+  · intro hFuel hFresh hBody hStmtPreserves hProject
+    let fuel := fuel' - (cases'.length + 19)
+    have hFuelShape : fuel' = fuel + cases'.length + 19 := by
+      dsimp [fuel]
+      exact (Nat.sub_add_cancel hFuel).symm
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hBody' :
+        ∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .ok final := by
+      intro pre suffix hcases
+      simpa [fuel, contract, Nat.add_assoc] using hBody pre suffix hcases
+    have hPeel :
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      rw [hFuelShape]
+      have hPeelStructural :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+        let contract' : EvmYul.Yul.Ast.YulContract :=
+          { dispatcher := .Block [.Block inner], functions := functions }
+        have hFuelShape' :
+            fuel + cases'.length + 19 =
+              Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+          omega
+        have hDispatcherPeel :
+            contractDispatcherExecResult (fuel + cases'.length + 19)
+                contract' (initialState contract' tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract')
+                (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+          rw [hFuelShape']
+          change
+            contractDispatcherExecResult
+                (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+                { dispatcher := .Block [.Block inner], functions := functions }
+                (initialState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner)
+                (some { dispatcher := .Block [.Block inner], functions := functions })
+                (nativeSwitchInitialOkState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots)
+          rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+            (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+            tx storage observableSlots]
+          rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+            (some { dispatcher := .Block [.Block inner], functions := functions })
+            (nativeSwitchInitialOkState
+              { dispatcher := .Block [.Block inner], functions := functions }
+              tx storage observableSlots)]
+        calc
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots)
+              = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block inner) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block
+                  [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                      (some
+                        (Backends.lowerExprNative
+                          (YulExpr.call "iszero"
+                            [YulExpr.call "lt"
+                              [YulExpr.call "calldatasize" [],
+                               YulExpr.lit 4]]))),
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                      body1,
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                      [Backends.lowerNativeSwitchBlock
+                        (YulExpr.call "shr"
+                          [YulExpr.lit Compiler.Constants.selectorShift,
+                           YulExpr.call "calldataload" [YulExpr.lit 0]])
+                        (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                        [nativeRevertZeroZeroStmt]]])
+                (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+              exact congrArg
+                (fun body =>
+                  EvmYul.Yul.exec (fuel + cases'.length + 17)
+                    (.Block body) (some contract)
+                    (nativeSwitchInitialOkState contract tx storage observableSlots))
+                hInner
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+                (.Block
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                    [nativeRevertZeroZeroStmt]])
+                (some contract)
+                ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                  "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+              have hExec :=
+                exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                  (fuel + cases'.length + 5) contract tx storage observableSlots
+                  "__has_selector" body1
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                    [nativeRevertZeroZeroStmt]]
+                  hNoWrap
+              simpa only [Nat.add_assoc] using hExec
+      exact hPeelStructural
+    rw [hPeel]
+    exact exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq
+      fuel selector (Backends.freshNativeSwitchId reservedNames switchStart) selector
+      cases' [nativeRevertZeroZeroStmt] body' contract tx storage initialEvents
+      observableSlots final nativeYul hSelector hCase hSelectorRange hTagsRange
+      hFresh hBody' hStmtPreserves hProject
+
+/-- Exact-total-fuel reserved-context companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_projectResult_eq_preserved`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_atFuel_projectResult_eq_preserved
+    (fuel' selector : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction) (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (final : EvmYul.Yul.State) (nativeYul : YulResult)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], next))
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun f => f.selector == selector) = some fn)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat)
+      (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1)
+        (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      cases'.find? (fun entry => entry.1 == selector) =
+        some (selector, body') ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+        (switchCaseBody fn) = .ok (body', bodyEnd) ∧
+      (cases'.length + 19 ≤ fuel' →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec (((fuel' - (cases'.length + 19)) + 1) +
+              suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .ok final) →
+        (∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          NativeBlockPreservesWord
+            (Backends.nativeSwitchMatchedTempName
+              (Backends.freshNativeSwitchId reservedNames switchStart))
+            (EvmYul.UInt256.ofNat 1) body' (some contract)) →
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul →
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          .ok final ∧
+        projectResult tx storage initialEvents (.ok (final, [])) = nativeYul) := by
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames n0 funcs inner next selector fn hLower hFind
+  refine ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
+    ?_, ?_, ?_, ?_⟩
+  · exact hLowerCases
+  · exact hCase
+  · exact hBodyLower
+  · intro hFuel hBody hPreservesMatched hProject
+    let fuel := fuel' - (cases'.length + 19)
+    have hFuelShape : fuel' = fuel + cases'.length + 19 := by
+      dsimp [fuel]
+      exact (Nat.sub_add_cancel hFuel).symm
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hBody' :
+        ∀ pre suffix, cases' = pre ++ (selector, body') :: suffix →
+          EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
+            (some contract)
+            (nativeSwitchStoreMarkedPrefixStateForId contract tx storage
+              observableSlots (Backends.freshNativeSwitchId reservedNames switchStart)
+              nativeSwitchHasSelectorStore) = .ok final := by
+      intro pre suffix hcases
+      simpa [fuel, contract, Nat.add_assoc] using hBody pre suffix hcases
+    have hPeel :
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      rw [hFuelShape]
+      have hPeelStructural :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+        let contract' : EvmYul.Yul.Ast.YulContract :=
+          { dispatcher := .Block [.Block inner], functions := functions }
+        have hFuelShape' :
+            fuel + cases'.length + 19 =
+              Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+          omega
+        have hDispatcherPeel :
+            contractDispatcherExecResult (fuel + cases'.length + 19)
+                contract' (initialState contract' tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract')
+                (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+          rw [hFuelShape']
+          change
+            contractDispatcherExecResult
+                (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+                { dispatcher := .Block [.Block inner], functions := functions }
+                (initialState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner)
+                (some { dispatcher := .Block [.Block inner], functions := functions })
+                (nativeSwitchInitialOkState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots)
+          rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+            (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+            tx storage observableSlots]
+          rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+            (some { dispatcher := .Block [.Block inner], functions := functions })
+            (nativeSwitchInitialOkState
+              { dispatcher := .Block [.Block inner], functions := functions }
+              tx storage observableSlots)]
+        calc
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots)
+              = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block inner) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block
+                  [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                      (some
+                        (Backends.lowerExprNative
+                          (YulExpr.call "iszero"
+                            [YulExpr.call "lt"
+                              [YulExpr.call "calldatasize" [],
+                               YulExpr.lit 4]]))),
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                      body1,
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                      [Backends.lowerNativeSwitchBlock
+                        (YulExpr.call "shr"
+                          [YulExpr.lit Compiler.Constants.selectorShift,
+                           YulExpr.call "calldataload" [YulExpr.lit 0]])
+                        (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                        [nativeRevertZeroZeroStmt]]])
+                (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+              exact congrArg
+                (fun body =>
+                  EvmYul.Yul.exec (fuel + cases'.length + 17)
+                    (.Block body) (some contract)
+                    (nativeSwitchInitialOkState contract tx storage observableSlots))
+                hInner
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+                (.Block
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                    [nativeRevertZeroZeroStmt]])
+                (some contract)
+                ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                  "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+              have hExec :=
+                exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                  (fuel + cases'.length + 5) contract tx storage observableSlots
+                  "__has_selector" body1
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                    [nativeRevertZeroZeroStmt]]
+                  hNoWrap
+              simpa only [Nat.add_assoc] using hExec
+      exact hPeelStructural
+    rw [hPeel]
+    exact exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_preserved
+      fuel selector (Backends.freshNativeSwitchId reservedNames switchStart) selector
+      cases' [nativeRevertZeroZeroStmt] body' contract tx storage initialEvents
+      observableSlots final nativeYul hSelector hCase hSelectorRange hTagsRange
+      hBody' hPreservesMatched hProject
+
+/-- Reserved-context variant of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_projectResult_eq`.
+
+This is the selector-miss package needed when the generated dispatcher is lowered
+under the emitted runtime's reserved-name context, as in the mapping-helper
+runtime path. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_withSwitchIds_projectResult_eq
+    (fuel selector : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], next))
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun fn => fn.selector == selector) = none)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+          (Backends.freshNativeSwitchId reservedNames switchStart + 1)
+          (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      contractDispatcherExecResult (fuel + cases'.length + 19)
+          contract (initialState contract tx storage observableSlots) =
+        .error EvmYul.Yul.Exception.Revert ∧
+      projectResult tx storage initialEvents
+          (.error EvmYul.Yul.Exception.Revert) =
+        { success := false
+          returnValue := none
+          finalStorage := storage
+          finalMappings := Compiler.Proofs.storageAsMappings storage
+          events := initialEvents } := by
+  obtain ⟨body1, switchStart, cases', midN, hInner, hLowerCases⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered_withSwitchIds
+      reservedNames n0 funcs inner next hLower
+  refine ⟨switchStart, cases', midN, ?_, ?_, ?_⟩
+  · exact hLowerCases
+  · let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hLowerFind :
+        cases'.find? (fun entry => entry.1 == selector) = none :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+        reservedNames (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+        selector funcs cases' hLowerCases hFind
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hPeel :
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      let contract' : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      have hFuelShape :
+          fuel + cases'.length + 19 =
+            Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+        omega
+      have hDispatcherPeel :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract' (initialState contract' tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner) (some contract')
+              (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+        rw [hFuelShape]
+        change
+          contractDispatcherExecResult
+              (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+              { dispatcher := .Block [.Block inner], functions := functions }
+              (initialState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block inner)
+              (some { dispatcher := .Block [.Block inner], functions := functions })
+              (nativeSwitchInitialOkState
+                { dispatcher := .Block [.Block inner], functions := functions }
+                tx storage observableSlots)
+        rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+          (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+          tx storage observableSlots]
+        rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+          (some { dispatcher := .Block [.Block inner], functions := functions })
+          (nativeSwitchInitialOkState
+            { dispatcher := .Block [.Block inner], functions := functions }
+            tx storage observableSlots)]
+      calc
+        contractDispatcherExecResult (fuel + cases'.length + 19)
+            contract (initialState contract tx storage observableSlots)
+            = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+              (.Block
+                [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                    (some
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero"
+                          [YulExpr.call "lt"
+                            [YulExpr.call "calldatasize" [],
+                             YulExpr.lit 4]]))),
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative
+                      (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                    body1,
+                 EvmYul.Yul.Ast.Stmt.If
+                    (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                    [Backends.lowerNativeSwitchBlock
+                      (YulExpr.call "shr"
+                        [YulExpr.lit Compiler.Constants.selectorShift,
+                         YulExpr.call "calldataload" [YulExpr.lit 0]])
+                      (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                      [nativeRevertZeroZeroStmt]]])
+              (some contract)
+              (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+            exact congrArg
+              (fun body =>
+                EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block body) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots))
+              hInner
+        _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+            have hExec :=
+              exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                (fuel + cases'.length + 5) contract tx storage observableSlots
+                "__has_selector" body1
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                  [nativeRevertZeroZeroStmt]]
+                hNoWrap
+            simpa only [Nat.add_assoc] using hExec
+    rw [hPeel]
+    exact exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error
+      fuel selector (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+      contract tx storage observableSlots hSelector hLowerFind hSelectorRange
+      hTagsRange
+  · simp
+
+/-- Exact-total-fuel reserved-context selector-miss companion of
+`contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_withSwitchIds_projectResult_eq`. -/
+theorem contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_withSwitchIds_atFuel_projectResult_eq
+    (fuel' selector : Nat)
+    (reservedNames : List String) (n0 : Nat)
+    (funcs : List IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : NativeFunctionMap)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (initialEvents : List (List Nat))
+    (observableSlots : List Nat)
+    (hLower :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], next))
+    (hSelector :
+      selector = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hFind : funcs.find? (fun fn => fn.selector == selector) = none)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hSelectorRange : selector < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      let contract : EvmYul.Yul.Ast.YulContract :=
+        { dispatcher := .Block [.Block inner], functions := functions }
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+          (Backends.freshNativeSwitchId reservedNames switchStart + 1)
+          (buildSwitchSourceCases funcs) = .ok (cases', midN) ∧
+      (cases'.length + 19 ≤ fuel' →
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          .error EvmYul.Yul.Exception.Revert ∧
+        projectResult tx storage initialEvents
+            (.error EvmYul.Yul.Exception.Revert) =
+          { success := false
+            returnValue := none
+            finalStorage := storage
+            finalMappings := Compiler.Proofs.storageAsMappings storage
+            events := initialEvents }) := by
+  obtain ⟨body1, switchStart, cases', midN, hInner, hLowerCases⟩ :=
+    buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered_withSwitchIds
+      reservedNames n0 funcs inner next hLower
+  refine ⟨switchStart, cases', midN, ?_, ?_⟩
+  · exact hLowerCases
+  · intro hFuel
+    let fuel := fuel' - (cases'.length + 19)
+    have hFuelShape : fuel' = fuel + cases'.length + 19 := by
+      dsimp [fuel]
+      exact (Nat.sub_add_cancel hFuel).symm
+    let contract : EvmYul.Yul.Ast.YulContract :=
+      { dispatcher := .Block [.Block inner], functions := functions }
+    have hLowerFind :
+        cases'.find? (fun entry => entry.1 == selector) = none :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+        reservedNames (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+        selector funcs cases' hLowerCases hFind
+    have hTagsEq :
+        cases'.map (·.1) = (buildSwitchSourceCases funcs).map (·.1) :=
+      Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq reservedNames
+        (Backends.freshNativeSwitchId reservedNames switchStart + 1) midN
+        (buildSwitchSourceCases funcs) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) := by
+        exact List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [buildSwitchSourceCases] at hTagMem
+      rcases hTagMem with ⟨fn, hFn, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fn hFn
+    have hPeel :
+        contractDispatcherExecResult fuel'
+            contract (initialState contract tx storage observableSlots) =
+          EvmYul.Yul.exec (fuel + cases'.length + 13)
+            (.Block
+              [Backends.lowerNativeSwitchBlock
+                (YulExpr.call "shr"
+                  [YulExpr.lit Compiler.Constants.selectorShift,
+                   YulExpr.call "calldataload" [YulExpr.lit 0]])
+                (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                [nativeRevertZeroZeroStmt]])
+            (some contract)
+            ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+              "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+      rw [hFuelShape]
+      have hPeelStructural :
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots) =
+            EvmYul.Yul.exec (fuel + cases'.length + 13)
+              (.Block
+                [Backends.lowerNativeSwitchBlock
+                  (YulExpr.call "shr"
+                    [YulExpr.lit Compiler.Constants.selectorShift,
+                     YulExpr.call "calldataload" [YulExpr.lit 0]])
+                  (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                  [nativeRevertZeroZeroStmt]])
+              (some contract)
+              ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+        let contract' : EvmYul.Yul.Ast.YulContract :=
+          { dispatcher := .Block [.Block inner], functions := functions }
+        have hFuelShape' :
+            fuel + cases'.length + 19 =
+              Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))) := by
+          omega
+        have hDispatcherPeel :
+            contractDispatcherExecResult (fuel + cases'.length + 19)
+                contract' (initialState contract' tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner) (some contract')
+                (nativeSwitchInitialOkState contract' tx storage observableSlots) := by
+          rw [hFuelShape']
+          change
+            contractDispatcherExecResult
+                (Nat.succ (Nat.succ (Nat.succ (fuel + cases'.length + 16))))
+                { dispatcher := .Block [.Block inner], functions := functions }
+                (initialState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots) =
+              EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block inner)
+                (some { dispatcher := .Block [.Block inner], functions := functions })
+                (nativeSwitchInitialOkState
+                  { dispatcher := .Block [.Block inner], functions := functions }
+                  tx storage observableSlots)
+          rw [contractDispatcherExecResult_block_dispatcher_eq_exec_block
+            (Nat.succ (fuel + cases'.length + 16)) [.Block inner] functions
+            tx storage observableSlots]
+          rw [exec_singleton_block_eq_exec_block (fuel + cases'.length + 16) inner
+            (some { dispatcher := .Block [.Block inner], functions := functions })
+            (nativeSwitchInitialOkState
+              { dispatcher := .Block [.Block inner], functions := functions }
+              tx storage observableSlots)]
+        calc
+          contractDispatcherExecResult (fuel + cases'.length + 19)
+              contract (initialState contract tx storage observableSlots)
+              = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                  (.Block inner) (some contract)
+                  (nativeSwitchInitialOkState contract tx storage observableSlots) := hDispatcherPeel
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 17)
+                (.Block
+                  [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+                      (some
+                        (Backends.lowerExprNative
+                          (YulExpr.call "iszero"
+                            [YulExpr.call "lt"
+                              [YulExpr.call "calldatasize" [],
+                               YulExpr.lit 4]]))),
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative
+                        (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]))
+                      body1,
+                   EvmYul.Yul.Ast.Stmt.If
+                      (Backends.lowerExprNative (YulExpr.ident "__has_selector"))
+                      [Backends.lowerNativeSwitchBlock
+                        (YulExpr.call "shr"
+                          [YulExpr.lit Compiler.Constants.selectorShift,
+                           YulExpr.call "calldataload" [YulExpr.lit 0]])
+                        (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                        [nativeRevertZeroZeroStmt]]])
+                (some contract)
+                (nativeSwitchInitialOkState contract tx storage observableSlots) := by
+              exact congrArg
+                (fun body =>
+                  EvmYul.Yul.exec (fuel + cases'.length + 17)
+                    (.Block body) (some contract)
+                    (nativeSwitchInitialOkState contract tx storage observableSlots))
+                hInner
+          _ = EvmYul.Yul.exec (fuel + cases'.length + 13)
+                (.Block
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                    [nativeRevertZeroZeroStmt]])
+                (some contract)
+                ((nativeSwitchInitialOkState contract tx storage observableSlots).insert
+                  "__has_selector" (EvmYul.UInt256.ofNat 1)) := by
+              have hExec :=
+                exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+                  (fuel + cases'.length + 5) contract tx storage observableSlots
+                  "__has_selector" body1
+                  [Backends.lowerNativeSwitchBlock
+                    (YulExpr.call "shr"
+                      [YulExpr.lit Compiler.Constants.selectorShift,
+                       YulExpr.call "calldataload" [YulExpr.lit 0]])
+                    (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+                    [nativeRevertZeroZeroStmt]]
+                  hNoWrap
+              simpa only [Nat.add_assoc] using hExec
+      exact hPeelStructural
+    constructor
+    · rw [hPeel]
+      exact exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error
+        fuel selector (Backends.freshNativeSwitchId reservedNames switchStart) cases'
+        contract tx storage observableSlots hSelector hLowerFind hSelectorRange
+        hTagsRange
+    · simp
+
 /-- The two generated SimpleStorage selector tags fit in one EVM word. -/
 private theorem simpleStorageSelectors_tagsRange
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt) :
@@ -13774,7 +28935,7 @@ private theorem simpleStorageSelectors_tagsRange
     selector set. This specializes the generic lowered-switch miss theorem to
     the two generated SimpleStorage selectors, discharging the selector tag
     word-range premise by computation. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult
     (fuel selector switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -13821,7 +28982,7 @@ This packages the `revert(0, 0)` default branch in the shape needed by the
     dispatcher bridge: native execution reaches EVMYulLean's `Revert`
     exception, and Verity's projection rolls the call back to failed success,
     no return value, unchanged storage/mappings, and unchanged events. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult_eq
     (fuel selector switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -13852,14 +29013,15 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert
         finalStorage := storage
         finalMappings := Compiler.Proofs.storageAsMappings storage
         events := initialEvents } := by
-  rcases
-    exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult
-      fuel selector switchId storeBody retrieveBody contract tx storage
-      initialEvents observableSlots hSelector hFind hSelectorRange with
-    ⟨hExec, _hSuccess, _hReturn, _hStorage⟩
-  exact ⟨hExec, by simp⟩
+  exact
+    exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
+      fuel selector switchId
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+      contract tx storage initialEvents observableSlots
+      hSelector hFind hSelectorRange
+      (simpleStorageSelectors_tagsRange storeBody retrieveBody)
 
-def simpleStorageRevertProjectedResult
+private def simpleStorageRevertProjectedResult
     (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat)) : YulResult :=
   { success := false
@@ -13872,7 +29034,7 @@ def simpleStorageRevertProjectedResult
     `store(uint256)` selector arm. Naming this body lets later dispatcher
     bridge lemmas specialize the selector-switch theorem without carrying
     arbitrary body parameters. -/
-def simpleStorageNativeStoreBody : List EvmYul.Yul.Ast.Stmt :=
+private def simpleStorageNativeStoreBody : List EvmYul.Yul.Ast.Stmt :=
   [ .If (lowerExprNative (.call "callvalue" [])) [nativeRevertZeroZeroStmt],
     .If (lowerExprNative (.call "lt" [.call "calldatasize" [], .lit 36]))
       [nativeRevertZeroZeroStmt],
@@ -13882,7 +29044,7 @@ def simpleStorageNativeStoreBody : List EvmYul.Yul.Ast.Stmt :=
 
 /-- Concrete lowered native body for the generated SimpleStorage `retrieve()`
     selector arm. -/
-def simpleStorageNativeRetrieveBody : List EvmYul.Yul.Ast.Stmt :=
+private def simpleStorageNativeRetrieveBody : List EvmYul.Yul.Ast.Stmt :=
   [ .If (lowerExprNative (.call "callvalue" [])) [nativeRevertZeroZeroStmt],
     .If (lowerExprNative (.call "lt" [.call "calldatasize" [], .lit 4]))
       [nativeRevertZeroZeroStmt],
@@ -13891,7 +29053,7 @@ def simpleStorageNativeRetrieveBody : List EvmYul.Yul.Ast.Stmt :=
         (.call "mstore" [.lit 0, .call "sload" [.lit 0]])),
     .ExprStmtCall (lowerExprNative (.call "return" [.lit 0, .lit 32])) ]
 
-def simpleStorageNativeSelectorCases :
+private def simpleStorageNativeSelectorCases :
     List (Nat × List EvmYul.Yul.Ast.Stmt) :=
   [(0x6057361d, simpleStorageNativeStoreBody),
     (0x2e64cec1, simpleStorageNativeRetrieveBody)]
@@ -13903,7 +29065,7 @@ This removes two bookkeeping premises from the default-branch bridge case:
 callers no longer have to introduce a separate selector witness or prove that
 the 4-byte selector fits in an EVM word. Both facts follow from the transaction
 selector modulus bound used by the public end-to-end theorem. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_revert_default_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_revert_default_projectResult_eq
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -13951,7 +29113,7 @@ This is the branch shape needed by the dispatcher bridge case split: once the
 transaction selector is known to be neither generated selector, the concrete
 `find? = none` premise is discharged internally before executing the actual
 native lowered switch relation. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_default_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_default_projectResult_eq
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -13991,7 +29153,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_d
     selector switch, with both generated selector bodies fixed to their native
     lowered shapes. This is the default branch theorem needed by the bridge
     once the outer dispatcher has exposed the inner selector switch. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_default_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_default_projectResult_eq
     (fuel switchId : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
@@ -14026,7 +29188,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_de
     selector set. This specializes the generic lowered-switch hit theorem to
     `store(uint256)`, discharging the computed selector lookup and selector tag
     word-range premises. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -14070,7 +29232,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
     lifting the SimpleStorage store-hit selector specialization to states
     already carrying additional bindings (e.g. the dispatcher's
     `__has_selector := 1`). -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store_fuel
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store_fuel
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -14115,7 +29277,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store
       (simpleStorageSelectors_tagsRange storeBody retrieveBody)
       hBody
 
-def simpleStorageStoreHaltProjectedResult
+private def simpleStorageStoreHaltProjectedResult
     (tx : YulTransaction)
     (initialEvents : List (List Nat))
     (haltState : EvmYul.Yul.State) : YulResult :=
@@ -14132,7 +29294,7 @@ def simpleStorageStoreHaltProjectedResult
 This removes the switch-case wrapper from later bridge obligations: callers can
 prove the selected body once for every possible decomposition, then consume one
 exact native `YulResult` equality at the full lowered-switch boundary. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResult_eq
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -14146,14 +29308,11 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResu
     (hBody : ∀ pre suffix,
       [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)] =
           pre ++ (0x6057361d, storeBody) :: suffix →
-        EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7)
-          (.Block storeBody) (some contract)
-          ((nativeSwitchPrefixFinalState contract tx storage observableSlots
-            (Backends.nativeSwitchDiscrTempName switchId)
-            (Backends.nativeSwitchMatchedTempName switchId)).insert
-              (Backends.nativeSwitchMatchedTempName switchId)
-              (EvmYul.UInt256.ofNat 1)) =
-            .error (EvmYul.Yul.Exception.YulHalt haltState haltValue))
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7)
+        (.Block storeBody) (some contract)
+        (nativeSwitchMarkedPrefixStateForId contract tx storage
+          observableSlots switchId) =
+          .error (EvmYul.Yul.Exception.YulHalt haltState haltValue))
     (hProject :
       projectResult tx storage initialEvents
           (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue)) =
@@ -14171,15 +29330,20 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResu
       projectResult tx storage initialEvents
           (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue)) =
         simpleStorageStoreHaltProjectedResult tx initialEvents haltState := by
-  refine ⟨?_, hProject⟩
   exact
-    exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
-      fuel switchId storeBody retrieveBody contract tx storage observableSlots
-      (EvmYul.Yul.Exception.YulHalt haltState haltValue) hSelector
-      hBody
+    exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
+      fuel 0x6057361d switchId
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+      [nativeRevertZeroZeroStmt] 0x6057361d storeBody contract tx storage
+      initialEvents observableSlots
+      (EvmYul.Yul.Exception.YulHalt haltState haltValue)
+      (simpleStorageStoreHaltProjectedResult tx initialEvents haltState)
+      hSelector (by simp) (by norm_num [EvmYul.UInt256.size])
+      (simpleStorageSelectors_tagsRange storeBody retrieveBody)
+      hBody hProject
 
 /-- Concrete SimpleStorage store-selector hit execution. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResult_eq
     (fuel switchId : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
@@ -14193,14 +29357,11 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResul
     (hBody : ∀ pre suffix,
       simpleStorageNativeSelectorCases =
           pre ++ (0x6057361d, simpleStorageNativeStoreBody) :: suffix →
-        EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7)
-          (.Block simpleStorageNativeStoreBody) (some contract)
-          ((nativeSwitchPrefixFinalState contract tx storage observableSlots
-            (Backends.nativeSwitchDiscrTempName switchId)
-            (Backends.nativeSwitchMatchedTempName switchId)).insert
-              (Backends.nativeSwitchMatchedTempName switchId)
-              (EvmYul.UInt256.ofNat 1)) =
-            .error (EvmYul.Yul.Exception.YulHalt haltState haltValue))
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7)
+        (.Block simpleStorageNativeStoreBody) (some contract)
+        (nativeSwitchMarkedPrefixStateForId contract tx storage
+          observableSlots switchId) =
+          .error (EvmYul.Yul.Exception.YulHalt haltState haltValue))
     (hProject :
       projectResult tx storage initialEvents (.error
           (EvmYul.Yul.Exception.YulHalt haltState haltValue)) =
@@ -14228,7 +29389,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResul
       (by simpa [simpleStorageNativeSelectorCases] using hBody) hProject
 
 /-- Retrieve-selector hit execution for the concrete SimpleStorage dispatcher. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fuel
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fuel
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
     (contract : EvmYul.Yul.Ast.YulContract)
@@ -14269,7 +29430,7 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fu
       (simpleStorageSelectors_tagsRange storeBody retrieveBody)
       hBody
 
-def simpleStorageRetrieveHaltProjectedResult
+private def simpleStorageRetrieveHaltProjectedResult
     (tx : YulTransaction)
     (storage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
@@ -14288,29 +29449,22 @@ def simpleStorageRetrieveHaltProjectedResult
 
 /-- Retrieve-selector hit execution for the concrete SimpleStorage dispatcher,
     packaged with the exact projected result of the selected getter body. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectResult_eq
     (fuel switchId : Nat)
     (storeBody retrieveBody : List EvmYul.Yul.Ast.Stmt)
-    (contract : EvmYul.Yul.Ast.YulContract)
-    (tx : YulTransaction)
-    (storage : IRStorageSlot → IRStorageWord)
-    (initialEvents : List (List Nat))
-    (observableSlots : List Nat)
-    (haltState : EvmYul.Yul.State)
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (initialEvents : List (List Nat))
+    (observableSlots : List Nat) (haltState : EvmYul.Yul.State)
     (haltValue : EvmYul.Yul.Ast.Literal)
-    (hSelector :
-      0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
+    (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hBody : ∀ pre suffix,
       [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)] =
           pre ++ (0x2e64cec1, retrieveBody) :: suffix →
-        EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7)
-          (.Block retrieveBody) (some contract)
-          ((nativeSwitchPrefixFinalState contract tx storage observableSlots
-            (Backends.nativeSwitchDiscrTempName switchId)
-            (Backends.nativeSwitchMatchedTempName switchId)).insert
-              (Backends.nativeSwitchMatchedTempName switchId)
-              (EvmYul.UInt256.ofNat 1)) =
-            .error (EvmYul.Yul.Exception.YulHalt haltState haltValue))
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7)
+        (.Block retrieveBody) (some contract)
+        (nativeSwitchMarkedPrefixStateForId contract tx storage
+          observableSlots switchId) =
+          .error (EvmYul.Yul.Exception.YulHalt haltState haltValue))
     (hProject :
       projectResult tx storage initialEvents
           (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue)) =
@@ -14330,15 +29484,21 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectR
           (.error (EvmYul.Yul.Exception.YulHalt haltState haltValue)) =
         simpleStorageRetrieveHaltProjectedResult tx storage initialEvents
           observableSlots haltState := by
-  refine ⟨?_, hProject⟩
   exact
-    exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fuel
-      fuel switchId storeBody retrieveBody contract tx storage observableSlots
-      (EvmYul.Yul.Exception.YulHalt haltState haltValue) hSelector
-      hBody
+    exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
+      fuel 0x2e64cec1 switchId
+      [(0x6057361d, storeBody), (0x2e64cec1, retrieveBody)]
+      [nativeRevertZeroZeroStmt] 0x2e64cec1 retrieveBody contract tx storage
+      initialEvents observableSlots
+      (EvmYul.Yul.Exception.YulHalt haltState haltValue)
+      (simpleStorageRetrieveHaltProjectedResult tx storage initialEvents
+        observableSlots haltState)
+      hSelector (by simp) (by norm_num [EvmYul.UInt256.size])
+      (simpleStorageSelectors_tagsRange storeBody retrieveBody)
+      hBody hProject
 
 /-- Concrete SimpleStorage retrieve-selector hit execution. -/
-theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectResult_eq
+private theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectResult_eq
     (fuel switchId : Nat)
     (contract : EvmYul.Yul.Ast.YulContract)
     (tx : YulTransaction)
@@ -14352,14 +29512,11 @@ theorem exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectRe
     (hBody : ∀ pre suffix,
       simpleStorageNativeSelectorCases =
           pre ++ (0x2e64cec1, simpleStorageNativeRetrieveBody) :: suffix →
-        EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7)
-          (.Block simpleStorageNativeRetrieveBody) (some contract)
-          ((nativeSwitchPrefixFinalState contract tx storage observableSlots
-            (Backends.nativeSwitchDiscrTempName switchId)
-            (Backends.nativeSwitchMatchedTempName switchId)).insert
-              (Backends.nativeSwitchMatchedTempName switchId)
-              (EvmYul.UInt256.ofNat 1)) =
-            .error (EvmYul.Yul.Exception.YulHalt haltState haltValue))
+      EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7)
+        (.Block simpleStorageNativeRetrieveBody) (some contract)
+        (nativeSwitchMarkedPrefixStateForId contract tx storage
+          observableSlots switchId) =
+          .error (EvmYul.Yul.Exception.YulHalt haltState haltValue))
     (hProject :
       projectResult tx storage initialEvents (.error
           (EvmYul.Yul.Exception.YulHalt haltState haltValue)) =
@@ -14469,6 +29626,55 @@ def interpretRuntimeNative
     hLower, hEnv]
   rfl
 
+@[simp] theorem interpretRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
+    (fuel' : Nat)
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (events : List (List Nat))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (hFragment : generatedRuntimeNativeFragment runtimeCode = true)
+    (hLower : lowerRuntimeContractNative runtimeCode = .ok contract)
+    (hEnv : validateNativeRuntimeEnvironment runtimeCode tx = .ok ()) :
+    interpretRuntimeNative (Nat.succ fuel') runtimeCode tx storage observableSlots events =
+      .ok (projectResult tx storage events
+        (contractDispatcherBlockResult fuel' contract
+          (initialState contract tx storage
+            (materializedStorageSlots runtimeCode observableSlots)))) := by
+  rw [interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
+    (fuel := Nat.succ fuel') (contract := contract)
+    (hFragment := hFragment) (hLower := hLower) (hEnv := hEnv)]
+  rw [callDispatcher_succ_eq_callDispatcherBlockResult]
+  rw [callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult]
+
+@[simp] theorem interpretRuntimeNative_succ_eq_contractDispatcherExecResult_of_lowerRuntimeContractNative
+    (fuel' : Nat)
+    (runtimeCode : List YulStmt)
+    (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord)
+    (observableSlots : List Nat)
+    (events : List (List Nat))
+    (contract : EvmYul.Yul.Ast.YulContract)
+    (hFragment : generatedRuntimeNativeFragment runtimeCode = true)
+    (hLower : lowerRuntimeContractNative runtimeCode = .ok contract)
+    (hEnv : validateNativeRuntimeEnvironment runtimeCode tx = .ok ()) :
+    interpretRuntimeNative (Nat.succ fuel') runtimeCode tx storage observableSlots events =
+      .ok (projectResult tx storage events
+        (let initial :=
+          initialState contract tx storage
+            (materializedStorageSlots runtimeCode observableSlots)
+        let dispatcherDef :=
+          EvmYul.Yul.Ast.FunctionDefinition.Def [] [] [contract.dispatcher]
+        match contractDispatcherExecResult fuel' contract initial with
+        | .error err => .error err
+        | .ok finalState =>
+            let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+            .ok (restored, List.map finalState.lookup! dispatcherDef.rets))) := by
+  rw [interpretRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
+    (contract := contract) (hFragment := hFragment) (hLower := hLower) (hEnv := hEnv)]
+  rw [contractDispatcherBlockResult_eq_execResult]
+
 @[simp] theorem interpretRuntimeNative_environmentError
     (fuel : Nat)
     (runtimeCode : List YulStmt)
@@ -14576,5 +29782,94 @@ def interpretIRRuntimeNative
     validateGeneratedRuntimeNativeFragment_ok (Compiler.emitYul irContract).runtimeCode
       hFragment, hLower, hEnv]
   rfl
+
+@[simp] theorem interpretIRRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
+    (fuel' : Nat)
+    (irContract : Compiler.IRContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (state : Compiler.Proofs.IRGeneration.IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hFragment :
+      generatedRuntimeNativeFragment (Compiler.emitYul irContract).runtimeCode = true)
+    (hLower : lowerRuntimeContractNative (Compiler.emitYul irContract).runtimeCode =
+      .ok nativeContract)
+    (hEnv :
+      validateNativeRuntimeEnvironment (Compiler.emitYul irContract).runtimeCode
+        (YulTransaction.ofIR tx) = .ok ()) :
+    interpretIRRuntimeNative (Nat.succ fuel') irContract tx state observableSlots =
+      .ok (projectResult (YulTransaction.ofIR tx) state.storage state.events
+        (contractDispatcherBlockResult fuel' nativeContract
+          (initialState nativeContract (YulTransaction.ofIR tx) state.storage
+            (materializedStorageSlots (Compiler.emitYul irContract).runtimeCode
+              observableSlots)))) := by
+  rw [interpretIRRuntimeNative, interpretRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
+    (contract := nativeContract) (hFragment := hFragment) (hLower := hLower)
+    (hEnv := hEnv)]
+
+@[simp] theorem interpretIRRuntimeNative_succ_eq_contractDispatcherExecResult_of_lowerRuntimeContractNative
+    (fuel' : Nat)
+    (irContract : Compiler.IRContract)
+    (tx : Compiler.Proofs.IRGeneration.IRTransaction)
+    (state : Compiler.Proofs.IRGeneration.IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (hFragment :
+      generatedRuntimeNativeFragment (Compiler.emitYul irContract).runtimeCode = true)
+    (hLower : lowerRuntimeContractNative (Compiler.emitYul irContract).runtimeCode =
+      .ok nativeContract)
+    (hEnv :
+      validateNativeRuntimeEnvironment (Compiler.emitYul irContract).runtimeCode
+        (YulTransaction.ofIR tx) = .ok ()) :
+    interpretIRRuntimeNative (Nat.succ fuel') irContract tx state observableSlots =
+      .ok (projectResult (YulTransaction.ofIR tx) state.storage state.events
+        (let initial :=
+          initialState nativeContract (YulTransaction.ofIR tx) state.storage
+            (materializedStorageSlots (Compiler.emitYul irContract).runtimeCode
+              observableSlots)
+        let dispatcherDef :=
+          EvmYul.Yul.Ast.FunctionDefinition.Def [] [] [nativeContract.dispatcher]
+        match contractDispatcherExecResult fuel' nativeContract initial with
+        | .error err => .error err
+        | .ok finalState =>
+            let restored := finalState.reviveJump.overwrite? initial |>.setStore initial
+            .ok (restored, List.map finalState.lookup! dispatcherDef.rets))) := by
+  rw [interpretIRRuntimeNative, interpretRuntimeNative_succ_eq_contractDispatcherExecResult_of_lowerRuntimeContractNative
+    (contract := nativeContract) (hFragment := hFragment) (hLower := hLower)
+    (hEnv := hEnv)]
+
+/-- Result comparison surface for the native EVMYulLean harness.
+
+The native harness can still fail closed during Verity-Yul-to-EVMYulLean
+lowering, so native-facing theorem statements record both that native execution
+returns a `YulResult` and that this result matches IR execution. -/
+private def nativeResultsMatch
+    (ir : IRResult)
+    (native : Except AdapterError YulResult) :
+    Prop :=
+  match native with
+  | .ok yul =>
+      ir.success = yul.success ∧
+      ir.returnValue = yul.returnValue ∧
+      (∀ slot, ir.finalStorage slot = yul.finalStorage slot) ∧
+      (∀ base key, ir.finalMappings base key = yul.finalMappings base key) ∧
+      ir.events = yul.events
+  | .error _ => False
+
+/-- Observable result comparison surface for native EVMYulLean execution. -/
+def nativeResultsMatchOn
+    (observableSlots : List Nat)
+    (ir : IRResult)
+    (native : Except AdapterError YulResult) :
+    Prop :=
+  match native with
+  | .ok yul =>
+      ir.success = yul.success ∧
+      ir.returnValue = yul.returnValue ∧
+      (∀ slot, slot ∈ observableSlots →
+        ir.finalStorage (IRStorageSlot.ofNat slot) =
+          yul.finalStorage (IRStorageSlot.ofNat slot)) ∧
+      ir.events = yul.events
+  | .error _ => False
 
 end Compiler.Proofs.YulGeneration.Backends.Native

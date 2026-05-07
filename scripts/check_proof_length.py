@@ -297,28 +297,21 @@ ALLOWLIST: set[str] = {
     # Call-surface decomposition kept as one structural recursion proof.
     "stmtOrListTouchesUnsupportedCallSurface_eq_featureOr",
     # --- Yul generation / Layer 3 proofs ---
-    "yulCodegen_preserves_semantics",
+    "yulCodegen_preserves_semantics_via_reference_oracle",
     "stmt_and_stmts_equiv",
     "execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv",
-    "execYulFuel_succ_eq",
+    "legacyExecYulFuel_succ_eq",
     "exec_switchCaseBody_revert_of_short",
     "exec_switchCaseBody_continue_of_long",
     "SwitchCaseBodyBridge_short",
     "SwitchCaseBodyBridge",
-    "layer3_contract_preserves_semantics",
     # Thin EVMYulLean EndToEnd wrapper; signature carries explicit body-closure
     # witnesses and the proof mostly forwards existing Layer-3 hypotheses.
-    "layer3_contract_preserves_semantics_evmYulLean",
+    "layer3_contract_preserves_semantics_evmYulLeanBackend",
     # --- End-to-end proofs ---
-    "simpleStorage_endToEnd",
     # Thin public wrapper; the scanner counts the trailing Phase 4 summary
     # comment in its theorem span.
-    "simpleStorage_endToEnd_evmYulLean",
-    # Native public wrapper keeps the lowering equality, native environment
-    # validation, and callDispatcher bridge as explicit hypotheses so proof
-    # modules do not rely on VM computation; the body delegates to the lowered
-    # native Layer-3 theorem.
-    "simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge",
+    "simpleStorage_endToEnd_evmYulLeanBackend",
     # Native SimpleStorage wrapper keeps the dispatcher-agreement seam explicit
     # while delegating to the lowered native theorem; the long span is the public
     # hypothesis surface, not a large proof script.
@@ -343,21 +336,14 @@ ALLOWLIST: set[str] = {
     # the chained `setMachineState` overrides to extract the 32-byte
     # `H_return` window before computing `projectHaltReturn`.
     "projectResult_retrieveHit_eq",
-    # Phase 2 retrieve-hit bridge closure: composes the closed-form IR result,
-    # native dispatcher halt endpoint, projected-storage preservation, and
-    # EVMYulLean Layer-3 result agreement under the public theorem hypotheses.
-    # Splitting would create several single-use helpers whose proofs are mostly
-    # repeated hypothesis plumbing around the same concrete retrieve path.
-    "simpleStorageNativeRetrieveHitBridge_proved",
-    # Phase 3 selector-miss bridge closure: composes the closed-form
-    # selector-miss IR result, native revert endpoint, and Layer-3 agreement
-    # under the public theorem hypotheses. Splitting would create single-use
-    # helpers that only forward the same selector-miss facts and fuel reshape.
-    "simpleStorageNativeSelectorMissBridge_proved",
-    # Phase 3 store-hit bridge closure: composes short-calldata revert and
-    # successful sstore/stop paths against Layer-3 EVMYulLean agreement, using
-    # the bounded-slot storage projection helper above.
-    "simpleStorageNativeStoreHitBridge_proved",
+    # Direct native-vs-IR retrieve-hit closure: intentionally mirrors the
+    # concrete native dispatcher halt and projected-storage plumbing above, but
+    # targets `nativeDispatcherExecMatchesIRPositive` directly.
+    "simpleStorageNativeRetrieveHitMatchBridge_proved",
+    # Direct native-vs-IR store-hit closure: it intentionally keeps the
+    # short-calldata revert and argument-present storage-update branches in one
+    # proof so the direct native case split stays explicit.
+    "simpleStorageNativeStoreHitMatchBridge_proved",
     # Safe-body public EVMYulLean wrapper derives the raw BridgedStmts function
     # hypotheses from compile output, static parameter closure, and
     # BridgedSafeStmts witnesses before delegating to the function-bridge
@@ -369,6 +355,8 @@ ALLOWLIST: set[str] = {
     # applying the Yul backend equivalence. The proof is linear hypothesis
     # plumbing around one public transition theorem.
     "interpretYulFromIR_evmYulLean_eq_on_bridged_bodies",
+    "layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel",
+    "layers2_3_ir_matches_yul_evmYulLeanBackend",
     # --- Contract proofs (Contracts/) ---
     "constructor_increment_getCount",
     "add_one_preserves_order_iff_no_overflow",
@@ -401,11 +389,11 @@ ALLOWLIST: set[str] = {
     # Pure-context dispatch is the same 25-builtin case split specialized to
     # context-free builtins; each branch delegates to an individual bridge.
     "evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge",
-    # Backend-parameterized mirror of execYulFuel; long by construction because
+    # Backend-parameterized mirror of legacyExecYulFuel; long by construction because
     # it preserves all statement cases while swapping only expression backend.
     "execYulFuelWithBackend",
     # Recovery proof mirrors the executor's statement case split; each branch is
-    # direct simplification back to execYulFuel.
+    # direct simplification back to legacyExecYulFuel.
     "execYulFuelWithBackend_verity_eq",
     # Native harness block-append lemmas are structural inductions over a Yul
     # block prefix with fuel normalization at each cons. The success, suffix
@@ -460,7 +448,22 @@ ALLOWLIST: set[str] = {
     # Conditional Layer-3 EVMYulLean theorem composes existing codegen
     # preservation with emitted-runtime backend equality; the scanner also
     # counts the trailing Phase 4 summary block in its theorem span.
-    "yulCodegen_preserves_semantics_evmYulLean",
+    "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle",
+    # Native signed division bridge mirrors the upstream signed arithmetic
+    # spec split across sign/zero/divisor cases. The proof is a linear case
+    # analysis over integer-range facts rather than reusable computation.
+    "int256_div_toUint256_val_eq_uint256_sdiv",
+    # Native signextend bridge follows EVM's byte-index split and signed-mask
+    # arithmetic cases. Decomposing would mostly create single-use arithmetic
+    # helper lemmas with the same hypotheses.
+    "uint256_signextend_val_eq_uint256_signextend",
+    # Projected native dispatcher result wrapper has a short proof body, but
+    # the scanner includes the following public runtime-harness doc block.
+    "nativeDispatcherExecMatchesIRPositive_of_project_eq_match",
+    # Private transition wrapper retained only in EvmYulLeanRetarget; the proof
+    # is a thin composition but its statement carries the full bridged-body
+    # hypotheses for the isolated legacy regression boundary.
+    "interpretYulFromIR_evmYulLean_eq_on_bridged_bodies",
     # Scalar parameter body closure is a structural induction over the six
     # scalar ABI cases emitted by `genParamLoadBodyFrom`.
     "genParamLoadBodyFrom_calldataload_bridged",
@@ -473,8 +476,11 @@ ALLOWLIST: set[str] = {
     # has to cover both inline static loads and the generated first-element alias.
     "genParamLoadBodyFrom_calldataload_static_scalar_bridged",
     # Source-expression closure main theorem: structural induction over the
-    # 21 `BridgedSourceExpr` constructors (4 leaves + 17 binops); each binop
-    # case is 4-5 lines and cannot be merged without losing readability.
+    # 48 `BridgedSourceExpr` constructors (4 scalar leaves, 36 direct builtin,
+    # boolean-normalization, bridged environment-read, or unary read cases, and
+    # 8 branchless helper cases); each case is mechanical decomposition of the
+    # emitted `compileExpr` shape and cannot be merged without losing
+    # readability.
     "compileExpr_bridgedSource",
     # Pure binding list closure mirrors `compileStmtList`'s head/tail recursion;
     # most proof lines are boilerplate decomposition of the two Except binds.
@@ -657,10 +663,10 @@ ALLOWLIST: set[str] = {
     # Same recursive generated-shape proof as the external version, using the
     # internal body fragment so internal returns compile to assignment + leave.
     "compileStmt_internal_recursive_body_fragment_bridged",
-    # Require failure-condition source closure case-splits on the 23
+    # Require failure-condition source closure case-splits on the 48
     # `BridgedSourceExpr` constructors: `.ge`/`.le` are handled specially
     # because `compileRequireFailCond` uses the direct `lt`/`gt` optimization,
-    # and the remaining 21 constructors each invoke the shared
+    # and the remaining 46 constructors each invoke the shared
     # `compileRequireFailCond_default_bridgedSource` helper for the `iszero`
     # fall-through. Each constructor case is two mechanical lines; merging
     # them would require either introducing a generic reconstruction tactic
@@ -1024,13 +1030,13 @@ ALLOWLIST: set[str] = {
     # closure theorem; splitting would create a parallel dispatch helper with
     # the same 24-case shape.
     "compileStmtList_always_bridged",
+    # Universal no-function-definition aggregation mirrors
+    # compileStmtList_always_bridged: one constructor dispatch over
+    # BridgedSafeStmts, with each branch delegating to a fragment-specific
+    # noFuncDefs theorem.
+    "compileStmtList_always_noFuncDefs",
     # --- Misc ---
     "findUniqueInternalFunction",
-    # Native dispatcher bridge wrapper: mostly argument plumbing through the
-    # generic Layer 2+3 native theorem after the concrete SimpleStorage lowering
-    # witness is packaged; splitting would just duplicate the same fixture
-    # witnesses.
-    "simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge",
     # Native generated-switch block append/error lemmas mirror the existing
     # ok-append proof and keep the fuel arithmetic visible in one place for
     # the halt-before-default dispatcher cases.
@@ -1041,6 +1047,49 @@ ALLOWLIST: set[str] = {
     # needed to prove later cases/default are unreachable after a halt.
     "exec_nativeSwitchCaseIfs_prefix_hit_error_fuel",
 }
+
+# PR #1822 native EVMYulLean generic-dispatcher closure. These regexes cover
+# generated-runtime/native-dispatcher simulation families whose proof spans are
+# long because they compose selector dispatch, switch lowering, fuel
+# normalization, environment validation, and projected storage/result equality.
+# Factoring each endpoint further would mostly create single-use wrappers over
+# the same generated dispatcher case split.
+ALLOWLIST_REGEXES: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(pattern)
+    for pattern in (
+        r"^compile_preserves_native_evmYulLean_",
+        r"^nativeDispatcherExecMatchesIRPositive_of_buildSwitch_",
+        r"^contractDispatcherExecResult_buildSwitch_noFallback_noReceive_",
+        r"^contractDispatcherExecResult_block_lowerNativeSwitchBlock_",
+        r"^exec_(?:block_)?lowerNativeSwitchBlock_.*"
+        r"(?:generated_prefix|finalMatched_store_fuel)$",
+        r"^exec_switchCaseBody_nonpayable_prefix_eq$",
+        r"^exec_if_lt_calldatasize_skip_markedPrefix_ge_fuel$",
+        r"^NativePrimCallPreservesWord_"
+        r"(?:log[0-4]|binary_same_state|ternary_same_state|"
+        r"of_allowed_lookupRuntimePrimOp|[st]store)_values$",
+        r"^NativePrimCallPreservesWord_of_allowed_lookupRuntimePrimOp$",
+        r"^Native(?:Stmt|Expr)PreservesWord_.*"
+        r"(?:mappingContract|nativePreservableStraightStmt|"
+        r"lowerStmtGroupNativeWithSwitchIds_expr_|"
+        r"lowerStmtsNativeWithSwitchIds_of_nativePreservableStraightStmts)",
+        r"^native_(?:mappingSlot_call_preserves_lookup|"
+        r"mappingSlot_call_preserves_lookup_state|"
+        r"call_preserves_lookup_of_revivable_body)$",
+        r"^nativeMappingSlotFunctionDefinition_exec_revivable$",
+        r"^lowerStmtsNative(?:WithSwitchIds)?_buildSwitch_noFallback_noReceive_ok_block$",
+        r"^lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq$",
+        r"^sizeOf_(?:buildSwitch_noFallback_noReceive_ge_source_cases_length"
+        r"(?:_plus24)?|emitYul_runtimeCode_mapping_ge_lowered_cases_length"
+        r"(?:_plus24)?)$",
+        r"^supportedStmtList_safe_of_state_"
+        r"(?:effect_closed|except_mapping_writes_stmt_safety)$",
+        r"^simpleStorage_source_endToEnd_native_evmYulLean_of_sourceIR$",
+        r"^compileStmt_setStructMember2_singleSlot_nonzero_bridged$",
+        r"^compileStmtList_append_eq$",
+        r"^compile_ok_yields_noReceiveEntrypoint_except_mapping_writes$",
+    )
+)
 
 # Directories containing proof files to scan.
 PROOF_DIRS = [
@@ -1088,6 +1137,10 @@ def measure_proofs(lean_file: Path) -> list[tuple[str, int, int]]:
     return results
 
 
+def is_allowlisted(name: str) -> bool:
+    return name in ALLOWLIST or any(pattern.match(name) for pattern in ALLOWLIST_REGEXES)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Check proof lengths.")
     parser.add_argument(
@@ -1113,7 +1166,7 @@ def main() -> None:
 
     for file, name, line, length in all_proofs:
         if length > HARD_LIMIT:
-            if name in ALLOWLIST:
+            if is_allowlisted(name):
                 allowlisted.append((file, name, line, length))
             else:
                 violations.append((file, name, line, length))

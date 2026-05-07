@@ -15,9 +15,12 @@
 
 import Compiler.IR
 import Compiler.CompilationModel
+import Compiler.Proofs.IRGeneration.IRRuntimeTypes
 import Compiler.Proofs.IRGeneration.IRStorageWord
 import Compiler.Proofs.MappingSlot
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
+import Compiler.Proofs.YulGeneration.LogNames
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Verity.Core
 
 namespace Compiler.Proofs.IRGeneration
@@ -26,6 +29,8 @@ open Compiler
 open Compiler.Yul
 open Verity.Core
 open Compiler.Proofs
+
+export Compiler.Proofs.YulGeneration (isYulLogName)
 
 /-! Size measures for termination proofs. -/
 mutual
@@ -80,77 +85,7 @@ private theorem internal_call_measure_decreases (fuel measure : Nat) :
   rw [Prod.lex_iff]
   exact Or.inl (Nat.lt_succ_self fuel)
 
-/-! ## Execution State for IR -/
-
-structure IRState where
-  /-- Variable bindings (name → value) -/
-  vars : List (String × Nat)
-  /-- Storage slots (slot → value).
-
-      Typed via `IRStorageWord` so Phase 1 of the IR storage refactor can
-      flip the carrier to a `UInt256`-bounded representation without
-      touching this signature. Currently `IRStorageWord` is an `abbrev`
-      for `Nat`, so this is definitionally `Nat → Nat` and existing
-      callsites continue to typecheck. -/
-  storage : IRStorageSlot → IRStorageWord
-  /-- Transient storage slots (slot → value). -/
-  transientStorage : Nat → Nat := fun _ => 0
-  /-- Memory words (offset → value) -/
-  memory : Nat → Nat
-  /-- Calldata words (argument index → value) -/
-  calldata : List Nat
-  /-- Return value (if any) -/
-  returnValue : Option Nat
-  /-- Sender address -/
-  sender : Nat
-  /-- Msg.value seen by `callvalue()`. -/
-  msgValue : Nat := 0
-  /-- Contract address seen by `address()`. -/
-  thisAddress : Nat := 0
-  /-- Block timestamp seen by `timestamp()`. -/
-  blockTimestamp : Nat := 0
-  /-- Block number seen by `number()`. -/
-  blockNumber : Nat := 0
-  /-- Chain id seen by `chainid()`. -/
-  chainId : Nat := 0
-  /-- Blob base fee seen by `blobbasefee()`. -/
-  blobBaseFee : Nat := 0
-  /-- Function selector (4-byte value used by calldataload(0)) -/
-  selector : Nat
-  /-- Emitted log records for this execution. -/
-  events : List (List Nat) := []
-  deriving Nonempty
-
-/-- Initial state for IR execution -/
-def IRState.initial (sender : Nat) : IRState :=
-  { vars := []
-    storage := fun _ => 0
-    transientStorage := fun _ => 0
-    memory := fun _ => 0
-    calldata := []
-    returnValue := none
-    sender := sender
-    msgValue := 0
-    thisAddress := 0
-    blockTimestamp := 0
-    blockNumber := 0
-    chainId := 0
-    blobBaseFee := 0
-    selector := 0
-    events := [] }
-
-/-- Lookup variable in state -/
-def IRState.getVar (s : IRState) (name : String) : Option Nat :=
-  s.vars.find? (·.1 == name) |>.map (·.2)
-
-/-- Set variable in state -/
-def IRState.setVar (s : IRState) (name : String) (value : Nat) : IRState :=
-  { s with vars := (name, value) :: s.vars.filter (·.1 != name) }
-
-/-- Set several variables in order, matching the left-to-right binding behavior used
-by parameter initialization and multi-return helper calls. -/
-def IRState.setVars (s : IRState) (bindings : List (String × Nat)) : IRState :=
-  bindings.foldl (fun st (name, value) => st.setVar name value) s
+/-! ## Execution State Helpers -/
 
 def byteWordCount (size : Nat) : Nat :=
   (size + 31) / 32
@@ -183,10 +118,6 @@ def encodeYulLogEvent (memory : Nat → Nat) (offset size : Nat)
 def IRState.appendYulLog (s : IRState) (offset size : Nat)
     (topics : List Nat) : IRState :=
   { s with events := s.events ++ [encodeYulLogEvent s.memory offset size topics] }
-
-def isYulLogName (func : String) : Bool :=
-  func == "log0" || func == "log1" || func == "log2" ||
-    func == "log3" || func == "log4"
 
 def applyYulLogCall? (state : IRState) (func : String)
     (argVals : List Nat) : Option IRState :=
@@ -334,8 +265,7 @@ def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
       | [offset, size] => some (abstractKeccakMemorySlice state.memory offset size)
       | _ => none
     else
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-        Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
         state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
         state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
@@ -385,8 +315,21 @@ end -- mutual
         (fun offset => some (Compiler.Proofs.YulGeneration.calldataloadWord
           state.selector state.calldata offset)) := by
   simp [evalIRCall, evalIRExprs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
+  cases evalIRExpr state argExpr with
+  | none => simp
+  | some val => simp
+
+@[simp] theorem evalIRCall_sload_singleton
+    (state : IRState) (argExpr : YulExpr) :
+    evalIRCall state "sload" [argExpr] =
+      (evalIRExpr state argExpr).bind
+        (fun slot => some (Compiler.Proofs.abstractLoadStorageOrMapping state.storage slot).toNat) := by
+  simp [evalIRCall, evalIRExprs,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
+    Compiler.Proofs.abstractLoadStorageOrMapping]
   cases evalIRExpr state argExpr with
   | none => simp
   | some val => simp
@@ -535,8 +478,7 @@ def evalIRCallWithInternals
             | [offset, size] => .values [abstractKeccakMemorySlice state'.memory offset size] state'
             | _ => .revert state'
           else
-            match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+            match Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                 state'.storage state'.sender state'.msgValue state'.thisAddress
                 state'.blockTimestamp state'.blockNumber state'.chainId state'.blobBaseFee
                 state'.selector state'.calldata func argVals with
@@ -1096,18 +1038,6 @@ theorem execIRStmts_single_block_stop_length_insufficient
 
 /-! ## IR Function Execution -/
 
-structure IRTransaction where
-  sender : Nat
-  msgValue : Nat := 0
-  thisAddress : Nat := 0
-  blockTimestamp : Nat := 0
-  blockNumber : Nat := 0
-  chainId : Nat := 0
-  blobBaseFee : Nat := 0
-  functionSelector : Nat
-  args : List Nat
-  deriving Repr
-
 /-- Apply transaction context fields to an IR state, leaving storage and
 other non-transaction fields unchanged. -/
 @[reducible] def IRState.withTx (s : IRState) (tx : IRTransaction) : IRState :=
@@ -1128,13 +1058,6 @@ other non-transaction fields unchanged. -/
     (s.withTx tx).storage = s.storage := rfl
 @[simp] theorem IRState.withTx_events (s : IRState) (tx : IRTransaction) :
     (s.withTx tx).events = s.events := rfl
-
-structure IRResult where
-  success : Bool
-  returnValue : Option Nat
-  finalStorage : IRStorageSlot → IRStorageWord
-  finalMappings : Nat → Nat → IRStorageWord
-  events : List (List Nat)
 
 /-- Execute an IR function with given arguments.
 Uses `sizeOf fn.body + 1` fuel, which is sufficient for any terminating execution
@@ -1419,8 +1342,7 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_no_internal
                         cases rest <;> simp
               · simp only [htload, hmload, hkeccak, ↓reduceIte]
                 cases hbuiltin :
-                    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                       state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                       state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
                 | none => simp [hbuiltin]
@@ -1583,8 +1505,7 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint
                         cases rest <;> simp
               · simp only [htload, hmload, hkeccak, ↓reduceIte]
                 cases hbuiltin :
-                    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                       state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                       state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
                 | none => simp [hbuiltin]
@@ -1752,8 +1673,7 @@ theorem evalIRCallWithInternals_stmt_eq_of_callsDisjoint
                     cases rest <;> simp
           · simp only [htload, hmload, hkeccak, ↓reduceIte]
             cases hbuiltin :
-                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                  Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                   state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                   state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
             | none => simp [hbuiltin]
@@ -1805,8 +1725,7 @@ theorem evalIRCallWithInternals_stmt_eq_of_no_internal
                     cases rest <;> simp
           · simp only [htload, hmload, hkeccak, ↓reduceIte]
             cases hbuiltin :
-                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                  Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                   state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                   state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
             | none => simp [hbuiltin]
@@ -3602,8 +3521,7 @@ theorem evalIRCallWithInternals_of_builtin
     (hnotMload : func ≠ "mload")
     (hnotKeccak : func ≠ "keccak256") :
     evalIRCallWithInternals contract fuel state func args =
-      match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-          Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+      match Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
           state'.storage state'.sender state'.msgValue state'.thisAddress
           state'.blockTimestamp state'.blockNumber state'.chainId state'.blobBaseFee
           state'.selector state'.calldata func argVals with

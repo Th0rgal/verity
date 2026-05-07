@@ -1,9 +1,15 @@
 # IR Storage Refactor — Phase 2 Plan
 
-Phase 2 of [`IR_STORAGE_UINT256_REFACTOR.md`](IR_STORAGE_UINT256_REFACTOR.md):
-discharge `simpleStorageNativeRetrieveHitBridge` once Phase 1 lands the
-`UInt256`-bounded IR storage carrier, then drop the `hRetrieveHit` premise from
-`simpleStorage_endToEnd_native_evmYulLean`.
+Phase 2 of [`IR_STORAGE_UINT256_REFACTOR.md`](IR_STORAGE_UINT256_REFACTOR.md)
+originally tracked discharging the retrieve-hit fuel-wrapper bridge after the
+`UInt256`-bounded IR storage carrier landed.
+
+Status update: this plan has been superseded for the public native path. The
+public `simpleStorage_endToEnd_native_evmYulLean` theorem now consumes the
+direct native-vs-IR `simpleStorageNativeRetrieveHitMatchBridge_proved` proof
+through `simpleStorageNativeCallDispatcherMatchBridge_of_per_case`. The older
+retrieve-hit compatibility theorem has been
+removed with the obsolete SimpleStorage fuel-wrapper bridge surface.
 
 This file is the working scaffold for the Phase 2 PR. It is plan-only so the
 PR opens against a green build.
@@ -32,8 +38,8 @@ parent transition note:
 
 ## Phase 2 deliverables
 
-1. Lemma `simpleStorageNativeRetrieveHitBridge_proved` — analogous to the
-   already-discharged `simpleStorageNativeSelectorMissBridge_proved`.
+1. Lemma `simpleStorageNativeRetrieveHitMatchBridge_proved` — analogous to the
+   direct selector-miss native match proof.
 2. Replace the explicit `hRetrieveHit` premise on
    `simpleStorage_endToEnd_native_evmYulLean` with the proved lemma.
 3. `PrintAxioms` for the public theorem no longer lists the retrieve-hit
@@ -65,7 +71,7 @@ the carrier flip, to:
 
 ## Exit criteria
 
-- `simpleStorageNativeRetrieveHitBridge_proved` lands and is invoked at the
+- `simpleStorageNativeRetrieveHitMatchBridge_proved` lands and is invoked at the
   call site of the former `hRetrieveHit` premise.
 - `simpleStorage_endToEnd_native_evmYulLean` no longer carries `hRetrieveHit`.
 - `PrintAxioms` reflects the drop.
@@ -73,5 +79,7 @@ the carrier flip, to:
 
 ## Status
 
-Plan-only. Implementation depends on Phase 1 (#1754) landing first. The
-`hStoreHit` premise remains and is handled by Phase 3.
+Superseded for the public native SimpleStorage theorem. The direct retrieve-hit
+proof is `simpleStorageNativeRetrieveHitMatchBridge_proved`; the generic
+compatibility cleanup remains tracked in
+[`NATIVE_EVMYULLEAN_TRANSITION.md`](NATIVE_EVMYULLEAN_TRANSITION.md).

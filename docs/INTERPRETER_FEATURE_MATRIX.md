@@ -12,7 +12,7 @@ Machine-readable version: [`artifacts/interpreter_feature_matrix.json`](../artif
 | Interpreter | File | Entry Point | Purpose |
 |---|---|---|---|
 | **IRInterpreter** | `Compiler/Proofs/IRGeneration/IRInterpreter.lean` | `execIRStmts` | Layer-2 preservation proofs |
-| **YulSemantics reference oracle** | `Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean` | `execYulFuel` | Historical Layer-3 Yul execution semantics retained for regression comparisons |
+| **YulSemantics reference oracle** | `Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean` | `legacyExecYulFuel` | Historical Layer-3 Yul execution semantics retained for regression comparisons |
 | **EVMYulLean bridge** | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | `evalBuiltinCallViaEvmYulLean` | Pure builtin evaluation via EVMYulLean UInt256 |
 
 The old `SpecInterpreter` module has been removed. Source semantics now live in

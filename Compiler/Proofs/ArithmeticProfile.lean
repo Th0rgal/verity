@@ -7,26 +7,22 @@
 
   This file serves as the single formal reference for arithmetic behavior:
   - Proves wrapping is consistent across EDSL and compiler layers
-  - Proves EVMYulLean bridge agreement for pure builtins
+  - States compiler pure-builtin facts directly against EVMYulLean
   - Documents the checked (safe) arithmetic alternative at EDSL level
-  - Establishes that all backend profiles share identical arithmetic semantics
+  - Keeps legacy/native bridge comparisons out of the public profile surface
 
   Run: lake build Compiler.Proofs.ArithmeticProfile
 -/
 
 import Compiler.Constants
-import Compiler.Proofs.IRGeneration.IRStorageWord
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
-import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Verity.Core.Uint256
 import EvmYul.UInt256
 
 namespace Compiler.Proofs.ArithmeticProfile
 
 open Compiler.Constants (evmModulus)
-open Compiler.Proofs.IRGeneration (IRStorageWord IRStorageSlot)
-open Compiler.Proofs.YulGeneration (evalBuiltinCall)
 open Compiler.Proofs.YulGeneration.Backends (evalPureBuiltinViaEvmYulLean)
 
 -- ============================================================================
@@ -44,130 +40,117 @@ theorem evmyullean_size_eq_verity_modulus :
 -- § 2. Wrapping semantics: compiler builtins are total and wrapping
 -- ============================================================================
 
--- Dummy state parameters (arithmetic builtins are state-independent).
-private def s : IRStorageSlot → IRStorageWord := fun _ => 0
-private def sender : Nat := 0
-private def sel : Nat := 0
-private def cd : List Nat := []
-
 /-- Addition wraps: (a + b) mod 2^256. -/
 theorem add_wraps (a b : Nat) :
-    evalBuiltinCall s sender sel cd "add" [a, b] = some ((a + b) % evmModulus) := by
-  simp [evalBuiltinCall, Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+    evalPureBuiltinViaEvmYulLean "add" [a, b] =
+      some ((a + b) % evmModulus) := by
+  simp
 
 /-- Subtraction wraps: (2^256 + a - b) mod 2^256. -/
 theorem sub_wraps (a b : Nat) :
-    evalBuiltinCall s sender sel cd "sub" [a, b] =
+    evalPureBuiltinViaEvmYulLean "sub" [a, b] =
       some ((evmModulus + a % evmModulus - b % evmModulus) % evmModulus) := by
-  simp [evalBuiltinCall, Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+  simp
 
 /-- Multiplication wraps: (a * b) mod 2^256. -/
 theorem mul_wraps (a b : Nat) :
-    evalBuiltinCall s sender sel cd "mul" [a, b] = some ((a * b) % evmModulus) := by
-  simp [evalBuiltinCall, Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+    evalPureBuiltinViaEvmYulLean "mul" [a, b] =
+      some ((a * b) % evmModulus) := by
+  simp
 
 /-- Division by zero returns 0. -/
 theorem div_by_zero (a : Nat) :
-    evalBuiltinCall s sender sel cd "div" [a, 0] = some 0 := by
-  simp [evalBuiltinCall, Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+    evalPureBuiltinViaEvmYulLean "div" [a, 0] = some 0 := by
+  simp
 
 /-- Modulo by zero returns 0. -/
 theorem mod_by_zero (a : Nat) :
-    evalBuiltinCall s sender sel cd "mod" [a, 0] = some 0 := by
-  simp [evalBuiltinCall, Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+    evalPureBuiltinViaEvmYulLean "mod" [a, 0] = some 0 := by
+  simp
 
 -- ============================================================================
--- § 3. EVMYulLean bridge agreement for pure arithmetic
+-- § 3. EVMYulLean pure-builtin facts
 -- ============================================================================
 
--- Arithmetic bridging is now universally proved for add/sub/mul/div/mod.
--- Bitwise `and`/`or`/`xor` plus the shift family now also have direct symbolic bridge lemmas.
--- `not` still retains concrete bridge coverage here.
+-- The theorem names retain the historical `_bridge` suffix for downstream
+-- compatibility, but their semantic authority is the native EVMYulLean
+-- evaluator rather than the legacy Verity Yul oracle.
 
-/-- Universal bridge theorem for addition. -/
+/-- Native evaluator theorem for addition. -/
 theorem add_bridge (a b : Nat) :
-    evalBuiltinCall s sender sel cd "add" [a, b] =
-      evalPureBuiltinViaEvmYulLean "add" [a, b] := by
-  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_add_bridge
-    s sender sel cd a b
+    evalPureBuiltinViaEvmYulLean "add" [a, b] =
+      some ((a + b) % evmModulus) :=
+  add_wraps a b
 
-/-- Universal bridge theorem for subtraction. -/
+/-- Native evaluator theorem for subtraction. -/
 theorem sub_bridge (a b : Nat) :
-    evalBuiltinCall s sender sel cd "sub" [a, b] =
-      evalPureBuiltinViaEvmYulLean "sub" [a, b] := by
-  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_sub_bridge
-    s sender sel cd a b
+    evalPureBuiltinViaEvmYulLean "sub" [a, b] =
+      some ((evmModulus + a % evmModulus - b % evmModulus) % evmModulus) :=
+  sub_wraps a b
 
-/-- Universal bridge theorem for multiplication. -/
+/-- Native evaluator theorem for multiplication. -/
 theorem mul_bridge (a b : Nat) :
-    evalBuiltinCall s sender sel cd "mul" [a, b] =
-      evalPureBuiltinViaEvmYulLean "mul" [a, b] := by
-  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_mul_bridge
-    s sender sel cd a b
+    evalPureBuiltinViaEvmYulLean "mul" [a, b] =
+      some ((a * b) % evmModulus) :=
+  mul_wraps a b
 
-/-- Universal bridge theorem for division. -/
+/-- Native evaluator theorem for division. -/
 theorem div_bridge (a b : Nat) :
-    evalBuiltinCall s sender sel cd "div" [a, b] =
-      evalPureBuiltinViaEvmYulLean "div" [a, b] := by
-  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_div_bridge
-    s sender sel cd a b
+    evalPureBuiltinViaEvmYulLean "div" [a, b] =
+      some (if b % evmModulus = 0 then 0 else (a % evmModulus) / (b % evmModulus)) := by
+  simp
 
-/-- Universal bridge theorem for modulo. -/
+/-- Native evaluator theorem for modulo. -/
 theorem mod_bridge (a b : Nat) :
-    evalBuiltinCall s sender sel cd "mod" [a, b] =
-      evalPureBuiltinViaEvmYulLean "mod" [a, b] := by
-  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_mod_bridge
-    s sender sel cd a b
+    evalPureBuiltinViaEvmYulLean "mod" [a, b] =
+      some (if b % evmModulus = 0 then 0 else
+        (a % evmModulus) % (b % evmModulus)) := by
+  simp
 
-/-- Universal bridge theorem for bitwise and. -/
+/-- Native evaluator theorem for bitwise and. -/
 theorem and_bridge (a b : Nat) :
-    evalBuiltinCall s sender sel cd "and" [a, b] =
-      evalPureBuiltinViaEvmYulLean "and" [a, b] := by
-  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_and_bridge
-    s sender sel cd a b
+    evalPureBuiltinViaEvmYulLean "and" [a, b] =
+      some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.land (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
+  rfl
 
-/-- Universal bridge theorem for bitwise or. -/
+/-- Native evaluator theorem for bitwise or. -/
 theorem or_bridge (a b : Nat) :
-    evalBuiltinCall s sender sel cd "or" [a, b] =
-      evalPureBuiltinViaEvmYulLean "or" [a, b] := by
-  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_or_bridge
-    s sender sel cd a b
+    evalPureBuiltinViaEvmYulLean "or" [a, b] =
+      some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.lor (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
+  rfl
 
-/-- Universal bridge theorem for bitwise xor. -/
+/-- Native evaluator theorem for bitwise xor. -/
 theorem xor_bridge (a b : Nat) :
-    evalBuiltinCall s sender sel cd "xor" [a, b] =
-      evalPureBuiltinViaEvmYulLean "xor" [a, b] := by
-  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_xor_bridge
-    s sender sel cd a b
+    evalPureBuiltinViaEvmYulLean "xor" [a, b] =
+      some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.xor (EvmYul.UInt256.ofNat a) (EvmYul.UInt256.ofNat b))) := by
+  rfl
 
-/-- Universal bridge theorem for shift-left. -/
+/-- Native evaluator theorem for shift-left. -/
 theorem shl_bridge (shift value : Nat) :
-    evalBuiltinCall s sender sel cd "shl" [shift, value] =
-      evalPureBuiltinViaEvmYulLean "shl" [shift, value] := by
-  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_shl_bridge
-    s sender sel cd shift value
+    evalPureBuiltinViaEvmYulLean "shl" [shift, value] =
+      some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.shiftLeft
+          (EvmYul.UInt256.ofNat value) (EvmYul.UInt256.ofNat shift))) := by
+  rfl
 
-/-- Universal bridge theorem for shift-right. -/
+/-- Native evaluator theorem for shift-right. -/
 theorem shr_bridge (shift value : Nat) :
-    evalBuiltinCall s sender sel cd "shr" [shift, value] =
-      evalPureBuiltinViaEvmYulLean "shr" [shift, value] := by
-  exact Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_shr_bridge
-    s sender sel cd shift value
+    evalPureBuiltinViaEvmYulLean "shr" [shift, value] =
+      some (EvmYul.UInt256.toNat
+        (EvmYul.UInt256.shiftRight
+          (EvmYul.UInt256.ofNat value) (EvmYul.UInt256.ofNat shift))) := by
+  rfl
 
 -- ============================================================================
 -- § 4. Backend profile invariant
 -- ============================================================================
 
--- All backend profiles (semantic, solidity-parity-ordering, solidity-parity)
--- use the same evalBuiltinCall function. The profiles differ only in Yul
--- output shape (selector sorting, patch pass enablement), not arithmetic
--- semantics. This is enforced structurally: there is a single evalBuiltinCall
--- definition that all codepaths use.
-
-/-- The BuiltinBackend enum has exactly two variants. -/
-example : ∀ b : Compiler.Proofs.YulGeneration.BuiltinBackend,
-    b = .verity ∨ b = .evmYulLean := by
-  intro b; cases b <;> simp
+-- Public arithmetic facts in this module are stated directly against
+-- `evalPureBuiltinViaEvmYulLean`; legacy backend comparison lemmas remain in
+-- the transition bridge modules, not as this profile's semantic authority.
 
 -- ============================================================================
 -- § 5. Scope boundaries (what is NOT proved here)
@@ -183,9 +166,8 @@ example : ∀ b : Compiler.Proofs.YulGeneration.BuiltinBackend,
 -- Cryptographic primitives: keccak256 is axiomatized (see AXIOMS.md).
 -- The mapping-slot derivation trusts the keccak FFI.
 --
--- Universal bridge equivalence: all pure arithmetic/comparison builtins plus
--- bitwise and/or/xor and the shift family now have direct symbolic bridge lemmas
--- in `Backends/EvmYulLeanBridgeLemmas.lean`.
--- `not` still relies on concrete bridge coverage.
+-- Legacy/native bridge equivalence: comparison lemmas are part of the
+-- transition bridge modules. This profile intentionally exposes only native
+-- evaluator facts.
 
 end Compiler.Proofs.ArithmeticProfile

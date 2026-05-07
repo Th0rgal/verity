@@ -1,6 +1,7 @@
-import Compiler.Proofs.YulGeneration.Codegen
-import Compiler.Proofs.YulGeneration.Equivalence
-import Compiler.Proofs.YulGeneration.StatementEquivalence
+import Compiler.Codegen
+import Compiler.Proofs.YulGeneration.RuntimeTypes
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Compiler.Proofs.IRGeneration.IRInterpreter
 
 set_option linter.unusedSimpArgs false
@@ -20,6 +21,15 @@ executing an IR function body matches executing the same Yul statements.
 `CompilationModel -> IR -> Yul`.
 See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
 -/
+
+private noncomputable def interpretYulFromIR
+    (contract : IRContract) (tx : IRTransaction) (state : IRState) : YulResult :=
+  interpretYulRuntime (Compiler.emitYul contract).runtimeCode
+    (YulTransaction.ofIR tx) state.storage state.events
+
+private noncomputable def interpretYulBody
+    (fn : IRFunction) (tx : IRTransaction) (state : IRState) : YulResult :=
+  interpretYulRuntime fn.body (YulTransaction.ofIR tx) state.storage state.events
 
 @[simp] private theorem interpretYulBody_eq_runtime (fn : IRFunction) (tx : IRTransaction) (state : IRState) :
     interpretYulBody fn tx state =
@@ -45,20 +55,20 @@ See `TRUST_ASSUMPTIONS.md` for the full trust-boundary description.
   simp [interpretYulBody]
 
 mutual
-def yulExprNoRef (name : String) : YulExpr → Prop
+private def yulExprNoRef (name : String) : YulExpr → Prop
   | .lit _ => True
   | .hex _ => True
   | .str _ => True
   | .ident ident => ident ≠ name
   | .call _ args => yulExprsNoRef name args
 
-def yulExprsNoRef (name : String) : List YulExpr → Prop
+private def yulExprsNoRef (name : String) : List YulExpr → Prop
   | [] => True
   | expr :: exprs => yulExprNoRef name expr ∧ yulExprsNoRef name exprs
 end
 
 mutual
-def yulStmtNoRef (name : String) : YulStmt → Prop
+private def yulStmtNoRef (name : String) : YulStmt → Prop
   | .comment _ => True
   | .let_ _ value => yulExprNoRef name value
   | .letMany _ value => yulExprNoRef name value
@@ -75,48 +85,21 @@ def yulStmtNoRef (name : String) : YulStmt → Prop
   | .block stmts => yulStmtsNoRef name stmts
   | .funcDef _ _ _ _ => True
 
-def yulStmtsNoRef (name : String) : List YulStmt → Prop
+private def yulStmtsNoRef (name : String) : List YulStmt → Prop
   | [] => True
   | stmt :: stmts => yulStmtNoRef name stmt ∧ yulStmtsNoRef name stmts
 
-def yulSwitchCasesNoRef (name : String) : List (Nat × List YulStmt) → Prop
+private def yulSwitchCasesNoRef (name : String) : List (Nat × List YulStmt) → Prop
   | [] => True
   | (_, body) :: rest => yulStmtsNoRef name body ∧ yulSwitchCasesNoRef name rest
 
-def yulOptionStmtsNoRef (name : String) : Option (List YulStmt) → Prop
+private def yulOptionStmtsNoRef (name : String) : Option (List YulStmt) → Prop
   | none => True
   | some body => yulStmtsNoRef name body
 end
 
-/-! ### Loop-free syntactic predicates
-
-Decidable predicates checking that a Yul AST does not contain `for_` loops.
-These are `Bool`-valued so the compiler can discharge them automatically via `rfl`. -/
-mutual
-def yulStmtLoopFree : YulStmt → Bool
-  | .comment _ | .let_ _ _ | .letMany _ _ | .assign _ _ | .expr _ | .leave => true
-  | .if_ _ body => yulStmtsLoopFree body
-  | .for_ _ _ _ _ => false
-  | .switch _ cases defaultCase =>
-      yulSwitchCasesLoopFree cases && yulOptionStmtsLoopFree defaultCase
-  | .block stmts => yulStmtsLoopFree stmts
-  | .funcDef _ _ _ body => yulStmtsLoopFree body
-
-def yulStmtsLoopFree : List YulStmt → Bool
-  | [] => true
-  | stmt :: stmts => yulStmtLoopFree stmt && yulStmtsLoopFree stmts
-
-def yulSwitchCasesLoopFree : List (Nat × List YulStmt) → Bool
-  | [] => true
-  | (_, body) :: rest => yulStmtsLoopFree body && yulSwitchCasesLoopFree rest
-
-def yulOptionStmtsLoopFree : Option (List YulStmt) → Bool
-  | none => true
-  | some body => yulStmtsLoopFree body
-end
-
 /-- Explicit theorem hypothesis used in place of the old kernel axiom. -/
-def HasSelectorDeadBridge (body : List YulStmt) : Prop :=
+private def HasSelectorDeadBridge (body : List YulStmt) : Prop :=
   ∀ state fuel,
     yulStmtsNoRef "__has_selector" body →
     yulResultOfExecWithRollback state
@@ -128,21 +111,244 @@ def HasSelectorDeadBridge (body : List YulStmt) : Prop :=
 private def initialYulState (tx : YulTransaction) (state : IRState) : YulState :=
   YulState.initial tx state.storage state.events
 
-/-- Preconditions under which the generated dispatch guards behave like the
-    intended source-level checks for a selected function case. -/
-def DispatchGuardsSafe (fn : IRFunction) (tx : IRTransaction) : Prop :=
-  (fn.payable = true ∨ tx.msgValue % evmModulus = 0) ∧
-  4 + fn.params.length * 32 < evmModulus
+private def resultsMatch (ir : IRResult) (yul : YulResult) : Prop :=
+  ir.success = yul.success ∧
+  ir.returnValue = yul.returnValue ∧
+  (∀ slot, ir.finalStorage slot = yul.finalStorage slot) ∧
+  (∀ base key, ir.finalMappings base key = yul.finalMappings base key) ∧
+  ir.events = yul.events
+
+private def switchCaseBody (fn : IRFunction) : List YulStmt :=
+  let valueGuard := if fn.payable then [] else [Compiler.callvalueGuard]
+  [YulStmt.comment s!"{fn.name}()"] ++ valueGuard ++
+    [Compiler.calldatasizeGuard fn.params.length] ++ fn.body
+
+private def switchCases (fns : List IRFunction) : List (Prod Nat (List YulStmt)) :=
+  fns.map (fun f => (f.selector, switchCaseBody f))
+
+private def switchDefaultCase
+    (fallback : Option IREntrypoint)
+    (receive : Option IREntrypoint) : List YulStmt :=
+  match receive, fallback with
+  | none, none =>
+      [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
+  | none, some fb =>
+      let valueGuard := if fb.payable then [] else [Compiler.callvalueGuard]
+      [YulStmt.comment "fallback()"] ++ valueGuard ++ fb.body
+  | some rc, none =>
+      let receiveGuard := if rc.payable then [] else [Compiler.callvalueGuard]
+      [YulStmt.block [
+        YulStmt.let_ "__is_empty_calldata"
+          (YulExpr.call "eq" [YulExpr.call "calldatasize" [], YulExpr.lit 0]),
+        YulStmt.if_ (YulExpr.ident "__is_empty_calldata")
+          ([YulStmt.comment "receive()"] ++ receiveGuard ++ rc.body),
+        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__is_empty_calldata"])
+          [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])]
+      ]]
+  | some rc, some fb =>
+      let receiveGuard := if rc.payable then [] else [Compiler.callvalueGuard]
+      let fallbackGuard := if fb.payable then [] else [Compiler.callvalueGuard]
+      [YulStmt.block [
+        YulStmt.let_ "__is_empty_calldata"
+          (YulExpr.call "eq" [YulExpr.call "calldatasize" [], YulExpr.lit 0]),
+        YulStmt.if_ (YulExpr.ident "__is_empty_calldata")
+          ([YulStmt.comment "receive()"] ++ receiveGuard ++ rc.body),
+        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__is_empty_calldata"])
+          ([YulStmt.comment "fallback()"] ++ fallbackGuard ++ fb.body)
+      ]]
+
+@[simp]
+private theorem preservation_execYulStmtFuel_funcDef (fuel : Nat) (state : YulState)
+    (name : String) (params ret : List String) (body : List YulStmt) :
+    execYulStmtFuel fuel state (YulStmt.funcDef name params ret body) =
+      YulExecResult.continue state := by
+  cases fuel <;> simp [execYulStmtFuel, legacyExecYulFuel]
+
+@[simp]
+private theorem preservation_legacyExecYulFuel_funcDef (fuel : Nat) (state : YulState)
+    (name : String) (params ret : List String) (body : List YulStmt) :
+    legacyExecYulFuel fuel state (.stmt (YulStmt.funcDef name params ret body)) =
+      YulExecResult.continue state := by
+  cases fuel <;> simp [legacyExecYulFuel]
+
+private theorem preservation_execYulStmtsFuel_cons_funcDef (fuel : Nat) (state : YulState)
+    (name : String) (params ret : List String) (body rest : List YulStmt) :
+    execYulStmtsFuel (Nat.succ fuel) state (YulStmt.funcDef name params ret body :: rest) =
+      execYulStmtsFuel fuel state rest := by
+  simp only [execYulStmtsFuel, legacyExecYulFuel]
+  rw [preservation_legacyExecYulFuel_funcDef]
+
+private theorem preservation_emitYul_runtimeCode_eq (contract : IRContract) :
+    (Compiler.emitYul contract).runtimeCode = Compiler.runtimeCode contract := by
+  rfl
+
+private theorem preservation_evalYulExpr_selectorExpr (state : YulState) :
+    evalYulExpr state selectorExpr = some (state.selector % selectorModulus) := by
+  have hShiftModEq : selectorShift % evmModulus = selectorShift := by
+    have hShiftLtModulus : selectorShift < evmModulus := by
+      norm_num [selectorShift, evmModulus]
+    exact Nat.mod_eq_of_lt hShiftLtModulus
+  have hSelectorShiftLt256 : selectorShift < 256 := by
+    norm_num [selectorShift]
+  have hSelectorShiftNotGe256 : ¬ 256 ≤ selectorShift := Nat.not_le_of_lt hSelectorShiftLt256
+  have hSelectorWordLt :
+      (state.selector % selectorModulus) * 2 ^ selectorShift < evmModulus := by
+    have hModLt : state.selector % selectorModulus < selectorModulus := by
+      exact Nat.mod_lt _ (by decide)
+    have hPowPos : 0 < 2 ^ selectorShift := by
+      exact Nat.pow_pos (a := 2) (n := selectorShift) (by decide)
+    have hMulLt :
+        (state.selector % selectorModulus) * 2 ^ selectorShift <
+          selectorModulus * 2 ^ selectorShift := by
+      exact Nat.mul_lt_mul_of_pos_right hModLt hPowPos
+    have hModulusSplit : selectorModulus * 2 ^ selectorShift = evmModulus := by
+      norm_num [selectorModulus, selectorShift, evmModulus, Nat.pow_add, Nat.mul_comm,
+        Nat.mul_left_comm, Nat.mul_assoc]
+    simpa [hModulusSplit] using hMulLt
+  have hSelectorWordMod :
+      ((state.selector % selectorModulus) * 2 ^ selectorShift) % evmModulus =
+        (state.selector % selectorModulus) * 2 ^ selectorShift := by
+    exact Nat.mod_eq_of_lt hSelectorWordLt
+  simp [selectorExpr, evalYulExpr, evalYulCall, evalYulExprs,
+    evalBuiltinCallWithBackendContext, Backends.evalBuiltinCallWithEvmYulLeanContext,
+    Backends.evalBuiltinCallViaEvmYulLean,
+    calldataloadWord, selectorWord,
+    hShiftModEq, hSelectorWordMod, hSelectorShiftNotGe256]
+
+private theorem preservation_evalYulExpr_selectorExpr_eq (state : YulState)
+    (hselector : state.selector < selectorModulus) :
+    evalYulExpr state selectorExpr = some state.selector := by
+  rw [preservation_evalYulExpr_selectorExpr]
+  simp [Nat.mod_eq_of_lt hselector]
+
+private theorem preservation_execYulStmtFuel_switch_match
+    (state : YulState) (expr : YulExpr) (cases' : List (Prod Nat (List YulStmt)))
+    (defaultCase : Option (List YulStmt)) (fuel v : Nat) (body : List YulStmt)
+    (hEval : evalYulExpr state expr = some v)
+    (hFind : List.find? (fun (c, _) => c = v) cases' = some (v, body)) :
+    execYulStmtFuel (Nat.succ fuel) state (YulStmt.switch expr cases' defaultCase) =
+      execYulStmtsFuel fuel state body := by
+  cases fuel with
+  | zero =>
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
+  | succ fuel =>
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind]
+
+private def preservation_execYulStmtFuel_switch_miss_result (state : YulState) (fuel : Nat)
+    (defaultCase : Option (List YulStmt)) : YulExecResult :=
+  match defaultCase with
+  | some body => execYulStmtsFuel fuel state body
+  | none => YulExecResult.continue state
+
+private theorem preservation_execYulStmtFuel_switch_miss
+    (state : YulState) (expr : YulExpr) (cases' : List (Prod Nat (List YulStmt)))
+    (defaultCase : Option (List YulStmt)) (fuel v : Nat)
+    (hEval : evalYulExpr state expr = some v)
+    (hFind : List.find? (fun (c, _) => c = v) cases' = none) :
+    execYulStmtFuel (Nat.succ fuel) state (YulStmt.switch expr cases' defaultCase) =
+      preservation_execYulStmtFuel_switch_miss_result state fuel defaultCase := by
+  cases fuel with
+  | zero =>
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind,
+        preservation_execYulStmtFuel_switch_miss_result]
+      rfl
+  | succ fuel =>
+      simp [execYulStmtFuel, execYulStmtsFuel, legacyExecYulFuel, hEval, hFind,
+        preservation_execYulStmtFuel_switch_miss_result]
+      rfl
+
+private theorem preservation_find_switch_case_of_find_function
+    (fns : List IRFunction) (sel : Nat) (fn : IRFunction)
+    (hFind : fns.find? (fun f => f.selector == sel) = some fn) :
+    (switchCases fns).find? (fun (c, _) => c = sel) =
+      some (fn.selector, switchCaseBody fn) := by
+  induction fns with
+  | nil =>
+      simp at hFind
+  | cons f rest ih =>
+      by_cases hsel : f.selector = sel
+      · have hselb : (f.selector == sel) = true := by
+          simp [hsel]
+        have hFind' : some f = some fn := by
+          simpa [List.find?, hselb] using hFind
+        cases hFind'
+        simp [switchCases, hsel]
+      · have hselb : (f.selector == sel) = false := by
+          simp [hsel]
+        have hFind' : rest.find? (fun f => f.selector == sel) = some fn := by
+          simpa [List.find?, hselb] using hFind
+        have ih' := ih hFind'
+        simpa [switchCases, List.find?, hsel] using ih'
+
+private theorem preservation_find_switch_case_of_find_function_eq_selector
+    (fns : List IRFunction) (sel : Nat) (fn : IRFunction)
+    (hFind : fns.find? (fun f => f.selector == sel) = some fn) :
+    (switchCases fns).find? (fun (c, _) => c = sel) =
+      some (sel, switchCaseBody fn) := by
+  have hCase := preservation_find_switch_case_of_find_function fns sel fn hFind
+  have hSel : fn.selector = sel := by
+    have h := List.find?_some hFind
+    simp at h
+    exact h
+  simpa [hSel] using hCase
+
+private theorem preservation_find_switch_case_of_find_function_none
+    (fns : List IRFunction) (sel : Nat)
+    (hFind : fns.find? (fun f => f.selector == sel) = none) :
+    (switchCases fns).find? (fun (c, _) => c = sel) = none := by
+  induction fns with
+  | nil =>
+      simp at hFind
+      simp [switchCases]
+  | cons f rest ih =>
+      by_cases hsel : f.selector = sel
+      · have hselb : (f.selector == sel) = true := by
+          simp [hsel]
+        have hFind' : (some f : Option IRFunction) = none := by
+          simp [List.find?, hselb] at hFind
+        cases hFind'
+      · have hselb : (f.selector == sel) = false := by
+          simp [hsel]
+        have hFind' : rest.find? (fun f => f.selector == sel) = none := by
+          simpa [List.find?, hselb] using hFind
+        have ih' := ih hFind'
+        simpa [switchCases, List.find?, hsel] using ih'
+
+private theorem preservation_execYulStmtsFuel_funcDefs_then_suffix (fuel : Nat) (state : YulState)
+    (prefix_ : List YulStmt) (suffix_ : List YulStmt)
+    (hFuncDefs : ∀ s ∈ prefix_, ∃ nm p r b, s = YulStmt.funcDef nm p r b) :
+    execYulStmtsFuel (prefix_.length + fuel) state (prefix_ ++ suffix_) =
+      execYulStmtsFuel fuel state suffix_ := by
+  induction prefix_ generalizing state with
+  | nil => simp
+  | cons h t ih =>
+      have hmem : h ∈ h :: t := .head t
+      obtain ⟨nm, p, r, b, rfl⟩ := hFuncDefs h hmem
+      simp only [List.cons_append, List.length_cons]
+      conv_lhs => rw [show t.length + 1 + fuel = Nat.succ (t.length + fuel) from by omega]
+      rw [preservation_execYulStmtsFuel_cons_funcDef]
+      exact ih state (fun s hs => hFuncDefs s (List.mem_cons_of_mem _ hs))
+
+private theorem preservation_execYulStmtsFuel_funcDefs_then_suffix_ge
+    (fuel : Nat) (state : YulState)
+    (prefix_ : List YulStmt) (suffix_ : List YulStmt)
+    (hFuncDefs : ∀ s ∈ prefix_, ∃ nm p r b, s = YulStmt.funcDef nm p r b)
+    (hFuel : fuel ≥ prefix_.length) :
+    execYulStmtsFuel fuel state (prefix_ ++ suffix_) =
+      execYulStmtsFuel (fuel - prefix_.length) state suffix_ := by
+  have : fuel = prefix_.length + (fuel - prefix_.length) := by omega
+  conv_lhs => rw [this]
+  exact preservation_execYulStmtsFuel_funcDefs_then_suffix _ state prefix_ suffix_ hFuncDefs
 
 @[simp]
 private theorem evalYulExpr_selectorExpr_initial
     (tx : YulTransaction) (state : IRState)
     (hselector : tx.functionSelector < selectorModulus) :
     evalYulExpr (initialYulState tx state) selectorExpr = some tx.functionSelector := by
-  simpa using (evalYulExpr_selectorExpr_eq (initialYulState tx state) hselector)
+  simpa using (preservation_evalYulExpr_selectorExpr_eq (initialYulState tx state) hselector)
 
 /-- Well-formedness: all internalFunctions are funcDef statements. -/
-def ContractWF (contract : IRContract) : Prop :=
+private def ContractWF (contract : IRContract) : Prop :=
   ∀ s ∈ contract.internalFunctions, ∃ n p r b, s = YulStmt.funcDef n p r b
 
 private theorem runtimeCode_prefix_allFuncDefs (contract : IRContract)
@@ -304,7 +510,7 @@ private theorem sizeOf_buildSwitch_ge_fn_body
 /-- Simplification: 1 ≠ 0 for if_ branch. -/
 @[simp] private theorem one_ne_zero : (1 : Nat) ≠ 0 := by omega
 
-/-- Identity simplifier for result-shaped matches emitted by `execYulFuel` reductions. -/
+/-- Identity simplifier for result-shaped matches emitted by `legacyExecYulFuel` reductions. -/
 @[simp] private theorem yulExecResult_match_id (r : YulExecResult) :
     (match r with
     | .continue s => .continue s
@@ -317,15 +523,15 @@ private theorem sizeOf_buildSwitch_ge_fn_body
 @[simp] private theorem execYulStmtsFuel_singleton_succ_bridge
     (fuel : Nat) (state : YulState) (stmt : YulStmt) :
     execYulStmtsFuel (fuel + 2) state [stmt] = execYulStmtFuel (fuel + 1) state stmt := by
-  simp [execYulStmtsFuel, execYulStmtFuel, execYulFuel]
-  cases hExec : execYulFuel (fuel + 1) state (.stmt stmt) <;> simp
+  simp [execYulStmtsFuel, execYulStmtFuel, legacyExecYulFuel]
+  cases hExec : legacyExecYulFuel (fuel + 1) state (.stmt stmt) <;> simp
 
 /-- Fueled `if_` step: a zero condition skips the body and continues unchanged. -/
 @[simp] private theorem execYulStmtFuel_if_zero_continue_bridge
     (fuel : Nat) (state : YulState) (cond : YulExpr) (body : List YulStmt)
     (hEval : evalYulExpr state cond = some 0) :
     execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) = .continue state := by
-  simp [execYulStmtFuel, execYulFuel, hEval]
+  simp [execYulStmtFuel, legacyExecYulFuel, hEval]
 
 /-- Fueled `if_` step: a nonzero condition executes the body with decremented fuel. -/
 @[simp] private theorem execYulStmtFuel_if_nonzero_exec_bridge
@@ -333,9 +539,9 @@ private theorem sizeOf_buildSwitch_ge_fn_body
     (hEval : evalYulExpr state cond = some v) (hNonzero : v ≠ 0) :
     execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) = execYulStmtsFuel fuel state body := by
   simpa [execYulStmtsFuel] using
-    (by simp [execYulStmtFuel, execYulFuel, hEval, hNonzero] :
+    (by simp [execYulStmtFuel, legacyExecYulFuel, hEval, hNonzero] :
       execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) =
-        execYulFuel fuel state (.stmts body))
+        legacyExecYulFuel fuel state (.stmts body))
 
 /-- Zero fuel on a non-empty statement list always reverts. -/
 @[simp] private theorem execYulStmtsFuel_zero_of_ne_nil_bridge
@@ -344,7 +550,7 @@ private theorem sizeOf_buildSwitch_ge_fn_body
   cases stmts with
   | nil => cases hNe rfl
   | cons stmt rest =>
-      simp [execYulStmtsFuel, execYulFuel]
+      simp [execYulStmtsFuel, legacyExecYulFuel]
 
 /-- `callvalueGuard` is a no-op when the execution context observes zero
     `callvalue()` modulo `2^256`, matching `DispatchGuardsSafe`. -/
@@ -354,7 +560,7 @@ private theorem exec_callvalueGuard_noop (fuel : Nat) (state : YulState)
       YulExecResult.continue state := by
   have hCallvalue : evalYulExpr state (YulExpr.call "callvalue" []) = some 0 := by
     simp [hMsgValue, evalYulExpr, evalYulCall, evalYulExprs,
-      evalBuiltinCallWithBackendContext]
+      evalBuiltinCallWithBackendContext, Backends.evalBuiltinCallWithEvmYulLeanContext]
   have hstmt :
       execYulStmtFuel (fuel + 1) state Compiler.callvalueGuard = .continue state := by
     simpa [Compiler.callvalueGuard] using
@@ -381,8 +587,8 @@ private theorem exec_calldatasizeGuard_revert_of_short_noWrap
         (YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit (4 + numParams * 32)]) =
         some 1 := by
     simp [evalYulExpr, evalYulCall, evalYulExprs, evalBuiltinCallWithBackendContext,
-      evalBuiltinCallWithContext, hLtTrue, Nat.mod_eq_of_lt hDataNoWrap,
-      Nat.mod_eq_of_lt hParamNoWrap]
+      Backends.evalBuiltinCallWithEvmYulLeanContext, Backends.evalBuiltinCallViaEvmYulLean,
+      hLtTrue, Nat.mod_eq_of_lt hDataNoWrap, Nat.mod_eq_of_lt hParamNoWrap]
   have hguard :
       execYulStmtFuel (fuel + 1) state (Compiler.calldatasizeGuard numParams) =
         execYulStmtsFuel fuel state [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])] := by
@@ -399,7 +605,7 @@ private theorem exec_calldatasizeGuard_revert_of_short_noWrap
         exact execYulStmtsFuel_zero_of_ne_nil_bridge state
           [YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])] (by simp)
     | succ k =>
-        cases k <;> simp [execYulFuel, execYulStmtsFuel, execYulStmtFuel]
+        cases k <;> simp [legacyExecYulFuel, execYulStmtsFuel, execYulStmtFuel]
   rw [execYulStmtsFuel_singleton_succ_bridge, hguard, hRevertBody]
 
 /-- If calldata has enough words for `numParams`, `calldatasizeGuard` is a no-op.
@@ -421,7 +627,8 @@ private theorem exec_calldatasizeGuard_noop_of_noWrap
         (YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit (4 + numParams * 32)]) =
         some 0 := by
     simp [evalYulExpr, evalYulCall, evalYulExprs, evalBuiltinCallWithBackendContext,
-      evalBuiltinCallWithContext, hLtFalse, Nat.mod_eq_of_lt hNoWrap, Nat.mod_eq_of_lt hParamNoWrap]
+      Backends.evalBuiltinCallWithEvmYulLeanContext, Backends.evalBuiltinCallViaEvmYulLean,
+      hLtFalse, Nat.mod_eq_of_lt hNoWrap, Nat.mod_eq_of_lt hParamNoWrap]
   have hstmt :
       execYulStmtFuel (fuel + 1) state (Compiler.calldatasizeGuard numParams) = .continue state := by
     simpa [Compiler.calldatasizeGuard] using
@@ -448,7 +655,7 @@ Executing this with enough fuel steps through:
 3. `1 ≠ 0` → second `if_` enters body containing the switch
 
 This reduction is proved mechanically below via bridge lemmas that avoid
-`execYulFuel`'s `[reducible]` over-reduction into `Option.map`/`List.find?_map`
+`legacyExecYulFuel`'s `[reducible]` over-reduction into `Option.map`/`List.find?_map`
 fusion forms.
 -/
 
@@ -462,7 +669,7 @@ private theorem eval_hasSelector_after_set (state : YulState) :
     (fuel : Nat) (state : YulState) (cond : YulExpr) (body : List YulStmt)
     (hEval : evalYulExpr state cond = some 0) :
     execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) = .continue state := by
-  simp [execYulStmtFuel, execYulFuel, hEval]
+  simp [execYulStmtFuel, legacyExecYulFuel, hEval]
 
 /-- Fueled `if_` step: a nonzero condition executes the body with decremented fuel. -/
 @[simp] private theorem execYulStmtFuel_if_nonzero_exec
@@ -470,9 +677,9 @@ private theorem eval_hasSelector_after_set (state : YulState) :
     (hEval : evalYulExpr state cond = some v) (hNonzero : v ≠ 0) :
     execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) = execYulStmtsFuel fuel state body := by
   simpa [execYulStmtsFuel] using
-    (by simp [execYulStmtFuel, execYulFuel, hEval, hNonzero] :
+    (by simp [execYulStmtFuel, legacyExecYulFuel, hEval, hNonzero] :
       execYulStmtFuel (fuel + 1) state (YulStmt.if_ cond body) =
-        execYulFuel fuel state (.stmts body))
+        legacyExecYulFuel fuel state (.stmts body))
 
 /-- Zero fuel on a non-empty statement list always reverts. -/
 @[simp] private theorem execYulStmtsFuel_zero_of_ne_nil
@@ -482,14 +689,14 @@ private theorem eval_hasSelector_after_set (state : YulState) :
   | nil =>
       contradiction
   | cons _ _ =>
-      simp [execYulStmtsFuel, execYulFuel]
+      simp [execYulStmtsFuel, legacyExecYulFuel]
 
 /-- Executing a singleton statement list consumes one list-step of fuel. -/
 @[simp] private theorem execYulStmtsFuel_singleton_succ_local
     (fuel : Nat) (state : YulState) (stmt : YulStmt) :
     execYulStmtsFuel (fuel + 2) state [stmt] = execYulStmtFuel (fuel + 1) state stmt := by
-  simp [execYulStmtsFuel, execYulStmtFuel, execYulFuel]
-  cases hExec : execYulFuel (fuel + 1) state (.stmt stmt) <;> simp
+  simp [execYulStmtsFuel, execYulStmtFuel, legacyExecYulFuel]
+  cases hExec : legacyExecYulFuel (fuel + 1) state (.stmt stmt) <;> simp
 
 /-- Executing `[buildSwitch fns none none]` with enough fuel reduces to the singleton
     switch list when `calldatasize()` does not wrap modulo `2^256`.
@@ -512,7 +719,8 @@ private theorem execBuildSwitch_none_none_aux_of_noWrap (fuel : Nat) (state : Yu
         (YulExpr.call "iszero"
           [YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit 4]]) = some 1 := by
     simp [evalYulExpr, evalYulCall, evalYulExprs, evalBuiltinCallWithBackendContext,
-      evalBuiltinCallWithContext, Nat.mod_eq_of_lt hNoWrap, Nat.mod_eq_of_lt h4]
+      Backends.evalBuiltinCallWithEvmYulLeanContext, Backends.evalBuiltinCallViaEvmYulLean,
+      Nat.mod_eq_of_lt hNoWrap, Nat.mod_eq_of_lt h4]
   have hIdentEval :
       evalYulExpr state' (YulExpr.ident "__has_selector") = some 1 := by
     simpa [state', evalYulExpr] using eval_hasSelector_after_set state
@@ -520,9 +728,10 @@ private theorem execBuildSwitch_none_none_aux_of_noWrap (fuel : Nat) (state : Yu
       evalYulExpr state'
         (YulExpr.call "iszero" [YulExpr.ident "__has_selector"]) = some 0 := by
     simp [evalYulExpr, evalYulCall, evalYulExprs,
-      evalBuiltinCallWithBackendContext, evalBuiltinCallWithContext, hIdentEval]
+      evalBuiltinCallWithBackendContext, Backends.evalBuiltinCallWithEvmYulLeanContext,
+      Backends.evalBuiltinCallViaEvmYulLean, hIdentEval]
   rw [show fuel + 6 = (fuel + 4) + 2 by omega, execYulStmtsFuel_singleton_succ_local]
-  simp only [Compiler.CodegenCommon.buildSwitch, execYulStmtFuel, execYulFuel]
+  simp only [Compiler.CodegenCommon.buildSwitch, execYulStmtFuel, legacyExecYulFuel]
   simp [state', execYulStmtsFuel, hHasSelectorEval, hIfZeroEval, hIdentEval,
     switchCases, switchCaseBody, dispatchBody, selectorExpr, switchDefaultCase]
   exact yulExecResult_match_id _
@@ -531,8 +740,8 @@ private theorem execBuildSwitch_none_none_aux_of_noWrap (fuel : Nat) (state : Yu
 @[simp] private theorem execYulStmtsFuel_singleton_succ
     (fuel : Nat) (state : YulState) (stmt : YulStmt) :
     execYulStmtsFuel (fuel + 2) state [stmt] = execYulStmtFuel (fuel + 1) state stmt := by
-  simp [execYulStmtsFuel, execYulStmtFuel, execYulFuel]
-  cases hExec : execYulFuel (fuel + 1) state (.stmt stmt) <;> simp
+  simp [execYulStmtsFuel, execYulStmtFuel, legacyExecYulFuel]
+  cases hExec : legacyExecYulFuel (fuel + 1) state (.stmt stmt) <;> simp
 
 /-- If a head statement continues, the surrounding list steps into the tail. -/
 @[simp] private theorem execYulStmtsFuel_cons_continue
@@ -540,18 +749,18 @@ private theorem execBuildSwitch_none_none_aux_of_noWrap (fuel : Nat) (state : Yu
     (hstmt : execYulStmtFuel (fuel + 1) state stmt = .continue next) :
     execYulStmtsFuel (fuel + 2) state (stmt :: rest) =
       execYulStmtsFuel (fuel + 1) next rest := by
-  have hstmt' : execYulFuel (fuel + 1) state (.stmt stmt) = .continue next := by
+  have hstmt' : legacyExecYulFuel (fuel + 1) state (.stmt stmt) = .continue next := by
     simpa [execYulStmtFuel] using hstmt
-  simp [execYulStmtsFuel, execYulFuel, hstmt']
+  simp [execYulStmtsFuel, legacyExecYulFuel, hstmt']
 
 /-- If a head statement reverts, the surrounding list reverts immediately. -/
 @[simp] private theorem execYulStmtsFuel_cons_revert
     (fuel : Nat) (state : YulState) (stmt : YulStmt) (rest : List YulStmt)
     (hstmt : execYulStmtFuel (fuel + 1) state stmt = .revert state) :
     execYulStmtsFuel (fuel + 2) state (stmt :: rest) = .revert state := by
-  have hstmt' : execYulFuel (fuel + 1) state (.stmt stmt) = .revert state := by
+  have hstmt' : legacyExecYulFuel (fuel + 1) state (.stmt stmt) = .revert state := by
     simpa [execYulStmtFuel] using hstmt
-  simp [execYulStmtsFuel, execYulFuel, hstmt']
+  simp [execYulStmtsFuel, legacyExecYulFuel, hstmt']
 
 /-- The case list emitted by `buildSwitch` is definitionally `switchCases`.
     Keeping this fact explicit helps avoid large reducible unfold chains in the
@@ -600,7 +809,7 @@ private theorem evalSelectorExpr_setVar_has_selector (state : YulState) (v : Nat
     evalYulExpr (state.setVar "__has_selector" v) selectorExpr =
       some state.selector := by
   -- Keep this bridge local and avoid unfolding the full builtin evaluator.
-  simpa using (evalYulExpr_selectorExpr_eq (state.setVar "__has_selector" v) (by
+  simpa using (preservation_evalYulExpr_selectorExpr_eq (state.setVar "__has_selector" v) (by
     simpa [YulState.setVar] using hselector))
 
 /-- In the non-payable branch, `DispatchGuardsSafe` forces `msgValue = 0 mod 2^256`. -/
@@ -643,7 +852,7 @@ private theorem exec_switchCaseBody_revert_of_short
     simpa [state, YulState.initial, YulState.setVar] using hNoWrap
   have hComment :
       execYulStmtFuel (fuel + 1) state (YulStmt.comment s!"{fn.name}()") = .continue state := by
-    simp [execYulStmtFuel, execYulFuel]
+    simp [execYulStmtFuel, legacyExecYulFuel]
   cases hPayable : fn.payable with
   | true =>
       rw [show switchCaseBody fn =
@@ -801,7 +1010,7 @@ private theorem exec_switchCaseBody_continue_of_long
     simpa [state, YulState.initial, YulState.setVar] using hLong
   have hComment :
       execYulStmtFuel (fuel + 1) state (YulStmt.comment s!"{fn.name}()") = .continue state := by
-    simp [execYulStmtFuel, execYulFuel]
+    simp [execYulStmtFuel, legacyExecYulFuel]
   cases hPayable : fn.payable with
   | true =>
       rw [show switchCaseBody fn =
@@ -890,19 +1099,19 @@ private theorem yulSwitchCasesLoopFree_mem
 
 /-- Key lemma: adding one unit of fuel does not change the result when the
 target is loop-free and fuel already exceeds the structural measure. -/
-private theorem execYulFuel_succ_eq
+private theorem legacyExecYulFuel_succ_eq
     (target : YulExecTarget) (state : YulState) (fuel : Nat)
     (hLF : yulExecTargetLoopFree target = true)
     (hFuel : fuel ≥ sizeOfExecTarget target + 1) :
-    execYulFuel (fuel + 1) state target = execYulFuel fuel state target := by
+    legacyExecYulFuel (fuel + 1) state target = legacyExecYulFuel fuel state target := by
   -- Strong induction on sizeOf target.
-  -- The measure decreases at every recursive position in execYulFuel
+  -- The measure decreases at every recursive position in legacyExecYulFuel
   -- (stmt in a list, body of if/switch/block). Loop-free excludes for_.
   suffices ∀ (n : Nat) (target : YulExecTarget) (state : YulState) (fuel : Nat),
       sizeOf target = n →
       yulExecTargetLoopFree target = true →
       fuel ≥ sizeOfExecTarget target + 1 →
-      execYulFuel (fuel + 1) state target = execYulFuel fuel state target from
+      legacyExecYulFuel (fuel + 1) state target = legacyExecYulFuel fuel state target from
     this (sizeOf target) target state fuel rfl hLF hFuel
   intro n
   induction n using Nat.strongRecOn with
@@ -939,11 +1148,11 @@ private theorem execYulFuel_succ_eq
         (by simp [yulExecTargetLoopFree, hLFs]) hs_fuel
       have ihr := fun s' => ih _ hr_lt (.stmts rest) s' (f + 1) rfl
         (by simp [yulExecTargetLoopFree, hLFr]) hr_fuel
-      show execYulFuel (f + 3) state (.stmts (s :: rest)) =
-           execYulFuel (f + 2) state (.stmts (s :: rest))
-      simp only [execYulFuel]
+      show legacyExecYulFuel (f + 3) state (.stmts (s :: rest)) =
+           legacyExecYulFuel (f + 2) state (.stmts (s :: rest))
+      simp only [legacyExecYulFuel]
       rw [ihs]
-      cases h : execYulFuel (f + 1) state (.stmt s) with
+      cases h : legacyExecYulFuel (f + 1) state (.stmt s) with
       | «continue» s' => exact ihr s'
       | «return» v s' => rfl
       | stop s' => rfl
@@ -954,28 +1163,28 @@ private theorem execYulFuel_succ_eq
     | comment _ =>
       have : fuel ≥ 1 := by simp only [sizeOfExecTarget] at hFuel; omega
       obtain ⟨f, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : fuel ≠ 0)
-      simp [execYulFuel]
+      simp [legacyExecYulFuel]
     | let_ _ _ =>
       have : fuel ≥ 1 := by simp only [sizeOfExecTarget] at hFuel; omega
       obtain ⟨f, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : fuel ≠ 0)
-      simp [execYulFuel]
+      simp [legacyExecYulFuel]
     | letMany _ _ =>
       have : fuel ≥ 1 := by simp only [sizeOfExecTarget] at hFuel; omega
       obtain ⟨f, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : fuel ≠ 0)
-      simp [execYulFuel]
+      simp [legacyExecYulFuel]
     | assign _ _ =>
       have : fuel ≥ 1 := by simp only [sizeOfExecTarget] at hFuel; omega
       obtain ⟨f, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : fuel ≠ 0)
-      simp [execYulFuel]
+      simp [legacyExecYulFuel]
     | «leave» =>
       have : fuel ≥ 1 := by simp only [sizeOfExecTarget] at hFuel; omega
       obtain ⟨f, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : fuel ≠ 0)
-      simp [execYulFuel]
-    | funcDef _ _ _ _ => simp [execYulFuel]
+      simp [legacyExecYulFuel]
+    | funcDef _ _ _ _ => simp [legacyExecYulFuel]
     | expr e =>
       have : fuel ≥ 1 := by simp only [sizeOfExecTarget] at hFuel; omega
       obtain ⟨f, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : fuel ≠ 0)
-      simp [execYulFuel]
+      simp [legacyExecYulFuel]
     | if_ cond body =>
       simp [yulStmtLoopFree] at hLF
       have : fuel ≥ 2 := by
@@ -989,9 +1198,9 @@ private theorem execYulFuel_succ_eq
         simp only [sizeOfExecTarget] at hFuel ⊢
         have : sizeOf body < sizeOf (YulStmt.if_ cond body) := by simp_wf
         omega
-      show execYulFuel (f + 3) state (.stmt (YulStmt.if_ cond body)) =
-           execYulFuel (f + 2) state (.stmt (YulStmt.if_ cond body))
-      simp only [execYulFuel]
+      show legacyExecYulFuel (f + 3) state (.stmt (YulStmt.if_ cond body)) =
+           legacyExecYulFuel (f + 2) state (.stmt (YulStmt.if_ cond body))
+      simp only [legacyExecYulFuel]
       cases evalYulExpr state cond with
       | none => rfl
       | some v =>
@@ -1008,9 +1217,9 @@ private theorem execYulFuel_succ_eq
         have : sizeOf expr < sizeOf (YulStmt.switch expr cases defaultCase) := by simp_wf; omega
         omega
       obtain ⟨f, rfl⟩ : ∃ f, fuel = f + 2 := ⟨fuel - 2, by omega⟩
-      show execYulFuel (f + 3) state (.stmt (YulStmt.switch expr cases defaultCase)) =
-           execYulFuel (f + 2) state (.stmt (YulStmt.switch expr cases defaultCase))
-      simp only [execYulFuel]
+      show legacyExecYulFuel (f + 3) state (.stmt (YulStmt.switch expr cases defaultCase)) =
+           legacyExecYulFuel (f + 2) state (.stmt (YulStmt.switch expr cases defaultCase))
+      simp only [legacyExecYulFuel]
       cases evalYulExpr state expr with
       | none => rfl
       | some v =>
@@ -1062,9 +1271,9 @@ private theorem execYulFuel_succ_eq
         simp only [sizeOfExecTarget] at hFuel ⊢
         have : sizeOf stmts < sizeOf (YulStmt.block stmts) := by simp_wf
         omega
-      show execYulFuel (f + 3) state (.stmt (YulStmt.block stmts)) =
-           execYulFuel (f + 2) state (.stmt (YulStmt.block stmts))
-      simp only [execYulFuel]
+      show legacyExecYulFuel (f + 3) state (.stmt (YulStmt.block stmts)) =
+           legacyExecYulFuel (f + 2) state (.stmt (YulStmt.block stmts))
+      simp only [legacyExecYulFuel]
       exact ih _ hb_lt (.stmts stmts) state (f + 1) rfl
         (by simp [yulExecTargetLoopFree, hLF]) hb_fuel
     | for_ _ _ _ _ => simp [yulStmtLoopFree] at hLF
@@ -1085,7 +1294,7 @@ private theorem execYulStmtsFuel_fuel_adequate
   | zero => simp
   | succ k ihk =>
     rw [show sizeOf body + 1 + (k + 1) = (sizeOf body + 1 + k) + 1 by omega]
-    rw [execYulFuel_succ_eq (.stmts body) state (sizeOf body + 1 + k)
+    rw [legacyExecYulFuel_succ_eq (.stmts body) state (sizeOf body + 1 + k)
       (by simp [yulExecTargetLoopFree, hLF]) (by simp [sizeOfExecTarget])]
     exact ihk
 
@@ -1193,7 +1402,7 @@ private theorem SwitchCaseBodyBridge
   exact hmatch
 
 set_option maxHeartbeats 1600000000 in
-/-- Main preservation theorem: Yul codegen preserves IR semantics.
+/-- Legacy reference-oracle preservation theorem: Yul codegen preserves IR semantics.
 
 The `hWF` hypothesis requires that `contract.internalFunctions` are all
 `funcDef` statements, which holds for every contract emitted by the compiler.
@@ -1202,7 +1411,7 @@ The `hWF` hypothesis requires that `contract.internalFunctions` are all
 `receiveEntrypoint = none` because `interpretIR` returns failure when no
 function selector matches, which is only consistent with a revert-only
 default case. Extending to fallback/receive requires extending `interpretIR`. -/
-theorem yulCodegen_preserves_semantics
+private theorem yulCodegen_preserves_semantics_via_reference_oracle
     (contract : IRContract) (tx : IRTransaction) (initialState : IRState)
     (hselector : tx.functionSelector < selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < evmModulus)
@@ -1244,7 +1453,9 @@ theorem yulCodegen_preserves_semantics
   have hSkip : ∀ state : YulState,
       execYulStmtsFuel (sizeOf (prefix_ ++ [switchStmt]) + 1) state (prefix_ ++ [switchStmt]) =
       execYulStmtsFuel (sizeOf (prefix_ ++ [switchStmt]) + 1 - prefix_.length) state [switchStmt] :=
-    fun state => execYulStmtsFuel_funcDefs_then_suffix_ge _ state prefix_ [switchStmt] hPrefixFD hFuel
+    fun state =>
+      preservation_execYulStmtsFuel_funcDefs_then_suffix_ge _ state prefix_ [switchStmt]
+        hPrefixFD hFuel
   set adjustedFuel := sizeOf (prefix_ ++ [switchStmt]) + 1 - prefix_.length
   have hAdjGe : adjustedFuel ≥ 10 := by
     have : sizeOf (prefix_ ++ [switchStmt]) + 1 - prefix_.length ≥ sizeOf [switchStmt] + 1 := by
@@ -1274,7 +1485,7 @@ theorem yulCodegen_preserves_semantics
       -- No function matches: IR returns failure, Yul should revert
       simp only [interpretIR, hFind]
       -- The Yul side: skip prefix, reach buildSwitch, step through block to switch, miss all cases, revert
-      simp only [interpretYulFromIR, emitYul_runtimeCode_eq, interpretYulRuntime,
+      simp only [interpretYulFromIR, preservation_emitYul_runtimeCode_eq, interpretYulRuntime,
         execYulStmts, hRuntimeEq, hSkip]
       rw [hm, hSwitchSimp]
       -- Use the buildSwitch stepping axiom
@@ -1288,21 +1499,21 @@ theorem yulCodegen_preserves_semantics
       have hSelEval := evalSelectorExpr_setVar_has_selector yulInitState 1 (by
         rw [hSelEq]; exact hselector)
       -- Bridge hcase: tx.functionSelector = yulInitState.selector
-      have hcase := find_switch_case_of_find_function_none contract.functions
+      have hcase := preservation_find_switch_case_of_find_function_none contract.functions
         yulInitState.selector (hSelEq ▸ hFind)
       -- Apply switch miss lemma
       rw [show m + 2 + 1 = Nat.succ (m + 2) from by omega]
-      rw [execYulStmtFuel_switch_miss _ _ _ _ _ _ hSelEval hcase]
+      rw [preservation_execYulStmtFuel_switch_miss _ _ _ _ _ _ hSelEval hcase]
       -- Now we need to show the revert case matches resultsMatch for failure
-      simp [execYulStmtFuel_switch_miss_result, switchDefaultCase,
-        execYulStmtsFuel, execYulFuel, resultsMatch,
+      simp [preservation_execYulStmtFuel_switch_miss_result, switchDefaultCase,
+        execYulStmtsFuel, legacyExecYulFuel, resultsMatch,
         Compiler.Proofs.storageAsMappings, yulInitState, YulState.initial, YulState.setVar]
   | some fn =>
       -- A function matches: use hbody to connect IR and Yul
       have hmem : fn ∈ contract.functions := List.mem_of_find?_eq_some hFind
       have hmatch := hbody fn hmem
       simp only [interpretIR, hFind]
-      simp only [interpretYulFromIR, emitYul_runtimeCode_eq, interpretYulRuntime,
+      simp only [interpretYulFromIR, preservation_emitYul_runtimeCode_eq, interpretYulRuntime,
         execYulStmts, hRuntimeEq, hSkip]
       simp only [interpretYulBody_eq_runtime, interpretYulRuntime, execYulStmts] at hmatch
       rw [hm, hSwitchSimp]
@@ -1319,12 +1530,13 @@ theorem yulCodegen_preserves_semantics
       have hcase : (switchCases contract.functions).find? (fun (c, _) => c = tx.functionSelector) =
           some (tx.functionSelector, switchCaseBody fn) := by
         simpa [hSelEq] using
-          (find_switch_case_of_find_function_eq_selector contract.functions yulInitState.selector fn
+          (preservation_find_switch_case_of_find_function_eq_selector
+            contract.functions yulInitState.selector fn
             (hSelEq ▸ hFind))
       rw [← hSelEq] at hcase
       -- Apply switch match lemma
       rw [show m + 2 + 1 = Nat.succ (m + 2) from by omega]
-      rw [execYulStmtFuel_switch_match _ _ _ _ _ _ _ hSelEval hcase]
+      rw [preservation_execYulStmtFuel_switch_match _ _ _ _ _ _ _ hSelEval hcase]
       -- Establish fuel adequacy for the body bridge.
       -- sizeOf [switchStmt] ≥ sizeOf fn.body + 12 (by sizeOf_buildSwitch_ge_fn_body),
       -- adjustedFuel ≥ sizeOf [switchStmt] + 1, and m + 10 = adjustedFuel.
@@ -1362,41 +1574,5 @@ theorem yulCodegen_preserves_semantics
               calldata := tx.args
               selector := tx.functionSelector }
             m (hdispatchGuardSafe fn hmem) hNoWrap hlen)
-
-/-! ## Complete Preservation Theorem
-
-This version of the preservation theorem discharges the `hbody` hypothesis
-using the proven `all_stmts_equiv` and `ir_yul_function_equiv_from_state_of_stmt_equiv`.
-
-The remaining gap between `interpretYulBodyFromState` (fuel-based proof chain) and
-`interpretYulBody` (used by the theorem above) requires bridging two
-different Yul execution entry points. This bridging lemma documents that gap explicitly.
-
-**Proof chain** (complete — fuel adequacy eliminated, now internal):
-1. `all_stmts_equiv` — every IR statement type is equivalent (StatementEquivalence.lean)
-2. `execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv` — lifts to lists (Equivalence.lean)
-3. `ir_yul_function_equiv_from_state_of_stmt_equiv` — function-level equivalence
-   (fuel adequacy is discharged internally via `rfl`)
-
-The theorem `ir_function_body_equiv` below demonstrates the complete chain for any
-single function, and `yulCodegen_preserves_semantics` lifts it to full contracts.
--/
-
-/-- Any single IR function body produces equivalent results under fuel-based Yul execution.
-
-This is the instantiation of the proof chain with `all_stmts_equiv`, producing a
-self-contained result for any function/args/state triple. Fuel adequacy is discharged
-internally (it is `rfl` since the IR interpreter is total/fuel-based).
--/
-theorem ir_function_body_equiv
-    (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState) :
-    resultsMatch
-      (execIRFunction fn args initialState)
-      (interpretYulBodyFromState fn selector
-        (fn.params.zip args |>.foldl (fun s (p, v) => s.setVar p.name v) initialState)
-        initialState) :=
-  ir_yul_function_equiv_from_state_of_stmt_equiv
-    (fun sel f st irSt yulSt => all_stmts_equiv sel f st irSt yulSt)
-    fn selector args initialState
 
 end Compiler.Proofs.YulGeneration

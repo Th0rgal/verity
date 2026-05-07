@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+import argparse
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -47,7 +48,15 @@ def remove_path(path: Path, reason: str) -> None:
     shutil.rmtree(path)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--packages-only",
+        action="store_true",
+        help="prune stale package checkouts without clearing .lake/build outputs",
+    )
+    args = parser.parse_args([] if argv is None else argv)
+
     package_dirs: list[Path] = []
     if PACKAGES_DIR.exists():
         package_dirs = [path for path in PACKAGES_DIR.iterdir() if path.is_dir()]
@@ -69,6 +78,9 @@ def main() -> int:
             if actual_rev != expected_rev:
                 remove_path(package_dir, f"expected {expected_rev[:12]}, found {actual_rev[:12]}")
 
+    if args.packages_only:
+        return 0
+
     root_build = LAKE_DIR / "build"
     if root_build.exists():
         remove_path(root_build, "clearing root build outputs after partial cache restore")
@@ -83,4 +95,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

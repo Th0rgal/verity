@@ -32,11 +32,6 @@ theorem lowerRuntimeContractNative_ok :
       rw [hLower] at this
       cases this
 
-@[simp] theorem generatedRuntimeNativeFragment_eq :
-    Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment
-      (Compiler.emitYul simpleStorageIRContract).runtimeCode = true := by
-  native_decide
-
 /-- The concrete lowered native contract for `simpleStorage`.
 
 Keeping this definition executable lets downstream concrete proofs reduce the

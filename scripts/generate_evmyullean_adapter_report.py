@@ -20,6 +20,7 @@ BACKENDS_DIR = (
     ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Backends"
 )
 ADAPTER_FILE = BACKENDS_DIR / "EvmYulLeanAdapter.lean"
+BRIDGE_PREDICATES_FILE = BACKENDS_DIR / "EvmYulLeanBridgePredicates.lean"
 BRIDGE_LEMMAS_FILE = BACKENDS_DIR / "EvmYulLeanBridgeLemmas.lean"
 BRIDGE_TEST_FILE = BACKENDS_DIR / "EvmYulLeanBridgeTest.lean"
 CORRECTNESS_FILE = BACKENDS_DIR / "EvmYulLeanAdapterCorrectness.lean"
@@ -455,13 +456,13 @@ def _parse_context_bridge_lemmas() -> tuple[list[str], list[str]]:
 
 
 def _parse_bridged_builtins_defs() -> tuple[list[str], list[str]]:
-    """Extract bridgedBuiltins and unbridgedBuiltins from BridgeLemmas file.
+    """Extract bridgedBuiltins and unbridgedBuiltins from the predicate module.
 
     Returns (bridged, unbridged) or empty lists if definitions not found.
     """
-    if not BRIDGE_LEMMAS_FILE.exists():
+    if not BRIDGE_PREDICATES_FILE.exists():
         return [], []
-    text = BRIDGE_LEMMAS_FILE.read_text(encoding="utf-8")
+    text = BRIDGE_PREDICATES_FILE.read_text(encoding="utf-8")
     code = _strip_lean_comments(text)
 
     def _extract_string_list(pattern: re.Pattern[str]) -> list[str]:
@@ -590,6 +591,13 @@ def build_report() -> dict[str, object]:
             )
             return re.search(pattern, code, re.MULTILINE) is not None
 
+        def _has_private_theorem_in(code: str, name: str) -> bool:
+            pattern = (
+                r'^[ \t]{0,2}(?:@\[[^\]]*\]\s*)*'
+                r'private\s+theorem\s+' + re.escape(name) + r'\b'
+            )
+            return re.search(pattern, code, re.MULTILINE) is not None
+
         def _has_theorem(name: str) -> bool:
             return _has_theorem_in(retarget_code, name)
 
@@ -656,20 +664,23 @@ def build_report() -> dict[str, object]:
             "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"
         )
         has_layer3_evm_retarget = _has_theorem(
-            "yulCodegen_preserves_semantics_evmYulLean"
+            "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle"
         )
         if END_TO_END_FILE.exists():
             end_to_end_code = _strip_lean_strings(
                 _strip_lean_comments(END_TO_END_FILE.read_text(encoding="utf-8"))
             )
             has_end_to_end_evm_retarget = _has_theorem_in(
-                end_to_end_code, "layers2_3_ir_matches_yul_evmYulLean"
+                end_to_end_code, "layers2_3_ir_matches_yul_evmYulLeanBackend"
+            )
+            end_to_end_evm_retarget_is_private = _has_private_theorem_in(
+                end_to_end_code, "layers2_3_ir_matches_yul_evmYulLeanBackend"
             )
             end_to_end_evm_retarget_has_sorry = _theorem_body_has_sorry_in(
-                end_to_end_code, "layers2_3_ir_matches_yul_evmYulLean"
+                end_to_end_code, "layers2_3_ir_matches_yul_evmYulLeanBackend"
             )
             end_to_end_evm_retarget_block = _theorem_block_in(
-                end_to_end_code, "layers2_3_ir_matches_yul_evmYulLean"
+                end_to_end_code, "layers2_3_ir_matches_yul_evmYulLeanBackend"
             )
             end_to_end_evm_retarget_has_body_hypotheses = bool(
                 re.search(
@@ -680,6 +691,7 @@ def build_report() -> dict[str, object]:
             )
         else:
             has_end_to_end_evm_retarget = False
+            end_to_end_evm_retarget_is_private = False
             end_to_end_evm_retarget_has_sorry = False
             end_to_end_evm_retarget_has_body_hypotheses = False
         backends_agree_has_sorry = _theorem_body_has_sorry("backends_agree_on_bridged_builtins")
@@ -707,7 +719,7 @@ def build_report() -> dict[str, object]:
             "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies"
         )
         layer3_evm_retarget_has_sorry = _theorem_body_has_sorry(
-            "yulCodegen_preserves_semantics_evmYulLean"
+            "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle"
         )
         admitted_deps = sorted(admitted_lemmas)
         admitted_dep_status = (
@@ -802,7 +814,10 @@ def build_report() -> dict[str, object]:
         else:
             layer3_evm_retarget_status = "proven (conditional on bridged IR bodies)"
         if not has_end_to_end_evm_retarget:
-            end_to_end_evm_retarget_status = "missing"
+            end_to_end_evm_retarget_status = (
+                "removed from EndToEnd surface "
+                "(retarget evidence isolated in EvmYulLeanRetarget.lean)"
+            )
         elif end_to_end_evm_retarget_has_sorry:
             end_to_end_evm_retarget_status = "sorry"
         elif admitted_deps:
@@ -810,6 +825,10 @@ def build_report() -> dict[str, object]:
         elif end_to_end_evm_retarget_has_body_hypotheses:
             end_to_end_evm_retarget_status = (
                 "proven (conditional on bridged IR bodies)"
+            )
+        elif end_to_end_evm_retarget_is_private:
+            end_to_end_evm_retarget_status = (
+                "private transition lemma (body hypotheses discharged)"
             )
         else:
             end_to_end_evm_retarget_status = "proven (body hypotheses discharged)"
@@ -923,8 +942,8 @@ def build_report() -> dict[str, object]:
             # proven, every compileStmtList output for external-safe source
             # statement lists discharges `BridgedStmts` without per-call
             # hypotheses. The phase4 status only reaches
-            # "full_semantic_integration" after the public EndToEnd theorem
-            # stops carrying explicit BridgedStmts body hypotheses as well.
+            # "full_semantic_integration" only after the exported EndToEnd
+            # theorem stops carrying explicit BridgedStmts body hypotheses.
             has_universal_body_closure = _has_theorem_in(
                 body_closure_code, "compileStmtList_always_bridged"
             )
@@ -984,11 +1003,19 @@ def build_report() -> dict[str, object]:
             source_expr_pure_closure_has_sorry = _theorem_body_has_sorry_in(
                 source_expr_closure_code, "compileExpr_bridgedSource"
             )
+            has_source_expr_mapping_chain_closure = _has_theorem_in(
+                source_expr_closure_code, "compileExpr_mappingChain_bridgedSource"
+            )
+            source_expr_mapping_chain_closure_has_sorry = _theorem_body_has_sorry_in(
+                source_expr_closure_code, "compileExpr_mappingChain_bridgedSource"
+            )
         else:
             has_source_expr_leaf_closure = False
             source_expr_leaf_closure_has_sorry = False
             has_source_expr_pure_closure = False
             source_expr_pure_closure_has_sorry = False
+            has_source_expr_mapping_chain_closure = False
+            source_expr_mapping_chain_closure_has_sorry = False
         if not has_scalar_param_body_closure:
             scalar_param_body_closure_status = "missing"
         elif scalar_param_body_closure_has_sorry:
@@ -1116,7 +1143,24 @@ def build_report() -> dict[str, object]:
         elif source_expr_pure_closure_has_sorry:
             source_expr_pure_closure_status = "sorry"
         else:
-            source_expr_pure_closure_status = "proven (pure source-expression fragment)"
+            source_expr_pure_closure_status = (
+                "proven (source-expression fragment with parameter length, "
+                "storage, and storage-array length reads, ADT tag/field reads, "
+                "singleton and nested mapping reads through the abstract "
+                "mappingSlot bridge, mapping struct-member reads, "
+                "reserved exponentiation, boolean normalization, branchless "
+                "helpers, bridged environment reads, and unary calldata/memory/"
+                "transient reads)"
+            )
+        if not has_source_expr_mapping_chain_closure:
+            source_expr_mapping_chain_closure_status = "missing"
+        elif source_expr_mapping_chain_closure_has_sorry:
+            source_expr_mapping_chain_closure_status = "sorry"
+        else:
+            source_expr_mapping_chain_closure_status = (
+                "proven (mappingChain source-expression wrapper through "
+                "the abstract mappingSlot bridge)"
+            )
         if not has_universal_body_closure:
             universal_body_closure_status = "missing"
         elif universal_body_closure_has_sorry:
@@ -1131,6 +1175,7 @@ def build_report() -> dict[str, object]:
             has_universal_body_closure
             and not universal_body_closure_has_sorry
             and has_end_to_end_evm_retarget
+            and not end_to_end_evm_retarget_is_private
             and not end_to_end_evm_retarget_has_sorry
             and not end_to_end_evm_retarget_has_body_hypotheses
             and has_layer3_evm_retarget
@@ -1166,10 +1211,6 @@ def build_report() -> dict[str, object]:
         elif (
             has_universal_body_closure
             and not universal_body_closure_has_sorry
-            and has_end_to_end_evm_retarget
-            and not end_to_end_evm_retarget_has_sorry
-            and has_layer3_evm_retarget
-            and not layer3_evm_retarget_has_sorry
             and has_runtime_backend_eq
             and not runtime_backend_eq_has_sorry
             and has_runtime_closure
@@ -1401,9 +1442,9 @@ def build_report() -> dict[str, object]:
             "identifier-slot sstore), and recursively nested BridgedStmt targets; "
             "generated runtime-code closure, emitted-runtime backend equality, and the "
             "lower-level Layer-3 EVMYulLean retarget theorem are proven under bridged "
-            "IR-body witnesses; the public EndToEnd safe-body wrapper discharges raw "
-            "BridgedStmts body hypotheses from SupportedSpec, static-parameter, and "
-            "BridgedSafeStmts source witnesses; "
+            "IR-body witnesses; the EndToEnd safe-body backend-wrapper lemma is private "
+            "transition plumbing, while public EndToEnd targets use native dispatcher "
+            "execution through interpretIRRuntimeNative; "
             "compileStmtList_always_bridged proves a universal BridgedSafeStmts aggregation "
             "theorem with the external-call family carved out behind explicit function-table "
             "hypotheses"
@@ -1423,8 +1464,8 @@ def build_report() -> dict[str, object]:
             "execYulFuelWithBackend_eq_on_bridged_target": recursive_target_retarget_status,
             "emitYul_runtimeCode_bridged": runtime_closure_status,
             "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies": runtime_backend_eq_status,
-            "yulCodegen_preserves_semantics_evmYulLean": layer3_evm_retarget_status,
-            "layers2_3_ir_matches_yul_evmYulLean": end_to_end_evm_retarget_status,
+            "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle": layer3_evm_retarget_status,
+            "layers2_3_ir_matches_yul_evmYulLeanBackend": end_to_end_evm_retarget_status,
             "genParamLoads_scalar_bridged": scalar_param_body_closure_status,
             "genStaticTypeLoads_calldataload_bridged": static_type_body_closure_status,
             "genParamLoads_static_scalar_bridged": static_param_body_closure_status,
@@ -1444,6 +1485,7 @@ def build_report() -> dict[str, object]:
             "compileStmtList_internal_recursive_body_fragment_bridged": internal_recursive_body_fragment_closure_status,
             "compileExpr_bridgedSource_leaf": source_expr_leaf_closure_status,
             "compileExpr_bridgedSource": source_expr_pure_closure_status,
+            "compileExpr_mappingChain_bridgedSource": source_expr_mapping_chain_closure_status,
             "compileStmtList_always_bridged": universal_body_closure_status,
             "trust_boundary": phase4_trust_boundary,
             "remaining_for_whole_program_retargeting": remaining_for_whole_program_retargeting,

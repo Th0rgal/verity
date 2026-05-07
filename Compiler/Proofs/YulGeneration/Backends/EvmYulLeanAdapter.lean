@@ -251,27 +251,39 @@ def collectYulStmtWriteNames
   | [] => []
   | stmt :: rest => writeStmt stmt ++ collectYulStmtWriteNames writeStmt rest
 
-partial def yulStmtWriteNames : YulStmt → List String
+mutual
+def yulStmtWriteNames : YulStmt → List String
   | .comment _ | .expr _ | .leave => []
   | .let_ name _ => [name]
   | .letMany names _ => names
   | .assign name _ => [name]
-  | .if_ _ body => collectYulStmtWriteNames yulStmtWriteNames body
+  | .if_ _ body => yulStmtsWriteNames body
   | .for_ init _ post body =>
-      collectYulStmtWriteNames yulStmtWriteNames init ++
-        collectYulStmtWriteNames yulStmtWriteNames post ++
-        collectYulStmtWriteNames yulStmtWriteNames body
+      yulStmtsWriteNames init ++ yulStmtsWriteNames post ++
+        yulStmtsWriteNames body
   | .switch _ cases defaultBody =>
-      cases.foldl
-          (fun acc (_, body) =>
-            acc ++ collectYulStmtWriteNames yulStmtWriteNames body) [] ++
-        collectYulStmtWriteNames yulStmtWriteNames (defaultBody.getD [])
-  | .block stmts => collectYulStmtWriteNames yulStmtWriteNames stmts
+      yulSwitchCasesWriteNames cases ++
+        match defaultBody with
+        | none => []
+        | some body => yulStmtsWriteNames body
+  | .block stmts => yulStmtsWriteNames stmts
   | .funcDef _ params rets body =>
-      params ++ rets ++ collectYulStmtWriteNames yulStmtWriteNames body
+      params ++ rets ++ yulStmtsWriteNames body
+termination_by stmt => sizeOf stmt
+decreasing_by all_goals simp_wf; all_goals omega
 
-def yulStmtsWriteNames (stmts : List YulStmt) : List String :=
-  collectYulStmtWriteNames yulStmtWriteNames stmts
+def yulStmtsWriteNames : List YulStmt → List String
+  | [] => []
+  | stmt :: rest => yulStmtWriteNames stmt ++ yulStmtsWriteNames rest
+termination_by stmts => sizeOf stmts
+decreasing_by all_goals simp_wf; all_goals omega
+
+def yulSwitchCasesWriteNames : List (Nat × List YulStmt) → List String
+  | [] => []
+  | (_, body) :: rest => yulStmtsWriteNames body ++ yulSwitchCasesWriteNames rest
+termination_by cases => sizeOf cases
+decreasing_by all_goals simp_wf; all_goals omega
+end
 
 def collectNativeStmtWriteNames
     (writeStmt : EvmYul.Yul.Ast.Stmt → List String) :
@@ -280,22 +292,32 @@ def collectNativeStmtWriteNames
   | stmt :: rest =>
       writeStmt stmt ++ collectNativeStmtWriteNames writeStmt rest
 
-partial def nativeStmtWriteNames : EvmYul.Yul.Ast.Stmt → List String
-  | .Block stmts => collectNativeStmtWriteNames nativeStmtWriteNames stmts
+mutual
+def nativeStmtWriteNames : EvmYul.Yul.Ast.Stmt → List String
+  | .Block stmts => nativeStmtsWriteNames stmts
   | .Let names _ => names
   | .ExprStmtCall _ | .Continue | .Break | .Leave => []
   | .Switch _ cases defaultBody =>
-      cases.foldl
-          (fun acc (_, body) =>
-            acc ++ collectNativeStmtWriteNames nativeStmtWriteNames body) [] ++
-        collectNativeStmtWriteNames nativeStmtWriteNames defaultBody
-  | .For _ post body =>
-      collectNativeStmtWriteNames nativeStmtWriteNames post ++
-        collectNativeStmtWriteNames nativeStmtWriteNames body
-  | .If _ body => collectNativeStmtWriteNames nativeStmtWriteNames body
+      nativeSwitchCasesWriteNames cases ++ nativeStmtsWriteNames defaultBody
+  | .For _ post body => nativeStmtsWriteNames post ++ nativeStmtsWriteNames body
+  | .If _ body => nativeStmtsWriteNames body
+termination_by stmt => sizeOf stmt
+decreasing_by all_goals simp_wf; all_goals omega
 
-def nativeStmtsWriteNames (stmts : List EvmYul.Yul.Ast.Stmt) : List String :=
-  collectNativeStmtWriteNames nativeStmtWriteNames stmts
+def nativeStmtsWriteNames : List EvmYul.Yul.Ast.Stmt → List String
+  | [] => []
+  | stmt :: rest => nativeStmtWriteNames stmt ++ nativeStmtsWriteNames rest
+termination_by stmts => sizeOf stmts
+decreasing_by all_goals simp_wf; all_goals omega
+
+def nativeSwitchCasesWriteNames :
+    List (EvmYul.Yul.Ast.Literal × List EvmYul.Yul.Ast.Stmt) → List String
+  | [] => []
+  | (_, body) :: rest =>
+      nativeStmtsWriteNames body ++ nativeSwitchCasesWriteNames rest
+termination_by cases => sizeOf cases
+decreasing_by all_goals simp_wf; all_goals omega
+end
 
 def nativeSwitchDiscrTempName (switchId : Nat) : String :=
   s!"__verity_native_switch_discr_{switchId}"
@@ -365,7 +387,7 @@ def lowerNativeSwitchBlock
          caseIfs ++ defaultIf)
 
 /-- Native switch lowering expands to a lazy guarded block instead of using
-    EVMYulLean's eager `.Switch` form. The native/interpreter dispatcher proof
+    EVMYulLean's eager `.Switch` form. The native/EVMYulLean dispatcher proof
     should consume this shape directly: the first statement evaluates the
     discriminator once, each case is guarded by `iszero(matched) && discr == tag`,
     and the optional default runs only if no case marked the switch matched. -/
@@ -487,7 +509,7 @@ def lowerStmtsNative :
 /-- Statement-list native lowering exposes a stable head/tail equation.
 
 This is the statement-level analogue of the top-level runtime partition
-equations below: future native/interpreter preservation proofs can reason by
+equations below: future native/EVMYulLean preservation proofs can reason by
 the source statement list instead of treating the native lowerer as an opaque
 executable. -/
 theorem lowerStmtsNativeWithSwitchIds_cons
@@ -894,7 +916,7 @@ function map rather than appending it to dispatcher code.
 
 Keeping this equation named is important for the native migration proof: it is
 the first generated-fragment shape fact needed before proving that
-`callDispatcher` runs the same selected body as the interpreter oracle. -/
+`callDispatcher` runs the same selected body as the EVMYulLean fuel wrapper. -/
 theorem lowerRuntimeContractNativeAux_funcDef_cons
     (reservedNames : List String)
     (dispatcherAcc : List EvmYul.Yul.Ast.Stmt)
@@ -911,6 +933,27 @@ theorem lowerRuntimeContractNativeAux_funcDef_cons
         let functionsAcc ← insertNativeFunction functionsAcc name definition
         lowerRuntimeContractNativeAux reservedNames rest dispatcherAcc functionsAcc nextSwitchId) := by
   rw [lowerRuntimeContractNativeAux.eq_2]
+
+/-- Specialization of `lowerRuntimeContractNativeAux_funcDef_cons` for the
+first helper definition in a runtime: once the helper body lowers, inserting it
+into the empty native function map cannot hit the duplicate-definition guard. -/
+theorem lowerRuntimeContractNativeAux_funcDef_cons_empty_of_lowerFunctionDefinition
+    (reservedNames : List String)
+    (dispatcherAcc : List EvmYul.Yul.Ast.Stmt)
+    (nextSwitchId : Nat)
+    (name : String)
+    (params rets : List String)
+    (body rest : List YulStmt)
+    (definition : EvmYul.Yul.Ast.FunctionDefinition)
+    (hLower : lowerFunctionDefinitionNativeWithReserved
+      reservedNames params rets body = .ok definition) :
+    lowerRuntimeContractNativeAux reservedNames
+        (YulStmt.funcDef name params rets body :: rest)
+        dispatcherAcc (∅ : NativeFunctionMap) nextSwitchId =
+      lowerRuntimeContractNativeAux reservedNames rest dispatcherAcc
+        ((∅ : NativeFunctionMap).insert name definition) nextSwitchId := by
+  rw [lowerRuntimeContractNativeAux_funcDef_cons, hLower]
+  simp [insertNativeFunction, Bind.bind, Except.bind, Pure.pure, Except.pure]
 
 /-- Top-level native runtime lowering appends non-`funcDef` statements to the
 dispatcher accumulator after statement lowering.
@@ -1063,7 +1106,7 @@ def evalPureBuiltinViaEvmYulLean
     the abstract `storage : IRStorageSlot → IRStorageWord` into EVMYulLean's `Storage` recovers the
     same value). `mappingSlot` is bridged by routing through
     `abstractMappingSlot` — the same keccak-faithful Solidity mapping-slot
-    derivation used by Verity's `evalBuiltinCallWithContext`; both backends
+    derivation used by Verity's `legacyEvalBuiltinCallWithContext`; both backends
     ultimately compute `keccak256(abi.encode(key, baseSlot))`. Remaining
     context-dependent builtins (`caller`, `address`, `timestamp`, ...) are
     routed at the `evalBuiltinCallWithBackendContext` level. -/

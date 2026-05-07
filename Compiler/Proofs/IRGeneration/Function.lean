@@ -4,7 +4,7 @@ import Compiler.Proofs.IRGeneration.GenericInduction
 import Compiler.Proofs.IRGeneration.ParamLoading
 import Compiler.Proofs.IRGeneration.SourceSemantics
 import Compiler.Proofs.IRGeneration.SupportedSpec
-import Compiler.Proofs.YulGeneration.Equivalence
+import Compiler.Proofs.YulGeneration.IRFuel
 
 set_option linter.unnecessarySeqFocus false
 set_option linter.unnecessarySimpa false
