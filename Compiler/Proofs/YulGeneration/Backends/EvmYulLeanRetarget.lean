@@ -1216,7 +1216,9 @@ private theorem calldatasizeGuard_bridged (numParams : Nat) :
   exact bridgedStmt_if_of_bridgedStmts (bridgedExpr_calldatasize_lt (4 + numParams * 32))
     BridgedStmts_singleton_revert_zero
 
-private theorem dispatchBody_bridged (payable : Bool) (label : String)
+/-- Dispatch guards preserve bridgedness around an already-bridged entrypoint
+body. -/
+theorem dispatchBody_bridged (payable : Bool) (label : String)
     (body : List Compiler.Yul.YulStmt) (hBody : BridgedStmts body) :
     BridgedStmts (Compiler.CodegenCommon.dispatchBody payable label body) := by
   unfold Compiler.CodegenCommon.dispatchBody
@@ -1227,7 +1229,9 @@ private theorem dispatchBody_bridged (payable : Bool) (label : String)
       (BridgedStmts_cons callvalueGuard_bridged hBody)
   · exact BridgedStmts_cons_comment label hBody
 
-private theorem defaultDispatchCase_bridged
+/-- The generated default dispatch case is bridged whenever its optional
+fallback and receive bodies are bridged. -/
+theorem defaultDispatchCase_bridged
     (fallback receive : Option Compiler.IREntrypoint)
     (hFallback : ∀ fb, fallback = some fb → BridgedStmts fb.body)
     (hReceive : ∀ rc, receive = some rc → BridgedStmts rc.body) :
@@ -1268,7 +1272,9 @@ private theorem defaultDispatchCase_bridged
                   (hFallback fb rfl))
                 BridgedStmts_nil))
 
-private theorem switchCases_bridged
+/-- Every lowered generated selector-switch case is bridged when every source
+function body in the case list is bridged. -/
+theorem switchCases_bridged
     (funcs : List Compiler.IRFunction)
     (hFunctions : ∀ fn, fn ∈ funcs → BridgedStmts fn.body) :
     ∀ scrutinee value body,
@@ -1292,7 +1298,9 @@ private theorem switchCases_bridged
     (BridgedStmts_cons (calldatasizeGuard_bridged fn.params.length)
       (hFunctions fn hFn))
 
-private theorem buildSwitch_bridged
+/-- The generated runtime selector switch is bridged from bridged external
+function, fallback, and receive bodies. -/
+theorem buildSwitch_bridged
     (funcs : List Compiler.IRFunction)
     (fallback receive : Option Compiler.IREntrypoint)
     (hFunctions : ∀ fn, fn ∈ funcs → BridgedStmts fn.body)
@@ -1315,12 +1323,16 @@ private theorem buildSwitch_bridged
               exact defaultDispatchCase_bridged fallback receive hFallback hReceive))
           BridgedStmts_nil)))
 
-private theorem mappingSlotFuncAt_bridged (scratchBase : Nat) :
+/-- The generated `mappingSlot` helper body is in the bridged fragment. -/
+theorem mappingSlotFuncAt_bridged (scratchBase : Nat) :
     BridgedStmt (Compiler.CodegenCommon.mappingSlotFuncAt scratchBase) := by
   unfold Compiler.CodegenCommon.mappingSlotFuncAt
   exact bridgedStmt_funcDef "mappingSlot" ["baseSlot", "key"] ["slot"] _
 
-private theorem runtimeCode_bridged
+/-- Generic bridge proof for all generated runtime code emitted from an
+`IRContract`: mapping helper, internal helpers, dispatcher switch, and optional
+fallback/receive bodies. -/
+theorem runtimeCode_bridged
     (contract : Compiler.IRContract)
     (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
     (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)
@@ -1338,7 +1350,9 @@ private theorem runtimeCode_bridged
         (buildSwitch_bridged contract.functions contract.fallbackEntrypoint
           contract.receiveEntrypoint hFunctions hFallback hReceive))
 
-private theorem emitYul_runtimeCode_bridged
+/-- The runtime code emitted by `emitYul` is a bridged execution target whenever
+all constituent function, helper, fallback, and receive bodies are bridged. -/
+theorem emitYul_runtimeCode_bridged
     (contract : Compiler.IRContract)
     (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
     (hFallback : ∀ fb, contract.fallbackEntrypoint = some fb → BridgedStmts fb.body)

@@ -177,6 +177,45 @@ private theorem compileValidatedCore_ok_yields_internalFunctions_nil
       cases hcore
       rfl
 
+private theorem compileValidatedCore_ok_yields_deploy_compileConstructor
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (ir : IRContract)
+    (hcore : compileValidatedCore model selectors = Except.ok ir) :
+    compileConstructor model.fields model.events model.errors [] model.constructor =
+      Except.ok ir.deploy := by
+  have hfallback :
+      pickUniqueFunctionByName "fallback" model.functions = Except.ok none :=
+    pickUniqueFunctionByName_eq_ok_none_of_absent
+      "fallback" model.functions hSupported.noFallback
+  have hreceive :
+      pickUniqueFunctionByName "receive" model.functions = Except.ok none :=
+    pickUniqueFunctionByName_eq_ok_none_of_absent
+      "receive" model.functions hSupported.noReceive
+  unfold compileValidatedCore at hcore
+  rw [hSupported.normalizedFields,
+    hSupported.noAdtTypes, hSupported.noEvents, hSupported.noErrors,
+    hfallback, hreceive] at hcore
+  simp only [bind, Except.bind, pure, Except.pure] at hcore
+  rcases hmap :
+      ((model.functions.filter
+          (fun fn => !fn.isInternal && !isInteropEntrypointName fn.name)).zip selectors).mapM
+        (fun x => compileFunctionSpec model.fields [] [] [] x.2 x.1) with _ | irFns
+  · simp [hmap] at hcore
+  · simp [hmap] at hcore
+    rcases hinternal :
+        (model.functions.filter (·.isInternal)).mapM
+          (compileInternalFunction model.fields [] [] []) with _ | internalFuncDefs
+    · simp [hinternal] at hcore
+    · rcases hctor :
+          compileConstructor model.fields [] [] [] model.constructor with _ | deployStmts
+      · simp [hinternal, hctor] at hcore
+        cases hcore
+      · simp [hinternal, hctor] at hcore
+        cases hcore
+        simpa [hSupported.noEvents, hSupported.noErrors] using hctor
+
 private theorem compileValidatedCore_ok_yields_noFallbackEntrypoint
     (model : CompilationModel)
     (selectors : List Nat)
@@ -287,6 +326,26 @@ theorem compile_ok_yields_internalFunctions_nil
   · simp [hvalidate] at hcompile
   · simp [hvalidate] at hcompile
     exact compileValidatedCore_ok_yields_internalFunctions_nil
+      (model := model)
+      (selectors := selectors)
+      (hSupported := hSupported)
+      (ir := ir)
+      (hcore := hcompile)
+
+theorem compile_ok_yields_deploy_compileConstructor
+    (model : CompilationModel)
+    (selectors : List Nat)
+    (hSupported : SupportedSpec model selectors)
+    (ir : IRContract)
+    (hcompile : CompilationModel.compile model selectors = Except.ok ir) :
+    compileConstructor model.fields model.events model.errors [] model.constructor =
+      Except.ok ir.deploy := by
+  unfold CompilationModel.compile at hcompile
+  simp only [bind, Except.bind] at hcompile
+  rcases hvalidate : validateCompileInputs model selectors with _ | validated
+  · simp [hvalidate] at hcompile
+  · simp [hvalidate] at hcompile
+    exact compileValidatedCore_ok_yields_deploy_compileConstructor
       (model := model)
       (selectors := selectors)
       (hSupported := hSupported)

@@ -251,27 +251,39 @@ def collectYulStmtWriteNames
   | [] => []
   | stmt :: rest => writeStmt stmt ++ collectYulStmtWriteNames writeStmt rest
 
-partial def yulStmtWriteNames : YulStmt → List String
+mutual
+def yulStmtWriteNames : YulStmt → List String
   | .comment _ | .expr _ | .leave => []
   | .let_ name _ => [name]
   | .letMany names _ => names
   | .assign name _ => [name]
-  | .if_ _ body => collectYulStmtWriteNames yulStmtWriteNames body
+  | .if_ _ body => yulStmtsWriteNames body
   | .for_ init _ post body =>
-      collectYulStmtWriteNames yulStmtWriteNames init ++
-        collectYulStmtWriteNames yulStmtWriteNames post ++
-        collectYulStmtWriteNames yulStmtWriteNames body
+      yulStmtsWriteNames init ++ yulStmtsWriteNames post ++
+        yulStmtsWriteNames body
   | .switch _ cases defaultBody =>
-      cases.foldl
-          (fun acc (_, body) =>
-            acc ++ collectYulStmtWriteNames yulStmtWriteNames body) [] ++
-        collectYulStmtWriteNames yulStmtWriteNames (defaultBody.getD [])
-  | .block stmts => collectYulStmtWriteNames yulStmtWriteNames stmts
+      yulSwitchCasesWriteNames cases ++
+        match defaultBody with
+        | none => []
+        | some body => yulStmtsWriteNames body
+  | .block stmts => yulStmtsWriteNames stmts
   | .funcDef _ params rets body =>
-      params ++ rets ++ collectYulStmtWriteNames yulStmtWriteNames body
+      params ++ rets ++ yulStmtsWriteNames body
+termination_by stmt => sizeOf stmt
+decreasing_by all_goals simp_wf; all_goals omega
 
-def yulStmtsWriteNames (stmts : List YulStmt) : List String :=
-  collectYulStmtWriteNames yulStmtWriteNames stmts
+def yulStmtsWriteNames : List YulStmt → List String
+  | [] => []
+  | stmt :: rest => yulStmtWriteNames stmt ++ yulStmtsWriteNames rest
+termination_by stmts => sizeOf stmts
+decreasing_by all_goals simp_wf; all_goals omega
+
+def yulSwitchCasesWriteNames : List (Nat × List YulStmt) → List String
+  | [] => []
+  | (_, body) :: rest => yulStmtsWriteNames body ++ yulSwitchCasesWriteNames rest
+termination_by cases => sizeOf cases
+decreasing_by all_goals simp_wf; all_goals omega
+end
 
 def collectNativeStmtWriteNames
     (writeStmt : EvmYul.Yul.Ast.Stmt → List String) :
@@ -280,22 +292,32 @@ def collectNativeStmtWriteNames
   | stmt :: rest =>
       writeStmt stmt ++ collectNativeStmtWriteNames writeStmt rest
 
-partial def nativeStmtWriteNames : EvmYul.Yul.Ast.Stmt → List String
-  | .Block stmts => collectNativeStmtWriteNames nativeStmtWriteNames stmts
+mutual
+def nativeStmtWriteNames : EvmYul.Yul.Ast.Stmt → List String
+  | .Block stmts => nativeStmtsWriteNames stmts
   | .Let names _ => names
   | .ExprStmtCall _ | .Continue | .Break | .Leave => []
   | .Switch _ cases defaultBody =>
-      cases.foldl
-          (fun acc (_, body) =>
-            acc ++ collectNativeStmtWriteNames nativeStmtWriteNames body) [] ++
-        collectNativeStmtWriteNames nativeStmtWriteNames defaultBody
-  | .For _ post body =>
-      collectNativeStmtWriteNames nativeStmtWriteNames post ++
-        collectNativeStmtWriteNames nativeStmtWriteNames body
-  | .If _ body => collectNativeStmtWriteNames nativeStmtWriteNames body
+      nativeSwitchCasesWriteNames cases ++ nativeStmtsWriteNames defaultBody
+  | .For _ post body => nativeStmtsWriteNames post ++ nativeStmtsWriteNames body
+  | .If _ body => nativeStmtsWriteNames body
+termination_by stmt => sizeOf stmt
+decreasing_by all_goals simp_wf; all_goals omega
 
-def nativeStmtsWriteNames (stmts : List EvmYul.Yul.Ast.Stmt) : List String :=
-  collectNativeStmtWriteNames nativeStmtWriteNames stmts
+def nativeStmtsWriteNames : List EvmYul.Yul.Ast.Stmt → List String
+  | [] => []
+  | stmt :: rest => nativeStmtWriteNames stmt ++ nativeStmtsWriteNames rest
+termination_by stmts => sizeOf stmts
+decreasing_by all_goals simp_wf; all_goals omega
+
+def nativeSwitchCasesWriteNames :
+    List (EvmYul.Yul.Ast.Literal × List EvmYul.Yul.Ast.Stmt) → List String
+  | [] => []
+  | (_, body) :: rest =>
+      nativeStmtsWriteNames body ++ nativeSwitchCasesWriteNames rest
+termination_by cases => sizeOf cases
+decreasing_by all_goals simp_wf; all_goals omega
+end
 
 def nativeSwitchDiscrTempName (switchId : Nat) : String :=
   s!"__verity_native_switch_discr_{switchId}"
