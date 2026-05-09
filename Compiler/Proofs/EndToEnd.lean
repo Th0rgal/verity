@@ -6006,7 +6006,7 @@ This is the thinnest public native composition surface: callers prove the
 actual projected native result matches `interpretIR`; this theorem composes
 that result match with the supported source-to-IR compiler theorem. It exposes
 no generated-dispatcher oracle predicate. -/
-theorem compile_preserves_native_evmYulLean_of_nativeGeneratedCallDispatcherResult_match
+private theorem compile_preserves_native_evmYulLean_of_nativeGeneratedCallDispatcherResult_match
     (model : CompilationModel.CompilationModel) (selectors : List Nat)
     (hSupported : SupportedSpec model selectors)
     (irContract : IRContract)

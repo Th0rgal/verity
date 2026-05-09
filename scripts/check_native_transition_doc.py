@@ -915,7 +915,6 @@ def check_public_theorem_target(
                 )
 
     allowed_public_compile_preserves = {
-        "compile_preserves_native_evmYulLean_of_nativeGeneratedCallDispatcherResult_match",
         source_generated_theorem,
     }
     public_compile_preserves_pattern = re.compile(

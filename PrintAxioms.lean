@@ -990,7 +990,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.EndToEnd.validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_except_mapping_writes_stmt_safety
   Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNative_of_lowerRuntimeContractNative_supported
   Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNative_of_lowerRuntimeContractNative_supported_except_mapping_writes_stmt_safety
-  Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_nativeGeneratedCallDispatcherResult_match
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_nativeGeneratedCallDispatcherResult_match  -- private
   -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match  -- private
   -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_ofIR_environment  -- private
   -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_ofIR_globalDefaults  -- private
@@ -5481,4 +5481,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5195 theorems/lemmas (3522 public, 1673 private, 0 sorry'd)
+-- Total: 5195 theorems/lemmas (3521 public, 1674 private, 0 sorry'd)
