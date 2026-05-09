@@ -3998,9 +3998,20 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq
   Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq
   Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_singleton_switch_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtWriteNames_nativeRevertZeroZeroStmt
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_singleton_nativeRevertZeroZeroStmt
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForWrites_nil
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForWrites_nativeRevertZeroZeroStmt
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_payable_dispatch_guard_prefix
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_nonpayable_dispatch_guard_prefix
   Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_revert_zero_zero
   Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_revert_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq_body
   Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_revert_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq_body
+  -- Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_cons_of_lowerSwitchCasesNativeWithSwitchIds  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_of_lowerSwitchCasesNativeWithSwitchIds
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_buildSwitchSourceCases_of_lowerSwitchCasesNativeWithSwitchIds_of_case_body_fresh
   Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
   Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
   Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered
@@ -5470,4 +5481,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5184 theorems/lemmas (3512 public, 1672 private, 0 sorry'd)
+-- Total: 5195 theorems/lemmas (3522 public, 1673 private, 0 sorry'd)

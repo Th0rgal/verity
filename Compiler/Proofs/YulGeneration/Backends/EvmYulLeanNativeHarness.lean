@@ -1271,6 +1271,56 @@ def nativeRevertZeroZeroStmt : EvmYul.Yul.Ast.Stmt :=
     (.Call (Sum.inl (EvmYul.Operation.REVERT : EvmYul.Operation .Yul))
       [.Lit (EvmYul.UInt256.ofNat 0), .Lit (EvmYul.UInt256.ofNat 0)])
 
+@[simp] theorem nativeStmtWriteNames_nativeRevertZeroZeroStmt :
+    Backends.nativeStmtWriteNames nativeRevertZeroZeroStmt = [] := by
+  simp [nativeRevertZeroZeroStmt, Backends.nativeStmtWriteNames]
+
+@[simp] theorem nativeStmtsWriteNames_singleton_nativeRevertZeroZeroStmt :
+    Backends.nativeStmtsWriteNames [nativeRevertZeroZeroStmt] = [] := by
+  simp [Backends.nativeStmtsWriteNames]
+
+theorem nativeSwitchTempsFreshForWrites_nil
+    (switchId : Nat) :
+    Backends.nativeSwitchTempsFreshForWrites switchId [] := by
+  simp [Backends.nativeSwitchTempsFreshForWrites]
+
+theorem nativeSwitchTempsFreshForWrites_nativeRevertZeroZeroStmt
+    (switchId : Nat) :
+    Backends.nativeSwitchTempsFreshForWrites switchId
+      (Backends.nativeStmtsWriteNames [nativeRevertZeroZeroStmt]) := by
+  simp [nativeSwitchTempsFreshForWrites_nil]
+
+theorem nativeStmtsWriteNames_payable_dispatch_guard_prefix
+    (fn : IRFunction) (bodyNative : List EvmYul.Yul.Ast.Stmt) :
+    Backends.nativeStmtsWriteNames
+        (EvmYul.Yul.Ast.Stmt.Block [] ::
+          EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (Yul.YulExpr.call "lt"
+                [Yul.YulExpr.call "calldatasize" [],
+                 Yul.YulExpr.lit (4 + fn.params.length * 32)]))
+            [nativeRevertZeroZeroStmt] ::
+          bodyNative) =
+      Backends.nativeStmtsWriteNames bodyNative := by
+  simp [Backends.nativeStmtsWriteNames, Backends.nativeStmtWriteNames]
+
+theorem nativeStmtsWriteNames_nonpayable_dispatch_guard_prefix
+    (fn : IRFunction) (bodyNative : List EvmYul.Yul.Ast.Stmt) :
+    Backends.nativeStmtsWriteNames
+        (EvmYul.Yul.Ast.Stmt.Block [] ::
+          EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+            [nativeRevertZeroZeroStmt] ::
+          EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (Yul.YulExpr.call "lt"
+                [Yul.YulExpr.call "calldatasize" [],
+                 Yul.YulExpr.lit (4 + fn.params.length * 32)]))
+            [nativeRevertZeroZeroStmt] ::
+          bodyNative) =
+      Backends.nativeStmtsWriteNames bodyNative := by
+  simp [Backends.nativeStmtsWriteNames, Backends.nativeStmtWriteNames]
+
 /-- The singleton default-revert body lowers to the native `revert(0,0)` stmt
 without advancing the native switch counter. -/
 theorem lowerStmtsNativeWithSwitchIds_revert_zero_zero
@@ -1337,6 +1387,25 @@ theorem lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_revert_eq
     exact (congrArg Prod.fst hGuardPair).symm
   refine ⟨bodyNative, bodyStart, ?_, hBody⟩
   rw [hInner, hAfterCommentShape, hGuardBody]
+
+theorem nativeStmtsWriteNames_lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq_body
+    (reservedNames : List String) (n0 : Nat)
+    (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (hPayable : fn.payable = true)
+    (h :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (inner, next)) :
+    ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      Backends.nativeStmtsWriteNames inner =
+        Backends.nativeStmtsWriteNames bodyNative ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) := by
+  rcases lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_revert_eq
+      reservedNames n0 fn inner next hPayable h with
+    ⟨bodyNative, bodyStart, hInner, hBody⟩
+  refine ⟨bodyNative, bodyStart, ?_, hBody⟩
+  rw [hInner, nativeStmtsWriteNames_payable_dispatch_guard_prefix]
 
 /-- Concrete generated-guard variant of
 `lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq`: the non-payable
@@ -1419,6 +1488,151 @@ theorem lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_revert_eq
   refine ⟨bodyNative, bodyStart, ?_, hBody⟩
   rw [hInner, hAfterCommentShape, hAfterCallvalueShape,
     hCallvalueGuardBody, hCalldataGuardBody]
+
+theorem nativeStmtsWriteNames_lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq_body
+    (reservedNames : List String) (n0 : Nat)
+    (fn : IRFunction)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (hPayable : fn.payable = false)
+    (h :
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames n0
+        (switchCaseBody fn) = .ok (inner, next)) :
+    ∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (bodyStart : Nat),
+      Backends.nativeStmtsWriteNames inner =
+        Backends.nativeStmtsWriteNames bodyNative ∧
+      Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart fn.body =
+        .ok (bodyNative, next) := by
+  rcases lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_revert_eq
+      reservedNames n0 fn inner next hPayable h with
+    ⟨bodyNative, bodyStart, hInner, hBody⟩
+  refine ⟨bodyNative, bodyStart, ?_, hBody⟩
+  rw [hInner, nativeStmtsWriteNames_nonpayable_dispatch_guard_prefix]
+
+private theorem nativeSwitchTempsFreshForNativeBodies_cons_of_lowerSwitchCasesNativeWithSwitchIds
+    (reservedNames : List String) (nextSwitchId final switchId tag : Nat)
+    (body : List YulStmt) (rest : List (Nat × List YulStmt))
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (hLower : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+      nextSwitchId ((tag, body) :: rest) = .ok (cases', final))
+    (hHeadFresh :
+      ∀ bodyNative bodyEnd,
+        Backends.lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId body =
+          .ok (bodyNative, bodyEnd) →
+        Backends.nativeSwitchTempsFreshForWrites switchId
+          (Backends.nativeStmtsWriteNames bodyNative))
+    (hRestFresh :
+      ∀ bodyNative bodyEnd restNative restEnd,
+        Backends.lowerStmtsNativeWithSwitchIds reservedNames nextSwitchId body =
+          .ok (bodyNative, bodyEnd) →
+        Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames bodyEnd rest = .ok (restNative, restEnd) →
+        Backends.nativeSwitchTempsFreshForNativeBodies switchId restNative defaultBody) :
+    Backends.nativeSwitchTempsFreshForNativeBodies switchId cases' defaultBody := by
+  rw [Backends.lowerSwitchCasesNativeWithSwitchIds_cons] at hLower
+  cases hBody : Backends.lowerStmtsNativeWithSwitchIds reservedNames
+      nextSwitchId body with
+  | error err =>
+      rw [hBody] at hLower
+      simp only [Bind.bind, Except.bind, reduceCtorEq] at hLower
+  | ok bodyPair =>
+      obtain ⟨bodyNative, bodyEnd⟩ := bodyPair
+      rw [hBody] at hLower
+      simp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at hLower
+      cases hRest : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames bodyEnd rest with
+      | error err =>
+          rw [hRest] at hLower
+          simp only [reduceCtorEq] at hLower
+      | ok restPair =>
+          obtain ⟨restNative, restEnd⟩ := restPair
+          rw [hRest] at hLower
+          simp only [Except.ok.injEq, Prod.mk.injEq] at hLower
+          rcases hLower with ⟨hCases', hFinal⟩
+          subst cases'
+          subst final
+          constructor
+          · intro tag' body' hMem
+            rcases (by simpa using hMem : (tag', body') = (tag, bodyNative) ∨
+                (tag', body') ∈ restNative) with hHead | hTail
+            · cases hHead
+              exact hHeadFresh bodyNative bodyEnd hBody
+            · exact (hRestFresh bodyNative bodyEnd restNative restEnd hBody hRest).1 tag' body' hTail
+          · exact
+              (hRestFresh bodyNative bodyEnd restNative restEnd hBody hRest).2
+
+theorem nativeSwitchTempsFreshForNativeBodies_of_lowerSwitchCasesNativeWithSwitchIds
+    (reservedNames : List String) (nextSwitchId final switchId : Nat)
+    (cases : List (Nat × List YulStmt))
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (defaultBody : List EvmYul.Yul.Ast.Stmt)
+    (hLower :
+      Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames nextSwitchId
+        cases = .ok (cases', final))
+    (hCaseFresh :
+      ∀ tag body bodyNative bodyStart bodyEnd,
+        (tag, body) ∈ cases →
+        Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart body =
+          .ok (bodyNative, bodyEnd) →
+        Backends.nativeSwitchTempsFreshForWrites switchId
+          (Backends.nativeStmtsWriteNames bodyNative))
+    (hDefaultFresh :
+      Backends.nativeSwitchTempsFreshForWrites switchId
+        (Backends.nativeStmtsWriteNames defaultBody)) :
+    Backends.nativeSwitchTempsFreshForNativeBodies switchId cases'
+      defaultBody := by
+  induction cases generalizing nextSwitchId cases' final with
+  | nil =>
+    rw [Backends.lowerSwitchCasesNativeWithSwitchIds_nil] at hLower
+    rcases (by simpa using hLower : cases' = [] ∧ nextSwitchId = final) with
+      ⟨hCases', _⟩
+    subst cases'
+    simp [Backends.nativeSwitchTempsFreshForNativeBodies, hDefaultFresh]
+  | cons head rest ih =>
+    obtain ⟨tag, body⟩ := head
+    exact
+      nativeSwitchTempsFreshForNativeBodies_cons_of_lowerSwitchCasesNativeWithSwitchIds
+        reservedNames nextSwitchId final switchId tag body rest cases'
+        defaultBody hLower
+        (by
+          intro bodyNative bodyEnd hBody
+          exact hCaseFresh tag body bodyNative nextSwitchId bodyEnd
+            (by simp) hBody)
+        (by
+          intro bodyNative bodyEnd restNative restEnd _hBody hRest
+          exact ih bodyEnd restEnd restNative hRest (by
+            intro tag' body' bodyNative' bodyStart bodyEnd' hMem hLowerBody
+            exact hCaseFresh tag' body' bodyNative' bodyStart bodyEnd'
+              (by simp [hMem]) hLowerBody))
+
+theorem nativeSwitchTempsFreshForNativeBodies_buildSwitchSourceCases_of_lowerSwitchCasesNativeWithSwitchIds_of_case_body_fresh
+    (reservedNames : List String) (n0 midN : Nat)
+    (funcs : List IRFunction)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLower : Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
+      (Backends.freshNativeSwitchId reservedNames n0 + 1)
+      (buildSwitchSourceCases funcs) = .ok (cases', midN))
+    (hCaseFresh :
+      ∀ fn bodyNative bodyStart bodyEnd,
+        fn ∈ funcs →
+        Backends.lowerStmtsNativeWithSwitchIds reservedNames bodyStart
+          (switchCaseBody fn) = .ok (bodyNative, bodyEnd) →
+        Backends.nativeSwitchTempsFreshForWrites
+          (Backends.freshNativeSwitchId reservedNames n0)
+          (Backends.nativeStmtsWriteNames bodyNative)) :
+    Backends.nativeSwitchTempsFreshForNativeBodies
+      (Backends.freshNativeSwitchId reservedNames n0) cases'
+      [nativeRevertZeroZeroStmt] := by
+  exact
+    nativeSwitchTempsFreshForNativeBodies_of_lowerSwitchCasesNativeWithSwitchIds
+      reservedNames (Backends.freshNativeSwitchId reservedNames n0 + 1) midN
+      (Backends.freshNativeSwitchId reservedNames n0)
+      (buildSwitchSourceCases funcs) cases' [nativeRevertZeroZeroStmt] hLower
+      (by
+        intro tag body bodyNative bodyStart bodyEnd hMem hLowerBody
+        simp only [buildSwitchSourceCases, List.mem_map] at hMem
+        rcases hMem with ⟨fn, hFnMem, hEq⟩
+        cases hEq
+        exact hCaseFresh fn bodyNative bodyStart bodyEnd hFnMem hLowerBody)
+      (nativeSwitchTempsFreshForWrites_nativeRevertZeroZeroStmt
+        (Backends.freshNativeSwitchId reservedNames n0))
 
 set_option linter.unusedSimpArgs false in
 /-- A singleton switch whose default is `revert(0,0)` lowers to a singleton
