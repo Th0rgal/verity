@@ -6435,6 +6435,38 @@ theorem selectedFunctionBodyBridgedAndLowered_of_compile_ok_supported
     lowerStmtsNativeWithSwitchIds_selectedFunctionBody_exists_of_compile_ok_supported
       reservedNames nextSwitchId hCompile hSupported hFind⟩
 
+/-- Supported compiler output discharges the selected generated user-body
+closure facts that are independent of semantic execution: the selected body is
+in the bridged fragment, the native body lowerer succeeds in the caller's
+switch-id context, and the selected ABI calldata threshold fits in an EVM word.
+
+This is the compile-derived half of the remaining selected-body result bridge;
+the still-missing piece is the generic native simulation theorem that turns the
+lowered body execution into the `NativeGeneratedSelectedUserBodyResultBridgeAtFuel`
+result surface. -/
+private theorem NativeGeneratedSelectedUserBodyResultBridgeAtFuel.selected_body_closure_of_compile_ok_supported
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (hSupported : SupportedSpec spec selectors)
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (hcompile : CompilationModel.compile spec selectors = Except.ok irContract) :
+    ∀ (fn : IRFunction) (reservedNames : List String) (nextSwitchId : Nat),
+      irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+      Compiler.Proofs.YulGeneration.Backends.BridgedStmts fn.body ∧
+      (∃ (bodyNative : List EvmYul.Yul.Ast.Stmt) (finalSwitchId : Nat),
+        Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+            reservedNames nextSwitchId fn.body =
+          .ok (bodyNative, finalSwitchId)) ∧
+      4 + fn.params.length * 32 < EvmYul.UInt256.size := by
+  intro fn reservedNames nextSwitchId hFind
+  rcases selectedFunctionBodyBridgedAndLowered_of_compile_ok_supported
+      reservedNames nextSwitchId hcompile hSupported hFind with
+    ⟨hBridged, hLowered⟩
+  exact ⟨hBridged, hLowered,
+    generatedFunctionCalldataThreshold_of_compile_ok_supported
+      spec selectors hSupported irContract tx hcompile fn hFind⟩
+
 /-- Supported compiler output always lowers to a native generated-runtime
 contract. This discharges the executable lowerer from `SupportedSpec +
 compile`: supported external bodies contain no nested function definitions, and

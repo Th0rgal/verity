@@ -500,6 +500,23 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
+    def test_public_theorem_target_guard_rejects_public_lowering_witness_name(self) -> None:
+        end_to_end_text = self.replace_in_theorem_signature(
+            check.END_TO_END.read_text(encoding="utf-8"),
+            "nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported",
+            "hUserBodyHalt",
+            "hLowerRuntime",
+        )
+        errors = check.check_public_theorem_target(
+            end_to_end_text,
+            check.NATIVE_HARNESS.read_text(encoding="utf-8"),
+            check.RETARGET.read_text(encoding="utf-8"),
+        )
+        self.assertTrue(
+            any("hLowerRuntime" in error for error in errors),
+            errors,
+        )
+
     def test_public_theorem_target_guard_rejects_exact_call_dispatcher_lower_witness(self) -> None:
         end_to_end_text = self.replace_in_theorem_signature(
             check.END_TO_END.read_text(encoding="utf-8"),

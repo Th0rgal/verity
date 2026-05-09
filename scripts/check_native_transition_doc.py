@@ -314,7 +314,7 @@ def contains_required_lean_decl(normalized_text: str, required: str) -> bool:
 
 
 def theorem_signature(text: str, theorem_name: str) -> str:
-    """Return the theorem statement through its `:= by` proof delimiter."""
+    """Return the theorem statement through its `:=` proof delimiter."""
 
     match = re.search(
         r"^\s*(?:private\s+)?theorem\s+" + re.escape(theorem_name) + r"\b",
@@ -323,10 +323,28 @@ def theorem_signature(text: str, theorem_name: str) -> str:
     )
     if match is None:
         return ""
-    proof_start = text.find(":= by", match.start())
+    proof_start = text.find(":=", match.start())
     if proof_start < 0:
         return text[match.start() :]
     return text[match.start() : proof_start]
+
+
+def public_theorem_signatures(text: str) -> list[tuple[str, str]]:
+    """Return public theorem names with their statement through the proof delimiter."""
+
+    signatures: list[tuple[str, str]] = []
+    pattern = re.compile(
+        r"(?m)^[ \t]*(?!private\b)(?!protected\b)theorem\s+"
+        r"(?P<name>[A-Za-z0-9_'.]+)\b"
+    )
+    for match in pattern.finditer(text):
+        proof_start = text.find(":=", match.start())
+        if proof_start < 0:
+            signature = text[match.start() :]
+        else:
+            signature = text[match.start() : proof_start]
+        signatures.append((match.group("name"), signature))
+    return signatures
 
 
 def check_doc(text: str) -> list[str]:
@@ -418,6 +436,19 @@ def check_public_theorem_target(
             "builtin-dispatch wrapper `evalBuiltinCall`; keep those notes and "
             "dependencies below the public EndToEnd surface"
         )
+
+    for theorem_name, signature in public_theorem_signatures(end_to_end_text):
+        for forbidden_lowering_obligation in (
+            "hLowerRuntime",
+            "hLowerDispatcher",
+            "hLower",
+        ):
+            if re.search(r"\b" + re.escape(forbidden_lowering_obligation) + r"\b", signature):
+                errors.append(
+                    "Compiler/Proofs/EndToEnd.lean public theorem "
+                    f"`{theorem_name}` must not expose native lowering witness "
+                    f"obligation `{forbidden_lowering_obligation}`"
+                )
 
     for required_native_surface in (
         "def nativeResultsMatch",

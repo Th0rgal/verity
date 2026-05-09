@@ -1003,6 +1003,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_selectedSwitchCaseBody_exists_of_compile_ok_supported
   Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_selectedFunctionBody_exists_of_compile_ok_supported
   Compiler.Proofs.EndToEnd.selectedFunctionBodyBridgedAndLowered_of_compile_ok_supported
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.selected_body_closure_of_compile_ok_supported  -- private
   Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_exists
   -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved  -- private
   -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_public_dispatcher_reserved  -- private
@@ -5481,4 +5482,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5195 theorems/lemmas (3506 public, 1689 private, 0 sorry'd)
+-- Total: 5196 theorems/lemmas (3506 public, 1690 private, 0 sorry'd)
