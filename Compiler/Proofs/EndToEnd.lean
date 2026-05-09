@@ -20346,14 +20346,14 @@ theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported
     ⟨nativeContract, _hLower, hMatch⟩
   exact ⟨nativeContract, hMatch⟩
 
-/-- Source-level native compiler correctness for the generated
-`EvmYul.Yul.callDispatcher` projection.
+/-- Source-level native compiler correctness for the generated native runtime.
 
 This is the public composition surface over the generated native dispatcher
 stack: `SupportedSpec + compile` discharges the lowered native runtime witness
-internally, selector miss and generated selector-hit guard failures are
-discharged internally, and the remaining selected-body halt execution bridge is
-composed with the source-to-IR compiler theorem. -/
+internally, rewrites the projected `EvmYul.Yul.callDispatcher` result to the
+canonical `interpretIRRuntimeNative` target, discharges selector miss and
+generated selector-hit guard failures internally, and composes the remaining
+selected-body halt execution bridge with the source-to-IR compiler theorem. -/
 theorem compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (hSupported : SupportedSpec spec selectors)
@@ -20372,26 +20372,49 @@ theorem compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_ca
     (hUserBodyHalt :
       NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel irContract tx
         (FunctionBody.initialIRStateForTx spec tx initialWorld)
-        observableSlots) :
-    ∃ nativeContract : EvmYul.Yul.Ast.YulContract,
-      sourceResultMatchesNativeOn observableSlots
-        (supportedSourceContractSemantics spec selectors hSupported tx
-          initialWorld)
-        (nativeGeneratedCallDispatcherResultOf irContract tx
-          (FunctionBody.initialIRStateForTx spec tx initialWorld)
-          observableSlots nativeContract) := by
+        observableSlots)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
+    sourceResultMatchesNativeOn observableSlots
+      (supportedSourceContractSemantics spec selectors hSupported tx
+        initialWorld)
+      (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+        (Nat.succ (sizeOf (Compiler.emitYul irContract).runtimeCode))
+        irContract tx (FunctionBody.initialIRStateForTx spec tx initialWorld)
+        observableSlots) := by
   rcases
-      nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported
+      nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_result_threshold
         spec selectors hSupported irContract tx
         (FunctionBody.initialIRStateForTx spec tx initialWorld)
         observableSlots hcompile hSelectorRange hSelectorsRange hNoWrap
-        hUserBodyHalt with
-    ⟨nativeContract, hMatch⟩
+        (NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_halt
+          irContract tx (FunctionBody.initialIRStateForTx spec tx initialWorld)
+          observableSlots hUserBodyHalt)
+        (fun fn hFind =>
+          generatedFunctionCalldataThreshold_of_compile_ok_supported
+            spec selectors hSupported irContract tx hcompile fn hFind) with
+    ⟨nativeContract, hLower, hMatch⟩
+  have hEq :
+      nativeGeneratedCallDispatcherResultOf irContract tx
+          (FunctionBody.initialIRStateForTx spec tx initialWorld)
+          observableSlots nativeContract =
+        Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+          (Nat.succ (sizeOf (Compiler.emitYul irContract).runtimeCode))
+          irContract tx
+          (FunctionBody.initialIRStateForTx spec tx initialWorld)
+          observableSlots :=
+    nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNative_of_lowerRuntimeContractNative_supported
+      tx (FunctionBody.initialIRStateForTx spec tx initialWorld) observableSlots
+      nativeContract hcompile hSupported hLower hEnv
+  rw [hEq] at hMatch
   exact
-    ⟨nativeContract,
-      compile_preserves_native_evmYulLean_of_nativeGeneratedCallDispatcherResult_match
-        spec selectors hSupported irContract tx initialWorld observableSlots
-        nativeContract htxNormalized hcalldataSizeFits hcompile hMatch⟩
+    sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
+      (Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
+        spec selectors hSupported irContract tx initialWorld htxNormalized
+        hcalldataSizeFits hcompile)
+      hMatch
 
 /-- Generated `callDispatcher` result theorem from `SupportedSpec + compile`,
 modulo the selected-body proof and the dispatcher continuation provider.

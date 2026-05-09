@@ -433,12 +433,12 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             errors,
         )
 
-    def test_public_theorem_target_guard_rejects_source_level_generated_theorem_old_runtime_target(self) -> None:
+    def test_public_theorem_target_guard_rejects_source_level_generated_theorem_direct_projected_target(self) -> None:
         end_to_end_text = self.replace_in_theorem_signature(
             check.END_TO_END.read_text(encoding="utf-8"),
             "compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher",
-            "nativeGeneratedCallDispatcherResultOf",
             "Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative",
+            "nativeGeneratedCallDispatcherResultOf",
         )
         errors = check.check_public_theorem_target(
             end_to_end_text,
@@ -446,7 +446,7 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
             check.RETARGET.read_text(encoding="utf-8"),
         )
         self.assertTrue(
-            any("interpretIRRuntimeNative" in error for error in errors),
+            any("nativeGeneratedCallDispatcherResultOf" in error for error in errors),
             errors,
         )
 

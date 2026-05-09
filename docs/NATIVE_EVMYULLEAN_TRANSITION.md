@@ -276,10 +276,12 @@ scope so the native path does not look more complete than it is:
   `NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel`. The source-level
   public composition theorem
   `compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher`
-  now packages that generated dispatcher result with the source-to-IR compiler
-  theorem and discharges the lowered native runtime witness internally. The
-  public IR/native theorem keeps the direct projected result target. The public
-  theorem no longer exposes full `DispatchGuardsSafe`; `SupportedSpec` carries the selected function calldata-threshold inventory, and
+  now rewrites the generated dispatcher result to the canonical
+  `interpretIRRuntimeNative` target, packages that result with the source-to-IR
+  compiler theorem, and discharges the lowered native runtime witness
+  internally. The public IR/native theorem keeps the direct projected result
+  target. The public theorem no longer exposes full `DispatchGuardsSafe`;
+  `SupportedSpec` carries the selected function calldata-threshold inventory, and
   `generatedFunctionCalldataThreshold_of_compile_ok_supported` transports that
   inventory across `compile` to the generated IR function selected by the
   dispatcher. Legacy premise-taking `compile_preserves_native_evmYulLean_*`

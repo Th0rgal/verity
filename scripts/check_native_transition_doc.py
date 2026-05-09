@@ -873,7 +873,7 @@ def check_public_theorem_target(
         for required_source_signature_target in (
             "sourceResultMatchesNativeOn",
             "NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel",
-            "nativeGeneratedCallDispatcherResultOf",
+            "interpretIRRuntimeNative",
         ):
             if required_source_signature_target not in source_generated_signature:
                 errors.append(
@@ -884,8 +884,8 @@ def check_public_theorem_target(
         for forbidden_source_signature_target in (
             "DispatchGuardsSafe",
             "NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived",
-            "interpretIRRuntimeNative",
             "lowerRuntimeContractNative",
+            "nativeGeneratedCallDispatcherResultOf",
         ):
             if forbidden_source_signature_target in source_generated_signature:
                 errors.append(
