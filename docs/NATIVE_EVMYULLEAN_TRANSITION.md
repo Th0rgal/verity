@@ -331,7 +331,12 @@ scope so the native path does not look more complete than it is:
   the full lowered `cases'` list. The next adapter should therefore stay at the
   dispatcher artifact boundary, or widen the preservation callback to carry
   `hLowerCases`, instead of trying to reconstruct whole-case freshness from a
-  selected body lowering alone.
+  selected body lowering alone. The mapping-helper side now has that
+  dispatcher-boundary handoff under
+  `nativeGeneratedSelectorHitBodyPreservesMatched_mapping_of_switchFresh` and
+  `NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh`,
+  mirroring the earlier mapping-free `switchFresh` adapter while keeping
+  mapping-specific straight-body side conditions private.
   A fully closed
   `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_compile_ok_supported`
   lemma is still missing. The proof cannot be completed from the current

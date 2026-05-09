@@ -246,6 +246,9 @@ REQUIRED_SNIPPETS = (
     "recovers matched-flag freshness for the actual lowered user body",
     "before the selected-body preservation callback loses the current",
     "widen the preservation callback to carry",
+    "nativeGeneratedSelectorHitBodyPreservesMatched_mapping_of_switchFresh",
+    "NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh",
+    "mapping-specific straight-body side conditions private",
     "singleton-`leave` base case",
     "execIRStmts_single_leave_succ_succ",
     "exec_block_leave_ok_add_ten",
@@ -640,6 +643,8 @@ def check_public_theorem_target(
         "theorem NativeGeneratedSelectedUserBodyResultBridgeAtFuel.selected_body_closure_of_compile_ok_supported",
         "theorem NativeGeneratedSelectedUserBodyResultBridgeAtFuel.selected_body_artifacts_of_compile_ok_supported",
         "theorem selectedUserBodyClosureAndMatchedFresh_of_compile_ok_supported_switchFresh",
+        "theorem nativeGeneratedSelectorHitBodyPreservesMatched_mapping_of_switchFresh",
+        "theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh",
         "theorem NativeGeneratedSelectorHitUserBodyExecOnlyBridgeAtFuelRevived.of_exec_bridge",
         "theorem NativeGeneratedSelectorHitUserBodyExecOnlyBridgeAtFuelRevived.of_selected_user_body_exec_only",
         "theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_exec_bridge",
@@ -705,6 +710,14 @@ def check_public_theorem_target(
         (
             "theorem",
             "NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_and_bridgedStraightStmts_mappingFree",
+        ),
+        (
+            "theorem",
+            "nativeGeneratedSelectorHitBodyPreservesMatched_mapping_of_switchFresh",
+        ),
+        (
+            "theorem",
+            "NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh",
         ),
         (
             "theorem",
