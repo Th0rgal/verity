@@ -20149,20 +20149,18 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
         Compiler.Proofs.YulGeneration.Backends.Native.NativeMappingFreePreservableStraightStmts
           fn.body)
     (hSwitchFresh :
-      ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
+      ∀ (nativeContract : EvmYul.Yul.Ast.YulContract)
         (reservedNames : List String) (n0 : Nat)
-        (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
-        (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+        (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
         Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
             (Compiler.emitYul irContract).runtimeCode = .ok nativeContract →
-        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
-            some fn →
-        cases'.find? (fun entry => entry.1 == tx.functionSelector) =
-            some (tx.functionSelector, body') →
-        Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-            reservedNames bodyStart
-            (Compiler.Proofs.YulGeneration.Backends.Native.switchCaseBody fn) =
-              .ok (body', bodyEnd) →
+        Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds
+            reservedNames
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames n0 + 1)
+            (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+              irContract.functions) =
+              .ok (cases', midN) →
         Compiler.Proofs.YulGeneration.Backends.nativeSwitchTempsFreshForNativeBodies
           (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
             reservedNames n0)
@@ -20267,8 +20265,8 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
       nativeGeneratedSelectorHitBodyPreservesMatched_mappingFree_of_switchFresh
         irContract tx hBodyStraight nativeContract fn reservedNames n0 cases'
         body' bodyStart bodyEnd hLowerRuntime hFind hCase hBodyLower
-        (hSwitchFresh nativeContract fn reservedNames n0 cases' body'
-          bodyStart bodyEnd hLowerRuntime hFind hCase hBodyLower)
+        (hSwitchFresh nativeContract reservedNames n0 cases' _midN
+          hLowerRuntime hLowerCases)
   by_cases hPayable : fn.payable
   · rcases
       Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq
@@ -20862,20 +20860,18 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
           Compiler.Proofs.YulGeneration.Backends.Native.NativeMappingFreeSideConditionForBridgedStraightStmt
             stmt)
     (hSwitchFresh :
-      ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
+      ∀ (nativeContract : EvmYul.Yul.Ast.YulContract)
         (reservedNames : List String) (n0 : Nat)
-        (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
-        (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
+        (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
         Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
             (Compiler.emitYul irContract).runtimeCode = .ok nativeContract →
-        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
-            some fn →
-        cases'.find? (fun entry => entry.1 == tx.functionSelector) =
-            some (tx.functionSelector, body') →
-        Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-            reservedNames bodyStart
-            (Compiler.Proofs.YulGeneration.Backends.Native.switchCaseBody fn) =
-              .ok (body', bodyEnd) →
+        Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds
+            reservedNames
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames n0 + 1)
+            (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+              irContract.functions) =
+              .ok (cases', midN) →
         Compiler.Proofs.YulGeneration.Backends.nativeSwitchTempsFreshForNativeBodies
           (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
             reservedNames n0)

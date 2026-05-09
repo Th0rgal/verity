@@ -296,6 +296,23 @@ def normalize_ws(text: str) -> str:
     return " ".join(text.split())
 
 
+def contains_required_lean_decl(normalized_text: str, required: str) -> bool:
+    """Return whether a normalized Lean file contains the exact declaration."""
+
+    parts = required.split(maxsplit=1)
+    if len(parts) != 2 or parts[0] not in {"def", "theorem"}:
+        return required in normalized_text
+    keyword, name = parts
+    pattern = (
+        r"(?:^| )(?:(?:private|protected)\s+)?"
+        + re.escape(keyword)
+        + r"\s+"
+        + re.escape(name)
+        + r"(?![A-Za-z0-9_'.])"
+    )
+    return re.search(pattern, normalized_text) is not None
+
+
 def theorem_signature(text: str, theorem_name: str) -> str:
     """Return the theorem statement through its `:= by` proof delimiter."""
 
@@ -413,7 +430,7 @@ def check_public_theorem_target(
         "theorem lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved",
         "theorem lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved",
     ):
-        if required_native_surface not in normalized_native_harness:
+        if not contains_required_lean_decl(normalized_native_harness, required_native_surface):
             errors.append(
                 "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean "
                 "must own the native theorem/result surface "
@@ -430,7 +447,9 @@ def check_public_theorem_target(
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match",
         "theorem nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match",
     ):
-        if required_end_to_end_native_surface not in normalized_end_to_end:
+        if not contains_required_lean_decl(
+            normalized_end_to_end, required_end_to_end_native_surface
+        ):
             errors.append(
                 "Compiler/Proofs/EndToEnd.lean must own the native-vs-IR "
                 "comparison surface "
@@ -590,7 +609,7 @@ def check_public_theorem_target(
         "theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mappingFree",
         "theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_result_threshold",
     ):
-        if required_native_seam not in normalized_end_to_end:
+        if not contains_required_lean_decl(normalized_end_to_end, required_native_seam):
             errors.append(
                 "Compiler/Proofs/EndToEnd.lean must keep the native theorem seam "
                 f"`{required_native_seam}` explicit until the generated-fragment "
