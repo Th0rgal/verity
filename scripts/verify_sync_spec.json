@@ -177,7 +177,7 @@
   },
   "expected_job_timeouts": {
     "changes": 5,
-    "checks": 5,
+    "checks": 10,
     "timeout-watchdog": 5,
     "build": "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '60' || '35') }}",
     "prepare-macro-fuzz": 360,

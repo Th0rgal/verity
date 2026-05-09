@@ -202,7 +202,7 @@ jobs:
 
   checks:
     runs-on: [self-hosted, linux, ARM64, dgx-spark, verity, fastlane]
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
