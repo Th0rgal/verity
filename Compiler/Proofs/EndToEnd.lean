@@ -6205,7 +6205,7 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping
 
 /-- Successful no-mapping native lowering for supported compiler output exposes
 the concrete generated dispatcher lowering and produced native contract. -/
-theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
+private theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -6230,12 +6230,12 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatch
       spec selectors hSupported irContract hCompile)
     hLower
 
-/-- Public-contract-shell form of
+/-- Dispatcher-contract-shell form of
 `lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher`.
 
 This exposes the native contract used by `EvmYul.Yul.callDispatcher` through
-the public helper-free generated-dispatcher shell. -/
-theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_public_dispatcher
+the helper-free generated-dispatcher shell. -/
+private theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_public_dispatcher
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -6491,7 +6491,7 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_exists
 /-- Successful mapping-helper native lowering for supported compiler output
 exposes the concrete generated dispatcher lowering, threaded switch counter,
 and produced native contract. -/
-theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved
+private theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -6518,12 +6518,12 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher
       spec selectors hSupported irContract hCompile)
     hLower
 
-/-- Public-contract-shell form of
+/-- Dispatcher-contract-shell form of
 `lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved`.
 
 This exposes the native contract used by `EvmYul.Yul.callDispatcher` through
-the public generated-dispatcher-plus-`mappingSlot` shell. -/
-theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_public_dispatcher_reserved
+the generated-dispatcher-plus-`mappingSlot` shell. -/
+private theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_public_dispatcher_reserved
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     {nativeContract : EvmYul.Yul.Ast.YulContract}
@@ -6547,13 +6547,13 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_public_dis
   simpa [nativeContractOfDispatcherWithMapping,
     nativeGeneratedDispatcherContractWithMappingOf] using hContract
 
-/-- Public generated-runtime lowering split for supported compiler output.
+/-- Generated-runtime lowering split for supported compiler output.
 
 Any successful native lowering of `emitYul irContract.runtimeCode` is one of
-the two public `callDispatcher` contract shells: helper-free when
+the two `callDispatcher` contract shells: helper-free when
 `usesMapping = false`, or dispatcher plus native `mappingSlot` helper when
 `usesMapping = true`. -/
-theorem lowerRuntimeContractNative_of_compile_ok_supported_ok_public_dispatcher_cases
+private theorem lowerRuntimeContractNative_of_compile_ok_supported_ok_public_dispatcher_cases
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
     {nativeContract : EvmYul.Yul.Ast.YulContract}

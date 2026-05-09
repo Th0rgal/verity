@@ -995,8 +995,8 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_ofIR_environment  -- private
   -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_ofIR_globalDefaults  -- private
   Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_noMapping
-  Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
-  Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_public_dispatcher
+  -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher  -- private
+  -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_public_dispatcher  -- private
   Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
   Compiler.Proofs.EndToEnd.lowerStmtsNative_buildSwitch_noFallback_noReceive_exists_of_compile_ok_supported
   Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_exists_of_compile_ok_supported
@@ -1004,9 +1004,9 @@ end Verity.AxiomAudit
   Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_selectedFunctionBody_exists_of_compile_ok_supported
   Compiler.Proofs.EndToEnd.selectedFunctionBodyBridgedAndLowered_of_compile_ok_supported
   Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_exists
-  Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved
-  Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_public_dispatcher_reserved
-  Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_ok_public_dispatcher_cases
+  -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_public_dispatcher_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_ok_public_dispatcher_cases  -- private
   -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_noMapping_dispatcher_ofIR_environment  -- private
   -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_noMapping_dispatcher_ofIR_globalDefaults  -- private
   -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_mapping_dispatcher_ofIR_environment  -- private
@@ -5481,4 +5481,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5195 theorems/lemmas (3521 public, 1674 private, 0 sorry'd)
+-- Total: 5195 theorems/lemmas (3516 public, 1679 private, 0 sorry'd)
