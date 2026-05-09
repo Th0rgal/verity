@@ -248,6 +248,7 @@ REQUIRED_SNIPPETS = (
     "widen the preservation callback to carry",
     "nativeGeneratedSelectorHitBodyPreservesMatched_mapping_of_switchFresh",
     "NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh",
+    "nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh",
     "mapping-specific straight-body side conditions private",
     "singleton-`leave` base case",
     "execIRStmts_single_leave_succ_succ",
@@ -645,6 +646,7 @@ def check_public_theorem_target(
         "theorem selectedUserBodyClosureAndMatchedFresh_of_compile_ok_supported_switchFresh",
         "theorem nativeGeneratedSelectorHitBodyPreservesMatched_mapping_of_switchFresh",
         "theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh",
+        "theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh",
         "theorem NativeGeneratedSelectorHitUserBodyExecOnlyBridgeAtFuelRevived.of_exec_bridge",
         "theorem NativeGeneratedSelectorHitUserBodyExecOnlyBridgeAtFuelRevived.of_selected_user_body_exec_only",
         "theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_exec_bridge",
@@ -718,6 +720,10 @@ def check_public_theorem_target(
         (
             "theorem",
             "NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh",
+        ),
+        (
+            "theorem",
+            "nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh",
         ),
         (
             "theorem",

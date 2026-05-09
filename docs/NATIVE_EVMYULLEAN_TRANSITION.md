@@ -335,6 +335,9 @@ scope so the native path does not look more complete than it is:
   dispatcher-boundary handoff under
   `nativeGeneratedSelectorHitBodyPreservesMatched_mapping_of_switchFresh` and
   `NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh`,
+  with
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh`
+  carrying it back to the generated dispatcher theorem,
   mirroring the earlier mapping-free `switchFresh` adapter while keeping
   mapping-specific straight-body side conditions private.
   A fully closed
