@@ -1167,6 +1167,11 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_forall_stmt_write_not_mem  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_nativeStmtsWriteNames_not_mem  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_and_nativeStmtsWriteNames_not_mem  -- private
+  -- Compiler.Proofs.EndToEnd.nativeStmtsWriteNames_not_mem_of_two_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.nativeStmtsWriteNames_not_mem_of_three_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectedUserBodyMatchedFresh_payable_of_caseFresh  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectedUserBodyMatchedFresh_nonpayable_of_caseFresh  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectedUserBodyMatchedFresh_of_switchFresh  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_mappingFreePreservableStraightStmts  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_and_mappingFreePreservableStraightStmts  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_and_bridgedStraightStmts_mappingFree  -- private
@@ -5459,4 +5464,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5173 theorems/lemmas (3512 public, 1661 private, 0 sorry'd)
+-- Total: 5178 theorems/lemmas (3512 public, 1666 private, 0 sorry'd)
