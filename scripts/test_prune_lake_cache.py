@@ -69,6 +69,39 @@ class PruneLakeCacheTests(unittest.TestCase):
             self.assertFalse(pkg_dir.exists())
             self.assertFalse(root_build.exists())
 
+    def test_packages_only_prunes_bad_packages_without_clearing_build(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            lake_dir = root / ".lake"
+            packages_dir = lake_dir / "packages"
+            pkg_dir = packages_dir / "demo"
+            pkg_dir.mkdir(parents=True)
+            root_build = lake_dir / "build"
+            root_build.mkdir(parents=True)
+            manifest = root / "lake-manifest.json"
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "packages": [
+                            {"type": "git", "name": "demo", "rev": "expected-rev"},
+                        ]
+                    }
+                )
+            )
+
+            with (
+                mock.patch.object(prune_lake_cache, "ROOT", root),
+                mock.patch.object(prune_lake_cache, "LAKE_DIR", lake_dir),
+                mock.patch.object(prune_lake_cache, "PACKAGES_DIR", packages_dir),
+                mock.patch.object(prune_lake_cache, "MANIFEST", manifest),
+                mock.patch.object(prune_lake_cache, "git_head", return_value=None),
+            ):
+                rc = prune_lake_cache.main(["--packages-only"])
+
+            self.assertEqual(rc, 0)
+            self.assertFalse(pkg_dir.exists())
+            self.assertTrue(root_build.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

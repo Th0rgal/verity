@@ -57,7 +57,8 @@ private def literalMappingWrite_supported_function :
           supported := by
             intro param hparam
             rcases (by simpa [literalMappingWriteFunction] using hparam : param = { name := "value", ty := .uint256 }) with rfl
-            trivial }
+            trivial
+          calldataThreshold := by decide }
       returns := { resolved := ⟨[], rfl, trivial⟩ }
       body :=
         { stmtList :=
@@ -159,7 +160,8 @@ private def constructorOnlySupported :
           intro param hparam
           simp [constructorOnlyCtor] at hparam
           rcases hparam with rfl
-          trivial }
+          trivial
+        calldataThreshold := by decide }
     body :=
       { stmtList :=
           .append

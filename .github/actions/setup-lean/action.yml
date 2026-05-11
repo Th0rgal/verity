@@ -221,6 +221,11 @@ runs:
           --path ".lake/build" \
           --fallback-key "${{ steps.persistence.outputs.build_main_fallback_sticky_key }}"
 
+    - name: Prune stale sticky Lake packages
+      if: steps.persistence.outputs.use_sticky_disks == 'true'
+      shell: bash
+      run: python3 scripts/prune_lake_cache.py --packages-only
+
     - name: Refresh Lake dependency state on partial cache hit
       if: steps.persistence.outputs.use_sticky_disks != 'true' && steps.cache-lake.outputs.cache-hit != 'true'
       shell: bash

@@ -1,6 +1,7 @@
 # Compiler Verification Proofs
 
-Formal verification proofs for the Verity compiler pipeline: `EDSL -> CompilationModel -> IR -> Yul`.
+Formal verification proofs for the Verity compiler pipeline:
+`EDSL -> CompilationModel -> IR -> native EVMYulLean`.
 
 See [TRUST_ASSUMPTIONS.md](../../TRUST_ASSUMPTIONS.md) for the full trust boundary and [veritylang.com/verification](https://veritylang.com/verification) for proof status.
 
@@ -8,7 +9,7 @@ See [TRUST_ASSUMPTIONS.md](../../TRUST_ASSUMPTIONS.md) for the full trust bounda
 
 - **Layer 1: EDSL = CompilationModel** -- Frontend semantic bridge. Generic typed-IR core in [`TypedIRCompilerCorrectness.lean`](../../Compiler/TypedIRCompilerCorrectness.lean); contract-level bridges are per-contract.
 - **Layer 2: CompilationModel -> IR** -- Generic whole-contract theorem in [`Contract.lean`](IRGeneration/Contract.lean). 0 sorry, 0 axioms.
-- **Layer 3: IR -> Yul** -- Generic statement/function equivalence in [`Preservation.lean`](YulGeneration/Preservation.lean). Dispatch bridge is an explicit theorem hypothesis.
+- **Native Layer 3: IR -> native EVMYulLean** -- Runtime lowering and dispatcher execution through [`YulGeneration/Backends/EvmYulLeanNativeHarness.lean`](YulGeneration/Backends/EvmYulLeanNativeHarness.lean), composed in [`EndToEnd.lean`](EndToEnd.lean). The older custom-interpreter Yul preservation stack remains lower transition/scaffolding, not the public EndToEnd theorem target.
 
 All three layers carry zero project-specific axioms.
 
@@ -16,14 +17,16 @@ All three layers carry zero project-specific axioms.
 
 | File | Role |
 |------|------|
-| [`EndToEnd.lean`](EndToEnd.lean) | Composed Layers 2+3 theorem |
+| [`EndToEnd.lean`](EndToEnd.lean) | Composed Layer 2 + native EVMYulLean theorem surface |
 | [`IRGeneration/Contract.lean`](IRGeneration/Contract.lean) | Generic whole-contract Layer 2 theorem |
 | [`IRGeneration/SupportedFragment.lean`](IRGeneration/SupportedFragment.lean) | `SupportedStmtList` fragment definition |
 | [`IRGeneration/SupportedSpec.lean`](IRGeneration/SupportedSpec.lean) | Feature-local body interfaces |
 | [`IRGeneration/SourceSemantics.lean`](IRGeneration/SourceSemantics.lean) | Helper-aware source semantics |
 | [`IRGeneration/GenericInduction.lean`](IRGeneration/GenericInduction.lean) | Helper-aware induction interfaces |
-| [`YulGeneration/StatementEquivalence.lean`](YulGeneration/StatementEquivalence.lean) | All 8 Yul statement types proven |
-| [`YulGeneration/Preservation.lean`](YulGeneration/Preservation.lean) | IR -> Yul codegen preservation |
+| [`YulGeneration/Backends/EvmYulLeanNativeHarness.lean`](YulGeneration/Backends/EvmYulLeanNativeHarness.lean) | Native EVMYulLean runtime lowering and dispatcher-exec harness |
+| [`YulGeneration/Backends/EvmYulLeanRetarget.lean`](YulGeneration/Backends/EvmYulLeanRetarget.lean) | Isolated backend-wrapper transition evidence for the bridged fragment |
+| [`YulGeneration/StatementEquivalence.lean`](YulGeneration/StatementEquivalence.lean) | Legacy custom-interpreter statement equivalence scaffolding |
+| [`YulGeneration/Preservation.lean`](YulGeneration/Preservation.lean) | Legacy custom-interpreter IR -> Yul preservation scaffolding |
 
 ## Layer 2 Boundary Status
 

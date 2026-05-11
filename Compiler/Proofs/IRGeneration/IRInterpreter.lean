@@ -15,9 +15,12 @@
 
 import Compiler.IR
 import Compiler.CompilationModel
+import Compiler.Proofs.IRGeneration.IRRuntimeTypes
 import Compiler.Proofs.IRGeneration.IRStorageWord
 import Compiler.Proofs.MappingSlot
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
+import Compiler.Proofs.YulGeneration.LogNames
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Verity.Core
 
 namespace Compiler.Proofs.IRGeneration
@@ -26,6 +29,8 @@ open Compiler
 open Compiler.Yul
 open Verity.Core
 open Compiler.Proofs
+
+export Compiler.Proofs.YulGeneration (isYulLogName)
 
 /-! Size measures for termination proofs. -/
 mutual
@@ -80,77 +85,7 @@ private theorem internal_call_measure_decreases (fuel measure : Nat) :
   rw [Prod.lex_iff]
   exact Or.inl (Nat.lt_succ_self fuel)
 
-/-! ## Execution State for IR -/
-
-structure IRState where
-  /-- Variable bindings (name → value) -/
-  vars : List (String × Nat)
-  /-- Storage slots (slot → value).
-
-      Typed via `IRStorageWord` so Phase 1 of the IR storage refactor can
-      flip the carrier to a `UInt256`-bounded representation without
-      touching this signature. Currently `IRStorageWord` is an `abbrev`
-      for `Nat`, so this is definitionally `Nat → Nat` and existing
-      callsites continue to typecheck. -/
-  storage : IRStorageSlot → IRStorageWord
-  /-- Transient storage slots (slot → value). -/
-  transientStorage : Nat → Nat := fun _ => 0
-  /-- Memory words (offset → value) -/
-  memory : Nat → Nat
-  /-- Calldata words (argument index → value) -/
-  calldata : List Nat
-  /-- Return value (if any) -/
-  returnValue : Option Nat
-  /-- Sender address -/
-  sender : Nat
-  /-- Msg.value seen by `callvalue()`. -/
-  msgValue : Nat := 0
-  /-- Contract address seen by `address()`. -/
-  thisAddress : Nat := 0
-  /-- Block timestamp seen by `timestamp()`. -/
-  blockTimestamp : Nat := 0
-  /-- Block number seen by `number()`. -/
-  blockNumber : Nat := 0
-  /-- Chain id seen by `chainid()`. -/
-  chainId : Nat := 0
-  /-- Blob base fee seen by `blobbasefee()`. -/
-  blobBaseFee : Nat := 0
-  /-- Function selector (4-byte value used by calldataload(0)) -/
-  selector : Nat
-  /-- Emitted log records for this execution. -/
-  events : List (List Nat) := []
-  deriving Nonempty
-
-/-- Initial state for IR execution -/
-def IRState.initial (sender : Nat) : IRState :=
-  { vars := []
-    storage := fun _ => 0
-    transientStorage := fun _ => 0
-    memory := fun _ => 0
-    calldata := []
-    returnValue := none
-    sender := sender
-    msgValue := 0
-    thisAddress := 0
-    blockTimestamp := 0
-    blockNumber := 0
-    chainId := 0
-    blobBaseFee := 0
-    selector := 0
-    events := [] }
-
-/-- Lookup variable in state -/
-def IRState.getVar (s : IRState) (name : String) : Option Nat :=
-  s.vars.find? (·.1 == name) |>.map (·.2)
-
-/-- Set variable in state -/
-def IRState.setVar (s : IRState) (name : String) (value : Nat) : IRState :=
-  { s with vars := (name, value) :: s.vars.filter (·.1 != name) }
-
-/-- Set several variables in order, matching the left-to-right binding behavior used
-by parameter initialization and multi-return helper calls. -/
-def IRState.setVars (s : IRState) (bindings : List (String × Nat)) : IRState :=
-  bindings.foldl (fun st (name, value) => st.setVar name value) s
+/-! ## Execution State Helpers -/
 
 def byteWordCount (size : Nat) : Nat :=
   (size + 31) / 32
@@ -183,10 +118,6 @@ def encodeYulLogEvent (memory : Nat → Nat) (offset size : Nat)
 def IRState.appendYulLog (s : IRState) (offset size : Nat)
     (topics : List Nat) : IRState :=
   { s with events := s.events ++ [encodeYulLogEvent s.memory offset size topics] }
-
-def isYulLogName (func : String) : Bool :=
-  func == "log0" || func == "log1" || func == "log2" ||
-    func == "log3" || func == "log4"
 
 def applyYulLogCall? (state : IRState) (func : String)
     (argVals : List Nat) : Option IRState :=
@@ -334,8 +265,7 @@ def evalIRCall (state : IRState) (func : String) : List YulExpr → Option Nat
       | [offset, size] => some (abstractKeccakMemorySlice state.memory offset size)
       | _ => none
     else
-      Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-        Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+      Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
         state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
         state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
@@ -385,8 +315,21 @@ end -- mutual
         (fun offset => some (Compiler.Proofs.YulGeneration.calldataloadWord
           state.selector state.calldata offset)) := by
   simp [evalIRCall, evalIRExprs,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-    Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
+  cases evalIRExpr state argExpr with
+  | none => simp
+  | some val => simp
+
+@[simp] theorem evalIRCall_sload_singleton
+    (state : IRState) (argExpr : YulExpr) :
+    evalIRCall state "sload" [argExpr] =
+      (evalIRExpr state argExpr).bind
+        (fun slot => some (Compiler.Proofs.abstractLoadStorageOrMapping state.storage slot).toNat) := by
+  simp [evalIRCall, evalIRExprs,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
+    Compiler.Proofs.abstractLoadStorageOrMapping]
   cases evalIRExpr state argExpr with
   | none => simp
   | some val => simp
@@ -535,8 +478,7 @@ def evalIRCallWithInternals
             | [offset, size] => .values [abstractKeccakMemorySlice state'.memory offset size] state'
             | _ => .revert state'
           else
-            match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+            match Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                 state'.storage state'.sender state'.msgValue state'.thisAddress
                 state'.blockTimestamp state'.blockNumber state'.chainId state'.blobBaseFee
                 state'.selector state'.calldata func argVals with
@@ -1079,6 +1021,11 @@ theorem execIRStmts_sstore_lit_expr_then_stop_succ_succ_succ_of_eval
       .stop state := by
   simp only [execIRStmts, execIRStmt]
 
+@[simp] theorem execIRStmts_single_leave_succ_succ (fuel : Nat) (state : IRState) :
+    execIRStmts (Nat.succ (Nat.succ fuel)) state [YulStmt.leave] =
+      .continue state := by
+  simp only [execIRStmts, execIRStmt]
+
 /-- A top-level `length + 1` fuel budget is not sufficient once a single list
 is wrapped in a `block`: entering the block consumes one step and leaves only
 `1` fuel for the nested body, which immediately reverts on its first
@@ -1095,18 +1042,6 @@ theorem execIRStmts_single_block_stop_length_insufficient
   simp [execIRStmts, execIRStmt]
 
 /-! ## IR Function Execution -/
-
-structure IRTransaction where
-  sender : Nat
-  msgValue : Nat := 0
-  thisAddress : Nat := 0
-  blockTimestamp : Nat := 0
-  blockNumber : Nat := 0
-  chainId : Nat := 0
-  blobBaseFee : Nat := 0
-  functionSelector : Nat
-  args : List Nat
-  deriving Repr
 
 /-- Apply transaction context fields to an IR state, leaving storage and
 other non-transaction fields unchanged. -/
@@ -1128,13 +1063,6 @@ other non-transaction fields unchanged. -/
     (s.withTx tx).storage = s.storage := rfl
 @[simp] theorem IRState.withTx_events (s : IRState) (tx : IRTransaction) :
     (s.withTx tx).events = s.events := rfl
-
-structure IRResult where
-  success : Bool
-  returnValue : Option Nat
-  finalStorage : IRStorageSlot → IRStorageWord
-  finalMappings : Nat → Nat → IRStorageWord
-  events : List (List Nat)
 
 /-- Execute an IR function with given arguments.
 Uses `sizeOf fn.body + 1` fuel, which is sufficient for any terminating execution
@@ -1226,13 +1154,20 @@ noncomputable def interpretIR (contract : IRContract) (tx : IRTransaction) (init
     chainId := tx.chainId
     blobBaseFee := tx.blobBaseFee
     calldata := tx.args
+    returnValue := none
     selector := tx.functionSelector
   }
 
   -- Find matching function by selector
   match contract.functions.find? (·.selector == tx.functionSelector) with
   | some fn =>
-    if _ : fn.params.length ≤ tx.args.length then
+    if !fn.payable && tx.msgValue % Compiler.Constants.evmModulus != 0 then
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events }
+    else if _ : fn.params.length ≤ tx.args.length then
       execIRFunction fn tx.args initialState
     else
       { success := false
@@ -1264,11 +1199,18 @@ noncomputable def interpretIRWithInternals
     chainId := tx.chainId
     blobBaseFee := tx.blobBaseFee
     calldata := tx.args
+    returnValue := none
     selector := tx.functionSelector
   }
   match contract.functions.find? (·.selector == tx.functionSelector) with
   | some fn =>
-      if _ : fn.params.length ≤ tx.args.length then
+      if !fn.payable && tx.msgValue % Compiler.Constants.evmModulus != 0 then
+        { success := false
+          returnValue := none
+          finalStorage := initialState.storage
+          finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+          events := initialState.events }
+      else if _ : fn.params.length ≤ tx.args.length then
         execIRFunctionWithInternals contract helperFuel fn tx.args initialState
       else
         { success := false
@@ -1419,8 +1361,7 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_no_internal
                         cases rest <;> simp
               · simp only [htload, hmload, hkeccak, ↓reduceIte]
                 cases hbuiltin :
-                    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                       state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                       state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
                 | none => simp [hbuiltin]
@@ -1583,8 +1524,7 @@ theorem evalIRExprWithInternals_eq_evalIRExpr_of_callsDisjoint
                         cases rest <;> simp
               · simp only [htload, hmload, hkeccak, ↓reduceIte]
                 cases hbuiltin :
-                    Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                      Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                       state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                       state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
                 | none => simp [hbuiltin]
@@ -1752,8 +1692,7 @@ theorem evalIRCallWithInternals_stmt_eq_of_callsDisjoint
                     cases rest <;> simp
           · simp only [htload, hmload, hkeccak, ↓reduceIte]
             cases hbuiltin :
-                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                  Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                   state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                   state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
             | none => simp [hbuiltin]
@@ -1805,8 +1744,7 @@ theorem evalIRCallWithInternals_stmt_eq_of_no_internal
                     cases rest <;> simp
           · simp only [htload, hmload, hkeccak, ↓reduceIte]
             cases hbuiltin :
-                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-                  Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+                Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
                   state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
                   state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals with
             | none => simp [hbuiltin]
@@ -3258,7 +3196,80 @@ def applyIRTransactionContext (tx : IRTransaction) (initialState : IRState) : IR
     chainId := tx.chainId
     blobBaseFee := tx.blobBaseFee
     calldata := tx.args
+    returnValue := none
     selector := tx.functionSelector }
+
+theorem interpretIR_eq_execIRFunction_of_find?_some_guards
+    (contract : IRContract)
+    (tx : IRTransaction)
+    (initialState : IRState)
+    (fn : IRFunction)
+    (hFind :
+      contract.functions.find? (·.selector == tx.functionSelector) = some fn)
+    (hValue :
+      fn.payable = false →
+        tx.msgValue % Compiler.Constants.evmModulus = 0)
+    (hArgs : fn.params.length ≤ tx.args.length) :
+    interpretIR contract tx initialState =
+      execIRFunction fn tx.args (applyIRTransactionContext tx initialState) := by
+  unfold interpretIR applyIRTransactionContext
+  rw [hFind]
+  by_cases hPayable : fn.payable
+  · simp [hPayable, hArgs]
+  · have hPayableFalse : fn.payable = false := Bool.eq_false_iff.2 hPayable
+    have hMsgValue : tx.msgValue % Compiler.Constants.evmModulus = 0 :=
+      hValue hPayableFalse
+    simp [hPayableFalse, hMsgValue, hArgs]
+
+theorem interpretIR_eq_revert_of_find?_some_nonpayable_nonzero
+    (contract : IRContract)
+    (tx : IRTransaction)
+    (initialState : IRState)
+    (fn : IRFunction)
+    (hFind :
+      contract.functions.find? (·.selector == tx.functionSelector) = some fn)
+    (hNonPayable : fn.payable = false)
+    (hNonzero : tx.msgValue % Compiler.Constants.evmModulus ≠ 0) :
+    interpretIR contract tx initialState =
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  unfold interpretIR
+  rw [hFind]
+  simp [hNonPayable, hNonzero]
+
+theorem interpretIR_eq_revert_of_find?_some_args_short
+    (contract : IRContract)
+    (tx : IRTransaction)
+    (initialState : IRState)
+    (fn : IRFunction)
+    (hFind :
+      contract.functions.find? (·.selector == tx.functionSelector) = some fn)
+    (hValue :
+      fn.payable = true ∨
+        tx.msgValue % Compiler.Constants.evmModulus = 0)
+    (hArgsShort : ¬ fn.params.length ≤ tx.args.length) :
+    interpretIR contract tx initialState =
+      { success := false
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  unfold interpretIR
+  rw [hFind]
+  by_cases hPayableTrue : fn.payable = true
+  · simp [hPayableTrue, hArgsShort]
+  · have hPayableFalse : fn.payable = false := by
+      cases hp : fn.payable
+      · rfl
+      · exact False.elim (hPayableTrue hp)
+    have hMsgValue : tx.msgValue % Compiler.Constants.evmModulus = 0 := by
+      rcases hValue with hValue | hValue
+      · simp [hPayableFalse] at hValue
+      · exact hValue
+    simp [hPayableFalse, hMsgValue, hArgsShort]
 
 /-- Dispatch-local restatement of the helper-free runtime-contract boundary.
 This is equivalent to `LegacyCompatibleRuntimeContract`, but packages the
@@ -3334,8 +3345,10 @@ theorem interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal
           tx initialState fn hfind
       simp only [interpretIRWithInternals, interpretIR, hfind]
       split
-      · exact hdispatchCompat
       · rfl
+      · split
+        · exact hdispatchCompat
+        · rfl
 
 /-- After the preceding reductions, the first compiled-side helper retarget
 theorem is equivalent to proving the stmt-list compatibility field alone. The
@@ -3553,8 +3566,10 @@ theorem interpretIRWithInternalsZeroConservativeExtensionGoalOfDisjoint_closed
           contract fn tx.args stateWithTx hbody
       simp only [interpretIRWithInternals, interpretIR, hfind]
       split
-      · exact hfnEq
       · rfl
+      · split
+        · exact hfnEq
+        · rfl
 
 /-- The legacy `_closed` goal is a corollary of the disjoint version: any
 contract satisfying `LegacyCompatibleRuntimeContract` also satisfies
@@ -3602,8 +3617,7 @@ theorem evalIRCallWithInternals_of_builtin
     (hnotMload : func ≠ "mload")
     (hnotKeccak : func ≠ "keccak256") :
     evalIRCallWithInternals contract fuel state func args =
-      match Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-          Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+      match Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
           state'.storage state'.sender state'.msgValue state'.thisAddress
           state'.blockTimestamp state'.blockNumber state'.chainId state'.blobBaseFee
           state'.selector state'.calldata func argVals with
@@ -3877,6 +3891,293 @@ private theorem setVars_field_preservation {f : IRState → α}
 @[simp] theorem IRState.setVars_events (s : IRState) (bindings : List (String × Nat)) :
     (s.setVars bindings).events = s.events :=
   setVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+private theorem foldl_setParamVars_field_preservation {f : IRState → α}
+    (hsetVar : ∀ s name value, f (s.setVar name value) = f s)
+    (s : IRState) (bindings : List (IRParam × Nat)) :
+    f (bindings.foldl (fun st entry => st.setVar entry.1.name entry.2) s) =
+      f s := by
+  induction bindings generalizing s with
+  | nil => rfl
+  | cons hd tl ih =>
+    simpa [List.foldl, hsetVar] using ih (s.setVar hd.1.name hd.2)
+
+@[simp] theorem IRState.foldl_setParamVars_storage
+    (s : IRState) (bindings : List (IRParam × Nat)) :
+    (bindings.foldl (fun st entry => st.setVar entry.1.name entry.2) s).storage =
+      s.storage :=
+  foldl_setParamVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+@[simp] theorem IRState.foldl_setParamVars_calldata
+    (s : IRState) (bindings : List (IRParam × Nat)) :
+    (bindings.foldl (fun st entry => st.setVar entry.1.name entry.2) s).calldata =
+      s.calldata :=
+  foldl_setParamVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+@[simp] theorem IRState.foldl_setParamVars_returnValue
+    (s : IRState) (bindings : List (IRParam × Nat)) :
+    (bindings.foldl (fun st entry => st.setVar entry.1.name entry.2) s).returnValue =
+      s.returnValue :=
+  foldl_setParamVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+@[simp] theorem IRState.foldl_setParamVars_events
+    (s : IRState) (bindings : List (IRParam × Nat)) :
+    (bindings.foldl (fun st entry => st.setVar entry.1.name entry.2) s).events =
+      s.events :=
+  foldl_setParamVars_field_preservation (fun _ _ _ => rfl) s bindings
+
+@[simp] theorem execIRFunction_empty_body
+    (fn : IRFunction) (args : List Nat) (initialState : IRState)
+    (hBody : fn.body = []) :
+    execIRFunction fn args initialState =
+      { success := true
+        returnValue := initialState.returnValue
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  rw [execIRFunction]
+  simp [hBody, execIRStmts.eq_1]
+
+@[simp] theorem execIRFunction_single_stop
+    (fn : IRFunction) (args : List Nat) (initialState : IRState)
+    (hBody : fn.body = [YulStmt.expr (YulExpr.call "stop" [])]) :
+    execIRFunction fn args initialState =
+      { success := true
+        returnValue := none
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  rw [execIRFunction]
+  simp [hBody]
+
+theorem execIRFunction_store0_calldataload4_stop_of_args_cons
+    (fn : IRFunction) (tx : IRTransaction) (initialState : IRState)
+    (arg : Nat) (rest : List Nat)
+    (hBody : fn.body = [
+      YulStmt.let_ "value" (YulExpr.call "calldataload" [YulExpr.lit 4]),
+      YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit 0, YulExpr.ident "value"]),
+      YulStmt.expr (YulExpr.call "stop" [])])
+    (hArgs : tx.args = arg :: rest) :
+    execIRFunction fn tx.args (applyIRTransactionContext tx initialState) =
+      { success := true
+        returnValue := none
+        finalStorage :=
+          Compiler.Proofs.abstractStoreStorageOrMapping initialState.storage 0
+            (arg % Compiler.Constants.evmModulus)
+        finalMappings :=
+          Compiler.Proofs.storageAsMappings
+            (Compiler.Proofs.abstractStoreStorageOrMapping initialState.storage 0
+              (arg % Compiler.Constants.evmModulus))
+        events := initialState.events } := by
+  have hbody : ∀ (n : Nat) (s : IRState), 3 ≤ n →
+      execIRStmts (n + 1) s
+        [YulStmt.let_ "value" (YulExpr.call "calldataload" [YulExpr.lit 4]),
+         YulStmt.expr (YulExpr.call "sstore"
+            [YulExpr.lit 0, YulExpr.ident "value"]),
+         YulStmt.expr (YulExpr.call "stop" [])] =
+          .stop
+            { s.setVar "value" (Compiler.Proofs.YulGeneration.calldataloadWord
+                s.selector s.calldata 4) with
+              storage := Compiler.Proofs.abstractStoreStorageOrMapping
+                s.storage 0 (Compiler.Proofs.YulGeneration.calldataloadWord
+                  s.selector s.calldata 4) } := by
+    intro n s hn
+    obtain ⟨k, rfl⟩ : ∃ k, n = k + 3 := ⟨n - 3, by omega⟩
+    simp +decide [execIRStmts, execIRStmt, evalIRExpr, IRState.getVar,
+      IRState.setVar]
+  have hsize : 3 ≤ sizeOf
+      ([YulStmt.let_ "value" (YulExpr.call "calldataload" [YulExpr.lit 4]),
+        YulStmt.expr (YulExpr.call "sstore"
+          [YulExpr.lit 0, YulExpr.ident "value"]),
+        YulStmt.expr (YulExpr.call "stop" [])] : List YulStmt) := by
+    decide
+  unfold execIRFunction
+  simp only [hBody, hArgs]
+  rw [hbody _ _ hsize]
+  simp only [IRState.setVar_events, IRState.foldl_setParamVars_storage,
+    IRState.foldl_setParamVars_calldata, IRState.foldl_setParamVars_events]
+  simp [Compiler.Proofs.abstractStoreStorageOrMapping_eq,
+    Compiler.Proofs.YulGeneration.calldataloadWord, Compiler.Constants.evmModulus,
+    applyIRTransactionContext, hArgs]
+
+theorem execIRFunction_mstore0_calldataload4_return32_of_args_cons
+    (fn : IRFunction) (tx : IRTransaction) (initialState : IRState)
+    (arg : Nat) (rest : List Nat)
+    (hBody : fn.body = [
+      YulStmt.expr (YulExpr.call "mstore"
+        [YulExpr.lit 0, YulExpr.call "calldataload" [YulExpr.lit 4]]),
+      YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])])
+    (hArgs : tx.args = arg :: rest) :
+    execIRFunction fn tx.args (applyIRTransactionContext tx initialState) =
+      { success := true
+        returnValue := some (arg % Compiler.Constants.evmModulus)
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  have hbody : ∀ (n : Nat) (s : IRState), 2 ≤ n →
+      execIRStmts (n + 1) s
+        [YulStmt.expr (YulExpr.call "mstore"
+            [YulExpr.lit 0, YulExpr.call "calldataload" [YulExpr.lit 4]]),
+         YulStmt.expr (YulExpr.call "return"
+            [YulExpr.lit 0, YulExpr.lit 32])] =
+          .return (Compiler.Proofs.YulGeneration.calldataloadWord
+              s.selector s.calldata 4)
+            { s with memory := fun o =>
+                if o = 0 then (Compiler.Proofs.YulGeneration.calldataloadWord
+                    s.selector s.calldata 4)
+                else s.memory o } := by
+    intro n s hn
+    obtain ⟨k, rfl⟩ : ∃ k, n = k + 2 := ⟨n - 2, by omega⟩
+    simp +decide only [execIRStmts, execIRStmt, evalIRExpr,
+      evalIRCall_calldataload_singleton, Option.bind_some, ↓reduceIte]
+  have hsize : 2 ≤ sizeOf
+      ([YulStmt.expr (YulExpr.call "mstore"
+          [YulExpr.lit 0, YulExpr.call "calldataload" [YulExpr.lit 4]]),
+        YulStmt.expr (YulExpr.call "return"
+          [YulExpr.lit 0, YulExpr.lit 32])] : List YulStmt) := by
+    decide
+  unfold execIRFunction
+  simp only [hBody, hArgs]
+  rw [hbody _ _ hsize]
+  simp only [IRState.foldl_setParamVars_storage,
+    IRState.foldl_setParamVars_calldata, IRState.foldl_setParamVars_events]
+  simp [Compiler.Proofs.YulGeneration.calldataloadWord, Compiler.Constants.evmModulus,
+    applyIRTransactionContext, hArgs]
+
+private theorem yulStmtList_length_le_sizeOf : (stmts : List YulStmt) → stmts.length ≤ sizeOf stmts
+  | [] => by simp
+  | _ :: rest => by
+      have hrest := yulStmtList_length_le_sizeOf rest
+      simp
+      omega
+
+theorem execIRFunction_mstore0_calldataload_aligned_return32
+    (fn : IRFunction) (tx : IRTransaction) (initialState : IRState)
+    (idx : Nat)
+    (hBody : fn.body = [
+      YulStmt.expr (YulExpr.call "mstore"
+        [YulExpr.lit 0,
+         YulExpr.call "calldataload" [YulExpr.lit (4 + 32 * idx)]]),
+      YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])]) :
+    execIRFunction fn tx.args (applyIRTransactionContext tx initialState) =
+      { success := true
+        returnValue := some (tx.args.getD idx 0 % Compiler.Constants.evmModulus)
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  have hbody : ∀ (n : Nat) (s : IRState), 2 ≤ n →
+      execIRStmts (n + 1) s
+        [YulStmt.expr (YulExpr.call "mstore"
+            [YulExpr.lit 0,
+             YulExpr.call "calldataload" [YulExpr.lit (4 + 32 * idx)]]),
+         YulStmt.expr (YulExpr.call "return"
+            [YulExpr.lit 0, YulExpr.lit 32])] =
+          .return (Compiler.Proofs.YulGeneration.calldataloadWord
+              s.selector s.calldata (4 + 32 * idx))
+            { s with memory := fun o =>
+                if o = 0 then (Compiler.Proofs.YulGeneration.calldataloadWord
+                    s.selector s.calldata (4 + 32 * idx))
+                else s.memory o } := by
+    intro n s hn
+    obtain ⟨k, rfl⟩ : ∃ k, n = k + 2 := ⟨n - 2, by omega⟩
+    simp +decide only [execIRStmts, execIRStmt, evalIRExpr,
+      evalIRCall_calldataload_singleton, Option.bind_some, ↓reduceIte]
+  have hsize : 2 ≤ sizeOf
+      ([YulStmt.expr (YulExpr.call "mstore"
+          [YulExpr.lit 0,
+           YulExpr.call "calldataload" [YulExpr.lit (4 + 32 * idx)]]),
+        YulStmt.expr (YulExpr.call "return"
+          [YulExpr.lit 0, YulExpr.lit 32])] : List YulStmt) := by
+    have hlen := yulStmtList_length_le_sizeOf
+      ([YulStmt.expr (YulExpr.call "mstore"
+          [YulExpr.lit 0,
+           YulExpr.call "calldataload" [YulExpr.lit (4 + 32 * idx)]]),
+        YulStmt.expr (YulExpr.call "return"
+          [YulExpr.lit 0, YulExpr.lit 32])] : List YulStmt)
+    simpa using hlen
+  unfold execIRFunction
+  simp only [hBody]
+  rw [hbody _ _ hsize]
+  simp only [IRState.foldl_setParamVars_storage,
+    IRState.foldl_setParamVars_calldata, IRState.foldl_setParamVars_events]
+  simp [Compiler.Proofs.YulGeneration.calldataloadWord, Compiler.Constants.evmModulus,
+    applyIRTransactionContext]
+
+theorem execIRFunction_mstore0_sload0_return32
+    (fn : IRFunction) (tx : IRTransaction) (initialState : IRState)
+    (hBody : fn.body = [
+      YulStmt.expr (YulExpr.call "mstore"
+        [YulExpr.lit 0, YulExpr.call "sload" [YulExpr.lit 0]]),
+      YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])]) :
+    execIRFunction fn tx.args (applyIRTransactionContext tx initialState) =
+      { success := true
+        returnValue := some ((initialState.storage (IRStorageSlot.ofNat 0)).toNat)
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  have hbody : ∀ (n : Nat) (s : IRState), 2 ≤ n →
+      execIRStmts (n + 1) s
+        [YulStmt.expr (YulExpr.call "mstore"
+            [YulExpr.lit 0, YulExpr.call "sload" [YulExpr.lit 0]]),
+         YulStmt.expr (YulExpr.call "return"
+            [YulExpr.lit 0, YulExpr.lit 32])] =
+          .return ((s.storage (IRStorageSlot.ofNat 0)).toNat)
+            { s with memory := fun o =>
+                if o = 0 then (s.storage (IRStorageSlot.ofNat 0)).toNat else s.memory o } := by
+    intro n s hn
+    obtain ⟨k, rfl⟩ : ∃ k, n = k + 2 := ⟨n - 2, by omega⟩
+    simp +decide only [execIRStmts, execIRStmt, evalIRExpr, evalIRCall_sload_singleton,
+      Compiler.Proofs.abstractLoadStorageOrMapping,
+      Option.bind_some, ↓reduceIte]
+  have hsize : 2 ≤ sizeOf
+      ([YulStmt.expr (YulExpr.call "mstore"
+          [YulExpr.lit 0, YulExpr.call "sload" [YulExpr.lit 0]]),
+        YulStmt.expr (YulExpr.call "return"
+          [YulExpr.lit 0, YulExpr.lit 32])] : List YulStmt) := by
+    decide
+  unfold execIRFunction
+  simp only [hBody]
+  rw [hbody _ _ hsize]
+  simp only [IRState.foldl_setParamVars_storage,
+    IRState.foldl_setParamVars_events]
+  simp [applyIRTransactionContext]
+
+theorem execIRFunction_mstore0_lit_return32
+    (fn : IRFunction) (tx : IRTransaction) (initialState : IRState)
+    (value : Nat)
+    (hBody : fn.body = [
+      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit value]),
+      YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])]) :
+    execIRFunction fn tx.args (applyIRTransactionContext tx initialState) =
+      { success := true
+        returnValue := some value
+        finalStorage := initialState.storage
+        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
+        events := initialState.events } := by
+  have hbody : ∀ (n : Nat) (s : IRState), 2 ≤ n →
+      execIRStmts (n + 1) s
+        [YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit value]),
+         YulStmt.expr (YulExpr.call "return"
+            [YulExpr.lit 0, YulExpr.lit 32])] =
+          .return value { s with memory := fun o => if o = 0 then value else s.memory o } := by
+    intro n s hn
+    obtain ⟨k, rfl⟩ : ∃ k, n = k + 2 := ⟨n - 2, by omega⟩
+    simp +decide only [execIRStmts, execIRStmt, evalIRExpr, ↓reduceIte]
+  have hsize : 2 ≤ sizeOf
+      ([YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit value]),
+        YulStmt.expr (YulExpr.call "return"
+          [YulExpr.lit 0, YulExpr.lit 32])] : List YulStmt) := by
+    have hlen := yulStmtList_length_le_sizeOf
+      ([YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit value]),
+        YulStmt.expr (YulExpr.call "return"
+          [YulExpr.lit 0, YulExpr.lit 32])] : List YulStmt)
+    simpa using hlen
+  unfold execIRFunction
+  simp only [hBody]
+  rw [hbody _ _ hsize]
+  simp only [IRState.foldl_setParamVars_storage,
+    IRState.foldl_setParamVars_events]
+  simp [applyIRTransactionContext]
 
 /-- `prepareInternalCalleeState` preserves storage from the caller. -/
 @[simp] theorem prepareInternalCalleeState_storage
@@ -4409,6 +4710,21 @@ theorem execIRStmtsWithInternals_of_internalCall_compile
 @[simp] theorem applyIRTransactionContext_calldata
     (tx : IRTransaction) (initialState : IRState) :
     (applyIRTransactionContext tx initialState).calldata = tx.args := by
+  simp only [applyIRTransactionContext]
+
+@[simp] theorem applyIRTransactionContext_storage
+    (tx : IRTransaction) (initialState : IRState) :
+    (applyIRTransactionContext tx initialState).storage = initialState.storage := by
+  simp only [applyIRTransactionContext]
+
+@[simp] theorem applyIRTransactionContext_returnValue
+    (tx : IRTransaction) (initialState : IRState) :
+    (applyIRTransactionContext tx initialState).returnValue = none := by
+  simp only [applyIRTransactionContext]
+
+@[simp] theorem applyIRTransactionContext_events
+    (tx : IRTransaction) (initialState : IRState) :
+    (applyIRTransactionContext tx initialState).events = initialState.events := by
   simp only [applyIRTransactionContext]
 
 private def shortCalldataRegressionContract : IRContract :=

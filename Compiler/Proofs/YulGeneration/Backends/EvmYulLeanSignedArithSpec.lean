@@ -39,8 +39,8 @@ namespace SignedArithSpec
 
 /-- The 256-bit modulus used by the EVM, materialized as a Nat so the
 spec can live at the Nat level without dragging in `UInt256`/`Int256`
-imports. Kept local to this module to avoid colliding with
-`Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins.evmModulus`. -/
+imports. Kept local to this module to avoid colliding with the legacy
+builtin module's modulus helper. -/
 def specModulus : Nat := 2 ^ 256
 
 /-- The 256-bit sign bit boundary: the smallest Nat whose top word-bit

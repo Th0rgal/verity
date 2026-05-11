@@ -8474,8 +8474,8 @@ private theorem evalIRExpr_mappingSlotChain
             evalIRExpr state (YulExpr.call "mappingSlot" [startExpr, exprIR]) =
               some (Compiler.Proofs.abstractMappingSlot startSlot value) := by
           simp [evalIRExpr, evalIRCall, evalIRExprs, hstart, hexpr,
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+            Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+            Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
         simpa [List.foldl] using
           ih (startExpr := YulExpr.call "mappingSlot" [startExpr, exprIR])
             (startSlot := Compiler.Proofs.abstractMappingSlot startSlot value) hnext
@@ -8512,8 +8512,8 @@ private theorem execIRStmt_sstore_of_eval
           by_cases hfunc : fname = "mappingSlot"
           · subst hfunc
             simp only [evalIRExpr, evalIRCall, evalIRExprs,
-              Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-              Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext] at hslot
+              Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+              Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean] at hslot
             cases hb : evalIRExpr state arg with
             | none => simp [hb] at hslot
             | some bv =>
@@ -8571,8 +8571,8 @@ private theorem execIRStmt_sstore_foldl_mappingSlot
         (Compiler.Yul.YulExpr.call "mappingSlot" [startExpr, exprIR]) =
           some (Compiler.Proofs.abstractMappingSlot startSlot keyVal) := by
       simp [evalIRExpr, evalIRCall, evalIRExprs, hstart, hexpr,
-        Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-        Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext]
+        Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+        Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean]
     exact ih (Compiler.Yul.YulExpr.call "mappingSlot" [startExpr, exprIR])
       (Compiler.Proofs.abstractMappingSlot startSlot keyVal) hnext
 
@@ -9150,8 +9150,8 @@ private theorem compiledStmtStep_setMappingWord_singleSlot_of_slotSafety_preserv
                 .continue state' := by
           simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
             hIRKey, hIRValue,
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+            Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+            Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
             Compiler.Proofs.abstractMappingSlot_eq_solidity,
             state', hTargetMod, hStoreEq]
         have hIRExec : execIRStmts (1 + extraFuel + 1) state
@@ -9616,8 +9616,8 @@ private theorem compiledStmtStep_setMappingPackedWord_singleSlot_of_slotSafety_p
       have hSlotWordEval :
           evalIRExpr state2 (YulExpr.call "sload" [writeSlotExpr]) = some oldWordNat := by
         simp [evalIRExpr, evalIRCall, evalIRExprs, hWriteSlotEval2,
-          Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-          Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext, oldWordNat, state2, state1]
+          Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+          Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean, oldWordNat, state2, state1]
       set state3 := state2.setVar "__compat_slot_word" oldWordNat
       have hexact_state3 : FunctionBody.bindingsExactlyMatchIRVarsOnScope scope runtime.bindings state3 :=
         FunctionBody.bindingsExactlyMatchIRVarsOnScope_setVar_irrelevant hexact_state2 hcompatSlotWord
@@ -10246,8 +10246,8 @@ private theorem compiledStmtStep_setStructMember_singleSlot_of_slotSafety_preser
                 .continue state' := by
           simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
             hIRKey, hIRValue,
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+            Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+            Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
             Compiler.Proofs.abstractMappingSlot_eq_solidity,
             state', hTargetMod, hStoreEq]
         have hIRExec : execIRStmts (1 + extraFuel + 1) state
@@ -10446,8 +10446,8 @@ private theorem compiledStmtStep_setMapping2_singleSlot_of_slotSafety_preserves
                     [YulExpr.call "mappingSlot" [YulExpr.lit slot, key1IR], key2IR], valueIR])) =
                 .continue state' := by
           simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKey1, hIRKey2, hIRValue,
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-            Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+            Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+            Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
             Compiler.Proofs.abstractStoreMappingEntry_eq, state']
         have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
         have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
@@ -10733,8 +10733,8 @@ private theorem compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preser
                         key2Nat
                         valueNat } by
                 simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKey1, hIRKey2, hIRValue,
-                  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-                  Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+                  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+                  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
                   Compiler.Proofs.abstractStoreMappingEntry_eq])
           have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
           have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
@@ -10791,8 +10791,8 @@ private theorem compiledStmtStep_setMapping2Word_singleSlot_of_slotSafety_preser
                 .continue state' := by
               simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
                 hIRKey1, hIRKey2, hIRValue,
-                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-                Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+                Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+                Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
                 Compiler.Proofs.abstractMappingSlot_eq_solidity,
                 state', hTargetMod, hStoreEq]
           have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
@@ -11064,8 +11064,8 @@ private theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_prese
                         key2Nat
                         valueNat } by
                 simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs, hIRKey1, hIRKey2, hIRValue,
-                  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-                  Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+                  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+                  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
                   Compiler.Proofs.abstractStoreMappingEntry_eq])
           have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega
           have hIRExec : execIRStmts (compiledIR.length + extraFuel + 1) state compiledIR =
@@ -11122,8 +11122,8 @@ private theorem compiledStmtStep_setStructMember2_singleSlot_of_slotSafety_prese
                 .continue state' := by
               simp [execIRStmt, evalIRExpr, evalIRCall, evalIRExprs,
                 hIRKey1, hIRKey2, hIRValue,
-                Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext,
-                Compiler.Proofs.YulGeneration.evalBuiltinCallWithContext,
+                Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
+                Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
                 Compiler.Proofs.abstractMappingSlot_eq_solidity,
                 state', hTargetMod, hStoreEq]
           have hfuelEq : 1 + extraFuel = extraFuel + 1 := by omega

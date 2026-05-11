@@ -36,9 +36,11 @@ import Compiler.Proofs.EventSemantics
 import Compiler.Proofs.HelperStepProofs
 import Compiler.Proofs.IRGeneration.Contract
 import Compiler.Proofs.IRGeneration.ContractFeatureTest
+import Compiler.Proofs.IRGeneration.ContractShape
 import Compiler.Proofs.IRGeneration.Dispatch
 import Compiler.Proofs.IRGeneration.Function
 import Compiler.Proofs.IRGeneration.FunctionBody
+import Compiler.Proofs.IRGeneration.FunctionShape
 import Compiler.Proofs.IRGeneration.GenericInduction
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.IRGeneration.IRStorageWord
@@ -52,14 +54,18 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeSignedArithLemmas
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
 import Compiler.Proofs.YulGeneration.Equivalence
+import Compiler.Proofs.YulGeneration.IRFuel
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
-import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
+import Compiler.Proofs.YulGeneration.RuntimeTypes
 
 import Lean
 import Lean.Util.FoldConsts
@@ -833,132 +839,642 @@ end Verity.AxiomAudit
   Compiler.Proofs.ArithmeticProfile.shr_bridge
 
   -- Compiler/Proofs/EndToEnd.lean
-  Compiler.Proofs.EndToEnd.nativeResultsMatchOn_ok_of_resultsMatch_of_yulResultsAgreeOn
-  Compiler.Proofs.EndToEnd.yulResultsAgreeOn_of_resultsMatch_of_nativeResultsMatchOn
-  Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithInterpreter_of_ok_agree
-  Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_ok_agree
-  Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_yulHalt_agree
-  Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_yulHalt_project_eq_agree
-  Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_agree
-  Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreterPositive_of_exec_error_project_eq_agree
-  Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_positive
-  Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_exec_ok_agree
-  Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_exec_yulHalt_agree
-  Compiler.Proofs.EndToEnd.nativeDispatcherExecAgreesWithInterpreter_of_exec_error_agree
-  Compiler.Proofs.EndToEnd.nativeDispatcherBlockAgreesWithInterpreter_of_exec_agree
-  Compiler.Proofs.EndToEnd.nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree
-  Compiler.Proofs.EndToEnd.nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree
-  Compiler.Proofs.EndToEnd.layer3_function_preserves_semantics
-  Compiler.Proofs.EndToEnd.interpretYulRuntime_eq_yulResultOfExec
-  Compiler.Proofs.EndToEnd.yulStateOfIR_eq_initial
-  Compiler.Proofs.EndToEnd.execYulStmts_paramState_eq_emptyVars
-  -- Compiler.Proofs.EndToEnd.internalFunctions_bridged_of_contractWF  -- private
-  Compiler.Proofs.EndToEnd.compileFunctionSpec_bridged_of_safe_static_params
-  Compiler.Proofs.EndToEnd.compiledExternalFunctions_bridged_of_safe_static
-  Compiler.Proofs.EndToEnd.yulBody_from_state_eq_yulBody
-  Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics
-  Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_via_reference_oracle
-  Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean_with_function_bridge
-  Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_evmYulLean
-  Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_interpreter_bridge
-  Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge
-  Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_via_reference_oracle
-  Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLean_with_function_bridge
-  Compiler.Proofs.EndToEnd.layers2_3_ir_matches_yul_evmYulLean
-  Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge
-  Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge
-  Compiler.Proofs.EndToEnd.simpleStorage_endToEnd
+  -- Compiler.Proofs.EndToEnd.sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_nativeResultsMatchOn  -- private
+  -- Compiler.Proofs.EndToEnd.txNoWrap_of_calldataSizeFits  -- private
+  -- Compiler.Proofs.EndToEnd.DispatchGuardsSafe.of_payable_of_args_le_of_noWrap  -- private
+  -- Compiler.Proofs.EndToEnd.DispatchGuardsSafe.of_nonpayable_zero_of_args_le_of_noWrap  -- private
+  Compiler.Proofs.EndToEnd.DispatchGuardsSafe.of_value_safe_of_args_le_of_noWrap
+  Compiler.Proofs.EndToEnd.DispatchGuardsSafe.of_value_safe_of_threshold
+  -- Compiler.Proofs.EndToEnd.compiledFunctionCalldataThreshold_of_forall₂  -- private
+  -- Compiler.Proofs.EndToEnd.generatedFunctionCalldataThreshold_of_compile_ok_supported  -- private
+  -- Compiler.Proofs.EndToEnd.sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec  -- private
+  Compiler.Proofs.EndToEnd.nativeResultsMatchOn_interpretIR_of_execIRFunction_guards
+  Compiler.Proofs.EndToEnd.nativeResultsMatchOn_interpretIR_of_execIRFunction_dispatchGuards
+  Compiler.Proofs.EndToEnd.nativeResultsMatchOn_interpretIR_revert_of_nonpayable_nonzero
+  Compiler.Proofs.EndToEnd.nativeResultsMatchOn_interpretIR_revert_of_args_short
+  Compiler.Proofs.EndToEnd.nativeResultsMatchOn_projectResult_revert_of_nonpayable_nonzero
+  Compiler.Proofs.EndToEnd.nativeResultsMatchOn_projectResult_revert_of_args_short
+  -- Compiler.Proofs.EndToEnd.sizeOf_list_ge_length  -- private
+  -- Compiler.Proofs.EndToEnd.sizeOf_buildSwitch_noFallback_noReceive_ge_source_cases_length  -- private
+  -- Compiler.Proofs.EndToEnd.sizeOf_buildSwitch_noFallback_noReceive_ge_source_cases_length_plus24  -- private
+  -- Compiler.Proofs.EndToEnd.sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length  -- private
+  -- Compiler.Proofs.EndToEnd.sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24  -- private
+  -- Compiler.Proofs.EndToEnd.sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length  -- private
+  -- Compiler.Proofs.EndToEnd.sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_project_eq_match  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_miss_noFallback_noReceive  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_miss_noFallback_noReceive_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_atFuel_artifact  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_withSwitchIds  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_withSwitchIds_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_withSwitchIds_atFuel_artifact  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_payable_generated_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_nonpayable_generated_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_payable_generated_prefix_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_nonpayable_generated_prefix_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_atFuel_forall  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_payable_withSwitchIds_generated_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_nonpayable_withSwitchIds_generated_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_payable_withSwitchIds_generated_prefix_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_nonpayable_withSwitchIds_generated_prefix_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds_atFuel_forall  -- private
+  -- Compiler.Proofs.EndToEnd.compileFunctionSpec_noFuncDefs_of_static_params_and_body  -- private
+  -- Compiler.Proofs.EndToEnd.compileFunctionSpec_noFuncDefs_of_safe_static_params  -- private
+  -- Compiler.Proofs.EndToEnd.compileFunctionSpec_bridged_of_safe_static_params  -- private
+  -- Compiler.Proofs.EndToEnd.compiledExternalFunctions_bridged_of_safe_static  -- private
+  -- Compiler.Proofs.EndToEnd.compiledExternalFunctions_noFuncDefs_of_static_params_and_body  -- private
+  -- Compiler.Proofs.EndToEnd.compiledExternalFunctions_noFuncDefs_of_safe_static  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean  -- private
+  -- Compiler.Proofs.EndToEnd.isStaticScalarParamType_of_supportedExternalParamType  -- private
+  -- Compiler.Proofs.EndToEnd.allStaticScalarParams_of_supportedExternalParams  -- private
+  -- Compiler.Proofs.EndToEnd.generatedRuntimeStaticScalarParams_of_supported  -- private
+  -- Compiler.Proofs.EndToEnd.generatedRuntimeStaticScalarParams_of_supported_except_mapping_writes  -- private
+  -- Compiler.Proofs.EndToEnd.exists_left_of_forall₂_mem_right  -- private
+  -- Compiler.Proofs.EndToEnd.snd_mem_of_mem_zip  -- private
+  -- Compiler.Proofs.EndToEnd.selectorModulus_lt_uint256  -- private
+  Compiler.Proofs.EndToEnd.generatedRuntimeFunctionSelectorsRange_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeFunctionSelectorsSelectorRange_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeFunctionSelectorsRange_of_compile_ok_supported_except_mapping_writes
+  Compiler.Proofs.EndToEnd.generatedRuntimeFunctionSelectorsSelectorRange_of_compile_ok_supported_except_mapping_writes
+  -- Compiler.Proofs.EndToEnd.selector_eq_of_find_function_by_selector  -- private
+  Compiler.Proofs.EndToEnd.selectedGeneratedFunctionSelectorRange_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.selectedGeneratedFunctionSelectorRange_of_compile_ok_supported_except_mapping_writes
+  Compiler.Proofs.EndToEnd.generatedRuntimeSupportedStmtList_of_supported
+  Compiler.Proofs.EndToEnd.supportedFunctionSupportedStmtList_of_supported
+  -- Compiler.Proofs.EndToEnd.stmtListTouchesUnsupportedStateSurface_append  -- private
+  -- Compiler.Proofs.EndToEnd.stmtListTouchesUnsupportedStateSurfaceExceptMappingWrites_append  -- private
+  -- Compiler.Proofs.EndToEnd.stmtListTouchesUnsupportedEffectSurface_append  -- private
+  Compiler.Proofs.EndToEnd.supportedStmtList_safe_of_state_effect_closed
+  Compiler.Proofs.EndToEnd.supportedStmtList_safe_of_state_except_mapping_writes_stmt_safety
+  Compiler.Proofs.EndToEnd.generatedRuntimeSafeBodies_of_supported
+  Compiler.Proofs.EndToEnd.supportedFunctionBody_safe_of_supported
+  Compiler.Proofs.EndToEnd.supportedFunctionBody_safe_of_supported_except_mapping_writes_stmt_safety
+  Compiler.Proofs.EndToEnd.generatedRuntimeSafeBodies_of_supported_except_mapping_writes_stmt_safety
+  Compiler.Proofs.EndToEnd.generatedConstructorSupportedStmtList_of_supported
+  Compiler.Proofs.EndToEnd.generatedConstructorSafeBody_of_supported_state_closed
+  Compiler.Proofs.EndToEnd.generatedConstructorSafeBody_of_supported_state_closed'
+  Compiler.Proofs.EndToEnd.generatedConstructorSafeBody_of_supported_stmt_safety
+  Compiler.Proofs.EndToEnd.compileConstructorBody_bridged_of_safe
+  Compiler.Proofs.EndToEnd.compileConstructorBody_bridged_of_supported_state_closed
+  Compiler.Proofs.EndToEnd.compileConstructorBody_bridged_of_supported_stmt_safety
+  Compiler.Proofs.EndToEnd.generatedDeploy_compileConstructor_of_compile_ok_supported
+  -- Compiler.Proofs.EndToEnd.generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported  -- private
+  -- Compiler.Proofs.EndToEnd.generatedRuntimePrefixFunctionNamesUnique_of_compile_ok_supported_except_mapping_writes  -- private
+  -- Compiler.Proofs.EndToEnd.generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported  -- private
+  -- Compiler.Proofs.EndToEnd.generatedRuntimeInternalsAreFuncDefs_of_compile_ok_supported_except_mapping_writes  -- private
+  Compiler.Proofs.EndToEnd.generatedRuntimeExternalBodiesBridged_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeExternalBodiesBridged_of_compile_ok_supported_except_mapping_writes_stmt_safety
+  Compiler.Proofs.EndToEnd.generatedRuntimeFallbackBodyBridged_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeReceiveBodyBridged_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeFallbackBodyBridged_of_compile_ok_supported_except_mapping_writes
+  Compiler.Proofs.EndToEnd.generatedRuntimeReceiveBodyBridged_of_compile_ok_supported_except_mapping_writes
+  -- Compiler.Proofs.EndToEnd.bridgedExpr_dispatch_callvalue  -- private
+  -- Compiler.Proofs.EndToEnd.bridgedExpr_dispatch_calldatasize  -- private
+  -- Compiler.Proofs.EndToEnd.bridgedExpr_dispatch_selector  -- private
+  -- Compiler.Proofs.EndToEnd.bridgedExpr_dispatch_calldatasize_lt  -- private
+  -- Compiler.Proofs.EndToEnd.bridgedExpr_dispatch_has_selector  -- private
+  -- Compiler.Proofs.EndToEnd.bridgedExpr_dispatch_empty_calldata  -- private
+  -- Compiler.Proofs.EndToEnd.bridgedExpr_dispatch_iszero_ident  -- private
+  -- Compiler.Proofs.EndToEnd.callvalueGuard_bridged_local  -- private
+  -- Compiler.Proofs.EndToEnd.calldatasizeGuard_bridged_local  -- private
+  -- Compiler.Proofs.EndToEnd.dispatchBody_bridged_local  -- private
+  -- Compiler.Proofs.EndToEnd.defaultDispatchCase_bridged_local  -- private
+  -- Compiler.Proofs.EndToEnd.switchCases_bridged_local  -- private
+  -- Compiler.Proofs.EndToEnd.buildSwitch_bridged_local  -- private
+  -- Compiler.Proofs.EndToEnd.mappingSlotFuncAt_bridged_local  -- private
+  -- Compiler.Proofs.EndToEnd.runtimeCode_bridged_local  -- private
+  Compiler.Proofs.EndToEnd.switchCaseBody_bridged_of_body
+  Compiler.Proofs.EndToEnd.generatedRuntimeSwitchCaseBodiesBridged_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeSwitchCaseBodiesBridged_of_compile_ok_supported_except_mapping_writes_stmt_safety
+  Compiler.Proofs.EndToEnd.generatedRuntimeSelectedSwitchCaseBodyBridged_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeSelectedFunctionBodyBridged_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeSelectedSwitchCaseBodyBridged_of_compile_ok_supported_except_mapping_writes_stmt_safety
+  Compiler.Proofs.EndToEnd.switchCaseBody_noFuncDefs_of_body
+  Compiler.Proofs.EndToEnd.generatedRuntimeInternalBodiesBridged_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeInternalBodiesBridged_of_compile_ok_supported_except_mapping_writes
+  Compiler.Proofs.EndToEnd.emitYul_runtimeCode_bridged_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.emitYul_runtimeCode_bridged_of_compile_ok_supported_except_mapping_writes_stmt_safety
+  Compiler.Proofs.EndToEnd.generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeInternalBodiesHaveNoFuncDefs_of_compile_ok_supported_except_mapping_writes
+  Compiler.Proofs.EndToEnd.generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_safe
+  Compiler.Proofs.EndToEnd.generatedRuntimeExternalBodiesHaveNoFuncDefs_of_compile_ok_supported_except_mapping_writes_stmt_safety
+  Compiler.Proofs.EndToEnd.generatedRuntimeSwitchCaseBodiesHaveNoFuncDefs_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeSwitchCaseBodiesHaveNoFuncDefs_of_compile_ok_supported_except_mapping_writes_stmt_safety
+  Compiler.Proofs.EndToEnd.generatedRuntimeSelectedSwitchCaseBodyHasNoFuncDefs_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.generatedRuntimeSelectedSwitchCaseBodyHasNoFuncDefs_of_compile_ok_supported_safe
+  Compiler.Proofs.EndToEnd.generatedRuntimeSelectedSwitchCaseBodyHasNoFuncDefs_of_compile_ok_supported_except_mapping_writes_stmt_safety
+  Compiler.Proofs.EndToEnd.generatedRuntimeNativeFragment_of_compile_ok_supported_safe
+  Compiler.Proofs.EndToEnd.generatedRuntimeNativeFragment_of_compile_ok_supported_except_mapping_writes_stmt_safety
+  Compiler.Proofs.EndToEnd.generatedRuntimeNativeFragment_of_compile_ok_supported_safeBodies
+  Compiler.Proofs.EndToEnd.generatedRuntimeNativeFragment_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe
+  Compiler.Proofs.EndToEnd.validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safeBodies
+  Compiler.Proofs.EndToEnd.validateGeneratedRuntimeNativeFragment_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_except_mapping_writes_stmt_safety
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNative_of_lowerRuntimeContractNative_supported  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNative_of_lowerRuntimeContractNative_supported_except_mapping_writes_stmt_safety  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_nativeGeneratedCallDispatcherResult_match  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_ofIR_globalDefaults  -- private
+  Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_noMapping
+  -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher  -- private
+  -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_public_dispatcher  -- private
+  Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
+  Compiler.Proofs.EndToEnd.lowerStmtsNative_buildSwitch_noFallback_noReceive_exists_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_exists_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_selectedSwitchCaseBody_exists_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_selectedFunctionBody_exists_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.selectedFunctionBodyBridgedAndLowered_of_compile_ok_supported
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.selected_body_closure_of_compile_ok_supported  -- private
+  Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_exists
+  -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_public_dispatcher_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_of_compile_ok_supported_ok_public_dispatcher_cases  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_noMapping_dispatcher_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_noMapping_dispatcher_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_mapping_dispatcher_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_match_mapping_dispatcher_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block  -- private
+  -- Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_supported  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_supported  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_supported_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_supported_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_supported_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_supported_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_supported_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_supported_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_supported_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_supported_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_supported_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_supported_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_supported_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_supported_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_supported_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_supported_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_supported_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_project_supported_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_supported_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_supported_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_supported_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_supported_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_supported_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_supported_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_positive_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_positive_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_positive_mapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_positive_mapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_supported_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_supported_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_project_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_project_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_project_mapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_project_mapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_supported_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_supported_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_supported_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_supported_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_supported_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_positive_supported_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_supported_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_project_supported_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_supported_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_supported_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_positive_supported_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_project_supported_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_noMapping_structural  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_noMapping_canonical  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_miss_noMapping_canonical  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_mapping_structural  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_mapping_canonical  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_miss_mapping_canonical  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_miss_lowered_runtime  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_miss_matchesIR_of_compile_ok_supported  -- private
+  Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_miss_matchesIR_exists_of_compile_ok_supported
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_nonpayable_nonzero_revert_matchesIR_of_compile_ok_supported  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_args_short_revert_matchesIR_of_compile_ok_supported  -- private
+  Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_nonpayable_nonzero_revert_matchesIR_exists_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_args_short_revert_matchesIR_exists_of_compile_ok_supported
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_miss_lowered_runtime_selectors_range  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_miss_lowered_runtime_selectors_range_calldata_size_fits  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_of_compile_ok_supported  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_structural  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_structural_payable_generated_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_structural_nonpayable_generated_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_canonical  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_canonical_preserved  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_ok_noMapping_canonical_preserved  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_ok_noMapping_canonical  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_mapping_structural  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_mapping_structural_payable_generated_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_mapping_structural_nonpayable_generated_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_lowered_runtime_payable_generated_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_lowered_runtime_nonpayable_generated_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_lowered_runtime_payable_generated_prefix_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_lowered_runtime_nonpayable_generated_prefix_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_mapping_canonical  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_error_noMapping_structural  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_error_noMapping_canonical  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_error_noMapping_canonical  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_error_mapping_structural  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_error_mapping_canonical  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_error_mapping_canonical  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_error_lowered_runtime  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_error_matchesIR_of_compile_ok_supported  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_error_artifact_matchesIR_of_compile_ok_supported  -- private
+  Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_error_matchesIR_exists_of_compile_ok_supported
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_of_compile_ok_supported  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_forall_of_compile_ok_supported  -- private
+  Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_exists_of_compile_ok_supported
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitLoweredArtifacts_of_compile_ok_supported  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitSuccessUserBodyLoweredArtifacts_of_compile_ok_supported  -- private
+  Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitSuccessUserBodyLoweredArtifacts_exists_of_compile_ok_supported
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.selected_body_artifacts_of_compile_ok_supported  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitBodyHaltExecBridgeAtFuel.of_selected_user_body_halt  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_body_halt_exec_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_halt_exec_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_empty_body_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_empty_body  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_leave_body_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_leave_body  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_block_leave_body_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_leave  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_block_empty_body_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_empty  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_singleton_comment_body_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_singleton_comment  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_stop_body_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_stop_body  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_halt  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_stop_body  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_and_preserves  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecOnlyBridgeAtFuelRevived.of_exec_bridge  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecOnlyBridgeAtFuelRevived.of_selected_user_body_exec_only  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_exec_bridge  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_forall_stmt_write_not_mem  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_nativeStmtsWriteNames_not_mem  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_and_nativeStmtsWriteNames_not_mem  -- private
+  -- Compiler.Proofs.EndToEnd.nativeStmtsWriteNames_not_mem_of_two_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.nativeStmtsWriteNames_not_mem_of_three_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_ok_body_eq_of_same_input  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectedUserBodyMatchedFresh_payable_of_caseFresh  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectedUserBodyMatchedFresh_nonpayable_of_caseFresh  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectedUserBodyMatchedFresh_of_switchFresh  -- private
+  -- Compiler.Proofs.EndToEnd.selectedUserBodyClosureAndMatchedFresh_of_compile_ok_supported_switchFresh  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_mappingFreePreservableStraightStmts  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_and_mappingFreePreservableStraightStmts  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_and_bridgedStraightStmts_mappingFree  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_bridgedStraightStmts_mapping  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_and_bridgedStraightStmts_mapping  -- private
+  -- Compiler.Proofs.EndToEnd.NativeBlockPreservesWord_nativeRevertZeroZero  -- private
+  -- Compiler.Proofs.EndToEnd.NativeExprPreservesWord_lowerExprNative_callvalue_any  -- private
+  -- Compiler.Proofs.EndToEnd.NativeExprPreservesWord_lowerExprNative_lt_calldatasize_lit_any  -- private
+  -- Compiler.Proofs.EndToEnd.NativeBlockPreservesWord_switchCaseBody_payable_of_user_body  -- private
+  -- Compiler.Proofs.EndToEnd.NativeBlockPreservesWord_switchCaseBody_nonpayable_of_user_body  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitBodyPreservesMatched_of_user_body_preserves  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitBodyPreservesMatched_mappingFree_payable  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitBodyPreservesMatched_mappingFree_nonpayable  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitBodyPreservesMatched_mappingFree_of_switchFresh  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitBodyPreservesMatched_mapping_of_switchFresh  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived.of_exec_only_and_preserves  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_empty_body  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived.of_empty_body  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_empty_body  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyBridgeAtFuelRevived.of_execIRFunction  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyBridgeAtFuelRestored.of_revived  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyBridgeAtFuelRestored.of_execIRFunction  -- private
+  Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitBodyPreservesMatched_of_fresh
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitArtifactBridge.of_body_bridge_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_atFuel_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_atFuel_restored_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitBridge.of_artifact_bridge  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitBridge.of_success_bridge_and_generated_guard_reverts  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitBridge.of_success_predicate_and_generated_guard_reverts  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitBridge.of_success_predicate_and_generated_guard_reverts_threshold  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_bridge  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_artifact_bridge  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_success_bridge  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_success_bridge_threshold  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_body_halt_bridge_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFuel_revived_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFuel_revived  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_user_body_exec_bridge_atFuel_revived_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_user_body_exec_bridge_atFuel_revived  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_mappingFree_switchFresh  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_preserves  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_result  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_empty_body  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_user_body_exec_bridge_success_only_atFuel_revived_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_user_body_exec_bridge_success_only_atFuel_revived  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_empty_selected_body  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_preserves  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mappingFree  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mappingFree_switchFresh  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedSwitchTempsFreshForNativeBodies_of_case_body_fresh  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mappingFree_caseFresh  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_caseFresh  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_result  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_result_threshold  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_stop_body  -- private
+  Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported
+  Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_body_bridge_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_user_body_bridge_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_user_body_bridge_atFuel_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_user_body_bridge_atFuel_restored_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_user_body_bridge_atFuel_revived_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_user_body_exec_bridge_atFuel_revived_and_continuation  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_error_lowered_runtime_selectors_range  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_error_lowered_runtime_source_selectors_range  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_error_lowered_runtime_source_selectors_range_calldata_size_fits  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_mapping_canonical_preserved  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_ok_mapping_canonical_preserved  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_ok_preserved_lowered_runtime  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_ok_lowered_runtime  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_ok_lowered_runtime_selectors_range  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_ok_lowered_runtime_source_selectors_range  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_ok_lowered_runtime_source_selectors_range_calldata_size_fits  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_selector_hit_ok_mapping_canonical  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_noMapping_canonical_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_noMapping_canonical_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_noMapping_canonical_ofIR_environment_calldata_size_fits  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_noMapping_canonical_ofIR_globalDefaults_calldata_size_fits  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_mapping_canonical_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_mapping_canonical_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_mapping_canonical_ofIR_environment_calldata_size_fits  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_miss_mapping_canonical_ofIR_globalDefaults_calldata_size_fits  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_error_noMapping_canonical_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_error_noMapping_canonical_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_error_noMapping_canonical_ofIR_environment_calldata_size_fits  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_error_noMapping_canonical_ofIR_globalDefaults_calldata_size_fits  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_error_mapping_canonical_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_error_mapping_canonical_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_error_mapping_canonical_ofIR_environment_calldata_size_fits  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_error_mapping_canonical_ofIR_globalDefaults_calldata_size_fits  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_canonical_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_canonical_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_canonical_preserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_canonical_preserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_mapping_canonical_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_mapping_canonical_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_mapping_canonical_preserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_mapping_canonical_preserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_supported_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_supported_noMapping  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_supported_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_supported_mapping_reserved  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_supported_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_supported_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_supported_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_supported_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_supported_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_supported_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_supported_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_supported_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_noMapping_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_positive_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_environment  -- private
+  -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_project_body_closure_mapping_reserved_ofIR_globalDefaults  -- private
   -- Compiler.Proofs.EndToEnd.simpleStorage_functions_bridged  -- private
-  Compiler.Proofs.EndToEnd.simpleStorage_runtimeCode_eq_single_dispatcher
-  Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcher_eq_lowered_stmts
-  Compiler.Proofs.EndToEnd.lowerStmtsNative_single_block_ok_singleton
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherStmts_lowering_ok
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherStmts_exists_singleton_block
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherStmts_eq_singleton_block
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcher_eq_singleton_block_inner
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_eq_record_inner_block
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
-  Compiler.Proofs.EndToEnd.lowerStmtsNative_block_stmts_eq
-  Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_let_head_eq
-  Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_if_head_eq
-  Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_singleton_switch_eq
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_head_let_exists
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_let_if_head_exists
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_let_if_if
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_named_let_if_if_block_exec
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_concrete_let_head
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_if
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton
-  Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_revert_zero_zero
-  Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
-  Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default_sourceLowered
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_letValue_eq
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if1Cond_eq
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Cond_eq
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_exists
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_exists
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_sourceLowered
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if1Body_eq
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcher_if1Body_revert
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_exec
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_exec
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_via_reduction
-  Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_map_fst
-  Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_find?_none
-  Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_tags_lt_uint256_size
-  Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_lowered_shape
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBody_head_strip_error
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBody_head_strip_error
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail2_short_revert
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail3_halt
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBody_halt
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed
-  Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBody_halt
-  Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_lowered_concrete
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error
-  Compiler.Proofs.EndToEnd.simpleStorageLoweredHitCasesShape_concrete
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail2
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reduction
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail2
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail3
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherFuel_ge_25
-  Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherFuel_ge_21
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel
-  Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_selectorMiss
-  Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_retrieveHit
-  Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_storeHit_arg
-  Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_storeHit_short
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel
-  Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_short_revert_atFuel
-  Compiler.Proofs.EndToEnd.projectStorageFromState_storeHit_initialState_materialized
-  Compiler.Proofs.EndToEnd.projectResult_retrieveHit_eq
-  Compiler.Proofs.EndToEnd.simpleStorageNativeRetrieveHitBridge_proved
-  Compiler.Proofs.EndToEnd.simpleStorageNativeStoreHitBridge_proved
-  Compiler.Proofs.EndToEnd.simpleStorageNativeSelectorMissBridge_proved
-  Compiler.Proofs.EndToEnd.simpleStorageNativeCallDispatcherBridge_of_per_case
-  Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_evmYulLean
-  Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean_of_callDispatcher_bridge
+  -- Compiler.Proofs.EndToEnd.simpleStorage_functions_loop_free  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorage_runtimeCode_eq_single_dispatcher  -- private
+  -- Compiler.Proofs.EndToEnd.lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcher_eq_lowered_stmts  -- private
+  -- Compiler.Proofs.EndToEnd.lowerStmtsNative_single_block_ok_singleton  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherStmts_lowering_ok  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherStmts_exists_singleton_block  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherStmts_eq_singleton_block  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcher_eq_singleton_block_inner  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_eq_record_inner_block  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec  -- private
+  -- Compiler.Proofs.EndToEnd.lowerStmtsNative_block_stmts_eq  -- private
+  -- Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_let_head_eq  -- private
+  -- Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_if_head_eq  -- private
+  -- Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_singleton_switch_eq  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_head_let_exists  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_let_if_head_exists  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_let_if_if  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_named_let_if_if_block_exec  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_concrete_let_head  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_if  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton  -- private
+  -- Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_revert_zero_zero  -- private
+  -- Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq  -- private
+  -- Compiler.Proofs.EndToEnd.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default_sourceLowered  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_letValue_eq  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if1Cond_eq  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Cond_eq  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_exists  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_exists  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_sourceLowered  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcher_if1Body_eq  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcher_if1Body_revert  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_exec  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_exec  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_via_reduction  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_map_fst  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_find?_none  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_tags_lt_uint256_size  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_lowered_shape  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBody_head_strip_error  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBody_head_strip_error  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_store0_calldataload4_stop_markedPrefix_halt  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail_callvalue_strip_error  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail2_lt_strip_error  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_store0_calldataload4_stop_shared_halt  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_store0_calldataload4_stop_shared_halt_tight  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error_tight  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail2_markedPrefix_halt  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail2_short_revert  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBodyTail3_halt  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredStoreCaseBody_halt  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBodyTail3_closed  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_loweredLiteralReturnCaseBodyTail_closed  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_loweredZeroParamLiteralReturnCaseBody_closed  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_loweredZeroParamSload0ReturnCaseBody_closed  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_loweredCalldataload4ReturnCaseBodyTail_closed  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_loweredCalldataloadReturnCaseBodyTail_closed  -- private
+  -- Compiler.Proofs.EndToEnd.exec_block_simpleStorageLoweredRetrieveCaseBody_halt  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageBuildSwitchSourceCases_lowered_concrete  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_selectorMiss_revert  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageLoweredHitCasesShape_concrete  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_error_concrete_tail2  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reduction  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail2  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_error_concrete_tail3  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherFuel_ge_25  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeDispatcherFuel_ge_21  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_selectorMiss  -- private
+  -- Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_retrieveHit  -- private
+  -- Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_storeHit_arg  -- private
+  -- Compiler.Proofs.EndToEnd.interpretIR_simpleStorage_storeHit_short  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeContract_dispatcherExec_storeHit_short_revert_atFuel  -- private
+  -- Compiler.Proofs.EndToEnd.projectStorageFromState_storeHit_initialState_materialized  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_store0_calldataload4_stop_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_store0_calldataload4_stop  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_store0_calldataload4_stop  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_store0_calldataload4_stop  -- private
+  -- Compiler.Proofs.EndToEnd.projectResult_retrieveHit_eq  -- private
+  -- Compiler.Proofs.EndToEnd.projectResult_literalReturnHit_eq  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_mstore0_sload0_return32_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.execIRFunction_zeroParam_mstore0_lit_return32  -- private
+  -- Compiler.Proofs.EndToEnd.execIRFunction_zeroParam_mstore0_sload0_return32  -- private
+  -- Compiler.Proofs.EndToEnd.execIRFunction_oneParam_store0_value_stop  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_oneParam_store0_value_stop_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_oneParam_store0_value_stop  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_oneParam_store0_value_stop  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_oneParam_store0_value_stop  -- private
+  -- Compiler.Proofs.EndToEnd.selectedCompiledFunction_oneParam_store0_value_stop_shape_of_forall₂  -- private
+  -- Compiler.Proofs.EndToEnd.selectedGeneratedFunction_oneParam_store0_value_stop_shape_of_compile_ok_supported  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_source_oneParam_store0_value_stop  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher_source_oneParam_store0_value_stop  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_mstore0_lit_return32_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_zeroParam_mstore0_lit_return32_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_zeroParam_mstore0_sload0_return32_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.list_getD_eq_of_drop_eq_cons  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_mstore0_calldataload_aligned_return32_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_mstore0_calldataload4_return32_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_sload0_return32  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_zeroParam_mstore0_sload0_return32  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_lit_return32  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_zeroParam_mstore0_lit_return32  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_calldataload4_return32  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_calldataload_aligned_return32  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_mstore0_sload0_return32  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_zeroParam_mstore0_sload0_return32  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_mstore0_lit_return32  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_zeroParam_mstore0_lit_return32  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_mstore0_calldataload4_return32  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_mstore0_calldataload_aligned_return32  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_mstore0_sload0_return32  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_zeroParam_mstore0_sload0_return32  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_mstore0_lit_return32  -- private
+  -- Compiler.Proofs.EndToEnd.selectedCompiledFunction_zeroParam_lit_return32_shape_of_forall₂  -- private
+  -- Compiler.Proofs.EndToEnd.selectedGeneratedFunction_zeroParam_lit_return32_shape_of_compile_ok_supported  -- private
+  -- Compiler.Proofs.EndToEnd.selectedCompiledFunction_zeroParam_sload0_return32_shape_of_forall₂  -- private
+  -- Compiler.Proofs.EndToEnd.selectedGeneratedFunction_zeroParam_sload0_return32_shape_of_compile_ok_supported  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_zeroParam_mstore0_lit_return32  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_source_zeroParam_lit_return32  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_source_zeroParam_sload0_return32  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher_source_zeroParam_lit_return32  -- private
+  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher_source_zeroParam_sload0_return32  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_mstore0_calldataload4_return32  -- private
+  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_mstore0_calldataload_aligned_return32  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeRetrieveHitMatchBridge_proved  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeStoreHitMatchBridge_proved  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeSelectorMissMatchBridge_proved  -- private
+  -- Compiler.Proofs.EndToEnd.simpleStorageNativeCallDispatcherMatchBridge_of_per_case  -- private
   Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean
+  Compiler.Proofs.EndToEnd.simpleStorage_source_endToEnd_native_evmYulLean_of_sourceIR
 
   -- Compiler/Proofs/EventSemantics.lean
   Compiler.Proofs.EventSemantics.encodeEvents_append
@@ -1000,6 +1516,8 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.IRGeneration.Contract.filterInternalFunctions_eq_nil_of_supported  -- private
   -- Compiler.Proofs.IRGeneration.Contract.filterInternalFunctions_eq_nil_of_supported_except_mapping_writes  -- private
   -- Compiler.Proofs.IRGeneration.Contract.compileValidatedCore_ok_yields_internalFunctions_nil  -- private
+  -- Compiler.Proofs.IRGeneration.Contract.compileValidatedCore_ok_yields_noFallbackEntrypoint  -- private
+  -- Compiler.Proofs.IRGeneration.Contract.compileValidatedCore_ok_yields_noReceiveEntrypoint  -- private
   Compiler.Proofs.IRGeneration.Contract.supported_params_of_supportedSpec
   Compiler.Proofs.IRGeneration.Contract.supported_params_of_supportedSpec_except_mapping_writes
   Compiler.Proofs.IRGeneration.Contract.interpretIR_eq_runtimeContractOfFunctions
@@ -1008,7 +1526,11 @@ end Verity.AxiomAudit
   Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions
   Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_compiled_functions_except_mapping_writes
   Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil
+  Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint
+  Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint
   Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_internalFunctions_nil_except_mapping_writes
+  Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noFallbackEntrypoint_except_mapping_writes
+  Compiler.Proofs.IRGeneration.Contract.compile_ok_yields_noReceiveEntrypoint_except_mapping_writes
   Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList
   Compiler.Proofs.IRGeneration.Contract.compileFunctionSpec_ok_yields_legacyCompatibleExternalStmtList_except_mapping_writes
   -- Compiler.Proofs.IRGeneration.Contract.compiled_functions_legacyCompatibleExternalBodies  -- private
@@ -1054,6 +1576,22 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_noConflict  -- private
   -- Compiler.Proofs.IRGeneration.ContractFeatureTest.constructorOnly_compileConstructor  -- private
 
+  -- Compiler/Proofs/IRGeneration/ContractShape.lean
+  -- Compiler.Proofs.IRGeneration.ContractShape.pickUniqueFunctionByName_eq_ok_none_of_absent  -- private
+  -- Compiler.Proofs.IRGeneration.ContractShape.compiled_functions_forall₂_of_mapM_ok  -- private
+  -- Compiler.Proofs.IRGeneration.ContractShape.compileValidatedCore_ok_yields_compiled_functions  -- private
+  -- Compiler.Proofs.IRGeneration.ContractShape.filterInternalFunctions_eq_nil_of_all_nonInternal  -- private
+  -- Compiler.Proofs.IRGeneration.ContractShape.filterInternalFunctions_eq_nil_of_supported  -- private
+  -- Compiler.Proofs.IRGeneration.ContractShape.compileValidatedCore_ok_yields_internalFunctions_nil  -- private
+  -- Compiler.Proofs.IRGeneration.ContractShape.compileValidatedCore_ok_yields_deploy_compileConstructor  -- private
+  -- Compiler.Proofs.IRGeneration.ContractShape.compileValidatedCore_ok_yields_noFallbackEntrypoint  -- private
+  -- Compiler.Proofs.IRGeneration.ContractShape.compileValidatedCore_ok_yields_noReceiveEntrypoint  -- private
+  Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_compiled_functions
+  Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_internalFunctions_nil
+  Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_deploy_compileConstructor
+  Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noFallbackEntrypoint
+  Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noReceiveEntrypoint
+
   -- Compiler/Proofs/IRGeneration/Dispatch.lean
   Compiler.Proofs.IRGeneration.Dispatch.runtimeContractOfFunctions_internalFunctions
   Compiler.Proofs.IRGeneration.Dispatch.runtimeContractOfFunctions_legacyCompatible
@@ -1085,6 +1623,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_of_components
   Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_params
   Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_selector
+  Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_payable
   Compiler.Proofs.IRGeneration.Function.compileFunctionSpec_ok_components
   Compiler.Proofs.IRGeneration.Function.compileConstructor_some_ok_of_body
   Compiler.Proofs.IRGeneration.Function.compileConstructor_ok_components
@@ -1522,6 +2061,9 @@ end Verity.AxiomAudit
   Compiler.Proofs.IRGeneration.FunctionBody.exec_compileStmtList_terminal_core_sizeOf_extraFuel
   Compiler.Proofs.IRGeneration.FunctionBody.stmtResultToSourceResult_matches_irExecResult
 
+  -- Compiler/Proofs/IRGeneration/FunctionShape.lean
+  Compiler.Proofs.IRGeneration.FunctionShape.compileFunctionSpec_ok_components
+
   -- Compiler/Proofs/IRGeneration/GenericInduction.lean
   -- Compiler.Proofs.IRGeneration.stmtStepMatchesIRExecWithInternals_of_stmtStepMatchesIRExec  -- private
   Compiler.Proofs.IRGeneration.CompiledStmtStep.withHelpers_of_helperSurfaceClosed
@@ -1935,6 +2477,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.IRGeneration.evalIRCall_tload_singleton
   Compiler.Proofs.IRGeneration.evalIRCall_mload_singleton
   Compiler.Proofs.IRGeneration.evalIRCall_calldataload_singleton
+  Compiler.Proofs.IRGeneration.evalIRCall_sload_singleton
   -- Compiler.Proofs.IRGeneration.prepareInternalCalleeState_vars  -- private
   Compiler.Proofs.IRGeneration.execIRStmtWithInternals_log0_of_eval_args
   Compiler.Proofs.IRGeneration.execIRStmtWithInternals_log1_of_eval_args
@@ -1949,6 +2492,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.IRGeneration.execIRStmt_sstore_lit_expr_succ_of_eval
   Compiler.Proofs.IRGeneration.execIRStmts_sstore_lit_expr_then_stop_succ_succ_succ_of_eval
   Compiler.Proofs.IRGeneration.execIRStmts_single_stop_succ_succ
+  Compiler.Proofs.IRGeneration.execIRStmts_single_leave_succ_succ
   Compiler.Proofs.IRGeneration.execIRStmts_single_block_stop_length_insufficient
   Compiler.Proofs.IRGeneration.IRState.withTx_sender
   Compiler.Proofs.IRGeneration.IRState.withTx_storage
@@ -1989,6 +2533,9 @@ end Verity.AxiomAudit
   Compiler.Proofs.IRGeneration.execIRFunctionWithInternals_eq_execIRFunction_of_stmtListCompatibility
   Compiler.Proofs.IRGeneration.execIRStmtWithInternals_eq_execIRStmt_of_stmtListCompatibility
   Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionInterfaces_of_stmtCompatibility
+  Compiler.Proofs.IRGeneration.interpretIR_eq_execIRFunction_of_find?_some_guards
+  Compiler.Proofs.IRGeneration.interpretIR_eq_revert_of_find?_some_nonpayable_nonzero
+  Compiler.Proofs.IRGeneration.interpretIR_eq_revert_of_find?_some_args_short
   Compiler.Proofs.IRGeneration.legacyCompatibleRuntimeDispatch_of_legacyCompatibleRuntimeContract
   Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionDispatchGoal_of_stmtListCompatibility
   Compiler.Proofs.IRGeneration.interpretIRWithInternalsZeroConservativeExtensionGoal_of_dispatchGoal
@@ -2046,6 +2593,19 @@ end Verity.AxiomAudit
   Compiler.Proofs.IRGeneration.IRState.setVars_chainId
   Compiler.Proofs.IRGeneration.IRState.setVars_returnValue
   Compiler.Proofs.IRGeneration.IRState.setVars_events
+  -- Compiler.Proofs.IRGeneration.foldl_setParamVars_field_preservation  -- private
+  Compiler.Proofs.IRGeneration.IRState.foldl_setParamVars_storage
+  Compiler.Proofs.IRGeneration.IRState.foldl_setParamVars_calldata
+  Compiler.Proofs.IRGeneration.IRState.foldl_setParamVars_returnValue
+  Compiler.Proofs.IRGeneration.IRState.foldl_setParamVars_events
+  Compiler.Proofs.IRGeneration.execIRFunction_empty_body
+  Compiler.Proofs.IRGeneration.execIRFunction_single_stop
+  Compiler.Proofs.IRGeneration.execIRFunction_store0_calldataload4_stop_of_args_cons
+  Compiler.Proofs.IRGeneration.execIRFunction_mstore0_calldataload4_return32_of_args_cons
+  -- Compiler.Proofs.IRGeneration.yulStmtList_length_le_sizeOf  -- private
+  Compiler.Proofs.IRGeneration.execIRFunction_mstore0_calldataload_aligned_return32
+  Compiler.Proofs.IRGeneration.execIRFunction_mstore0_sload0_return32
+  Compiler.Proofs.IRGeneration.execIRFunction_mstore0_lit_return32
   Compiler.Proofs.IRGeneration.prepareInternalCalleeState_storage
   Compiler.Proofs.IRGeneration.prepareInternalCalleeState_sender
   Compiler.Proofs.IRGeneration.prepareInternalCalleeState_msgValue
@@ -2074,6 +2634,9 @@ end Verity.AxiomAudit
   Compiler.Proofs.IRGeneration.execIRStmtsWithInternals_of_internalCall_compile
   Compiler.Proofs.IRGeneration.applyIRTransactionContext_sender
   Compiler.Proofs.IRGeneration.applyIRTransactionContext_calldata
+  Compiler.Proofs.IRGeneration.applyIRTransactionContext_storage
+  Compiler.Proofs.IRGeneration.applyIRTransactionContext_returnValue
+  Compiler.Proofs.IRGeneration.applyIRTransactionContext_events
 
   -- Compiler/Proofs/IRGeneration/IRStorageWord.lean
   Compiler.Proofs.IRGeneration.IRStorageWord.toNat_ofNat
@@ -2319,9 +2882,11 @@ end Verity.AxiomAudit
   Compiler.Proofs.IRGeneration.SupportedConstructor.paramsSupported
   Compiler.Proofs.IRGeneration.SupportedFunction.paramNamesNodup
   Compiler.Proofs.IRGeneration.SupportedFunction.paramsSupported
+  Compiler.Proofs.IRGeneration.SupportedFunction.paramCalldataThreshold
   Compiler.Proofs.IRGeneration.SupportedFunction.returnsSupported
   Compiler.Proofs.IRGeneration.SupportedFunctionExceptMappingWrites.paramNamesNodup
   Compiler.Proofs.IRGeneration.SupportedFunctionExceptMappingWrites.paramsSupported
+  Compiler.Proofs.IRGeneration.SupportedFunctionExceptMappingWrites.paramCalldataThreshold
   Compiler.Proofs.IRGeneration.SupportedFunctionExceptMappingWrites.returnsSupported
   -- Compiler.Proofs.IRGeneration.exprCompileCore_helperSurfaceClosed  -- private
   -- Compiler.Proofs.IRGeneration.exprCompileCore_internalHelperCallNames_nil  -- private
@@ -2453,7 +3018,9 @@ end Verity.AxiomAudit
   Compiler.Proofs.IRGeneration.SupportedSpec.noReceive
   Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.noReceive
   Compiler.Proofs.IRGeneration.SupportedSpec.selectorFunctionParamsSupported
+  Compiler.Proofs.IRGeneration.SupportedSpec.selectorFunctionParamCalldataThreshold
   Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.selectorFunctionParamsSupported
+  Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.selectorFunctionParamCalldataThreshold
   Compiler.Proofs.IRGeneration.SupportedSpec.selectorFunctionParamNamesNodup
   Compiler.Proofs.IRGeneration.SupportedSpecExceptMappingWrites.selectorFunctionParamNamesNodup
   Compiler.Proofs.IRGeneration.SupportedSpec.selectorFunctionReturnsSupported
@@ -2523,17 +3090,18 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_funcDef
   Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_nil
   Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_funcDef_cons
+  Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_funcDef_cons_empty_of_lowerFunctionDefinition
   Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_stmt_cons
   Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative_empty
 
   -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean
-  Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let
-  Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let'
-  Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.execYulFuel_stmts_nil
-  Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist
-  Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_revert
-  Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_return
-  Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_stop
+  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let'  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.legacyExecYulFuel_stmts_nil  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_revert  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_return  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_stop  -- private
 
   -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean
   Compiler.Proofs.YulGeneration.Backends.isDynamicParamType_false_of_static_scalar
@@ -2552,62 +3120,132 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_calldataload_bridged  -- private
   -- Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_calldataload_static_scalar_bridged  -- private
   Compiler.Proofs.YulGeneration.Backends.genParamLoads_scalar_bridged
+  -- Compiler.Proofs.YulGeneration.Backends.genScalarLoad_noFuncDefs  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.genStaticTypeLoads_go_noFuncDefs  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.genStaticTypeLoads_noFuncDefs  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.fixedArrayFirstAlias_noFuncDefs  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_scalar_noFuncDefs  -- private
+  Compiler.Proofs.YulGeneration.Backends.genParamLoads_scalar_noFuncDefs
+  -- Compiler.Proofs.YulGeneration.Backends.genSingleParamLoad_static_scalar_noFuncDefs  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.genParamLoadBodyFrom_static_scalar_noFuncDefs  -- private
+  Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.genParamLoads_static_scalar_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_binding_leaf_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_binding_leaf_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_binding_leaf_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_binding_leaf_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_pure_binding_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_pure_binding_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_pure_binding_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_pure_binding_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.bridgedSourceStorageStmt_setStorageSingleSlot_of_exprCompileCore
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorage_singleSlot_pure_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorage_singleSlot_pure_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_storage_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_storage_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_storage_fragment_bridged
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmtList_noFuncDefs_of_forall  -- private
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_storage_fragment_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.compileStmt_stop_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmt_stop_noFuncDefs  -- private
   -- Compiler.Proofs.YulGeneration.Backends.compileStmt_return_external_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmt_return_external_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_terminator_external_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_terminator_external_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_terminator_external_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_terminator_external_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_return_internal_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_return_internal_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_return_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_return_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_return_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_return_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.revertWithMessage_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.revertWithMessage_chunks_noFuncDefs  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.revertWithMessage_noFuncDefs  -- private
+  Compiler.Proofs.YulGeneration.Backends.bridgedSourceRequireStmt_of_exprCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSourceRequireStmt_of_guardFamilyClause
   Compiler.Proofs.YulGeneration.Backends.compileStmt_require_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_require_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_require_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_require_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_singleSlot_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_singleSlot_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping_singleSlot_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingUint_singleSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping_singleSlot_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingUint_singleSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_external_body_fragment_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_internal_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_external_body_fragment_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_internal_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_external_structured_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_external_structured_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_structured_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_structured_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_structured_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_structured_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_structured_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_structured_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_external_nested_body_fragment_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_internal_nested_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_external_nested_body_fragment_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_internal_nested_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_external_nested_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_external_nested_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_nested_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_nested_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_nested_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_nested_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_nested_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_nested_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_external_recursive_body_fragment_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_recursive_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_external_recursive_body_fragment_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_recursive_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_recursive_body_fragment_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_recursive_body_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_recursive_body_fragment_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_recursive_body_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_memoryWrite_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_memoryWrite_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_memoryWrite_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_memoryWrite_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_forEach_with_bridged_body
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_with_noFuncDefs_body
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_forEach_with_noFuncDefs_body
   -- Compiler.Proofs.YulGeneration.Backends.sigStores_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.sigStores_noFuncDefs  -- private
   -- Compiler.Proofs.YulGeneration.Backends.revertWithCustomError_zero_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.revertWithCustomError_zero_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_revertError_zero_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_requireError_zero_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_customError_zero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_revertError_zero_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_requireError_zero_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_customError_zero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_customError_zero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_customError_zero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_with_errors_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_with_errors_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_with_errors_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_with_errors_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_with_errors_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_with_errors_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_body_with_errors_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_body_with_errors_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_external_body_with_errors_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_ite_internal_body_with_errors_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_external_structured_body_with_errors_bridged
@@ -2727,127 +3365,289 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.BridgedSourceExternalRecursiveBodyWithErrorsStmt_of_base
   Compiler.Proofs.YulGeneration.Backends.BridgedSourceInternalRecursiveBodyWithErrorsStmt_of_base
   Compiler.Proofs.YulGeneration.Backends.compileStmt_rawLog_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_rawLog_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_rawLog_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_rawLog_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_with_raw_log_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_with_raw_log_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_external_body_with_raw_log_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_body_with_raw_log_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_with_raw_log_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_body_with_raw_log_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_body_with_raw_log_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_body_with_raw_log_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_external_recursive_body_with_raw_log_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_recursive_body_with_raw_log_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_recursive_body_with_raw_log_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_recursive_body_with_raw_log_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_external_recursive_body_with_raw_log_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_external_recursive_body_with_raw_log_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_internal_recursive_body_with_raw_log_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_internal_recursive_body_with_raw_log_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2_singleSlot_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite2_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2_singleSlot_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite2_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite2_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite2_bridged
+  Compiler.Proofs.YulGeneration.Backends.bridgedSourceStorageAddrStmt_setStorageAddrSingleSlot_of_exprCompileCore
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorageAddr_singleSlot_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_storageAddr_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageAddr_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_storageAddr_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageAddr_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember_singleSlot_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_structMember_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMember_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember_singleSlot_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_structMember_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMember_noFuncDefs
+  -- Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_singleSlot_nonzero_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_singleSlot_nonzero_noFuncDefs  -- private
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember_singleSlot_nonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_structMemberNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember_singleSlot_nonzero_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_structMemberNonzero_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMemberNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMemberNonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember2_singleSlot_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_structMember2_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMember2_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember2_singleSlot_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_structMember2_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMember2_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember2_singleSlot_nonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_structMember2Nonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember2_singleSlot_nonzero_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_structMember2Nonzero_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMember2Nonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMember2Nonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingWord_singleSlot_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWord_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWord_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingWord_singleSlot_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWord_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWord_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2Word_singleSlot_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mapping2Word_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mapping2Word_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2Word_singleSlot_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mapping2Word_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mapping2Word_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_external_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_external_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesEmpty_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesEmpty_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_internal_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_internal_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_internal_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesEmpty_internal_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesEmpty_internal_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesEmpty_internal_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.zip_assigns_bridgedStmts  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.zip_assigns_noFuncDefs  -- private
   -- Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesInternal_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesInternal_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesInternal_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesInternal_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesInternal_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesInternal_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.zipIdx_mstores_bridgedStmts  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.zipIdx_mstores_noFuncDefs  -- private
   -- Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesExternal_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesExternal_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesExternal_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_returnValuesExternal_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesExternal_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_returnValuesExternal_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.bridgedSourceMstoreStmt_of_exprCompileCore
   -- Compiler.Proofs.YulGeneration.Backends.compileStmt_mstore_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmt_mstore_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mstore_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mstore_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mstore_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mstore_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.bridgedSourceTstoreStmt_of_exprCompileCore
   -- Compiler.Proofs.YulGeneration.Backends.compileStmt_tstore_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmt_tstore_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_tstore_fragment_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_tstore_fragment_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_tstore_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_tstore_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPush_singleSlot_bridged
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPush_singleSlot_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPush_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPush_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageArrayPush_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageArrayPush_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPop_singleSlot_bridged
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPop_singleSlot_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPop_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_storageArrayPop_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageArrayPop_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_storageArrayPop_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorageArrayElement_singleSlot_bridged
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorageArrayElement_singleSlot_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorageArrayElement_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setStorageArrayElement_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_setStorageArrayElement_bridged
-  -- Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_singleSlot_nonzero_bridged  -- private
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_setStorageArrayElement_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingWord_singleSlot_nonzero_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWordNonzero_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWordNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingWord_singleSlot_nonzero_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWordNonzero_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWordNonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2Word_singleSlot_nonzero_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mapping2WordNonzero_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mapping2WordNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2Word_singleSlot_nonzero_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mapping2WordNonzero_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mapping2WordNonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.bridgedExpr_foldl_mappingSlot
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingChain_singleSlot_bridged
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingChain_singleSlot_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingChain_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingChain_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingChain_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingChain_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmts_multiSlot_sstore_mapping  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.yulStmtsContainFuncDef_multiSlot_sstore_mapping  -- private
   -- Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_multiSlot_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_multiSlot_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping_multiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping_multiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingUint_multiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingUint_multiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWriteMultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWriteMultiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWriteMultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWriteMultiSlot_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmts_multiSlot_sstore_mapping2  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.yulStmtsContainFuncDef_multiSlot_sstore_mapping2  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2_multiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2_multiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite2MultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWrite2MultiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite2MultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWrite2MultiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember_multiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember_multiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_structMemberMultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_structMemberMultiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMemberMultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMemberMultiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember2_multiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember2_multiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_structMember2MultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_structMember2MultiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMember2MultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMember2MultiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingWord_multiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingWord_multiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWordMultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWordMultiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWordMultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWordMultiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2Word_multiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2Word_multiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mapping2WordMultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mapping2WordMultiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mapping2WordMultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mapping2WordMultiSlot_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmts_multiSlot_sstore_mapping_add  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.yulStmtsContainFuncDef_multiSlot_sstore_mapping_add  -- private
   -- Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_multiSlot_nonzero_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileMappingSlotWrite_multiSlot_nonzero_noFuncDefs  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingWord_multiSlot_nonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingWord_multiSlot_nonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWordMultiSlotNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingWordMultiSlotNonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWordMultiSlotNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingWordMultiSlotNonzero_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.bridgedStraightStmts_multiSlot_sstore_mapping2_add  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.yulStmtsContainFuncDef_multiSlot_sstore_mapping2_add  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2Word_multiSlot_nonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMapping2Word_multiSlot_nonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mapping2WordMultiSlotNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mapping2WordMultiSlotNonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mapping2WordMultiSlotNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mapping2WordMultiSlotNonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember_multiSlot_nonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember_multiSlot_nonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_structMemberMultiSlotNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_structMemberMultiSlotNonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMemberMultiSlotNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMemberMultiSlotNonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember2_multiSlot_nonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setStructMember2_multiSlot_nonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_structMember2MultiSlotNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_structMember2MultiSlotNonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMember2MultiSlotNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_structMember2MultiSlotNonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingPackedWord_singleSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingPackedWord_singleSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingPackedWord_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingPackedWord_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWord_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWord_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingPackedWord_singleSlot_nonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingPackedWord_singleSlot_nonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingPackedWordNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingPackedWordNonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordNonzero_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.bridgedStmt_packedInnerBlock_wordOffsetZero  -- private
   -- Compiler.Proofs.YulGeneration.Backends.bridgedStmts_slotsMap_packedInnerBlock_wordOffsetZero  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.yulStmtsContainFuncDef_slotsMap_packedInnerBlock_wordOffsetZero  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingPackedWord_multiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingPackedWord_multiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingPackedWordMultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingPackedWordMultiSlot_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordMultiSlot_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordMultiSlot_noFuncDefs
   -- Compiler.Proofs.YulGeneration.Backends.bridgedStmt_packedInnerBlock_wordOffsetNonzero  -- private
   -- Compiler.Proofs.YulGeneration.Backends.bridgedStmts_slotsMap_packedInnerBlock_wordOffsetNonzero  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.yulStmtsContainFuncDef_slotsMap_packedInnerBlock_wordOffsetNonzero  -- private
   Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingPackedWord_multiSlot_nonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_setMappingPackedWord_multiSlot_nonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingPackedWordMultiSlotNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmt_mappingPackedWordMultiSlotNonzero_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordMultiSlotNonzero_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_mappingPackedWordMultiSlotNonzero_noFuncDefs
+  -- Compiler.Proofs.YulGeneration.Backends.compileStmtList_append_eq  -- private
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_mstoreSingle_of_exprCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setStorageSingleSlot_of_exprCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setStorageAddrSingleSlot_of_exprCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_requireSingle_of_exprCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_requireGuardFamilyClause
+  Compiler.Proofs.YulGeneration.Backends.bridgedSourcePureBindingStmt_letKeccak_of_exprCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSourcePureBindingStmt_assignKeccak_of_exprCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_letKeccak_of_exprCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_assignKeccak_of_exprCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSourceExternalRecursiveBodyWithRawLogStmts_of_stmtListTerminalCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_externalCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_externalTerminalCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_externalMstoreLetKeccak_of_exprCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_tstoreSingle_of_exprCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setMappingSingleSlot
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setMappingUintSingleSlot
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setMappingChainSingleSlot
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setMapping2SingleSlot
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setMappingWordSingleSlot
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setMapping2WordSingleSlot
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setMappingWordSingleSlotNonzero
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setMapping2WordSingleSlotNonzero
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setMappingPackedWordSingleSlot
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setStructMemberSingleSlot
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setStructMember2SingleSlot
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setStructMemberSingleSlotNonzero
+  Compiler.Proofs.YulGeneration.Backends.bridgedSafeStmts_setStructMember2SingleSlotNonzero
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_bridged
+  Compiler.Proofs.YulGeneration.Backends.compileStmtList_always_noFuncDefs
 
   -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean
   -- Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
@@ -3061,698 +3861,9 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_calldataload_bridge
   Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_calldatasize_bridge
   Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_mappingSlot_bridge
-  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge
+  -- Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge  -- private
 
-  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean
-  Compiler.Proofs.YulGeneration.Backends.Native.validateGeneratedRuntimeNativeFragment_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.validateGeneratedRuntimeNativeFragment_error
-  Compiler.Proofs.YulGeneration.Backends.Native.selectorExprMatchesGeneratedDispatcher_selectorExpr
-  Compiler.Proofs.YulGeneration.Backends.Native.selectedSwitchBody_hit
-  Compiler.Proofs.YulGeneration.Backends.Native.selectedSwitchBody_miss
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatchSelector_of_selector_lt
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable_global
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable_minimum
-  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_noChainId_noBlobBaseFee
-  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_representableBlobBaseFee
-  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_representableEnvironment
-  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedChainId
-  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedBlobBaseFee
-  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedHeaderBuiltin
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_installsExecutionContract
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_installsCurrentAccountContract
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_transactionEnvironment
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_source
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_sender
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_codeOwner
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_blockTimestamp
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_blockNumber
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldata
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize
-  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_get?_append_left  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.readBytes_zero_get?_of_lt_source
-  Compiler.Proofs.YulGeneration.Backends.Native.readBytes_offset4_get?_of_lt_source
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte0
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte1
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte2
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte3
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_arg0Byte
-  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_data_toList_get?_of_get?  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.list_reverse_eq_drop4_reverse_append_four  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorPrefix
-  Compiler.Proofs.YulGeneration.Backends.Native.selectorBytesAsNat
-  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_append  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_lt  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_eq_mk  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_eq_of_toNat_eq  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_toNat_of_lt  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_shiftRight_224_mk_toNat  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.uint256_shiftRight_224_ofNat_toNat
-  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_four  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_tail4_shift  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.div_pow_succ_byte  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.mod_byte_decomp  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_of_le_bytes  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_argWordBytes  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_selectorPrefix_shift
-  -- Compiler.Proofs.YulGeneration.Backends.Native.usize_sub_toNat_of_le_32  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.readBytes_zero_32_size
-  Compiler.Proofs.YulGeneration.Backends.Native.readBytes_offset4_32_size
-  Compiler.Proofs.YulGeneration.Backends.Native.readWithPadding_32_size
-  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_append_zeroes0  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_extract_zero_32_eq_of_size  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_readWithPadding_zero_32_eq_of_size  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_write_empty_zero_32_eq_of_size  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.byteArray_write_empty_zero_32_readWithPadding_eq_of_size
-  -- Compiler.Proofs.YulGeneration.Backends.Native.toBytesBigEndian_uint256_length_le  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_loop_size  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_loop_data_toList  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_size  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_data_toList  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.uint256_toByteArray_size
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_arg0Bytes
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_value
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_word
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value_of_readBytes_size
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_uint256
-  Compiler.Proofs.YulGeneration.Backends.Native.lowerExprNative_selectorExpr
-  Compiler.Proofs.YulGeneration.Backends.Native.step_calldataload_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_shr_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_add_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_sub_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_mul_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_eq_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_iszero_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_lt_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_calldatasize_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_callvalue_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_address_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_balance_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_origin_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_caller_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_timestamp_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_number_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_chainid_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_blobbasefee_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_gasprice_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_coinbase_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_gaslimit_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_selfbalance_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_and_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_mstore_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_mstore8_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_sload_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_mload_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_keccak256_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_log0_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_log1_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_log2_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_log3_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_log4_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_sstore_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_tload_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_tstore_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_msize_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_gas_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_returndatasize_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_calldatacopy_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_returndatacopy_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_pop_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_stop_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_return_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.step_revert_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_initialState_arg0_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_initialState_arg0_ok_withStore
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_shr_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_add_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sub_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mul_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_div_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mod_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sdiv_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_smod_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_addmod_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mulmod_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_exp_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_signextend_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload0_then_shr224_initialState_selector_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_eq_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_iszero_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_lt_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_gt_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_slt_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sgt_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldatasize_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_callvalue_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_address_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_balance_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_origin_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_caller_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_timestamp_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_number_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_chainid_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_blobbasefee_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_gasprice_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_coinbase_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_gaslimit_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_selfbalance_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_and_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_or_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_xor_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_not_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_shl_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_byte_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sar_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore8_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mload_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_keccak256_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_log0_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_log1_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_log2_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_log3_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_log4_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_tload_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_tstore_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_msize_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_gas_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_returndatasize_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldatacopy_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_returndatacopy_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_pop_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_stop_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_return_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_revert_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNative_revert_zero_zero
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_revert_zero_zero_error
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_expr_prim_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_prim_one_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_initialState_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_lt_calldatasize_4_ok
-  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_lt_ofNat_4_eq_zero_of_ge  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_isZero_ofNat_zero  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_initialState_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_lt_calldatasize_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_sload_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerExprNative_mstore_lit_sload_lit_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerExprNative_return_lit_lit_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_singleton_lowerExprNative_return_lit_lit_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_ident_one_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_ident_one_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_store_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lit_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_ok_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_error
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_tail_error
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_error
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_prefix_error
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_nil_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_store_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_zero
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_nonzero
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_nonzero_error
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_iszero_ident_one_skip
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_callvalue_skip_zero_fuel
-  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_lt_ofNat_eq_zero_of_ge  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_lt_calldatasize_skip_ge_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_iszero_ident_one_skip_fuel
-  -- Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState_insert_lookup_self  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_ident_one_take_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_singleton_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_letSelector_if1Skip_initialState_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_letSelector_if1Skip_if2Take_initialState_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_hit_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_miss_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_miss_ok_fuel
-  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_land_zero_left  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_matched_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_matched_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_miss
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_miss_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerAssignNative_lit_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit_marked
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_hit_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit_marked_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit_marked_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_matched
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_matched_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_unmatched_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_unmatched_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_matched_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_matched_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts
-  Compiler.Proofs.YulGeneration.Backends.Native.state_lookup_insert_of_ne
-  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_insert_of_ne
-  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_multifill_of_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_foldr_insert_zero_of_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setSharedState
-  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setMachineState
-  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setState
-  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setStore_ok_left
-  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setStore_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldatasize
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_callvalue
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_address
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_balance
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_origin
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_caller
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_timestamp
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_number
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_chainid
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_blobbasefee
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_gasprice
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_coinbase
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_gaslimit
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_selfbalance
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_unary_same_state
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_binary_same_state
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_ternary_same_state
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_iszero
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_shr
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_add
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sub
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mul
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_div
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mod
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sdiv
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_smod
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_addmod
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mulmod
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_exp
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_signextend
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_lt
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_gt
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_slt
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sgt
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_and
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_or
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_xor
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_not
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_shl
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_byte
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sar
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sload
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldataload
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mload
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mstore
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mstore8
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_tload
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_tstore
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sstore
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_stop
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_return
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_revert
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_msize
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_gas
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_returndatasize
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldatacopy
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_returndatacopy
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_pop
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_keccak256
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log0
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log1
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log2
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log3
-  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log4
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_var
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lit
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_nil
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_cons
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_map_lowerExprNative
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_map_lowerExprNative_reverse
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_lit
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_hex
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_str
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_ident
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_overwrite?_left
-  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_restoreCallFrame_of_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchDiscrTempName_ne_matchedTempName
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixFinalState_matched
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixFinalState_discr
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixFinalState_marked
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_nil
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons_stmt
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_singleton
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_forall_stmt
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_forall_stmt_write_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.collectNativeStmtWriteNames_append
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_append
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_cons
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_cons_not_mem_iff
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_head_not_mem_of_cons_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_tail_not_mem_of_cons_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_left_not_mem_of_append_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_right_not_mem_of_append_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_append_not_mem_iff
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_forall_stmt
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_append_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_self
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_cond_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_cond_preserves_and_nativeStmtsWriteNames_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_hex_of_ne
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_ident_of_ne
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_str_of_ne
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_none_of_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_var_of_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lit_of_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_lit_of_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_hex_of_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_str_of_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_ident_of_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_evalArgs_call_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_nativeEvalArgs_call_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_evalArgs_preserves
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_stop
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_stop
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_case_discr_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_find_hit_discr_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_default_discr_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_discr
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_default_matched
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_default_discr
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_nil
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_cons
-  -- Compiler.Proofs.YulGeneration.Backends.Native.list_find?_eq_some_split_false  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.list_find?_eq_none_all_false  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_ne_of_ne_of_lt  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_prefix_miss_of_selector_find  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_none_all_miss
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_all_miss_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_matched_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_head_hit_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_head_hit_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_cons_miss_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_prefix_hit_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_prefix_hit_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_preserved_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_nonempty_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_matched_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_matched_caseTail_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_with_default_matched_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_with_default_preserved_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_with_default_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_revert_default_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_without_default_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_then_tail_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_then_tail_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_hit_preserved_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_hit_fresh_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_hit_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_none_with_default_nonempty_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_none_without_default_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_none_with_revert_default_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_storePrefix_tail_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState_insert_hasSelector_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixStoreState_matched_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixStoreState_discr_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_storePrefix_tail_ok_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_preserved_store_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_error_store_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_fresh
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_unbridgedEnvironmentDefaults
-  Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_accountStorageSlot
-  Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_missingAccountStorageSlot
-  Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_missingAccount
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_observableStorageSlot
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_observableSlot_value
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_materializedSlot_value
-  Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_retrieveHit_initialState_materialized
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_omittedSlot_value
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_observableSlot_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_omittedSlot_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_observableSlot_ok_withStore
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_omittedSlot_ok_withStore
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_ok_withStore
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_return32_after_mstore0_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_hReturn_size
-  Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq_toByteArray
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_ok_hReturn_size
-  Compiler.Proofs.YulGeneration.Backends.Native.initialState_omittedStorageSlot
-  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_reverse_append_single  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.listByteArrayWordNoMod_eq_fromBytes'_take_reverse  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.listByteArrayWordNoMod_lt  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.listByteArrayWordMod_eq_noMod  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_get?_data_toList  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.byteArrayWord_eq_fromBytes'_reverse_of_size
-  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_replicate_zero  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_append_replicate_zero  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.byteArrayWord_uint256_toByteArray
-  Compiler.Proofs.YulGeneration.Backends.Native.projectLogEntry_topicsAndWordData
-  Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState_logSeries
-  Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_stop
-  Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_32ByteReturn
-  Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_non32ByteReturn
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_emptyMemory_projectHaltReturn
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_singleton_block_eq_exec_block
-  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_dispatcher_eq_exec_block
-  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherBlockResult_eq_execResult
-  Compiler.Proofs.YulGeneration.Backends.Native.callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult
-  Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_zero
-  Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_succ_eq_callDispatcherBlockResult
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_events
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_success
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_returnValue
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_finalMappings
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_finalStorageSlot
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_missingFinalStorageAccountSlot
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_missingFinalStorageSlot
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_projectResult_slot
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_projectResult_slot_zero_of_erase
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_projectResult_slot_zero_emptyObservable
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_withStore_projectResult_slot
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_of_erase
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_emptyObservable
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_ofIR_arg0_withStore_projectResult_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0_zero_of_erase
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0_zero_emptyObservable
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0_zero_of_erase
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0_zero_emptyObservable
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0_zero_of_erase
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0_zero_emptyObservable
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_events
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_success
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_returnValue
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_emptyMemory_projectResult_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_projectResult_returnValue
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_omittedSlot_projectResult_returnValue
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_projectResult_returnValue_materialized
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_omittedSlot_projectResult_returnValue
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue_materialized
-  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_eq_materialized
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_finalMappings
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_finalStorageSlot
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_missingFinalStorageAccountSlot
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_missingFinalStorageSlot
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_stop
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_32ByteReturn
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_non32ByteReturn
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_events
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_success
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_returnValue
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_finalMappings
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_finalStorageSlot
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_success
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_returnValue
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_finalStorageSlot
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_finalMappings
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_events
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult
-  -- Compiler.Proofs.YulGeneration.Backends.Native.simpleStorageSelectors_tagsRange  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_revert_default_projectResult_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_default_projectResult_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_default_projectResult_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResult_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResult_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectResult_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectResult_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_finalMappings
-  Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_loweringError
-  Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_generatedFragmentError
-  Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
-  Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_environmentError
-  Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_interpretRuntimeNative
-  Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_loweringError
-  Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_generatedFragmentError
-  Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
-
-  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_add  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_sub  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_mul  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_div  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_mod  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_lt  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_gt  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_eq  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_iszero  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_and  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_or  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_xor  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_not  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_shl  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_shr  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_addmod  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_mulmod  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_byte  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_slt  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_sgt  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_exp  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_sdiv  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_smod  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_sar  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_signextend  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_caller  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_address  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_callvalue  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_timestamp  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_number  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_chainid  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_blobbasefee  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_calldataload  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_calldatasize  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_sload  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_mappingSlot  -- private
-  Compiler.Proofs.YulGeneration.Backends.backends_agree_on_bridged_builtins
-  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_on_keccak256  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_verity_eq  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.evalYulExprsWithBackend_verity_eq  -- private
-  Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_eq_on_bridged
-  -- Compiler.Proofs.YulGeneration.Backends.evalYulExprsWithBackend_eq_on_bridged  -- private
-  Compiler.Proofs.YulGeneration.Backends.evalYulExpr_evmYulLean_eq_on_bridged
-  Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_verity_eq
-  Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_let_eq_on_bridged
-  Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_assign_eq_on_bridged
+  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgePredicates.lean
   Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_nil
   Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_cons
   Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_append
@@ -3760,26 +3871,11 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_snoc
   Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_map_mstore
   Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts_map_tstore
-  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmt  -- private
-  Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmts
-  Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_block_eq_on_bridged_straight_stmts
-  Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_if_eq_on_bridged_body
-  Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_switch_eq_on_bridged_cases
-  Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_for_eq_on_bridged_parts
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_nil
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_append
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_snoc
-  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_callvalue  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selector  -- private
-  Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selectorExpr
-  Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_evmYulLean_selectorExpr_semantics
-  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize_lt  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_has_selector  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_empty_calldata  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_iszero_ident  -- private
   Compiler.Proofs.YulGeneration.Backends.bridgedExpr_keccak256
   Compiler.Proofs.YulGeneration.Backends.bridgedExpr_mload
   Compiler.Proofs.YulGeneration.Backends.bridgedExpr_tload
@@ -3866,23 +3962,1394 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_log
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_funcDef
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_funcDef
-  Compiler.Proofs.YulGeneration.Backends.callvalueGuard_bridged
-  Compiler.Proofs.YulGeneration.Backends.calldatasizeGuard_bridged
+
+  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean
+  Compiler.Proofs.YulGeneration.Backends.Native.observableSlot_mem_materializedStorageSlots
+  Compiler.Proofs.YulGeneration.Backends.Native.yulFunctionBodies_nil
+  Compiler.Proofs.YulGeneration.Backends.Native.yulFunctionBodies_funcDef_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.yulFunctionBodies_nonFunc_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef_nil
+  Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef_append
+  Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef_flatMap_false
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtGroupNativeWithSwitchIds_ok_of_yulStmtContainsFuncDef_false
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_ok_of_yulStmtsContainFuncDef_false
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_ok_of_yulSwitchCasesContainFuncDef_false
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNative_ok_of_yulStmtsContainFuncDef_false
+  Compiler.Proofs.YulGeneration.Backends.Native.yulRuntimeTopLevelFunctionNames_nil
+  Compiler.Proofs.YulGeneration.Backends.Native.yulRuntimeTopLevelFunctionNames_funcDef_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.yulRuntimeTopLevelFunctionNames_nonFunc_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.yulRuntimeTopLevelFunctionNames_append
+  Compiler.Proofs.YulGeneration.Backends.Native.yulRuntimeTopLevelFunctionNames_eq_nil_of_all_nonFunc
+  Compiler.Proofs.YulGeneration.Backends.Native.yulRuntimeDispatcherStmts_nil
+  Compiler.Proofs.YulGeneration.Backends.Native.yulRuntimeDispatcherStmts_funcDef_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.yulRuntimeDispatcherStmts_nonFunc_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_funcDef_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_nonFunc_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_funcDef_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_nonFunc_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.dispatchBody_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchCases_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFuncDefs_noFallback_noReceive
+  Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases_eq_switchCases
+  Compiler.Proofs.YulGeneration.Backends.Native.find_switch_case_of_find_function
+  Compiler.Proofs.YulGeneration.Backends.Native.find_switch_case_of_find_function_eq_selector
+  Compiler.Proofs.YulGeneration.Backends.Native.find_switch_case_of_find_function_none
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNativeAux_single_stmt_eq_lowerStmtsNativeWithSwitchIds
+  Compiler.Proofs.YulGeneration.Backends.Native.emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNative_single_block_ok_singleton
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNative_block_stmts_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_block_stmts_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_let_head_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_comment_head_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_if_head_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_singleton_switch_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtWriteNames_nativeRevertZeroZeroStmt
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_singleton_nativeRevertZeroZeroStmt
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForWrites_nil
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForWrites_nativeRevertZeroZeroStmt
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_payable_dispatch_guard_prefix
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_nonpayable_dispatch_guard_prefix
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_revert_zero_zero
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_revert_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq_body
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_revert_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq_body
+  -- Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_cons_of_lowerSwitchCasesNativeWithSwitchIds  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_of_lowerSwitchCasesNativeWithSwitchIds
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_buildSwitchSourceCases_of_lowerSwitchCasesNativeWithSwitchIds_of_case_body_fresh
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
+  Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered
+  Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered_withSwitchIds
+  Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
+  Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+  Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_none_of_find_function
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_funcDef_prefix_append
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_emitYul_runtimeCode_noFallback_noReceive
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_append_nonFunc_suffix
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_buildSwitch_append
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_runtimeCode
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_emitYul_runtimeCode
+  Compiler.Proofs.YulGeneration.Backends.Native.mappingSlotFuncAt_body_noFuncDefs
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero_body
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition_body
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_internalFunctions
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_buildSwitch
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_runtimeCode
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_emitYul_runtimeCode
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment_emitYul_runtimeCode_noFallback_noReceive
+  Compiler.Proofs.YulGeneration.Backends.Native.validateGeneratedRuntimeNativeFragment_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.validateGeneratedRuntimeNativeFragment_error
+  Compiler.Proofs.YulGeneration.Backends.Native.selectorExprMatchesGeneratedDispatcher_selectorExpr
+  Compiler.Proofs.YulGeneration.Backends.Native.selectedSwitchBody_hit
+  Compiler.Proofs.YulGeneration.Backends.Native.selectedSwitchBody_miss
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeDispatchSelector_of_selector_lt
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable_global
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeBlobBaseFeeRepresentable_minimum
+  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_noChainId_noBlobBaseFee
+  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_representableBlobBaseFee
+  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_representableEnvironment
+  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_representableEnvironment
+  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_ofIR_globalDefaults
+  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedChainId
+  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedBlobBaseFee
+  Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment_unsupportedHeaderBuiltin
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_installsExecutionContract
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_installsCurrentAccountContract
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_transactionEnvironment
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_source
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_sender
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_codeOwner
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_blockTimestamp
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_blockNumber
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldata
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize
+  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_get?_append_left  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.readBytes_zero_get?_of_lt_source
+  Compiler.Proofs.YulGeneration.Backends.Native.readBytes_get?_of_lt_source
+  Compiler.Proofs.YulGeneration.Backends.Native.readBytes_offset4_get?_of_lt_source
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte0
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte1
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte2
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorByte3
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_arg0Byte
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_argByte_of_drop_eq_cons
+  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_data_toList_get?_of_get?  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.list_reverse_eq_drop4_reverse_append_four  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorPrefix
+  Compiler.Proofs.YulGeneration.Backends.Native.selectorBytesAsNat
+  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_append  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_lt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_eq_mk  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_eq_of_toNat_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_toNat_of_lt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_shiftRight_224_mk_toNat  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.uint256_shiftRight_224_ofNat_toNat
+  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_four  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_tail4_shift  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.div_pow_succ_byte  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.mod_byte_decomp  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_of_le_bytes  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_argWordBytes  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_selectorPrefix_shift
+  -- Compiler.Proofs.YulGeneration.Backends.Native.usize_sub_toNat_of_le_32  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.readBytes_zero_32_size
+  Compiler.Proofs.YulGeneration.Backends.Native.readBytes_32_size
+  Compiler.Proofs.YulGeneration.Backends.Native.readBytes_offset4_32_size
+  Compiler.Proofs.YulGeneration.Backends.Native.readWithPadding_32_size
+  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_append_zeroes0  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_extract_zero_32_eq_of_size  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_readWithPadding_zero_32_eq_of_size  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_write_empty_zero_32_eq_of_size  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.byteArray_write_empty_zero_32_readWithPadding_eq_of_size
+  -- Compiler.Proofs.YulGeneration.Backends.Native.toBytesBigEndian_uint256_length_le  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_loop_size  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_loop_data_toList  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_size  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_data_toList  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.uint256_toByteArray_size
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_arg0Bytes
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_argBytes_of_drop_eq_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_value
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_word
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload_aligned_arg_value
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload_aligned_arg_word
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value_of_readBytes_size
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_uint256
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerExprNative_selectorExpr
+  Compiler.Proofs.YulGeneration.Backends.Native.step_calldataload_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_shr_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_add_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sub_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mul_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_eq_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_iszero_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_lt_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_calldatasize_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_calldatasize_any
+  Compiler.Proofs.YulGeneration.Backends.Native.step_callvalue_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_callvalue_any
+  Compiler.Proofs.YulGeneration.Backends.Native.step_address_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_address_any
+  Compiler.Proofs.YulGeneration.Backends.Native.step_balance_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_origin_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_caller_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_caller_any
+  Compiler.Proofs.YulGeneration.Backends.Native.step_timestamp_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_timestamp_any
+  Compiler.Proofs.YulGeneration.Backends.Native.step_number_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_number_any
+  Compiler.Proofs.YulGeneration.Backends.Native.step_chainid_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_chainid_any
+  Compiler.Proofs.YulGeneration.Backends.Native.step_blobbasefee_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_blobbasefee_any
+  Compiler.Proofs.YulGeneration.Backends.Native.step_gasprice_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_coinbase_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_gaslimit_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_selfbalance_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_and_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mstore_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mstore_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mstore_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mstore_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mstore8_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mstore8_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mstore8_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mstore8_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sload_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mload_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_keccak256_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log0_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log0_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log0_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log0_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log1_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log1_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log1_pair_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log1_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log1_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log2_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log2_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log2_pair_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log2_triple_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log2_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log2_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log3_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log3_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log3_pair_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log3_triple_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log3_quad_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log3_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log3_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log4_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log4_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log4_pair_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log4_triple_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log4_quad_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log4_quint_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log4_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_log4_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sstore_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sstore_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sstore_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sstore_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_tload_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_tstore_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_tstore_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_tstore_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_tstore_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_msize_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_gas_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_returndatasize_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_calldatacopy_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_calldatacopy_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_calldatacopy_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_calldatacopy_pair_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_calldatacopy_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_returndatacopy_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_returndatacopy_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_returndatacopy_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_returndatacopy_pair_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_returndatacopy_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_pop_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_stop_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_return_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_return_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_return_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_return_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_revert_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_revert_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_revert_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_revert_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_initialState_arg0_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_initialState_arg0_ok_withStore
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_initialState_ofIR_arg0_ok_withStore
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_shr_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_add_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_add_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_add_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_add_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sub_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sub_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sub_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sub_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mul_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mul_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mul_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mul_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_div_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_div_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_div_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_div_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_div_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_div_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_div_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mod_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mod_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mod_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mod_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mod_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mod_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mod_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sdiv_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_smod_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_addmod_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mulmod_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_exp_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_signextend_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload0_then_shr224_initialState_selector_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_eq_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_eq_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_eq_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_eq_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_eq_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_eq_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_eq_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_iszero_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_iszero_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_iszero_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_iszero_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_iszero_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_lt_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_lt_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_lt_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_lt_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_lt_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_lt_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_lt_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_gt_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_gt_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_gt_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_gt_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_gt_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_gt_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_gt_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_slt_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sgt_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldatasize_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_callvalue_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_address_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_balance_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_origin_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_caller_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_timestamp_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_number_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_chainid_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_blobbasefee_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldatasize_any_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_callvalue_any_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_address_any_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_caller_any_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_timestamp_any_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_number_any_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_chainid_any_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_blobbasefee_any_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_gasprice_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_coinbase_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_gaslimit_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_selfbalance_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_and_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_or_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_xor_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_not_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_not_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_not_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_not_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_not_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_shl_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_byte_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sar_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sdiv_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sdiv_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sdiv_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_smod_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_smod_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_smod_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_exp_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_exp_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_exp_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_signextend_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_signextend_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_signextend_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_slt_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_slt_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_slt_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sgt_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sgt_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sgt_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_and_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_and_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_and_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_or_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_or_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_or_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_xor_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_xor_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_xor_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_shl_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_shl_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_shl_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_shr_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_shr_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_shr_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_byte_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_byte_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_byte_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sar_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sar_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sar_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sload_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_sload_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_calldataload_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_calldataload_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mload_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mload_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_tload_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_tload_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_keccak256_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_keccak256_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_keccak256_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_addmod_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_addmod_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_addmod_pair_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_addmod_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mulmod_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mulmod_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mulmod_pair_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.step_mulmod_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore8_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore8_nil_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore8_singleton_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore8_overarity_invalid
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mload_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_keccak256_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition_exec_revivable
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_log0_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_log1_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_log2_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_log3_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_log4_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_tload_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_tstore_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_msize_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_gas_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_returndatasize_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldatacopy_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_returndatacopy_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_pop_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_stop_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_return_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_revert_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNative_revert_zero_zero
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_revert_zero_zero_error
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_expr_prim_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_prim_one_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_selectorExpr_initialState_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_lt_calldatasize_4_ok
+  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_lt_ofNat_4_eq_zero_of_ge  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_isZero_ofNat_zero  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_initialState_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_lt_calldatasize_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_sload_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerExprNative_mstore_lit_sload_lit_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerExprNative_mstore_lit_lit_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerExprNative_mstore_lit_calldataload_lit_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerExprNative_return_lit_lit_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_singleton_lowerExprNative_return_lit_lit_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_iszero_lt_calldatasize_4_initialState_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_ident_one_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_iszero_ident_one_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lowerExprNative_selectorExpr_initialState_store_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_let_lit_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_ok_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_error
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_tail_error
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_error
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_prefix_error
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_nil_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_nil_ok_add_ten
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_leave_ok_add_ten
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_block_leave_ok_add_ten
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_block_nil_ok_add_ten
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_stop_halt_add_ten
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_noop_block_head_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_store_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_zero
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_nonzero
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_eval_nonzero_error
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_iszero_ident_one_skip
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_callvalue_skip_zero_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.natToUInt256_eq_zero_of_mod_evm
+  Compiler.Proofs.YulGeneration.Backends.Native.natToUInt256_ne_zero_of_mod_ne
+  Compiler.Proofs.YulGeneration.Backends.Native.DispatchGuardsSafe_msgValue_zero_mod_of_nonpayable
+  Compiler.Proofs.YulGeneration.Backends.Native.DispatchGuardsSafe_calldata_threshold_lt
+  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_lt_ofNat_eq_zero_of_ge  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_lt_ofNat_eq_one_of_lt  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_lt_calldatasize_skip_ge_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_lt_calldatasize_take_lt_revert_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_iszero_ident_one_skip_fuel
+  -- Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState_insert_lookup_self  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lowerExprNative_ident_one_take_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_singleton_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_letSelector_if1Skip_initialState_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_letSelector_if1Skip_if2Take_initialState_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_hit_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_miss_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_miss_ok_fuel
+  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_land_zero_left  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_matched_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_matched_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_miss
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_miss_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerAssignNative_lit_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit_marked
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_hit_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit_marked_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit_marked_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_matched
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_matched_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_unmatched_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_unmatched_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_matched_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchDefaultGuard_matched_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_unmatched_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts
+  Compiler.Proofs.YulGeneration.Backends.Native.state_lookup_insert_of_ne
+  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_insert_of_ne
+  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_insert_self_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_multifill_of_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_foldr_insert_zero_of_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setSharedState
+  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setMachineState
+  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setState
+  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setStore_ok_left
+  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_setStore_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldatasize
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldatasize_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_callvalue
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_callvalue_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_address
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_address_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_balance
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_origin
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_caller
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_caller_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_timestamp
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_timestamp_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_number
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_number_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_chainid
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_chainid_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_blobbasefee
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_blobbasefee_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_gasprice
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_coinbase
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_gaslimit
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_selfbalance
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_unary_same_state
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_unary_same_state_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_binary_same_state
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_ternary_same_state
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_binary_same_state_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_ternary_same_state_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_iszero
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_iszero_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_shr
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_shr_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_add
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_add_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sub
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sub_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mul
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mul_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_div
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_div_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mod
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mod_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sdiv
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sdiv_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_smod
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_smod_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_addmod
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_addmod_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mulmod
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mulmod_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_exp
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_exp_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_signextend
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_signextend_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_eq_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_lt
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_lt_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_gt
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_gt_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_slt
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_slt_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sgt
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sgt_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_and
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_and_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_or
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_or_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_xor
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_xor_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_not
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_not_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_shl
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_shl_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_byte
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_byte_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sar
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sar_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sload
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sload_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldataload
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldataload_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mload
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mload_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mstore
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mstore_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mstore8
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_mstore8_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_tload
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_tload_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_tstore
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_tstore_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sstore
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_sstore_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_stop
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_return
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_revert
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_return_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_revert_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_msize
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_gas
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_returndatasize
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldatacopy
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_returndatacopy
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_calldatacopy_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_returndatacopy_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_pop
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_keccak256
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_keccak256_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log0
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log1
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log2
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log3
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log4
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_noop_result
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log0_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log1_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log2_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log3_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_log4_values
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePrimCallPreservesWord_of_allowed_lookupRuntimePrimOp
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_var
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lit
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_nil
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_map_lowerExprNative
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_map_lowerExprNative_reverse
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_lit
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_hex
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_str
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_ident
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_prim_of_nativeEvalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_user_of_evalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_call_user_of_nativeEvalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_overwrite?_left
+  Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_restoreCallFrame_of_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.native_call_preserves_lookup_of_revivable_body
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition_exec_revivable_of_ok_state
+  Compiler.Proofs.YulGeneration.Backends.Native.state_foldr_insert_ok_exists
+  Compiler.Proofs.YulGeneration.Backends.Native.state_mkOk_initcall_ok_exists
+  Compiler.Proofs.YulGeneration.Backends.Native.native_mappingSlot_call_preserves_lookup
+  Compiler.Proofs.YulGeneration.Backends.Native.native_mappingSlot_call_preserves_lookup_state
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_mappingSlot_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_of_bridgedExpr_mappingContract
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_bridgedExprs_mappingContract
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeExprPreservesWord_lowerExprNative_of_mappingFreeBridgedExpr
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeEvalArgsPreservesWord_lowerExprNative_reverse_of_mappingFreeBridgedExprs
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchDiscrTempName_ne_matchedTempName
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixFinalState_matched
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixFinalState_discr
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixFinalState_marked
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_nil
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons_stmt
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_singleton
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_forall_stmt
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_forall_stmt_write_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtWriteNames_let_singleton_not_mem_ne
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtWriteNames_let_not_mem_vars
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtWriteNames_lowerAssignNative_not_mem_ne
+  Compiler.Proofs.YulGeneration.Backends.Native.collectYulStmtWriteNames_append
+  Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsWriteNames_append
+  Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsWriteNames_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.yulStmtWriteNames_not_mem_of_yulStmtsWriteNames_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.collectNativeStmtWriteNames_append
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_append
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_cons_not_mem_iff
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_head_not_mem_of_cons_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_tail_not_mem_of_cons_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_left_not_mem_of_append_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_right_not_mem_of_append_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtsWriteNames_append_not_mem_iff
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_forall_stmt
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons_of_nativeStmtsWriteNames_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_block_of_nativeStmtsWriteNames_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_append_of_nativeStmtsWriteNames_append_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_self
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_cond_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_cond_preserves_and_nativeStmtsWriteNames_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchBranchFold_ok_preserves_word
+  Compiler.Proofs.YulGeneration.Backends.Native.execSwitchCases_ok_branch_preserves_word
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_switch_of_eval_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_switch_of_cond_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_switch_of_cond_preserves_and_nativeStmtsWriteNames_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_switch_of_eval_preserves_and_nativeStmtsWriteNames_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_lit_of_ne
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_hex_of_ne
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_ident_of_ne
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_str_of_ne
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_none_of_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_var_of_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lit_of_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_lit_of_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_hex_of_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_str_of_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_ident_of_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_prim_of_nativeEvalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_user_of_nativeEvalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_mappingSlot_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_evalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_call_userFunction_of_nativeEvalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_of_mappingFreeBridgedExpr
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_letMany_lowerExprNative_of_mappingFreeBridgedExpr
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_of_mappingFreeBridgedExpr
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_mappingSlot_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_let_lowerExprNative_of_bridgedExpr_mappingContract
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_letMany_lowerExprNative_of_bridgedExpr_mappingContract
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_of_bridgedExpr_mappingContract
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_empty_block
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_comment
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let_of_write_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_letMany_of_write_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_assign
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_assign_of_write_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_user_of_nativeEvalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_evalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mappingSlot_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_call_of_bridgedExpr_mappingContract
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_mstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_mstore_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_mstore8_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_mstore8_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_sstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_sstore_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_tstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_tstore_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log0_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log1_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log2_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log3_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log4_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log0_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log1_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log2_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log3_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_log4_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_return_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_return_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_revert_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_evalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_nativeEvalArgs_and_evalArgs_shape_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_revert_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_nativeEvalArgs_preserves
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_stop
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_exprStmtCall_lowerExprNative_stop
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_stop
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log0
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log1
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log2
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log3
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log4
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log0_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log1_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log2_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log3_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_log4_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_mstore
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_mstore_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_mstore8
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_mstore8_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_sstore
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_sstore_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_tstore
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_tstore_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_return
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_return_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_revert
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_revert_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_calldatacopy
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_returndatacopy
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_calldatacopy_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_expr_returndatacopy_of_nativeEvalArgs
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeMappingFreeBridgedExpr.of_bridgedExpr
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeMappingFreePreservableStraightStmt.of_bridgedStraightStmt
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeMappingFreePreservableStraightStmts.of_bridgedStraightStmts
+  -- Compiler.Proofs.YulGeneration.Backends.Native.bridgedExpr_mappingSlot_of_bridged  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePreservableStraightStmt.of_bridgedStraightStmt
+  Compiler.Proofs.YulGeneration.Backends.Native.NativePreservableStraightStmts.of_bridgedStraightStmts
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_of_mappingFreePreservableStraightStmt
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_of_mem_lowerStmtsNativeWithSwitchIds_of_mappingFreePreservableStraightStmts
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_lowerStmtsNativeWithSwitchIds_of_mappingFreePreservableStraightStmts
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_of_nativePreservableStraightStmt
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_of_mem_lowerStmtsNativeWithSwitchIds_of_nativePreservableStraightStmts
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_of_mem_lowerStmtsNativeWithSwitchIds_of_bridgedStraightStmts
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_lowerStmtsNativeWithSwitchIds_of_nativePreservableStraightStmts
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_lowerStmtsNativeWithSwitchIds_of_bridgedStraightStmts
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_case_matched_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_case_discr_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_find_hit_matched_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_find_hit_discr_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_default_matched_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchTempsFreshForNativeBodies_default_discr_not_mem
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_discr
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_default_matched
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_default_discr
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_nil
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchCaseIfs_cons
+  -- Compiler.Proofs.YulGeneration.Backends.Native.list_find?_eq_some_split_false  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.list_find?_eq_none_all_false  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_ne_of_ne_of_lt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_prefix_miss_of_selector_find  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_none_all_miss
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_all_miss_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_matched_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_head_hit_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_head_hit_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_cons_miss_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_prefix_hit_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_prefix_hit_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_preserved_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_nonempty_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_matched_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_matched_caseTail_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_with_default_matched_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_with_default_preserved_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_with_default_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_revert_default_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_without_default_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_then_tail_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_then_tail_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_hit_preserved_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_hit_fresh_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_hit_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_none_with_default_nonempty_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_none_without_default_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchTail_find_none_with_revert_default_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_preserved_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_fresh_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_default_nonempty_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_storePrefix_tail_error_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_reviveJump_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_weiValue
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_calldata_size
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_matched
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_callvalue_skip_markedPrefix_zero_mod_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_callvalue_take_markedPrefix_nonzero_revert_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lt_calldatasize_skip_markedPrefix_ge_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_if_lt_calldatasize_take_markedPrefix_lt_revert_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_calldata_revert_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_callvalue_revert_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_calldata_revert_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_lowered_prefix_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_lowered_prefix_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState_insert_hasSelector_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixStoreState_matched_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPrefixStoreState_discr_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_storePrefix_tail_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_preserved_store_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_finalMatched_store_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_fresh_store_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_error_store_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_fresh
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_without_default_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_unbridgedEnvironmentDefaults
+  Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_accountStorageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_missingAccountStorageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_missingAccount
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_observableStorageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_materializedStorageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_materializedStorageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_observableSlot_value
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_materializedSlot_value
+  Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_retrieveHit_initialState_materialized
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_sload_omittedSlot_value
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_observableSlot_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_omittedSlot_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_observableSlot_ok_withStore
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload_initialState_omittedSlot_ok_withStore
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_ok_withStore
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_return32_after_mstore0_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_hReturn_size
+  Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq_toByteArray
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_ok_hReturn_size
+  Compiler.Proofs.YulGeneration.Backends.Native.initialState_omittedStorageSlot
+  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_reverse_append_single  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.listByteArrayWordNoMod_eq_fromBytes'_take_reverse  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.listByteArrayWordNoMod_lt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.listByteArrayWordMod_eq_noMod  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_get?_data_toList  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.byteArrayWord_eq_fromBytes'_reverse_of_size
+  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_replicate_zero  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_append_replicate_zero  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.byteArrayWord_uint256_toByteArray
+  Compiler.Proofs.YulGeneration.Backends.Native.projectLogEntry_topicsAndWordData
+  Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState_logSeries
+  Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState_initialState
+  Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState_nativeSwitchStoreMarkedPrefixStateForId
+  Compiler.Proofs.YulGeneration.Backends.Native.projectStorageFromState_setStore_ok_left
+  Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState_setStore_ok_left
+  Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_stop
+  Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_32ByteReturn
+  Compiler.Proofs.YulGeneration.Backends.Native.projectHaltReturn_non32ByteReturn
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_emptyMemory_projectHaltReturn
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_singleton_block_eq_exec_block
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_dispatcher_eq_exec_block
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherBlockResult_eq_execResult
+  Compiler.Proofs.YulGeneration.Backends.Native.callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult
+  Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_zero
+  Compiler.Proofs.YulGeneration.Backends.Native.callDispatcher_succ_eq_callDispatcherBlockResult
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_nativeSwitchStoreMarkedPrefixStateForId_success
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_nativeSwitchStoreMarkedPrefixStateForId_returnValue
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_nativeSwitchStoreMarkedPrefixStateForId_events
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_nativeSwitchStoreMarkedPrefixStateForId_storageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_nativeSwitchStoreMarkedPrefixStateForId_observableStorageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_setStore_ok_left
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_restoreCallFrame_of_reviveJump_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_withStore_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_events
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_success
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_returnValue
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_finalMappings
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_finalStorageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_missingFinalStorageAccountSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_missingFinalStorageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_projectResult_slot
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_projectResult_slot_zero_of_erase
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_projectResult_slot_zero_emptyObservable
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_withStore_projectResult_slot
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_of_erase
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_initialState_wordSlot_withStore_projectResult_slot_zero_emptyObservable
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_ofIR_arg0_withStore_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0_zero_of_erase
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_withStore_projectResult_slot0_zero_emptyObservable
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_ok
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0_zero_of_erase
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_stop_initialState_arg0_projectResult_slot0_zero_emptyObservable
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0_zero_of_erase
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_calldataload4_then_sstore0_initialState_arg0_projectResult_slot0_zero_emptyObservable
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_events
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_success
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_returnValue
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_emptyMemory_projectResult_returnValue
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_mstore0_then_return32_emptyMemory_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_projectResult_returnValue
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_omittedSlot_projectResult_returnValue
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_projectResult_returnValue_materialized
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_omittedSlot_projectResult_returnValue
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_returnValue_materialized
+  Compiler.Proofs.YulGeneration.Backends.Native.primCall_sload0_then_mstore0_return32_initialState_withStore_projectResult_eq_materialized
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_finalMappings
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_finalStorageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_missingFinalStorageAccountSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_yulHalt_missingFinalStorageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_stop
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_32ByteReturn
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_non32ByteReturn
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_events
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_success
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_returnValue
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_finalMappings
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_revert_finalStorageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_success
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_returnValue
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_finalStorageSlot
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_finalMappings
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_hardError_events
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq_payable_generated_prefix
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq_nonpayable_generated_prefix
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq_payable_generated_prefix
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq_nonpayable_generated_prefix
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq_payable_generated_prefix
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq_nonpayable_generated_prefix
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_preserved
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_payable_generated_prefix
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_nonpayable_generated_prefix
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_peel
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_payable_generated_prefix_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_nonpayable_generated_prefix_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_nonpayable_callvalue_revert_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_nonpayable_callvalue_revert_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_payable_args_short_revert_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_nonpayable_args_short_revert_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_payable_args_short_revert_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_nonpayable_args_short_revert_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_nonpayable_callvalue_revert_withSwitchIds_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_payable_args_short_revert_withSwitchIds_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_nonpayable_args_short_revert_withSwitchIds_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_payable_generated_prefix_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_nonpayable_generated_prefix_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_payable_withSwitchIds_generated_prefix_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_nonpayable_withSwitchIds_generated_prefix_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_payable_generated_prefix_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_nonpayable_generated_prefix_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_payable_withSwitchIds_generated_prefix_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_nonpayable_withSwitchIds_generated_prefix_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_atFuel_artifact_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_projectResult_eq_preserved
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_atFuel_projectResult_eq_preserved
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_atFuel_projectResult_eq_preserved_forall
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_withSwitchIds_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_withSwitchIds_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_withSwitchIds_atFuel_artifact_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_projectResult_eq_preserved
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_atFuel_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_atFuel_projectResult_eq_preserved
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_atFuel_projectResult_eq_preserved_forall
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_withSwitchIds_projectResult_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_withSwitchIds_atFuel_projectResult_eq
+  -- Compiler.Proofs.YulGeneration.Backends.Native.simpleStorageSelectors_tagsRange  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_find_none_with_revert_default_projectResult_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_find_none_with_revert_default_projectResult_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_tx_miss_with_revert_default_projectResult_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_tx_miss_with_revert_default_projectResult_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_fuel  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_error_store_fuel  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_store_hit_projectResult_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_store_hit_projectResult_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_error_fuel  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageSelectors_retrieve_hit_projectResult_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_simpleStorageConcrete_retrieve_hit_projectResult_eq  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.projectResult_finalMappings
+  Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_loweringError
+  Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_generatedFragmentError
+  Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
+  Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
+  Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_succ_eq_contractDispatcherExecResult_of_lowerRuntimeContractNative
+  Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative_environmentError
+  Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_interpretRuntimeNative
+  Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_loweringError
+  Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_generatedFragmentError
+  Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
+  Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
+  Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_succ_eq_contractDispatcherExecResult_of_lowerRuntimeContractNative
+
+  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeSignedArithLemmas.lean
+  -- Compiler.Proofs.YulGeneration.Backends.fin_val_mul_neg1  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.natAbs_ofNat_sub  -- private
+  Compiler.Proofs.YulGeneration.Backends.int256_div_toUint256_val_eq_uint256_sdiv
+  -- Compiler.Proofs.YulGeneration.Backends.eq0_true_of_val_eq_zero  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.eq0_false_of_val_ne_zero  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int256_ofInt_nat_toUint256_val  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int256_ofInt_neg_nat_toUint256_val  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int256_ofUint256_coe_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.evmModulus_eq_specModulus  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int256_modulus_eq_specModulus  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.signedAbsNat_of_ofUint256  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int256_coe_lt_zero_iff  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int256_coe_eq_zero_iff  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int256_mod_toUint256_val_eq_smodSpec  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.uint256_abs_toNat_eq_specAbs  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.uint256_mod_toNat_of_nonzero  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.uint256_toSigned_ofNat_toNat_of_lt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.uint256_toSigned_negSucc_toNat_of_lt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.uint256_smod_toNat_eq_smodSpec  -- private
+  Compiler.Proofs.YulGeneration.Backends.int256_mod_toUint256_val_eq_uint256_smod
+  -- Compiler.Proofs.YulGeneration.Backends.uint256_lt_zero_false  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.uint256_complement_val  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.uint256_complement_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.uint256_shiftRight_val  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.uint256_sar_toNat_eq_sarSpec  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int_two_pow_eq_nat  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int_fdiv_ofNat_two_pow  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int_sub_modulus_eq_negSucc  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int_fdiv_neg_raw_two_pow  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int256_ofInt_negSucc_toUint256_val  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.int256_sar_toUint256_val_eq_sarSpec  -- private
+  Compiler.Proofs.YulGeneration.Backends.int256_sar_toUint256_val_eq_uint256_sar
+  -- Compiler.Proofs.YulGeneration.Backends.se_uint256_eq_of_val  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_lor_val  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_land_val  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_sub_val  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_tb_pow_sub_pow  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_tb_ne_zero  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_tb_eq_zero  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_set_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_clear_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_tb_val  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_shiftLeft_one_val  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_val_val_of_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_sign_set  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_sign_clear  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_nat_to_sign  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_verity_ofNat  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.se_size_to_uint256_val  -- private
+  Compiler.Proofs.YulGeneration.Backends.uint256_signextend_val_eq_uint256_signextend
+
+  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanPureBuiltinLemmas.lean
+  -- Compiler.Proofs.YulGeneration.Backends.uint256_size_eq_evmModulus  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.word_lt_uint256_size  -- private
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_add_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_sub_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_mul_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_div_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_mod_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_eq_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_iszero_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_lt_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_gt_native
+  -- Compiler.Proofs.YulGeneration.Backends.toNat_fromBool  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.uint256_lt_iff_nat_lt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.slt_int256_eq_sltBool  -- private
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_slt_native
+  -- Compiler.Proofs.YulGeneration.Backends.sgt_int256_eq_sgtBool  -- private
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_sgt_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_sdiv_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_smod_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_sar_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_signextend_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_and_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_or_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_xor_native
+  -- Compiler.Proofs.YulGeneration.Backends.xor_all_ones_uint256_word  -- private
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_not_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_shl_native
+  Compiler.Proofs.YulGeneration.Backends.evalPureBuiltinViaEvmYulLean_shr_native
+
+  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_add  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_sub  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_mul  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_div  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_mod  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_lt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_gt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_iszero  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_and  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_or  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_xor  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_not  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_shl  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_shr  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_addmod  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_mulmod  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_byte  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_slt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_sgt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_exp  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_sdiv  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_smod  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_sar  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_signextend  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_caller  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_address  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_callvalue  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_timestamp  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_number  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_chainid  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_blobbasefee  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_calldataload  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_calldatasize  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_sload  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_mappingSlot  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_on_bridged_builtins  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.backends_agree_on_keccak256  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_evmYulLean_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.evalYulExprsWithBackend_evmYulLean_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_eq_on_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.evalYulExprsWithBackend_eq_on_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.evalYulExpr_evmYulLean_eq_on_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_evmYulLean_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_let_eq_on_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_assign_eq_on_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_straight_stmts  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_block_eq_on_bridged_straight_stmts  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_if_eq_on_bridged_body  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_switch_eq_on_bridged_cases  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_for_eq_on_bridged_parts  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_callvalue  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selector  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_selectorExpr  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.evalYulExpr_selectorExpr_semantics  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.evalYulExprWithBackend_evmYulLean_selectorExpr_semantics  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldatasize_lt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_has_selector  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_empty_calldata  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_iszero_ident  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.callvalueGuard_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.calldatasizeGuard_bridged  -- private
   Compiler.Proofs.YulGeneration.Backends.dispatchBody_bridged
   Compiler.Proofs.YulGeneration.Backends.defaultDispatchCase_bridged
-  -- Compiler.Proofs.YulGeneration.Backends.switchCases_bridged  -- private
+  Compiler.Proofs.YulGeneration.Backends.switchCases_bridged
   Compiler.Proofs.YulGeneration.Backends.buildSwitch_bridged
   Compiler.Proofs.YulGeneration.Backends.mappingSlotFuncAt_bridged
   Compiler.Proofs.YulGeneration.Backends.runtimeCode_bridged
   Compiler.Proofs.YulGeneration.Backends.emitYul_runtimeCode_bridged
-  Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_target
-  Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmt
-  Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmts
-  Compiler.Proofs.YulGeneration.Backends.emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies
-  Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend_eq_fuel
-  Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend_verity_eq
-  Compiler.Proofs.YulGeneration.Backends.interpretYulFromIR_evmYulLean_eq_on_bridged_bodies
-  Compiler.Proofs.YulGeneration.Backends.yulCodegen_preserves_semantics_evmYulLean
+  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_target  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmt  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.execYulFuelWithBackend_eq_on_bridged_stmts  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.interpretYulRuntimeWithBackend_evmYulLean_eq  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.interpretYulFromIR_evmYulLean_eq_on_bridged_bodies  -- private
 
   -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSignedArithSpec.lean
   Compiler.Proofs.YulGeneration.Backends.SignedArithSpec.specSignBit_lt_specModulus
@@ -3903,16 +5370,48 @@ end Verity.AxiomAudit
 
   -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean
   Compiler.Proofs.YulGeneration.Backends.compileExpr_bridgedSource_leaf
+  Compiler.Proofs.YulGeneration.Backends.bridgedSourceExpr_of_exprCompileCore
+  Compiler.Proofs.YulGeneration.Backends.bridgedSourceExpr_keccak256_of_exprCompileCore
   -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_binopBuiltin  -- private
   -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_unopBuiltin  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_nullaryBuiltin  -- private
   -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_yulBinOp  -- private
   -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_yulNegatedBinOp  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_yulToBool  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_ceilDiv  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_mulDivDown  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_mulDivUp  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_wMulDown  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_wDivUp  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_min  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_max  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_ite  -- private
   -- Compiler.Proofs.YulGeneration.Backends.compileExpr_yulBinOp_ok  -- private
   -- Compiler.Proofs.YulGeneration.Backends.compileExpr_yulNegatedBinOp_ok  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileExpr_yulBoolBinOp_ok  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileExpr_unopBuiltin_ok  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload_lit  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_mappingSlot  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload_mappingSlot_lit  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload_mappingSlot_lit_add  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload_mappingSlot2_lit  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload_mappingSlot2_lit_add  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_foldl_mappingSlot  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_sload_mappingSlotChain_lit  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileMappingSlotRead_bridged  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_adtTagRead_lit  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_adtFieldRead_lit  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_packed_sload_lit  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_packed_read  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileExpr_binaryShape_ok  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.compileExpr_ternaryShape_ok  -- private
   Compiler.Proofs.YulGeneration.Backends.compileExpr_bridgedSource
+  Compiler.Proofs.YulGeneration.Backends.compileExpr_keccak256_bridgedSource_of_exprCompileCore
   -- Compiler.Proofs.YulGeneration.Backends.compileRequireFailCond_default_bridgedSource  -- private
   Compiler.Proofs.YulGeneration.Backends.compileRequireFailCond_bridgedSource
   Compiler.Proofs.YulGeneration.Backends.compileExprList_bridgedSource
+  Compiler.Proofs.YulGeneration.Backends.compileExpr_mappingChain_bridgedSource
 
   -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean
   Batteries.RBNode.All.setBlack'
@@ -3934,18 +5433,14 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.YulGeneration.Backends.StateBridge.byteArray_get?_append_left  -- private
   -- Compiler.Proofs.YulGeneration.Backends.StateBridge.byteArray_get?_append_right  -- private
   -- Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_fold_get?_left  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_fold_get?_word  -- private
   Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_size
   Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte0
   Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte1
   Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte2
   Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_selectorByte3
   Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_arg0Byte
-  Compiler.Proofs.YulGeneration.Backends.StateBridge.callvalue_bridge
-  Compiler.Proofs.YulGeneration.Backends.StateBridge.timestamp_bridge
-  Compiler.Proofs.YulGeneration.Backends.StateBridge.number_bridge
-  Compiler.Proofs.YulGeneration.Backends.StateBridge.calldatasize_bridge
-  Compiler.Proofs.YulGeneration.Backends.StateBridge.caller_bridge
-  Compiler.Proofs.YulGeneration.Backends.StateBridge.address_bridge
+  Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_argByte_of_drop_eq_cons
   -- Compiler.Proofs.YulGeneration.Backends.StateBridge.ordering_then_eq  -- private
   -- Compiler.Proofs.YulGeneration.Backends.StateBridge.UInt256_compare_eq_fin  -- private
   Compiler.Proofs.YulGeneration.Backends.StateBridge.UInt256_eq_of_compare_eq
@@ -3961,43 +5456,46 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.StateBridge.uint256_roundtrip
 
   -- Compiler/Proofs/YulGeneration/Equivalence.lean
-  Compiler.Proofs.YulGeneration.resultsMatch_of_execResultsAligned
-  Compiler.Proofs.YulGeneration.statesAligned_refl
-  Compiler.Proofs.YulGeneration.execYulStmtsFuel_nil
-  Compiler.Proofs.YulGeneration.execYulStmtsFuel_cons
-  Compiler.Proofs.YulGeneration.execYulStmtFuel_for
+  -- Compiler.Proofs.YulGeneration.resultsMatch_of_execResultsAligned  -- private
+  -- Compiler.Proofs.YulGeneration.statesAligned_refl  -- private
+  -- Compiler.Proofs.YulGeneration.execYulStmtsFuel_nil  -- private
+  -- Compiler.Proofs.YulGeneration.execYulStmtsFuel_cons  -- private
+  -- Compiler.Proofs.YulGeneration.execYulStmtFuel_for  -- private
   -- Compiler.Proofs.YulGeneration.stmt_align_contra  -- private
+  -- Compiler.Proofs.YulGeneration.execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv  -- private
+  -- Compiler.Proofs.YulGeneration.execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv  -- private
+  -- Compiler.Proofs.YulGeneration.execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv  -- private
+  -- Compiler.Proofs.YulGeneration.ir_yul_function_equiv_fuel_goal_of_stmt_equiv  -- private
+  -- Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal  -- private
+  -- Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy  -- private
+  -- Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy  -- private
+  -- Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv  -- private
+
+  -- Compiler/Proofs/YulGeneration/IRFuel.lean
   Compiler.Proofs.YulGeneration.execIRStmtsFuel_nil
   Compiler.Proofs.YulGeneration.execIRStmtsFuel_cons
-  Compiler.Proofs.YulGeneration.execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
-  Compiler.Proofs.YulGeneration.execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv
-  Compiler.Proofs.YulGeneration.execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv
-  Compiler.Proofs.YulGeneration.ir_yul_function_equiv_fuel_goal_of_stmt_equiv
   Compiler.Proofs.YulGeneration.execIRFunctionFuel_adequate
-  Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal
-  Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
-  Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
-  Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv
 
   -- Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean
-  Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_nil
-  Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_context
-  Compiler.Proofs.YulGeneration.evalBuiltinCall_calldatasize_nil
-  Compiler.Proofs.YulGeneration.evalBuiltinCall_caller_nil
-  Compiler.Proofs.YulGeneration.evalBuiltinCall_address_nil
-  Compiler.Proofs.YulGeneration.evalBuiltinCall_timestamp_nil
-  Compiler.Proofs.YulGeneration.evalBuiltinCall_number_nil
-  Compiler.Proofs.YulGeneration.evalBuiltinCall_chainid_nil
-  Compiler.Proofs.YulGeneration.evalBuiltinCall_blobbasefee_nil
-  Compiler.Proofs.YulGeneration.calldataloadWord_offset4
-  Compiler.Proofs.YulGeneration.evalBuiltinCall_calldataload_offset4_single
-  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_calldataload_offset4_single
-  Compiler.Proofs.YulGeneration.evalBuiltinCall_sload_single
-  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_sload_single
+  -- Compiler.Proofs.YulGeneration.defaultBuiltinBackend_eq_evmYulLean  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_nil  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCall_callvalue_context  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCall_calldatasize_nil  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCall_caller_nil  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCall_address_nil  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCall_timestamp_nil  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCall_number_nil  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCall_chainid_nil  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCall_blobbasefee_nil  -- private
+  -- Compiler.Proofs.YulGeneration.calldataloadWord_offset4  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCall_calldataload_offset4_single  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_calldataload_offset4_single  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCall_sload_single  -- private
+  -- Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend_sload_single  -- private
 
-  -- Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean
+  -- Compiler/Proofs/YulGeneration/RuntimeTypes.lean
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_sender
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 3732 theorems/lemmas (2782 public, 950 private, 0 sorry'd)
+-- Total: 5212 theorems/lemmas (3508 public, 1704 private, 0 sorry'd)

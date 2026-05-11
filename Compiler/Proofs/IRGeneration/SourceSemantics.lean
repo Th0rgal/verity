@@ -2388,7 +2388,11 @@ def interpretConstructor (spec : CompilationModel) (ctor : ConstructorSpec)
 def interpretContract (spec : CompilationModel) (selectors : List Nat)
     (tx : IRTransaction) (initialWorld : Verity.ContractState) : SourceContractResult :=
   match findFunctionBySelector spec selectors tx.functionSelector with
-  | some fn => interpretFunction spec fn tx initialWorld
+  | some fn =>
+      if !fn.isPayable && tx.msgValue % Compiler.Constants.evmModulus != 0 then
+        revertedResult spec (withTransactionContext initialWorld tx)
+      else
+        interpretFunction spec fn tx initialWorld
   | none => revertedResult spec (withTransactionContext initialWorld tx)
 
 -- The ceilDiv case pushes the equation-compiler's `simp` past 200 000 heartbeats.
@@ -3153,7 +3157,11 @@ def interpretContractWithHelpers
     (tx : IRTransaction)
     (initialWorld : Verity.ContractState) : SourceContractResult :=
   match findFunctionBySelector spec selectors tx.functionSelector with
-  | some fn => interpretFunctionWithHelpers spec fuel fn tx initialWorld
+  | some fn =>
+      if !fn.isPayable && tx.msgValue % Compiler.Constants.evmModulus != 0 then
+        revertedResult spec (withTransactionContext initialWorld tx)
+      else
+        interpretFunctionWithHelpers spec fuel fn tx initialWorld
   | none => revertedResult spec (withTransactionContext initialWorld tx)
 
 theorem helperSummarySound
@@ -4303,13 +4311,15 @@ theorem interpretContractWithHelpers_eq_interpretContract_of_supportedSpec
     have hfn : fn ∈ selectorDispatchedFunctions spec :=
       findFunctionBySelector_mem_selectorDispatchedFunctions hfind
     have hfnModel : fn ∈ spec.functions := List.mem_of_mem_filter hfn
-    exact interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
-      (spec := spec)
-      (fuel := fuel)
-      (fn := fn)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hSupported.supportedFunctionOfSelectorDispatched hfn).body.helperSurfaceClosed
+    split
+    · rfl
+    · exact interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
+        (spec := spec)
+        (fuel := fuel)
+        (fn := fn)
+        (tx := tx)
+        (initialWorld := initialWorld)
+        (hSupported.supportedFunctionOfSelectorDispatched hfn).body.helperSurfaceClosed
   · rfl
 
 theorem interpretContractWithHelpers_eq_interpretContract_of_supportedSpecExceptMappingWrites
@@ -4326,13 +4336,15 @@ theorem interpretContractWithHelpers_eq_interpretContract_of_supportedSpecExcept
   · rename_i fn hfind
     have hfn : fn ∈ selectorDispatchedFunctions spec :=
       findFunctionBySelector_mem_selectorDispatchedFunctions hfind
-    exact interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
-      (spec := spec)
-      (fuel := fuel)
-      (fn := fn)
-      (tx := tx)
-      (initialWorld := initialWorld)
-      (hSupported.supportedFunctionOfSelectorDispatched hfn).body.helperSurfaceClosed
+    split
+    · rfl
+    · exact interpretFunctionWithHelpers_eq_interpretFunction_of_helperSurfaceClosed
+        (spec := spec)
+        (fuel := fuel)
+        (fn := fn)
+        (tx := tx)
+        (initialWorld := initialWorld)
+        (hSupported.supportedFunctionOfSelectorDispatched hfn).body.helperSurfaceClosed
   · rfl
 
 end SourceSemantics

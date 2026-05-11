@@ -1,5 +1,6 @@
 import Compiler.Codegen
 import Compiler.Proofs.IRGeneration.IRInterpreter
+import Compiler.Proofs.YulGeneration.IRFuel
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 
 namespace Compiler.Proofs.YulGeneration
@@ -10,7 +11,7 @@ open Compiler.Yul
 
 /-! ## IR ↔ Yul State Alignment -/
 
-def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
+private def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
   { vars := state.vars
     storage := state.storage
     transientStorage := state.transientStorage
@@ -27,40 +28,17 @@ def yulStateOfIR (_selector : Nat) (state : IRState) : YulState :=
     blobBaseFee := state.blobBaseFee
     events := state.events }
 
-def statesAligned (selector : Nat) (ir : IRState) (yul : YulState) : Prop :=
+private def statesAligned (selector : Nat) (ir : IRState) (yul : YulState) : Prop :=
   yul = yulStateOfIR selector ir
 
-/-! ## Bridging IR and Yul Semantics
-
-These helpers wire IR-level execution to Yul runtime execution so we can
-compare results directly in smoke tests.
--/
-
-noncomputable def interpretYulFromIR (contract : IRContract) (tx : IRTransaction) (state : IRState) : YulResult :=
-  interpretYulRuntime (Compiler.emitYul contract).runtimeCode (YulTransaction.ofIR tx) state.storage state.events
-
-/-- Interpret just a function body as Yul runtime code. -/
-noncomputable def interpretYulBody (fn : IRFunction) (tx : IRTransaction) (state : IRState) : YulResult :=
-  interpretYulRuntime fn.body (YulTransaction.ofIR tx) state.storage state.events
-
-/-- Interpret a function body starting from an aligned IR-derived state. -/
-def resultsMatchOn (slots : List Nat) (mappingKeys : List (Nat × Nat))
-    (ir : IRResult) (yul : YulResult) : Bool :=
-  ir.success == yul.success &&
-  ir.returnValue == yul.returnValue &&
-  slots.all (fun slot =>
-    ir.finalStorage (IRStorageSlot.ofNat slot) == yul.finalStorage (IRStorageSlot.ofNat slot)) &&
-  mappingKeys.all (fun (base, key) => ir.finalMappings base key == yul.finalMappings base key) &&
-  ir.events == yul.events
-
-/-! ## Layer 3 Equivalence Scaffolding
+/- ## Layer 3 Equivalence Scaffolding
 
 These statements capture the generic proof shape for IR → Yul equivalence.
 They are intentionally parameterized so contract-level results become
 mechanical instantiations once the instruction-level lemmas are proven.
 -/
 
-def execResultsAligned (selector : Nat) : IRExecResult → YulExecResult → Prop
+private def execResultsAligned (selector : Nat) : IRExecResult → YulExecResult → Prop
   | .continue ir, .continue yul => statesAligned selector ir yul
   | .return v ir, .return v' yul => v = v' ∧ statesAligned selector ir yul
   | .stop ir, .stop yul => statesAligned selector ir yul
@@ -68,40 +46,14 @@ def execResultsAligned (selector : Nat) : IRExecResult → YulExecResult → Pro
   | _, _ => False
 
 /-- Results match when success, return value, and storage/mapping functions agree. -/
-def resultsMatch (ir : IRResult) (yul : YulResult) : Prop :=
+private def resultsMatch (ir : IRResult) (yul : YulResult) : Prop :=
   ir.success = yul.success ∧
   ir.returnValue = yul.returnValue ∧
   (∀ slot, ir.finalStorage slot = yul.finalStorage slot) ∧
   (∀ base key, ir.finalMappings base key = yul.finalMappings base key) ∧
   ir.events = yul.events
 
-def irResultOfExecWithRollback (rollback : IRState) : IRExecResult → IRResult
-  | .continue s =>
-      { success := true
-        returnValue := s.returnValue
-        finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage
-        events := s.events }
-  | .return v s =>
-      { success := true
-        returnValue := some v
-        finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage
-        events := s.events }
-  | .stop s =>
-      { success := true
-        returnValue := none
-        finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage
-        events := s.events }
-  | .revert _ =>
-      { success := false
-        returnValue := none
-        finalStorage := rollback.storage
-        finalMappings := Compiler.Proofs.storageAsMappings rollback.storage
-        events := rollback.events }
-
-def yulResultOfExecWithRollback (rollback : YulState) : YulExecResult → YulResult
+private def irResultOfExecWithRollback (rollback : IRState) : IRExecResult → IRResult
   | .continue s =>
       { success := true
         returnValue := s.returnValue
@@ -128,13 +80,13 @@ def yulResultOfExecWithRollback (rollback : YulState) : YulExecResult → YulRes
         events := rollback.events }
 
 /-- Interpret a function body starting from an aligned IR-derived state. -/
-noncomputable def interpretYulBodyFromState
+private noncomputable def interpretYulBodyFromState
     (fn : IRFunction) (selector : Nat) (state rollback : IRState) : YulResult :=
   let yulState := yulStateOfIR selector state
   let yulRollback := yulStateOfIR selector rollback
   yulResultOfExecWithRollback yulRollback (execYulStmts yulState fn.body)
 
-theorem resultsMatch_of_execResultsAligned
+private theorem resultsMatch_of_execResultsAligned
     (selector : Nat) (rollbackIR : IRState) (rollbackYul : YulState)
     (hAligned : statesAligned selector rollbackIR rollbackYul) :
     ∀ irExec yulExec,
@@ -193,7 +145,7 @@ bodies. They do not assume any specific instruction equivalence proof;
 instead, they require it as a parameter and then compose it.
 -/
 
-theorem statesAligned_refl (selector : Nat) (state : IRState) :
+private theorem statesAligned_refl (selector : Nat) (state : IRState) :
     statesAligned selector state (yulStateOfIR selector state) := by
   rfl
 
@@ -204,11 +156,11 @@ fuel before executing the first statement. They are intended as building
 blocks for the generic sequence equivalence proof.
 -/
 
-theorem execYulStmtsFuel_nil (fuel : Nat) (state : YulState) :
+private theorem execYulStmtsFuel_nil (fuel : Nat) (state : YulState) :
     execYulStmtsFuel fuel state [] = .continue state := by
   cases fuel <;> rfl
 
-theorem execYulStmtsFuel_cons
+private theorem execYulStmtsFuel_cons
     (fuel : Nat) (state : YulState) (stmt : YulStmt) (rest : List YulStmt) :
     execYulStmtsFuel (Nat.succ fuel) state (stmt :: rest) =
       match execYulStmtFuel fuel state stmt with
@@ -218,7 +170,7 @@ theorem execYulStmtsFuel_cons
       | .revert s => .revert s := by
   rfl
 
-theorem execYulStmtFuel_for
+private theorem execYulStmtFuel_for
     (fuel : Nat) (state : YulState) (init : List YulStmt) (cond : YulExpr) (post body : List YulStmt) :
     execYulStmtFuel (Nat.succ fuel) state (YulStmt.for_ init cond post body) =
       match execYulStmtsFuel fuel state init with
@@ -237,23 +189,14 @@ theorem execYulStmtFuel_for
       | other => other := by
   rfl
 
-/-! ## Fuel-Parametric Aliases
-
-`execIRStmtFuel`/`execIRStmtsFuel` are aliases for the total IR executors
-in IRInterpreter.lean. Downstream proofs use these names.
--/
-
-abbrev execIRStmtFuel := @execIRStmt
-abbrev execIRStmtsFuel := @execIRStmts
-
 /-- Instruction-level equivalence goal: single IR statement matches Yul statement (fuel-parametric). -/
-def execIRStmt_equiv_execYulStmt_goal
+private def execIRStmt_equiv_execYulStmt_goal
     (selector : Nat) (fuel : Nat) (stmt : YulStmt) (irState : IRState) (yulState : YulState) : Prop :=
     statesAligned selector irState yulState →
     execResultsAligned selector (execIRStmtFuel fuel irState stmt) (execYulStmtFuel fuel yulState stmt)
 
 /-- Sequence/program equivalence goal: statement lists compose under alignment (fuel-parametric). -/
-def execIRStmts_equiv_execYulStmts_goal
+private def execIRStmts_equiv_execYulStmts_goal
     (selector : Nat) (fuel : Nat) (stmts : List YulStmt) (irState : IRState) (yulState : YulState) : Prop :=
     statesAligned selector irState yulState →
     execResultsAligned selector (execIRStmtsFuel fuel irState stmts) (execYulStmtsFuel fuel yulState stmts)
@@ -270,53 +213,7 @@ private theorem stmt_align_contra
   apply hImpossible
   simpa [hIR, hYul] using hStmt
 
-theorem execIRStmtsFuel_nil (fuel : Nat) (state : IRState) :
-    execIRStmtsFuel fuel state [] = .continue state := by
-  simp [execIRStmtsFuel, execIRStmts]
-
-theorem execIRStmtsFuel_cons
-    (fuel : Nat) (state : IRState) (stmt : YulStmt) (rest : List YulStmt) :
-    execIRStmtsFuel (Nat.succ fuel) state (stmt :: rest) =
-      match execIRStmtFuel fuel state stmt with
-      | .continue s' => execIRStmtsFuel fuel s' rest
-      | .return v s => .return v s
-      | .stop s => .stop s
-      | .revert s => .revert s := by
-  -- The mutual definition unfolds directly
-  rfl
-
-def execIRFunctionFuel (fuel : Nat) (fn : IRFunction) (args : List Nat) (initialState : IRState) :
-    IRResult :=
-  let stateWithParams := fn.params.zip args |>.foldl
-    (fun s (p, v) => s.setVar p.name v)
-    initialState
-  match execIRStmtsFuel fuel stateWithParams fn.body with
-  | .continue s =>
-      { success := true
-        returnValue := s.returnValue
-        finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage
-        events := s.events }
-  | .return v s =>
-      { success := true
-        returnValue := some v
-        finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage
-        events := s.events }
-  | .stop s =>
-      { success := true
-        returnValue := none
-        finalStorage := s.storage
-        finalMappings := Compiler.Proofs.storageAsMappings s.storage
-        events := s.events }
-  | .revert _ =>
-      { success := false
-        returnValue := none
-        finalStorage := initialState.storage
-        finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
-        events := initialState.events }
-
-def ir_yul_function_equiv_fuel_goal
+private def ir_yul_function_equiv_fuel_goal
     (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState) : Prop :=
   resultsMatch
     (execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState)
@@ -335,7 +232,7 @@ later proofs can specialize to the compiler-chosen fuel without re-proving the
 composition logic.
 -/
 
-theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
+private theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
         execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
@@ -353,7 +250,7 @@ theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
       cases fuel with
       | zero =>
           simp [execIRStmtsFuel, execIRStmts,
-            execYulStmtsFuel, execYulFuel, execResultsAligned, hAligned]
+            execYulStmtsFuel, legacyExecYulFuel, execResultsAligned, hAligned]
       | succ fuel =>
           have hStmt := stmt_equiv selector fuel stmt irState yulState hAligned
           cases hIR : execIRStmtFuel fuel irState stmt with
@@ -401,7 +298,7 @@ theorem execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv
               | «stop» y' =>
                   exact False.elim (stmt_align_contra (hStmt := hStmt) (hIR := hIR) (hYul := hYul) (by simp [execResultsAligned]))
 
-theorem execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv
+private theorem execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
         execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
@@ -416,7 +313,7 @@ theorem execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv
       selector (sizeOf stmts + 1) stmts irState yulState hAligned
   simpa [execYulStmts] using hFuel
 
-theorem execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv
+private theorem execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
         execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
@@ -444,7 +341,7 @@ theorem execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv
     (resultsMatch_of_execResultsAligned selector initialState
       (yulStateOfIR selector initialState) hRollback _ _ hExec)
 
-theorem ir_yul_function_equiv_fuel_goal_of_stmt_equiv
+private theorem ir_yul_function_equiv_fuel_goal_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
         execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState) :
@@ -455,25 +352,7 @@ theorem ir_yul_function_equiv_fuel_goal_of_stmt_equiv
     (execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv stmt_equiv
       selector fn args initialState)
 
-/-! ## Fuel Adequacy
-
-The IR executors are total (fuel-parametric) and the fuel aliases
-resolve by `rfl`. No axiom needed.
--/
-
-def execIRFunctionFuel_adequate_goal
-    (fn : IRFunction) (args : List Nat) (initialState : IRState) : Prop :=
-  execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState =
-    execIRFunction fn args initialState
-
-/-- Fuel adequacy holds by `rfl` (fuel aliases resolve to total executors). -/
-theorem execIRFunctionFuel_adequate
-    (fn : IRFunction) (args : List Nat) (initialState : IRState) :
-    execIRFunctionFuel_adequate_goal fn args initialState := by
-  unfold execIRFunctionFuel_adequate_goal execIRFunctionFuel execIRFunction execIRStmtsFuel
-  rfl
-
-theorem ir_yul_function_equiv_from_state_of_fuel_goal
+private theorem ir_yul_function_equiv_from_state_of_fuel_goal
     (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState)
     (hFuel :
       execIRFunctionFuel (sizeOf fn.body + 1) fn args initialState =
@@ -488,7 +367,7 @@ theorem ir_yul_function_equiv_from_state_of_fuel_goal
         initialState) := by
   simpa [ir_yul_function_equiv_fuel_goal, hFuel] using hFuelGoal
 
-theorem ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
+private theorem ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
     (fn : IRFunction) (selector : Nat) (args : List Nat) (initialState : IRState)
     (hAdequacy : execIRFunctionFuel_adequate_goal fn args initialState)
     (hFuelGoal : ir_yul_function_equiv_fuel_goal fn selector args initialState) :
@@ -503,7 +382,7 @@ theorem ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy
   · simpa [execIRFunctionFuel_adequate_goal] using hAdequacy
   · exact hFuelGoal
 
-theorem ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
+private theorem ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
         execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState)
@@ -529,7 +408,7 @@ Since `execIRFunctionFuel` and `execIRFunction` are definitionally equal
 (fuel adequacy is `rfl`), the adequacy hypothesis is always trivially
 dischargeable. This theorem composes `stmt_equiv` with the internal
 adequacy proof, eliminating the need for callers to supply it. -/
-theorem ir_yul_function_equiv_from_state_of_stmt_equiv
+private theorem ir_yul_function_equiv_from_state_of_stmt_equiv
     (stmt_equiv :
       ∀ selector fuel stmt irState yulState,
         execIRStmt_equiv_execYulStmt_goal selector fuel stmt irState yulState)

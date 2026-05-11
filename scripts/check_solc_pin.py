@@ -27,6 +27,7 @@ SOLC_SHA256_RE = re.compile(r'^\s*SOLC_SHA256:\s*"([0-9a-fA-F]{64})"\s*$', re.MU
 URL_VERSION_RE = re.compile(r"solc-linux-amd64-v(\d+\.\d+\.\d+)\+commit\.([0-9a-fA-F]{8})$")
 FOUNDRY_SOLC_RE = re.compile(r'^\s*solc_version\s*=\s*"([^"]+)"\s*$', re.MULTILINE)
 TRUST_PIN_RE = re.compile(r"\*\*Version\*\*:\s*([0-9]+\.[0-9]+\.[0-9]+\+commit\.[0-9a-fA-F]{8})\s+\(pinned\)")
+SOLC_DOWNLOAD_RE = re.compile(r"curl\b[^\n]*\s\"\$SOLC_URL\"\s+-o\s+solc")
 
 
 def _read(path: Path) -> str:
@@ -106,10 +107,14 @@ def main() -> int:
             "TRUST_ASSUMPTIONS.md: pinned solc version must match verify.yml SOLC_VERSION/SOLC_URL"
         )
 
-    if 'curl -sSfL "$SOLC_URL" -o solc' not in action_text:
+    if SOLC_DOWNLOAD_RE.search(action_text) is None:
         errors.append(".github/actions/setup-solc/action.yml: install step must download from $SOLC_URL")
     if 'echo "${SOLC_SHA256}  solc" | sha256sum -c -' not in action_text:
         errors.append(".github/actions/setup-solc/action.yml: install step must verify $SOLC_SHA256")
+    if "/usr/local/bin/solc" in action_text:
+        errors.append(".github/actions/setup-solc/action.yml: solc cache/install path must be workspace-local")
+    if re.search(r"\bsudo\b", action_text):
+        errors.append(".github/actions/setup-solc/action.yml: solc install step must not require sudo")
 
     if errors:
         print("solc pin check failed:", file=sys.stderr)

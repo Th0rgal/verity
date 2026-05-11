@@ -1,6 +1,8 @@
 import Compiler.ABI
+import Compiler.Codegen
 import Compiler.Proofs.IRGeneration.IRInterpreter
-import Compiler.Proofs.YulGeneration.Equivalence
+import Compiler.Proofs.YulGeneration.IRFuel
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 import Compiler.Selector
 import Compiler.Hex
 import Contracts
@@ -20,6 +22,10 @@ open Compiler.CompilationModel
 open Compiler.Hex
 open Compiler.Proofs.IRGeneration
 open Compiler.Proofs.YulGeneration
+
+/- This executable harness is a legacy IR/reference-oracle differential
+   regression test. It is intentionally kept outside the public compiler
+   correctness theorem chain. -/
 
 private def contains (haystack needle : String) : Bool :=
   let h := haystack.toList
@@ -217,6 +223,20 @@ private def interpretIRFuelResult (contract : IRContract) (tx : IRTransaction) (
         finalStorage := state.storage
         finalMappings := Compiler.Proofs.storageAsMappings state.storage
         events := state.events }
+
+private def resultsMatchOn
+    (slots : List Nat)
+    (mappingKeys : List (Nat × Nat))
+    (ir : IRResult)
+    (yul : YulResult) : Bool :=
+  ir.success == yul.success &&
+  ir.returnValue == yul.returnValue &&
+  ir.events == yul.events &&
+  slots.all (fun slotIdx =>
+    ir.finalStorage (IRStorageSlot.ofNat slotIdx) ==
+      yul.finalStorage (IRStorageSlot.ofNat slotIdx)) &&
+  mappingKeys.all (fun (base, key) =>
+    ir.finalMappings base key == yul.finalMappings base key)
 
 private def interpretYulFromIRFuelResult (contract : IRContract) (tx : IRTransaction) (state : IRState)
     (fuel : Nat) : YulResult :=

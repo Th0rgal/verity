@@ -1,8 +1,8 @@
 import Compiler.Yul.Ast
 import Compiler.Proofs.IRGeneration.IRInterpreter
 import Compiler.Proofs.MappingSlot
+import Compiler.Proofs.YulGeneration.RuntimeTypes
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
-import Compiler.Proofs.YulGeneration.ReferenceOracle.State
 
 namespace Compiler.Proofs.YulGeneration
 
@@ -14,7 +14,7 @@ open Compiler.Proofs
 /-!
 Reference oracle only.
 
-This module preserves Verity's historical `execYulFuel` runtime semantics for
+This module preserves Verity's historical `legacyExecYulFuel` runtime semantics for
 regression tests and bridge comparisons. EVMYulLean is the trusted semantic
 target for the current retargeting path; this file is not part of that trust
 boundary.
@@ -22,17 +22,11 @@ boundary.
 
 /-! ## Yul Runtime Semantics (Layer 3 Foundation)
 
-This module defines execution semantics for a Yul runtime program. It mirrors
-IRInterpreter but models selector-aware calldata so `emitYul`'s runtime switch
-behaves correctly.
+This module defines the historical fuel-based execution semantics for a Yul
+runtime program. Shared transaction/result/state plumbing lives in
+`RuntimeTypes.lean` so native EVMYulLean proofs can use those data structures
+without importing this legacy interpreter.
 -/
-
-/-- Selector expression used by the runtime switch. -/
-def selectorExpr : YulExpr :=
-  YulExpr.call "shr" [
-    YulExpr.lit selectorShift,
-    YulExpr.call "calldataload" [YulExpr.lit 0]
-  ]
 
 /-!
 Runtime Yul mapping slots are derived via `keccak(baseSlot, key)`. Proof
@@ -40,64 +34,6 @@ semantics call through `MappingSlot`; the active backend is `keccak` (see
 `activeMappingSlotBackend`), so `mappingSlot`/`sload`/`sstore` semantics are
 aligned with Solidity's keccak-derived flat storage slot layout.
 -/
-
-/-! ## Execution State -/
-
-structure YulTransaction where
-  sender : Nat
-  msgValue : Nat := 0
-  thisAddress : Nat := 0
-  blockTimestamp : Nat := 0
-  blockNumber : Nat := 0
-  chainId : Nat := 0
-  blobBaseFee : Nat := 0
-  functionSelector : Nat
-  args : List Nat
-  deriving Repr
-
-/-- Convert an IR transaction to a Yul transaction. -/
-@[reducible] def YulTransaction.ofIR (tx : IRTransaction) : YulTransaction :=
-  { sender := tx.sender
-    msgValue := tx.msgValue
-    thisAddress := tx.thisAddress
-    blockTimestamp := tx.blockTimestamp
-    blockNumber := tx.blockNumber
-    chainId := tx.chainId
-    blobBaseFee := tx.blobBaseFee
-    functionSelector := tx.functionSelector
-    args := tx.args }
-
-@[simp] theorem YulTransaction.ofIR_sender (tx : IRTransaction) :
-    (YulTransaction.ofIR tx).sender = tx.sender := rfl
-@[simp] theorem YulTransaction.ofIR_args (tx : IRTransaction) :
-    (YulTransaction.ofIR tx).args = tx.args := rfl
-
-/-- Initial state for Yul execution. -/
-def YulState.initial (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
-    (events : List (List Nat) := []) : YulState :=
-  { vars := []
-    storage := storage
-    transientStorage := fun _ => 0
-    memory := fun _ => 0
-    calldata := tx.args
-    selector := tx.functionSelector
-    returnValue := none
-    sender := tx.sender
-    msgValue := tx.msgValue
-    thisAddress := tx.thisAddress
-    blockTimestamp := tx.blockTimestamp
-    blockNumber := tx.blockNumber
-    chainId := tx.chainId
-    blobBaseFee := tx.blobBaseFee
-    events := events }
-
-/-- Lookup variable in state -/
-def YulState.getVar (s : YulState) (name : String) : Option Nat :=
-  s.vars.find? (·.1 == name) |>.map (·.2)
-
-/-- Set variable in state -/
-def YulState.setVar (s : YulState) (name : String) (value : Nat) : YulState :=
-  { s with vars := (name, value) :: s.vars.filter (·.1 != name) }
 
 /-! ## Yul Expression Evaluation -/
 
@@ -144,7 +80,7 @@ def evalYulCall (state : YulState) (func : String) : List YulExpr → Option Nat
       | _ => none
     else
       Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-        Compiler.Proofs.YulGeneration.defaultBuiltinBackend
+        Compiler.Proofs.YulGeneration.BuiltinBackend.evmYulLean
         state.storage state.sender state.msgValue state.thisAddress state.blockTimestamp
         state.blockNumber state.chainId state.blobBaseFee state.selector state.calldata func argVals
 termination_by args => exprsSize args + 1
@@ -185,18 +121,11 @@ def applyYulLogCall? (state : YulState) (func : String)
       some (state.appendYulLog offset size [topic0, topic1, topic2, topic3])
   | _, _ => none
 
-inductive YulExecResult
-  | continue (state : YulState)
-  | return (value : Nat) (state : YulState)
-  | stop (state : YulState)
-  | revert (state : YulState)
-  deriving Nonempty
-
 inductive YulExecTarget
   | stmt (s : YulStmt)
   | stmts (ss : List YulStmt)
 
-def execYulFuel : Nat → YulState → YulExecTarget → YulExecResult
+def legacyExecYulFuel : Nat → YulState → YulExecTarget → YulExecResult
   | _, state, .stmts [] => .continue state
   | _, state, .stmt (YulStmt.funcDef _ _ _ _) => .continue state
   | 0, state, _ => .revert state
@@ -285,52 +214,52 @@ def execYulFuel : Nat → YulState → YulExecTarget → YulExecResult
                   if v = 0 then
                     .continue state
                   else
-                    execYulFuel fuel state (.stmts body)
+                    legacyExecYulFuel fuel state (.stmts body)
               | none => .revert state
           | .switch expr cases defaultCase =>
               match evalYulExpr state expr with
               | some v =>
                   match cases.find? (fun x => decide (x.fst = v)) with
-                  | some (_, body) => execYulFuel fuel state (.stmts body)
+                  | some (_, body) => legacyExecYulFuel fuel state (.stmts body)
                   | none =>
                       match defaultCase with
-                      | some body => execYulFuel fuel state (.stmts body)
+                      | some body => legacyExecYulFuel fuel state (.stmts body)
                       | none => .continue state
               | none => .revert state
           | .for_ init cond post body =>
               -- Execute init, then loop: check cond, run body, run post, repeat
-              match execYulFuel fuel state (.stmts init) with
+              match legacyExecYulFuel fuel state (.stmts init) with
               | .continue s' =>
                   match evalYulExpr s' cond with
                   | some v =>
                       if v = 0 then .continue s'
                       else
-                        match execYulFuel fuel s' (.stmts body) with
+                        match legacyExecYulFuel fuel s' (.stmts body) with
                         | .continue s'' =>
-                            match execYulFuel fuel s'' (.stmts post) with
+                            match legacyExecYulFuel fuel s'' (.stmts post) with
                             | .continue s''' =>
-                                execYulFuel fuel s''' (.stmt (.for_ [] cond post body))
+                                legacyExecYulFuel fuel s''' (.stmt (.for_ [] cond post body))
                             | other => other
                         | other => other
                   | none => .revert s'
               | other => other
-          | .block stmts => execYulFuel fuel state (.stmts stmts)
+          | .block stmts => legacyExecYulFuel fuel state (.stmts stmts)
           | .funcDef _ _ _ _ => .continue state
       | .stmts [] => .continue state
       | .stmts (stmt :: rest) =>
-          match execYulFuel fuel state (.stmt stmt) with
-          | .continue s' => execYulFuel fuel s' (.stmts rest)
+          match legacyExecYulFuel fuel state (.stmt stmt) with
+          | .continue s' => legacyExecYulFuel fuel s' (.stmts rest)
           | .return v s => .return v s
           | .stop s => .stop s
           | .revert s => .revert s
 def execYulStmtFuel (fuel : Nat) (state : YulState) (stmt : YulStmt) : YulExecResult :=
-  execYulFuel fuel state (.stmt stmt)
+  legacyExecYulFuel fuel state (.stmt stmt)
 
 def execYulStmtsFuel (fuel : Nat) (state : YulState) (stmts : List YulStmt) : YulExecResult :=
-  execYulFuel fuel state (.stmts stmts)
+  legacyExecYulFuel fuel state (.stmts stmts)
 
 set_option allowUnsafeReducibility true in
-attribute [reducible] execYulFuel
+attribute [reducible] legacyExecYulFuel
 
 
 noncomputable def execYulStmt (state : YulState) (stmt : YulStmt) : YulExecResult :=
@@ -338,13 +267,6 @@ noncomputable def execYulStmt (state : YulState) (stmt : YulStmt) : YulExecResul
 
 noncomputable def execYulStmts (state : YulState) (stmts : List YulStmt) : YulExecResult :=
   execYulStmtsFuel (sizeOf stmts + 1) state stmts
-
-structure YulResult where
-  success : Bool
-  returnValue : Option Nat
-  finalStorage : IRStorageSlot → IRStorageWord
-  finalMappings : Nat → Nat → IRStorageWord
-  events : List (List Nat)
 
 /-- Execute a Yul runtime program with selector-aware calldata -/
 noncomputable def interpretYulRuntime (runtimeCode : List YulStmt) (tx : YulTransaction)

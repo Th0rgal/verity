@@ -18,6 +18,11 @@ import property_utils
 
 
 class YulChecksTests(unittest.TestCase):
+    NATIVE_BODY = """import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
+def evalExpr :=
+  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
+"""
+
     def _run_boundary_check(self, ir_body: str, sem_body: str) -> list[str]:
         with tempfile.TemporaryDirectory(dir=property_utils.ROOT) as tmpdir:
             root = Path(tmpdir)
@@ -54,14 +59,14 @@ class YulChecksTests(unittest.TestCase):
 -- decoy only: Compiler.Proofs.YulGeneration.evalBuiltinCall
 def evalExpr := 0
 """
-        failures = self._run_boundary_check(body, body)
+        failures = self._run_boundary_check(self.NATIVE_BODY, body)
         self.assertTrue(any("missing call" in failure for failure in failures))
 
     def test_string_literal_decoy_does_not_satisfy_boundary(self) -> None:
         body = """import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 def evalExpr := "Compiler.Proofs.YulGeneration.evalBuiltinCall"
 """
-        failures = self._run_boundary_check(body, body)
+        failures = self._run_boundary_check(self.NATIVE_BODY, body)
         self.assertTrue(any("missing call" in failure for failure in failures))
 
     def test_eval_builtin_call_with_backend_satisfies_boundary(self) -> None:
@@ -69,7 +74,7 @@ def evalExpr := "Compiler.Proofs.YulGeneration.evalBuiltinCall"
 def evalExpr :=
   Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend
 """
-        failures = self._run_boundary_check(body, body)
+        failures = self._run_boundary_check(self.NATIVE_BODY, body)
         self.assertEqual(failures, [])
 
     def test_eval_builtin_call_with_backend_context_satisfies_boundary(self) -> None:
@@ -77,7 +82,15 @@ def evalExpr :=
 def evalExpr :=
   Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
 """
-        failures = self._run_boundary_check(body, body)
+        failures = self._run_boundary_check(self.NATIVE_BODY, body)
+        self.assertEqual(failures, [])
+
+    def test_native_ir_interpreter_boundary(self) -> None:
+        legacy_body = """import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
+def evalExpr :=
+  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
+"""
+        failures = self._run_boundary_check(self.NATIVE_BODY, legacy_body)
         self.assertEqual(failures, [])
 
     def test_inline_dispatch_regex_covers_env_builtins(self) -> None:

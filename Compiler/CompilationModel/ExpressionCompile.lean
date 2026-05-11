@@ -21,7 +21,8 @@ def yulNegatedBinOp (op : String) (a b : YulExpr) : YulExpr :=
 def yulToBool (e : YulExpr) : YulExpr :=
   YulExpr.call "iszero" [YulExpr.call "iszero" [e]]
 
-private def compileMappingSlotRead (fields : List Field) (field : String) (keyExpr : YulExpr)
+-- Exposed so proof modules can name the exact mapping-read lowering shape.
+def compileMappingSlotRead (fields : List Field) (field : String) (keyExpr : YulExpr)
     (label : String) (wordOffset : Nat := 0) : Except String YulExpr :=
   if !isMapping fields field then
     throw s!"Compilation error: field '{field}' is not a mapping"
@@ -33,7 +34,8 @@ private def compileMappingSlotRead (fields : List Field) (field : String) (keyEx
       pure (YulExpr.call "sload" [finalSlot])
     | none => throw s!"Compilation error: unknown mapping field '{field}' in {label}"
 
-private def compileMappingSlotChain (baseSlot : YulExpr) (keys : List YulExpr) : YulExpr :=
+-- Exposed so proof modules can name the exact nested mapping-chain lowering shape.
+def compileMappingSlotChain (baseSlot : YulExpr) (keys : List YulExpr) : YulExpr :=
   keys.foldl (fun slotExpr keyExpr => YulExpr.call "mappingSlot" [slotExpr, keyExpr]) baseSlot
 
 -- Compile expression to Yul (using mutual recursion for lists)

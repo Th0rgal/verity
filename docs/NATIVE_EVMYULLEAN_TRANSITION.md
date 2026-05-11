@@ -9,7 +9,7 @@ The detailed completion contract and reusable agent prompt live in
 
 ## Current State
 
-The current public proof path still targets:
+The deeper generated-Yul preservation path still targets:
 
 ```lean
 interpretYulRuntimeWithBackend .evmYulLean
@@ -41,30 +41,137 @@ materializes pre-state storage for those slots.
 - Native result projection preserves pre-existing event history and appends
   native EVMYulLean logs, matching the observable shape expected by the current
   proof-side `YulResult`.
-- The EndToEnd layer now exposes the native-facing theorem seam
-  `layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge`. Its
-  conclusion targets `Native.interpretIRRuntimeNative` through
-  `nativeResultsMatchOn`, comparing success, return value, events, and the
-  explicitly observable final-storage slots, but it still requires the explicit
-  `nativeIRRuntimeAgreesWithInterpreter` obligation for the generated runtime.
-  That obligation is observable-slot and fuel-aligned with the native run through
-  `interpretYulRuntimeWithBackendFuel`, and the theorem seam currently requires
-  that fuel to equal the interpreter proof stack's default runtime fuel
-  `sizeOf (Compiler.emitYul contract).runtimeCode + 1`. This is the exact
-  remaining native-vs-interpreter equivalence theorem plus a named
-  full-storage-projection and fuel-parametric-preservation gap, not a completed
-  public flip.
-- The same module also exposes
-  `nativeCallDispatcherAgreesWithInterpreter`,
-  `nativeDispatcherBlockAgreesWithInterpreter`,
-  `nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree`,
-  `nativeIRRuntimeAgreesWithInterpreter_of_lowered_callDispatcher_agree`,
-  `layer3_contract_preserves_semantics_native_of_lowered_callDispatcher_bridge`,
+- The EndToEnd layer now exposes a small native result surface:
+  `nativeResultsMatchOn`, `sourceResultMatchesNativeOn`, the source/native
+  composition theorem over that result surface,
+  `nativeGeneratedCallDispatcherResultOf`,
+  `nativeGeneratedCallDispatcherMatchesIROn`, the supported-compiler
+  generated direct `EvmYul.Yul.callDispatcher` theorem
+  `compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match`, the
+  helper-free call-dispatcher lowering wrapper
+  `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping`,
+  the mapping-helper call-dispatcher lowering wrapper
+  `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping`,
+  and the concrete SimpleStorage native theorem. The dispatcher-exec
+  compatibility predicate and wrappers are file-local helpers; public generated
+  correctness exposes native `EvmYul.Yul.callDispatcher` premises and derives
+  source/native agreement directly over the projected call-dispatcher result.
+  The old generated runtime adapter wrappers have been removed rather than
+  being retained as file-local `interpretIRRuntimeNative` compatibility
+  theorems. On the
+  helper-free and mapping-helper paths, the public wrapper theorems still accept
+  the concrete generated-dispatcher lowering result while exposing the direct
+  projected `EvmYul.Yul.callDispatcher` result. The concrete SimpleStorage
+  native theorem now targets that direct projected call-dispatcher result too.
+  The opaque arbitrary-fuel
+  identity seams, generated dispatcher-exec lift facts, and fuel-indexed
+  `nativeIRRuntimeMatchesIR` targets are file-local, and the older
+  proof-interpreter bridge signature has been removed from EndToEnd. The public
+  generated target is native `EvmYul.Yul.callDispatcher` through
+  `nativeGeneratedCallDispatcherResultOf` and `nativeResultsMatchOn`, comparing
+  success, return value, events, and the explicitly observable final-storage
+  slots. The backend-parameterized safe-body Yul target is now isolated
+  lower-level transition evidence; the generated native fragment still needs
+  broader direct match proofs before that transition plumbing can be removed
+  completely.
+- The same module also keeps file-local transition seams for
+  `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_environment`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
+  `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_external_bodies_match`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_positive_body_closure`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_external_bodies_match`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherExec_project_body_closure`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_external_bodies_match`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_external_bodies_match`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match`,
+  with `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure`
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_environment`,
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`
+  as the explicitly named safe-body wrapper aliases.
+  The canonical native runtime and selected full-runtime wrapper surfaces set dispatcher fuel to
+  `nativeRuntimeDispatcherFuel irContract` and runtime fuel to
+  `nativeRuntimeFuel irContract`, avoiding an arbitrary public fuel parameter
+  on the recommended direct-match surface. These direct match seams keep the
+  remaining proof obligation at concrete native lowering, selected-path
+  environment validation, and either raw positive dispatcher-exec matching or
+  projected-result matching against IR execution. The compiled supported
+  fragment check is now named explicitly by
+  `generatedRuntimeNativeFragment_of_compile_ok_supported_safe` and
+  `validateGeneratedRuntimeNativeFragment_of_compile_ok_supported_safe`, so the
+  executable generated-runtime validator is closed from the same public
+  `SupportedSpec`, static-parameter, and safe-body hypotheses as the native
+  wrapper seams. Full generated-runtime native lowering success is named by
+  `lowerRuntimeContractNative_of_compile_ok_supported_exists`, directly
+  packaging `SupportedSpec + compile` into an executable
+  `lowerRuntimeContractNative` witness. The helper-free native lowering boundary is also named by
+  `lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive`
+  in the native harness and by
+  `lowerRuntimeContractNative_of_compile_ok_supported_noMapping` for compiled
+  supported contracts, reducing no-mapping runtimes to the single generated
+  dispatcher shell. The public
+  `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping`
+  wrapper consumes that concrete dispatcher lowering directly, exposes the
+  generated `EvmYul.Yul.callDispatcher` result surface, and keeps the same full
+  emitted-runtime lowering equality internal. The mapping-helper side of
+  the same boundary is now named by `nativeMappingSlotFunctionDefinition` and
+  `lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero`, which
+  package the concrete native lowering of the generated `mappingSlot` helper at
+  scratch base zero. Mapping-enabled emitted runtime lowering is now packaged
+  by
+  `lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved`
+  in the native harness and by
+  `lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved` for
+  compiled supported contracts, with the generated dispatcher lowered under the
+  full emitted-runtime reserved-name context. The public
+  `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping`
+  wrapper consumes that reserved-context dispatcher lowering directly, keeps the
+  reserved-context emitted-runtime lowering internal, and exposes the generated
+  `EvmYul.Yul.callDispatcher` premise. Successful full native lowering
+  can now also be peeled back to the concrete dispatcher lowering by
+  `lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher`,
+  `lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher`,
+  `lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved`, and
+  `lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved`.
+  The no-mapping positive/projected native wrappers
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_positive_body_closure_noMapping`
   and
-  `layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge`.
-  These move the remaining proof obligation down to concrete native lowering,
-  selected-path environment validation, and projected native dispatcher-block
-  execution agreement with the fuel-aligned interpreter oracle.
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_project_body_closure_noMapping`
+  now consume the narrower dispatcher-statement lowering equality directly. The
+  `_ofIR_environment` and `_ofIR_globalDefaults` variants discharge the native
+  environment side condition for the same no-mapping dispatcher-statement shell,
+  while the matching
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_dispatcherStmts_*`
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherStmts_*`
+  wrappers expose the direct native-vs-IR result surface. The mapping-enabled equivalents are
+  exposed under the
+  `_mapping_reserved` suffix for the `nativeIRRuntimeMatchesIR`,
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_*`, and
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_*` dispatcher-statement
+  wrapper families. The `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
+  wrappers now compose successful full runtime lowering with those dispatcher
+  statement surfaces, so
+  callers can remain at the emitted-runtime lowering boundary while proving
+  the exact extracted dispatcher match. The same
+  full-runtime boundary is lifted to Layer 3 by the
+  `layer3_contract_preserves_semantics_native_of_compiled_generated_lowered_runtime_dispatcherStmts_*`
+  wrapper family, and to the Layers 2+3 composition by the
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runtime_dispatcherStmts_*`
+  wrapper family. The public Layers 2+3 full-runtime dispatcher-statement
+  wrappers also expose `_ofIR_environment` and `_ofIR_globalDefaults` variants for both no-mapping
+  and `_mapping_reserved` paths, matching the narrower dispatcher-statement
+  environment-discharge surface while keeping callers at the full
+  emitted-runtime lowering boundary.
 - The native harness also names the dispatcher-block execution that
   `EvmYul.Yul.callDispatcher` performs after fuel checking and empty call-frame
   setup: `callDispatcherBlockResult`, with
@@ -88,6 +195,46 @@ materializes pre-state storage for those slots.
   `selectedSwitchBody_hit`, and `selectedSwitchBody_miss`.
 - The native harness remains separate from the existing retargeting theorem, so
   the proof tree does not claim a theorem that is not yet proved.
+- The current private transition-only
+  `yulCodegen_preserves_semantics_evmYulLeanBackend` theorem still composes
+  through
+  `yulCodegen_preserves_semantics_via_reference_oracle` before rewriting the
+  emitted runtime to the private EVMYulLean backend executor wrapper
+  `interpretYulRuntimeWithBackend`. The explicit
+  `yulCodegen_preserves_semantics_evmYulLeanBackend` theorem gives isolated
+  transition evidence for an EVMYulLean-backed Yul target, but it is not yet a
+  native source-of-truth
+  Layer 3 proof. The older
+  `yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle` name
+  remains only as a private compatibility alias; public EndToEnd wrappers no
+  longer consume either legacy retarget name.
+- The older generic native reference-oracle/fuel-wrapper aliases have been
+  removed. The remaining file-local native Layer 3 transition seams consume
+  `nativeIRRuntimeMatchesIR` directly, while the public supported EndToEnd
+  theorems expose direct `EvmYul.Yul.callDispatcher` results. The generated
+  native fragment's direct match proof remains the visible blocker for deleting
+  the private runtime transition layer.
+- `nativeDispatcherExecMatchesIRPositive_of_project_eq_match` now gives the
+  remaining generated-dispatch proof a single projected-result introduction
+  form, so endpoint-specific native success/halt/error splits are only needed
+  when a proof needs endpoint-specific facts.
+- `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_project_eq_match` and
+  `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_project_eq_match`
+  lift that projected-result package through the native runtime harness.
+- The EndToEnd module mirrors that projected-result surface for compiled
+  supported contracts through
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_eq_match`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_environment`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
+  and the `layer3_...project...` / `layers2_3_...project...` wrappers, so
+  callers can provide one projected native result equality plus the observable
+  match without first building the positive-dispatcher predicate.
+  The `_ofIR_environment` variants discharge raw native environment validation
+  from representable `tx.chainId`/`tx.blobBaseFee` facts plus the
+  selected-path unsupported-header check. The `_ofIR_globalDefaults` variants
+  package the current EVMYulLean global-default transaction case behind the
+  same selected-path unsupported-header check.
 
 ## Clean Target Architecture
 
@@ -110,6 +257,172 @@ oracle, not as the semantic target in the public theorem stack.
 The following verified user reports should stay explicit in the transition
 scope so the native path does not look more complete than it is:
 
+- The public supported generated `callDispatcher` theorem is now composed down
+  to native `EvmYul.Yul.callDispatcher`, with selector miss and generated
+  selector-hit guard failures discharged internally. The closed generic case
+  wrappers are
+  `nativeGeneratedCallDispatcherResult_selector_miss_matchesIR_exists_of_compile_ok_supported`,
+  `nativeGeneratedCallDispatcherResult_selector_hit_nonpayable_nonzero_revert_matchesIR_exists_of_compile_ok_supported`,
+  and
+  `nativeGeneratedCallDispatcherResult_selector_hit_args_short_revert_matchesIR_exists_of_compile_ok_supported`.
+  The artifact/error continuation path remains named by
+  `nativeGeneratedCallDispatcherResult_selector_hit_error_matchesIR_exists_of_compile_ok_supported`.
+  Its remaining success-path blocker is the selected user-body result boundary:
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel`. The normal-return side
+  still needs a generic native execution proof for
+  `NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived`, connecting the
+  lowered selected `fn.body` at dispatcher fuel to `execIRFunction`; the
+  halt-channel side is currently supplied by
+  `NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel`. The source-level
+  public composition theorem
+  `compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher`
+  now rewrites the generated dispatcher result to the canonical
+  `interpretIRRuntimeNative` target, packages that result with the source-to-IR
+  compiler theorem, and discharges the lowered native runtime witness
+  internally. The public IR/native theorem keeps the direct projected result
+  target. The public theorem no longer exposes full `DispatchGuardsSafe`;
+  `SupportedSpec` carries the selected function calldata-threshold inventory, and
+  `generatedFunctionCalldataThreshold_of_compile_ok_supported` transports that
+  inventory across `compile` to the generated IR function selected by the
+  dispatcher. Legacy premise-taking `compile_preserves_native_evmYulLean_*`
+  wrappers are file-local; the public `compile_preserves_native_evmYulLean_*`
+  surface is limited to the direct `nativeGeneratedCallDispatcherResultOf`
+  composition theorem and the generated `SupportedSpec + compile` composition
+  theorem. The private success bridge rebuilds `DispatchGuardsSafe` after
+  the generated value and argument guards have selected the success branch.
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_and_bridgedStraightStmts_mapping`
+  packages the mapping-helper straight-body preservation path through
+  `NativeBlockPreservesWord_lowerStmtsNativeWithSwitchIds_of_bridgedStraightStmts`.
+  The no-mapping helper-free straight-body preservation bridge is now split
+  out as `NativeMappingFreeBridgedExpr`,
+  `NativeExprPreservesWord_lowerExprNative_of_mappingFreeBridgedExpr`,
+  `NativeMappingFreePreservableStraightStmt`,
+  `NativeBlockPreservesWord_lowerStmtsNativeWithSwitchIds_of_mappingFreePreservableStraightStmts`,
+  and
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_and_mappingFreePreservableStraightStmts`.
+  Historical `BridgedStraightStmts` no-mapping bodies can now enter that same
+  actual-runtime path through `NativeMappingFreeSideConditionForBridgedStraightStmt`,
+  `NativeMappingFreePreservableStraightStmts.of_bridgedStraightStmts`, and
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_and_bridgedStraightStmts_mappingFree`.
+  The dispatcher-level adapter
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mappingFree`
+  composes that result bridge with the supported `compile` theorem stack.
+  The compile-to-body handoff is tracked by
+  `generatedRuntimeSelectedFunctionBodyBridged_of_compile_ok_supported`,
+  `lowerStmtsNativeWithSwitchIds_selectedFunctionBody_exists_of_compile_ok_supported`,
+  `selectedFunctionBodyBridgedAndLowered_of_compile_ok_supported`, and
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.selected_body_closure_of_compile_ok_supported`,
+  which packages the selected `BridgedStmts` witness, selected native-body
+  lowering success, and generated calldata-threshold fact from `SupportedSpec +
+  compile` without claiming native execution semantics. The dispatcher
+  artifact handoff remains tracked by
+  `nativeGeneratedSelectorHitSuccessUserBodyLoweredArtifacts_exists_of_compile_ok_supported`,
+  and
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.selected_body_artifacts_of_compile_ok_supported`
+  combines those lowered artifacts with the selected-body closure facts for the
+  actual dispatcher-selected `fn.body`. When generated switch-case freshness is
+  available,
+  `selectedUserBodyClosureAndMatchedFresh_of_compile_ok_supported_switchFresh`
+  also strips the generated guard prefix and recovers matched-flag freshness
+  for the actual lowered user body. That freshness handoff still has to be
+  consumed before the selected-body preservation callback loses the current
+  `hLowerCases` fact: the later result-bridge callback only sees the selected
+  `hBodyLower`/`hUserBodyLower` pair, while switch-case freshness is stated over
+  the full lowered `cases'` list. The next adapter should therefore stay at the
+  dispatcher artifact boundary, or widen the preservation callback to carry
+  `hLowerCases`, instead of trying to reconstruct whole-case freshness from a
+  selected body lowering alone. The mapping-helper side now has that
+  dispatcher-boundary handoff under
+  `nativeGeneratedSelectorHitBodyPreservesMatched_mapping_of_switchFresh` and
+  `NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh`,
+  with
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_switchFresh`
+  carrying it back to the generated dispatcher theorem,
+  mirroring the earlier mapping-free `switchFresh` adapter while keeping
+  mapping-specific straight-body side conditions private.
+  The dispatcher wrappers can now consume the smaller per-case lowering
+  freshness premise through
+  `nativeGeneratedSwitchTempsFreshForNativeBodies_of_case_body_fresh`,
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mappingFree_caseFresh`,
+  and
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_exec_only_and_bridgedStraightStmts_mapping_caseFresh`;
+  the remaining freshness work is to derive that per-case premise from the
+  generated straight-body shape and reserved-name set.
+  A fully closed
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_compile_ok_supported`
+  lemma is still missing. The proof cannot be completed from the current
+  handoff facts alone: the dispatcher-facing adapters also need the generic
+  selected-body execution predicate
+  `NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived`, straight-body
+  preservation inputs (`BridgedStraightStmts` plus the mapping/no-mapping side
+  conditions), and a lowered-body freshness proof showing the generated matched
+  flag is absent from `nativeStmtsWriteNames bodyNative`. The compile-supported
+  handoff currently gives `BridgedStmts fn.body` and successful native
+  lowering, but not those stronger execution, straight-fragment, side-condition,
+  or matched-temp freshness facts.
+  The normal-return execution side now has a sound singleton-`leave` base case:
+  `execIRStmts_single_leave_succ_succ`,
+  `exec_block_leave_ok_add_ten`, and
+  `NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_leave_body`.
+  This does not close the dispatcher result boundary because native `leave`
+  exits through a revivable checkpoint, so the existing matched-flag
+  preservation predicate is not the right continuation fact for that shape.
+  The halt-channel side now also has a singleton-`stop` base case:
+  `execIRFunction_single_stop`, `exec_block_stop_halt_add_ten`, and
+  `NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_stop_body`; it
+  composes through
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_stop_body` and
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_stop_body`.
+  The halt-channel scalar-return side now also covers literal external
+  returns via `execIRFunction_mstore0_lit_return32`,
+  `exec_lowerExprNative_mstore_lit_lit_ok_fuel`,
+  `NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_lit_return32`,
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_mstore0_lit_return32`,
+  and
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_mstore0_lit_return32`.
+  Single-argument external returns are covered by
+  `execIRFunction_mstore0_calldataload4_return32_of_args_cons`,
+  `exec_lowerExprNative_mstore_lit_calldataload_lit_ok_fuel`,
+  `NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_calldataload4_return32`,
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_mstore0_calldataload4_return32`,
+  and
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_mstore0_calldataload4_return32`.
+  The reusable aligned-calldata return seams are
+  `execIRFunction_mstore0_calldataload_aligned_return32`,
+  `initialState_calldataload_aligned_arg_word`,
+  `exec_lowerExprNative_mstore_lit_calldataload_lit_ok_fuel`, and
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_mstore0_calldataload_aligned_return32`
+  under the explicit `ByteArray.readBytes` offset condition
+  `4 + 32 * idx < 2^64`.
+  The remaining normal-return blocker is the generic body-shape discovery path:
+  generated selected bodies still need to identify arbitrary scalar return
+  bodies and supply the mapping-free straight-body predicate automatically. A
+  direct source-shape handoff cannot simply reuse the raw two-statement exact
+  return lemmas, because `compileFunctionSpec` prepends `genParamLoads`; even
+  zero-parameter functions carry the generated calldata-size guard in
+  `fn.body`. The zero-parameter literal-return instance is now closed through
+  the guarded generated shape with
+  `NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_zeroParam_mstore0_lit_return32`,
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_zeroParam_mstore0_lit_return32`,
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_zeroParam_mstore0_lit_return32`,
+  and the source-shape wrapper
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_source_zeroParam_lit_return32`.
+  The matching zero-parameter storage-return shape is closed with
+  `NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_zeroParam_mstore0_sload0_return32`,
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_zeroParam_mstore0_sload0_return32`,
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_zeroParam_mstore0_sload0_return32`,
+  and
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_source_zeroParam_sload0_return32`.
+  The generated one-argument setter shape now also closes through the generated
+  parameter-load guard and `value` binding:
+  `execIRFunction_oneParam_store0_value_stop`,
+  `NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_oneParam_store0_value_stop`,
+  `NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_oneParam_store0_value_stop`,
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_oneParam_store0_value_stop`,
+  and
+  `nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_source_oneParam_store0_value_stop`,
+  with the source/native preservation wrapper
+  `compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher_source_oneParam_store0_value_stop`.
 - [#1741](https://github.com/lfglabs-dev/verity/issues/1741):
   `blockTimestamp` is bridged through native EVMYulLean execution, and native
   smoke coverage now checks `timestamp()`/`number()` state reads. Native
@@ -122,10 +435,22 @@ scope so the native path does not look more complete than it is:
   not yet have Verity `YulTransaction` fields, such as `coinbase`, `difficulty`,
   `prevrandao`, `gaslimit`, `basefee`, and `gasprice`, also fail closed on the
   selected native runtime path instead of reading EVMYulLean's zeroed header
-  defaults. The native harness names the remaining unbridged boundary with
+  defaults. The account-balance builtin `selfbalance` also fails closed on the
+  selected native runtime path until the bridge carries Verity's `selfBalance`
+  into the EVMYulLean account map. The native harness names the remaining
+  unbridged boundary with
   `initialState_unbridgedEnvironmentDefaults`, pinning base-fee/blob fields and
   native `chainid` to their current EVMYulLean default/global behavior until
-  the follow-up widens the state bridge. The
+  the follow-up widens the state bridge. The helper theorems
+  `validateNativeRuntimeEnvironment_ofIR_representableEnvironment` and
+  `validateNativeRuntimeEnvironment_ofIR_globalDefaults` now package the common
+  `YulTransaction.ofIR` validation cases once selected-path unsupported header
+  builtin use has been ruled out. EndToEnd mirrors the global-default case with
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
+  `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_project_body_closure_ofIR_globalDefaults`,
+  `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_globalDefaults`,
+  and `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_body_closure_ofIR_globalDefaults`.
+  The
   `verity_contract` surface now accepts monadic environment reads such as
   `let t <- blockTimestamp`, `let t <- Verity.blockTimestamp`, `blockNumber`,
   `chainid`, `blobbasefee`, `contractAddress`, `msgSender`, and `msgValue`, and the
@@ -195,13 +520,11 @@ scope so the native path does not look more complete than it is:
    `callDispatcher_succ_eq_callDispatcherBlockResult` to the named
    `callDispatcherBlockResult`, then rewrites initial-state execution to
    `contractDispatcherBlockResult`, then peels the block wrapper to
-   `contractDispatcherExecResult`. EndToEnd exposes
-   `nativeDispatcherBlockAgreesWithInterpreter` plus
-   `nativeDispatcherExecAgreesWithInterpreter`,
-   `nativeDispatcherBlockAgreesWithInterpreter_of_exec_agree`, and
-   `nativeCallDispatcherAgreesWithInterpreter_of_dispatcherBlock_agree`. The
-   remaining bridge is therefore direct native `EvmYul.Yul.exec` execution of
-   the lowered contract dispatcher block against the interpreter oracle.
+   `contractDispatcherExecResult`. EndToEnd now exposes the direct
+   `nativeDispatcherExecMatchesIRPositive` target plus generated-shape lifts to
+   `nativeIRRuntimeMatchesIR`, so positive-fuel callers prove raw dispatcher
+   execution against IR directly instead of passing through intermediate
+   fuel-wrapper agreement predicates.
 
    Statement-level native lowering through
    `lowerStmtsNativeWithSwitchIds`/`lowerStmtGroupNativeWithSwitchIds` is now
@@ -214,23 +537,23 @@ scope so the native path does not look more complete than it is:
    runs only when no case has marked the switch matched. The top-level partition
    equation and statement-level lowering equations are proved, but full
    dispatcher-block agreement still requires per-statement native execution
-   preservation lemmas against `execYulFuelWithBackend .evmYulLean`.
-   EndToEnd now provides raw-exec intro forms for the three concrete native
-   outcomes:
-   `nativeDispatcherExecAgreesWithInterpreter_of_exec_ok_agree`,
-   `nativeDispatcherExecAgreesWithInterpreter_of_exec_yulHalt_agree`, and
-   `nativeDispatcherExecAgreesWithInterpreter_of_exec_error_agree`. These let
-   each generated-statement simulation case finish from a proved
+   preservation lemmas against IR. EndToEnd provides raw-exec intro forms for
+   the direct native-vs-IR concrete outcomes:
+   `nativeDispatcherExecMatchesIRPositive_of_exec_ok_match`,
+   `nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match`,
+   `nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match`,
+   and `nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match`.
+   These let each generated-statement simulation case finish from a proved
    `contractDispatcherExecResult` equation plus the corresponding observable
-   projection agreement.
+   projection match.
 
    The generated dispatcher selector expression is also pinned for the
-   EVMYulLean-backed interpreter oracle:
-   `bridgedExpr_selectorExpr` shows that `selectorExpr` is in the bridged
-   expression fragment, and
-   `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` proves that it
-   evaluates to `state.selector % selectorModulus`. This discharges the
-   interpreter-oracle side of the first selector branch condition. The native
+   EVMYulLean-backed EVMYulLean fuel wrapper:
+   the private `bridgedExpr_selectorExpr` lemma shows that `selectorExpr` is in
+   the bridged expression fragment, and the private
+   `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` lemma proves that
+   it evaluates to `state.selector % selectorModulus`. This discharges the
+   isolated interpreter-oracle side of the first selector branch condition. The native
    side now exposes `lowerExprNative_selectorExpr`,
    `step_calldataload_ok`, `step_shr_ok`,
    `primCall_calldataload_ok`, `primCall_shr_ok`, and
@@ -305,7 +628,40 @@ scope so the native path does not look more complete than it is:
   `lowerSwitchCasesNativeWithSwitchIds_find?_some` and
   `lowerSwitchCasesNativeWithSwitchIds_find?_none`, proving that native case
   lowering preserves the source switch selector lookup result while exposing
-  the switch-temp counter interval for the selected lowered body. The
+  the switch-temp counter interval for the selected lowered body. The native
+  harness lifts those generic lookup facts to generated dispatcher function
+  lookup with `lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function`
+  and `lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function`, so an
+  `IRFunction` selector hit or miss now produces the corresponding lowered
+  native case lookup fact directly. It also exposes `buildSwitchSourceCases`
+  and `buildSwitchSourceCases_eq_switchCases`, plus the actual-`buildSwitch`
+  wrappers `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function`
+  and `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function`,
+  so generated dispatcher proofs can consume the source case list emitted by
+  `Compiler.CodegenCommon.buildSwitch` without first rewriting manually to
+  `switchCases`. The native harness also owns
+  `lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative`, the generic
+  singleton non-`funcDef` runtime lowering boundary for dispatcher-only runtime
+  code. Helper-free emitted runtime lowering is packaged by
+  `lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive`.
+  It also owns the generic
+  block-lowering shape lemmas `lowerStmtsNative_single_block_ok_singleton` and
+  `lowerStmtsNative_block_stmts_eq`, plus the generated-dispatcher peel facts
+  `lowerStmtsNativeWithSwitchIds_let_head_eq`,
+  `lowerStmtsNativeWithSwitchIds_if_head_eq`, and
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_eq`. That leaves the
+  concrete default-revert switch lowering facts
+  `lowerStmtsNativeWithSwitchIds_revert_zero_zero`,
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq`, and
+  `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered`
+  in the native harness as well. The harness now also packages those peels for
+  the actual no-fallback/no-receive generated dispatcher in
+  `buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered`, with
+  `buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function`
+  and `buildSwitch_noFallback_noReceive_lowered_inner_find?_none_of_find_function`
+  further combining that generated shape with function-selector lookup facts.
+  This leaves the EndToEnd SimpleStorage dispatcher reduction as aliases over
+  native-harness facts. The
   remaining native dispatcher proof starts after that complete lazy-switch
   bridge, at proving `NativeBlockPreservesWord` for selected/default lowered
   bodies and threading the initialized prefix state plus the lowering lookup
@@ -332,6 +688,12 @@ scope so the native path does not look more complete than it is:
   `NativeStmtPreservesWord_if_of_eval_self`,
   `NativeStmtPreservesWord_if_of_eval_preserves`,
   `NativeStmtPreservesWord_if_of_cond_preserves`,
+  `nativeSwitchBranchFold_ok_preserves_word`,
+  `execSwitchCases_ok_branch_preserves_word`,
+  `NativeStmtPreservesWord_switch_of_eval_preserves`,
+  `NativeStmtPreservesWord_switch_of_cond_preserves`,
+  `NativeStmtPreservesWord_switch_of_cond_preserves_and_nativeStmtsWriteNames_not_mem`,
+  `NativeStmtPreservesWord_switch_of_eval_preserves_and_nativeStmtsWriteNames_not_mem`,
   `NativeStmtPreservesWord_lowerAssignNative_lit_of_ne`,
   `NativeStmtPreservesWord_lowerAssignNative_hex_of_ne`,
   `NativeStmtPreservesWord_lowerAssignNative_ident_of_ne`,
@@ -345,6 +707,8 @@ scope so the native path does not look more complete than it is:
   `NativeStmtPreservesWord_let_lowerExprNative_ident_of_not_mem`,
   `NativeStmtPreservesWord_let_prim_of_evalArgs_primCall_preserves`,
   `NativeStmtPreservesWord_let_user_of_evalArgs_call_preserves`,
+  `NativeStmtPreservesWord_let_prim_of_nativeEvalArgs_primCall_preserves`,
+  `NativeStmtPreservesWord_let_user_of_nativeEvalArgs_call_preserves`,
   `NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves`,
   `NativeStmtPreservesWord_let_lowerExprNative_call_userFunction_of_evalArgs_call_preserves`,
   `NativeStmtPreservesWord_let_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves`,
@@ -431,41 +795,73 @@ scope so the native path does not look more complete than it is:
   `NativeExprPreservesWord_lowerExprNative_str`,
   `NativeExprPreservesWord_lowerExprNative_ident`,
   `NativeExprPreservesWord_call_prim_of_evalArgs_primCall_preserves`,
+  `NativeExprPreservesWord_call_prim_of_nativeEvalArgs_primCall_preserves`,
   `NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves`,
+  `NativeExprPreservesWord_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves`,
   `NativeExprPreservesWord_call_user_of_evalArgs_call_preserves`,
+  `NativeExprPreservesWord_call_user_of_nativeEvalArgs_call_preserves`,
   `NativeExprPreservesWord_lowerExprNative_call_userFunction_of_evalArgs_call_preserves`,
+  `NativeExprPreservesWord_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_prim_of_evalArgs_primCall_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_user_of_evalArgs_call_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_prim_of_nativeEvalArgs_primCall_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_user_of_nativeEvalArgs_call_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_evalArgs_primCall_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_evalArgs_call_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_runtimePrimOp_of_nativeEvalArgs_primCall_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_call_userFunction_of_nativeEvalArgs_call_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_mstore_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_mstore_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_mstore8_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_mstore8_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_mstore8_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_sstore_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_sstore_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_sstore_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_tstore_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_tstore_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_tstore_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_calldatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_calldatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_returndatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_returndatacopy_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_log0_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_log0_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log0_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_log1_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_log1_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log1_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_log2_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_log2_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log2_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_log3_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_log3_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log3_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_log4_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_log4_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_log4_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_return_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_return_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_return_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_revert_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_revert_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_evalArgs_preserves`,
+  `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_revert_of_nativeEvalArgs_and_evalArgs_shape_preserves`,
   `NativeStmtPreservesWord_exprStmtCall_stop`,
   `NativeStmtPreservesWord_exprStmtCall_lowerExprNative_stop`,
   `nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem`,
@@ -630,6 +1026,33 @@ scope so the native path does not look more complete than it is:
    `exec_nativeSwitchCaseIfs_find_hit_fuel`, and
    `exec_nativeSwitchCaseIfs_find_none_fuel` for selector-lookup-driven case
    chain execution,
+   `lowerSwitchCasesNativeWithSwitchIds_find?_some_of_find_function` and
+   `lowerSwitchCasesNativeWithSwitchIds_find?_none_of_find_function` for
+   generated dispatcher function-lookup facts lifted through native case
+   lowering,
+   `buildSwitchSourceCases_eq_switchCases`,
+   `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_some_of_find_function`,
+   and `lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function`
+   for the actual `buildSwitch` source case list,
+   `lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative` for singleton
+   dispatcher-only runtime lowering,
+   `lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive`
+   for helper-free emitted runtime lowering,
+   `lowerStmtsNative_single_block_ok_singleton` and
+   `lowerStmtsNative_block_stmts_eq` for generic `.block` lowering shape,
+   `lowerStmtsNativeWithSwitchIds_let_head_eq`,
+   `lowerStmtsNativeWithSwitchIds_if_head_eq`, and
+   `lowerStmtsNativeWithSwitchIds_singleton_switch_eq` for generic dispatcher
+   statement peels,
+   `lowerStmtsNativeWithSwitchIds_revert_zero_zero`,
+   `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq`, and
+   `lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered`
+   for generated selector-miss default-revert lowering,
+   `buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered` for the
+   combined no-fallback/no-receive generated dispatcher lowering shape,
+   `buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function`
+   and `buildSwitch_noFallback_noReceive_lowered_inner_find?_none_of_find_function`
+   for generated dispatcher shape plus selector lookup,
    `exec_nativeSwitchDefaultIf_unmatched_nonempty_fuel` and
    `exec_nativeSwitchDefaultIf_matched_fuel` for optional generated defaults,
    `exec_block_append_ok`,
@@ -653,9 +1076,9 @@ scope so the native path does not look more complete than it is:
    `nativeSwitchTempsFreshForNativeBodies`, plus freshness projection lemmas
    for selected native bodies and optional defaults,
    plus the named
-   `bridgedExpr_selectorExpr` and
+   private `bridgedExpr_selectorExpr` and
    `evalYulExprWithBackend_evmYulLean_selectorExpr_semantics` lemmas for the
-   generated dispatcher selector expression on the interpreter-oracle side, the named
+   generated dispatcher selector expression on the isolated interpreter-oracle side, the named
    `initialState_unbridgedEnvironmentDefaults` lemma for
    base-fee/blob-field defaults and native-global `chainid` behavior, callvalue,
    caller/address, calldatasize, timestamp/number, a native-vs-reference-oracle
@@ -728,46 +1151,71 @@ scope so the native path does not look more complete than it is:
    - static-call permission behavior,
    - proof-level preservation for the covered mapping member oracle cases.
 
-5. Introduce the public native preservation theorem.
+5. Introduce the public generated native preservation theorem.
 
-   The EndToEnd module now has a named native theorem seam:
-
-   ```lean
-   layers2_3_ir_matches_native_evmYulLean_of_interpreter_bridge
-   ```
-
-   It targets `Native.interpretIRRuntimeNative` directly, but only under:
+   The EndToEnd module keeps the arbitrary-fuel identity seam private. The
+   file-local generated native theorem chain starts at:
 
    ```lean
-   nativeIRRuntimeAgreesWithInterpreter fuel irContract tx initialState
-     observableSlots
-   ```
-
-   The next theorem in that chain is:
-
-   ```lean
-   layers2_3_ir_matches_native_evmYulLean_of_lowered_callDispatcher_bridge
+   layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match
    ```
 
    It replaces the opaque bridge hypothesis with successful
    `lowerRuntimeContractNative`, successful
    `validateNativeRuntimeEnvironment`, and
-   `nativeCallDispatcherAgreesWithInterpreter` for the lowered native contract.
-   That obligation can now be discharged from
-   `nativeDispatcherBlockAgreesWithInterpreter`, which compares projected
-   `contractDispatcherBlockResult` execution with the interpreter oracle.
-   The block obligation can in turn be discharged from
-   `nativeDispatcherExecAgreesWithInterpreter`, which targets raw
-   `contractDispatcherExecResult`.
+   `nativeDispatcherExecMatchesIRPositive` for the lowered native contract, plus
+   generated-code shape facts that discharge the executable generated-fragment
+   check.
+   The compiled supported path has a direct source-body-closure wrapper:
+   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`.
+   This variant derives the external no-`funcDef` generated-fragment witness
+   from source-level static-scalar parameter witnesses plus compiled statement-list
+   no-`funcDef` closure, leaving the native dispatcher match itself as the
+   remaining proof obligation.
+   The concrete `simpleStorage_endToEnd_native_evmYulLean` theorem now targets
+   the direct projected `EvmYul.Yul.callDispatcher` result through
+   `nativeGeneratedCallDispatcherResultOf`, after its retrieve-hit, store-hit,
+   and selector-miss cases prove the lowered native dispatcher result matches
+   `interpretIR` directly. The older `interpretIRRuntimeNative` SimpleStorage
+   wrapper is file-local compatibility evidence. The generic selector-miss
+   boundary is now
+   packaged by
+   `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`,
+   which exposes the native `Revert` execution and exact projected rollback
+   result for arbitrary generated selector tables whose tags fit in one EVM
+   word. The same miss package is also lifted to the public raw dispatcher
+   boundary by
+   `contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`.
+   Selector-hit native halt/error projection now has the analogous
+   generic boundary
+   `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq`,
+   with
+   `contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq`
+   lifting that package to the public raw dispatcher boundary,
+   consumed by the SimpleStorage store-hit and retrieve-hit wrappers before
+   their contract-specific IR comparisons. The store-parametric
+   `exec_lowerNativeSwitchBlock_selector_find_hit_error_store_projectResult_eq`
+   variant carries the same projection package through selector switches
+   entered after earlier dispatcher-local bindings. The store-parametric
+   selector-miss companion
+   `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq`
+   carries the exact revert rollback package through the same pre-bound local
+   store shape, and
+   `exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_projectResult_eq`
+   lifts it through the generated dispatcher block shape after
+   `__has_selector` is installed. Selector-hit halt/error projection has the
+   matching block-level package
+   `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq`.
+   Selector-hit normal-success projection is carried by
+   `exec_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq`,
+   `exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq`
+   and
+   `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq`.
 
-   This makes the remaining proof obligation concrete: for the supported
-   generated fragment, native `lowerRuntimeContractNative` plus
-   `EvmYul.Yul.exec` of the lowered contract dispatcher block must produce the
-   same projected `YulResult` as the current
-   `interpretYulRuntimeWithBackend .evmYulLean` interpreter oracle. The
-   successor theorem should discharge that bridge, or target a total native
-   wrapper once the remaining closed-failure cases are ruled out by syntactic
-   invariants.
+   This closes the SimpleStorage public theorem against the native
+   lowered-dispatcher source of truth. The remaining generic work is to remove
+   the private compatibility fuel-wrapper/reference-oracle theorem family that
+   still exists for contracts without direct native dispatcher match proofs.
 
    A clean intermediate theorem is:
 
@@ -782,18 +1230,283 @@ scope so the native path does not look more complete than it is:
 
 6. Flip the trust boundary only after the theorem target moves.
 
-   Documentation should say EVMYulLean is the authoritative semantic target
-   only after the public theorem no longer routes through
-   `execYulFuelWithBackend`. Until then, the accurate status is:
-   EVMYulLean-backed builtin bridge proven, native runtime harness executable,
-   native public theorem pending.
+   Documentation should say EVMYulLean is the authoritative public semantic
+   target, while making clear that retargeting evidence remains isolated in
+   `EvmYulLeanRetarget.lean` and still routes through the private
+   `execYulFuelWithBackend` transition executor until the generic native proof
+   stack replaces it.
+
+   The direct native target is now named `nativeIRRuntimeMatchesIR`: it compares
+   `Native.interpretIRRuntimeNative` against `interpretIR` on the observable
+   result surface. Remaining generated-fragment work can target a successful
+   native run plus `nativeResultsMatchOn` against IR directly. The Layer 3 and
+   Layers 2-3 native theorem spellings now consume `nativeIRRuntimeMatchesIR`;
+   the older `_via_reference_oracle` native wrapper variants have been removed.
+   At the raw lowered-dispatcher boundary,
+   `nativeDispatcherExecMatchesIRPositive` and
+   `nativeIRRuntimeMatchesIR_of_lowered_dispatcherExec_positive_match` expose the
+   same direct native-vs-IR target for positive-fuel generated dispatcher
+   proofs from the native harness. Concrete case proofs can now package normal,
+   projected halt, and projected error runs with
+   `nativeDispatcherExecMatchesIRPositive_of_exec_ok_match`,
+   `nativeDispatcherExecMatchesIRPositive_of_exec_ok_project_eq_match`,
+   `nativeDispatcherExecMatchesIRPositive_of_exec_yulHalt_project_eq_match`, and
+   `nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match`.
+   Generated-code shape facts lift this target through
+   `nativeIRRuntimeMatchesIR_of_generated_lowered_dispatcherExec_positive_match`,
+   and compiled supported contracts can use
+   `nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_body_closure`
+   or the Layer 3 / Layers 2-3 wrappers
+   `layer3_contract_preserves_semantics_native_of_generated_dispatcherExec_positive_match`
+   and
+   `layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_match`.
+   Normal selector-hit execution has the matching raw dispatcher lift
+   `contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_ok_projectResult_eq`.
+   SimpleStorage now keeps only the direct per-case splitter
+   `simpleStorageNativeCallDispatcherMatchBridge_of_per_case` in this bridge
+   path. The public `simpleStorage_endToEnd_native_evmYulLean` theorem consumes
+   the direct projected `EvmYul.Yul.callDispatcher` result and discharges its
+   native match with this direct splitter. The
+   selector-miss revert arm is discharged by
+   `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`
+   and its contract-dispatcher boundary lift
+   `contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_none_with_revert_default_projectResult_eq`
+   (with
+   `exec_lowerNativeSwitchBlock_selector_find_none_with_revert_default_store_projectResult_eq`
+   and
+   `exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_projectResult_eq`
+   available for pre-bound dispatcher-local stores)
+   before the SimpleStorage-specific selector table specialization reaches
+   `simpleStorageNativeSelectorMissMatchBridge_proved`, and the retrieve-hit
+   and store-hit selector wrappers consume
+   `exec_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq`
+   (with
+   `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error_projectResult_eq`
+   and
+   `exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq`
+   available at the generated dispatcher block boundary)
+   before their direct native-vs-IR proofs. The retrieve-hit arm has the proof
+   `simpleStorageNativeRetrieveHitMatchBridge_proved`. The store-hit arm is
+   closed by `simpleStorageNativeStoreHitMatchBridge_proved`, which covers both
+   the short-calldata revert and argument-present storage update paths.
 
 ## Cleanup After the Flip
 
-- Move `execYulFuel` and `execYulFuelWithBackend` to reference-oracle status.
+- Keep `legacyExecYulFuel` and the private `execYulFuelWithBackend` wrapper in
+  reference-oracle or isolated lower-level transition status.
 - Remove bridge-only docs that describe the custom interpreter as the active
   semantic target.
 - Keep cross-check tests between the old oracle and native EVMYulLean for one
   release cycle.
 - Upstream any EVMYulLean fork changes needed for memory, returndata, logs, or
   external-call semantics.
+
+## PR 1822 — Achievement Summary
+
+PR 1822 (`native-evmyullean-public-correctness`) lands the public-surface
+retarget plus the first five leaf `ExecOnlyBridgeAtFuelRevived` constructors.
+The Revived family now covers the observational-no-op body shapes a real
+dispatcher will emit for label-only user bodies. The deeper "straight prefix
+ending in `leave`/fall-through" cases are scoped out to a follow-up PR.
+
+### Shipped in this PR
+
+- **Public-surface retarget** — `interpretYulRuntimeEvmYulLean` and
+  `interpretYulRuntimeEvmYulLeanFuel`; Layer 3 and SimpleStorage EndToEnd
+  theorems retargeted to EVMYulLean conclusions; legacy reference-oracle
+  paths renamed to `..._via_reference_oracle`; `defaultBuiltinBackend := .evmYulLean`;
+  `legacyBuiltinBackend := .verity`, `legacyEvalBuiltinCallWithContext`,
+  `legacyExecYulFuel` opt-ins for old reference-oracle/bridge-comparison paths.
+- **Native EndToEnd surface** — `nativeResultsMatchOn`, the supported-compiler
+  generated direct `EvmYul.Yul.callDispatcher` theorem and its helper-free /
+  mapping-helper lowering wrappers, concrete SimpleStorage native theorem,
+  case freshness dispatcher adapters, mapping switch freshness wrappers.
+- **G1 increments S1–S4 (leaf Revived constructors)** —
+  `.of_block_empty`, `.of_block_leave`, `.of_singleton_comment` shipped on
+  `NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived`, plus the
+  pre-existing `.of_empty_body` and `.of_leave_body`. `.of_comment_cons` is
+  intentionally deferred to the success-bridge wiring layer (rationale below).
+  Together these five constructors cover every body of shape `[]`, `[.leave]`,
+  `[.block []]`, `[.block [.leave]]`, `[.comment text]` — the full
+  observational-no-op family.
+- **Supporting harness lemmas** — `exec_block_block_nil_ok_add_ten`,
+  `exec_block_block_leave_ok_add_ten`, `exec_block_noop_block_head_eq`,
+  `lowerStmtsNativeWithSwitchIds_comment_head_eq`, and the source-side
+  `nativeResultsMatchOn_execIRFunction_*_body_markedPrefix` family.
+- **Invariants preserved** — zero `sorry`, zero new axioms; `lake build
+  Compiler.Proofs.EndToEnd` green; `make check` validators (axioms,
+  capability boundary, builtin boundary, doc check) pass.
+
+### Remaining for a follow-up PR
+
+The composite `<straight-stmts>` and `<straight-stmts>; leave` body shapes,
+and the final wiring + premise drop, are deferred. They share heavy proof
+infrastructure (whole-block per-slot preservation, IR `execIRStmts`
+falling-through induction) that does not fit a single landable increment in
+the current branch's budget. See the
+[G1 Incremental Plan](#g1-incremental-plan-generic-execonlybridgeatfuelrevived)
+below for the exact constructor signatures, harness lemmas, and proof
+sketches that the follow-up PR needs to land:
+
+- **G1-S5** `.of_nativePreservableStraightStmts_leave` plus companion
+  `execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave` lemma.
+- **G1-S6** `.of_bridgedStraightStmts_falling_through` (the deepest case;
+  requires aligning `execIRFunction`'s fall-through extraction with the
+  dispatcher's outer block exit).
+- **G1-S7** Wire all five shipped leaves plus the two new constructors
+  through `NativeGeneratedSelectorHitSuccessBridge` adapters, including
+  per-leaf `_with_label_prefix` variants that strip a leading
+  `.comment "label"` head via `exec_block_noop_block_head_eq`. This step
+  also subsumes the deferred `.of_comment_cons` shape.
+- **G1-S8** Drop `hUserBodyHalt` from
+  `compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher`
+  once S5–S7 are in.
+
+## G1 Incremental Plan: Generic `ExecOnlyBridgeAtFuelRevived`
+
+The remaining success-side blocker is a generic constructor for
+`NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived` that does not
+enumerate every concrete `fn.body` shape. The Revived predicate covers
+**non-halting** bodies; halting bodies (`stop`/`return`/`revert`) are owned by
+`NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel`, which already has a full
+shape family.
+
+Today only two Revived constructors exist:
+`NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_empty_body`
+(`fn.body = []`) and `.of_leave_body` (`fn.body = [.leave]`). The remaining
+Revived family is planned as a pyramid of independently-pushable
+constructors, each of which compiles green on its own and is independently
+useful to downstream adapters:
+
+1. **`.of_block_empty`** — `fn.body = [.block []]`. Lowers to
+   `[.Block []]`; closed by `exec_block_noop_block_head_eq` and
+   `exec_block_nil_ok`. Source-side `execIRFunction` collapses the inner empty
+   block to `.continue stateWithParams`, mirroring `.of_empty_body`. Needs a
+   companion `nativeResultsMatchOn_execIRFunction_block_empty_markedPrefix`
+   lemma.
+2. **`.of_block_leave`** — `fn.body = [.block [.leave]]`. Lowers to
+   `[.Block [.Leave]]`; closed by `exec_block_leave_ok_add_ten` after a
+   `Block`-head peel. Mirrors `.of_leave_body`.
+3. **`.of_singleton_comment`** — `fn.body = [.comment text]`. Lowers to
+   `[.Block []]` via `lowerStmtsNativeWithSwitchIds_comment_head_eq`. Source
+   side is `.continue state` (comment is a no-op at positive fuel).
+4. **`.of_comment_cons`** — recursive adapter: if the tail satisfies the
+   Revived predicate then so does `.comment text :: rest`. Discharges the
+   no-op head with `exec_block_noop_block_head_eq` and matches the source-side
+   `.continue` step.
+   *Deferred to S8 wiring.* A direct Revived-level recursion is structurally
+   awkward because the Revived predicate's `nativeGeneratedSelectorHitUserBodyFuel`
+   computation depends on the contract's full `fn.body` size; recursing into
+   `rest` would require either a predicate-level refactor that parameterizes
+   over an explicit body shape, or full duplication of the predicate's logic
+   inline. Instead, the runtime dispatcher's `.comment "label" :: <real body>`
+   shape is handled at the `NativeGeneratedSelectorHitSuccessBridge` wiring
+   layer (step 7): each leaf Revived constructor pairs with a one-shot
+   comment-prefix adapter that strips the no-op label head, leaving the
+   `<real body>` to match an existing leaf constructor.
+5. **`.of_nativePreservableStraightStmts_leave`** — bodies of shape
+   `<straight-stmts>; leave`. Composes `NativePreservableStraightStmts`
+   preservation
+   (`NativeBlockPreservesWord_lowerStmtsNativeWithSwitchIds_of_nativePreservableStraightStmts`)
+   with the `leave` checkpoint, yielding a `final.reviveJump` whose observable
+   slots equal the source-side post-state. Requires an
+   `execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave` companion
+   lemma in `IRInterpreter.lean` proving the source side falls through with the
+   same observable storage.
+6. **`.of_bridgedStraightStmts_falling_through`** — bodies of shape
+   `<straight-stmts>` (no terminator). The hardest piece: requires the source
+   side's `execIRStmts` falling through to `.continue` with native-side
+   `NativeBlockPreservesWord` preservation, combined with the function-end
+   fall-through convention shared between `execIRFunction` and `EvmYul.Yul.exec`.
+7. **Wire into `NativeGeneratedSelectorHitSuccessBridge`** — extend
+   `NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_*`
+   adapters so the new Revived constructors feed the existing
+   `BridgedStraightStmts` and `mappingFree` result-bridge composition stacks.
+8. **Drop the `hUserBodyHalt` premise from the supported-generated
+   call-dispatcher composition theorem** — once the Revived family covers the
+   same source-level scope as the Halt family, the public theorem premise
+   collapses.
+
+Each step lands as its own commit on `native-evmyullean-public-correctness`
+and keeps `lake build Compiler.Proofs.EndToEnd` green. The pyramid is designed
+so that partial completion (e.g., stopping after step 4) already removes
+specific `hUserBodyHalt` demand for trivially-non-halting bodies, even before
+the deep generic case at step 6 lands.
+
+### Status of G1 increments
+
+- **Step 1 (`.of_block_empty`)** — **shipped in PR 1822**
+  (commit `fa980235`+rebase `8b46a6e7`). Pairs with new harness lemma
+  `exec_block_block_nil_ok_add_ten` and source helper
+  `nativeResultsMatchOn_execIRFunction_block_empty_body_markedPrefix`.
+- **Step 2 (`.of_block_leave`)** — **shipped in PR 1822** (`a5d2e0d3`).
+  Harness: `exec_block_block_leave_ok_add_ten`. Source helper:
+  `nativeResultsMatchOn_execIRFunction_block_leave_body_markedPrefix`.
+- **Step 3 (`.of_singleton_comment`)** — **shipped in PR 1822**
+  (`f69044a1`+rebase `06723c83`). Reuses `exec_block_block_nil_ok_add_ten`;
+  existential text extraction in the hypothesis. Source helper:
+  `nativeResultsMatchOn_execIRFunction_singleton_comment_body_markedPrefix`.
+- **Step 4 (`.of_comment_cons`)** — **intentionally deferred to step 7
+  wiring** (`8e31e756`). Rationale: structural mismatch between the
+  predicate's `nativeGeneratedSelectorHitUserBodyFuel`-on-full-`fn.body`
+  and a tail-body recursion. Handled at the success-bridge layer via
+  per-leaf comment-prefix adapters (S7), not as a standalone Revived
+  constructor.
+- **Step 5 (`.of_nativePreservableStraightStmts_leave`)** — **deferred to
+  follow-up PR**.
+  Companion lemma sketch:
+  ```
+  theorem execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave
+      (fuel : Nat) (state : IRState) (preStmts : List YulStmt)
+      (hStmts : NativePreservableStraightStmts preStmts)
+      (hFuel : sizeOf preStmts < fuel) :
+      ∃ state',
+        execIRStmts fuel state preStmts = .continue state' ∧
+        ∀ slot, state'.storage.getD slot 0 = state.storage.getD slot 0 ∧
+        state'.events = state.events
+  ```
+  Proof by induction on `preStmts` (or on the `NativePreservableStraightStmts`
+  predicate) using the per-constructor cases in
+  `EvmYulLeanNativeHarness.lean` lines ~18395–18410.
+  Constructor sketch: the lowered native body is
+  `lower(preStmts) ++ [.Leave]`; dispatcher-wrapped as
+  `.Block (lower(preStmts) ++ [.Leave])`. Use
+  `exec_block_append_eq_of_continue` (or similar splice lemma) to split exec
+  across the append, derive `NativeBlockPreservesWord` for each observable
+  slot via `NativeBlockPreservesWord_lowerStmtsNativeWithSwitchIds_of_nativePreservableStraightStmts`,
+  then peel the trailing `.Leave` with `exec_block_leave_ok_add_ten` after
+  one cons step.
+- **Step 6 (`.of_bridgedStraightStmts_falling_through`)** — **deferred to
+  follow-up PR**. Hardest piece. Same machinery as step 5 minus the trailing leave: the
+  function-end fall-through convention must align `execIRFunction`'s
+  post-`execIRStmts` extraction with the dispatcher's outer block exit. Key
+  delta: source side returns `.continue state'` with no explicit terminator;
+  must show this projects observationally identical to native's
+  `.Block lower(preStmts)` `.ok` exit. Likely also needs an
+  `execIRFunction_continue_extract_eq` lemma showing the IR function's return
+  extraction at no-return-vars fn is a no-op.
+- **Step 7 (success-bridge wiring + `.of_comment_cons` collapse)** —
+  **deferred to follow-up PR**. Extend
+  `NativeGeneratedSelectorHitSuccessBridge.of_selected_*` adapters to take
+  per-leaf Revived constructors and inject the `.comment "label"`-head strip
+  via `exec_block_noop_block_head_eq`. Each leaf gets a `_with_label_prefix`
+  variant.
+- **Step 8 (drop `hUserBodyHalt`)** — **deferred to follow-up PR**. Final
+  theorem-level
+  collapse: after the Revived family covers all source-side non-halting
+  bodies the dispatcher can emit, the
+  `compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher`
+  signature drops its `hUserBodyHalt` premise.
+
+The PR-1822 shipped constructors (Step 1–3, plus the pre-existing
+`.of_empty_body` and `.of_leave_body`) are independently useful: they
+directly discharge the Revived premise for contracts whose selected
+`fn.body` is one of `[]`, `[.leave]`, `[.block []]`, `[.block [.leave]]`, or
+`[.comment text]`. This is the observational-no-op family — concrete
+contracts whose user body is a label-only stub now have a direct Revived
+bridge without going through the halt path.
+
+Steps 5–8 remain the path to dropping `hUserBodyHalt` for non-trivial user
+bodies. A future PR should pick up `execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave`
+first (purely IR-side, no harness coupling) before tackling the full
+constructor proofs.

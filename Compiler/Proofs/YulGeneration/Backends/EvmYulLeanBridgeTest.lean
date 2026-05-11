@@ -3,7 +3,7 @@
   builtin bridge.
 
   Validates that `evalPureBuiltinViaEvmYulLean` (which delegates to
-  EVMYulLean's UInt256 operations) agrees with Verity's `evalBuiltinCall`
+  EVMYulLean's UInt256 operations) agrees with Verity's `legacyEvalBuiltinCall`
   on concrete test vectors for all pure arithmetic/comparison/bitwise builtins.
 
   This is a smoke test, not a general equivalence proof. Full semantic
@@ -39,11 +39,11 @@ private def testBridgeCalldata : List Nat := [0xDEADBEEF]
 
 /-- Helper: evaluate a builtin via the Verity path. -/
 private def verityEval (func : String) (args : List Nat) : Option Nat :=
-  evalBuiltinCall testStorage testSender testSelector testCalldata func args
+  legacyEvalBuiltinCall testStorage testSender testSelector testCalldata func args
 
 /-- Helper: evaluate a builtin via the context-aware Verity path. -/
 private def verityEvalWithContext (func : String) (args : List Nat) : Option Nat :=
-  evalBuiltinCallWithContext
+  legacyEvalBuiltinCallWithContext
     testStorage
     testSender
     testMsgValue
@@ -60,7 +60,7 @@ private def verityEvalWithContext (func : String) (args : List Nat) : Option Nat
 /-- Helper: evaluate a builtin via the context-aware Verity path with
     nontrivial selector/calldata for calldata bridge checks. -/
 private def verityEvalWithBridgeCalldata (func : String) (args : List Nat) : Option Nat :=
-  evalBuiltinCallWithContext
+  legacyEvalBuiltinCallWithContext
     testStorage
     testSender
     testMsgValue
@@ -166,55 +166,55 @@ example : verityEval "iszero" [Compiler.Constants.evmModulus] =
 
 /-- Universal bridge theorem for `add` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "add" [a, b] =
+    legacyEvalBuiltinCall storage sender selector calldata "add" [a, b] =
       evalPureBuiltinViaEvmYulLean "add" [a, b] := by
   exact evalBuiltinCall_add_bridge storage sender selector calldata a b
 
 /-- Universal bridge theorem for `sub` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "sub" [a, b] =
+    legacyEvalBuiltinCall storage sender selector calldata "sub" [a, b] =
       evalPureBuiltinViaEvmYulLean "sub" [a, b] := by
   exact evalBuiltinCall_sub_bridge storage sender selector calldata a b
 
 /-- Universal bridge theorem for `mul` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "mul" [a, b] =
+    legacyEvalBuiltinCall storage sender selector calldata "mul" [a, b] =
       evalPureBuiltinViaEvmYulLean "mul" [a, b] := by
   exact evalBuiltinCall_mul_bridge storage sender selector calldata a b
 
 /-- Universal bridge theorem for `div` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "div" [a, b] =
+    legacyEvalBuiltinCall storage sender selector calldata "div" [a, b] =
       evalPureBuiltinViaEvmYulLean "div" [a, b] := by
   exact evalBuiltinCall_div_bridge storage sender selector calldata a b
 
 /-- Universal bridge theorem for `mod` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "mod" [a, b] =
+    legacyEvalBuiltinCall storage sender selector calldata "mod" [a, b] =
       evalPureBuiltinViaEvmYulLean "mod" [a, b] := by
   exact evalBuiltinCall_mod_bridge storage sender selector calldata a b
 
 /-- Universal bridge theorem for `eq` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "eq" [a, b] =
+    legacyEvalBuiltinCall storage sender selector calldata "eq" [a, b] =
       evalPureBuiltinViaEvmYulLean "eq" [a, b] := by
   exact evalBuiltinCall_eq_bridge storage sender selector calldata a b
 
 /-- Universal bridge theorem for `iszero` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a : Nat) :
-    evalBuiltinCall storage sender selector calldata "iszero" [a] =
+    legacyEvalBuiltinCall storage sender selector calldata "iszero" [a] =
       evalPureBuiltinViaEvmYulLean "iszero" [a] := by
   exact evalBuiltinCall_iszero_bridge storage sender selector calldata a
 
 /-- Universal bridge theorem for `lt` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "lt" [a, b] =
+    legacyEvalBuiltinCall storage sender selector calldata "lt" [a, b] =
       evalPureBuiltinViaEvmYulLean "lt" [a, b] := by
   exact evalBuiltinCall_lt_bridge storage sender selector calldata a b
 
 /-- Universal bridge theorem for `gt` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "gt" [a, b] =
+    legacyEvalBuiltinCall storage sender selector calldata "gt" [a, b] =
       evalPureBuiltinViaEvmYulLean "gt" [a, b] := by
   exact evalBuiltinCall_gt_bridge storage sender selector calldata a b
 
@@ -251,19 +251,19 @@ example : verityEval "xor" [Compiler.Constants.evmModulus, 0] =
 
 /-- Universal bridge theorem for `and` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "and" [a, b] =
+    legacyEvalBuiltinCall storage sender selector calldata "and" [a, b] =
       evalPureBuiltinViaEvmYulLean "and" [a, b] := by
   exact evalBuiltinCall_and_bridge storage sender selector calldata a b
 
 /-- Universal bridge theorem for `or` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "or" [a, b] =
+    legacyEvalBuiltinCall storage sender selector calldata "or" [a, b] =
       evalPureBuiltinViaEvmYulLean "or" [a, b] := by
   exact evalBuiltinCall_or_bridge storage sender selector calldata a b
 
 /-- Universal bridge theorem for `xor` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a b : Nat) :
-    evalBuiltinCall storage sender selector calldata "xor" [a, b] =
+    legacyEvalBuiltinCall storage sender selector calldata "xor" [a, b] =
       evalPureBuiltinViaEvmYulLean "xor" [a, b] := by
   exact evalBuiltinCall_xor_bridge storage sender selector calldata a b
 
@@ -276,7 +276,7 @@ example : verityEval "not" [Compiler.Constants.evmModulus] =
 
 /-- Universal bridge theorem for `not` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (a : Nat) :
-    evalBuiltinCall storage sender selector calldata "not" [a] =
+    legacyEvalBuiltinCall storage sender selector calldata "not" [a] =
       evalPureBuiltinViaEvmYulLean "not" [a] := by
   exact evalBuiltinCall_not_bridge storage sender selector calldata a
 
@@ -293,7 +293,7 @@ example : verityEval "shl" [Compiler.Constants.evmModulus - 1, 3] =
 
 /-- Universal bridge theorem for `shl` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
-    evalBuiltinCall storage sender selector calldata "shl" [shift, value] =
+    legacyEvalBuiltinCall storage sender selector calldata "shl" [shift, value] =
       evalPureBuiltinViaEvmYulLean "shl" [shift, value] := by
   exact evalBuiltinCall_shl_bridge storage sender selector calldata shift value
 
@@ -310,7 +310,7 @@ example : verityEval "shr" [Compiler.Constants.evmModulus - 1, 12345] =
 
 /-- Universal bridge theorem for `shr` (symbolic, not vector-based). -/
 example (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (shift value : Nat) :
-    evalBuiltinCall storage sender selector calldata "shr" [shift, value] =
+    legacyEvalBuiltinCall storage sender selector calldata "shr" [shift, value] =
       evalPureBuiltinViaEvmYulLean "shr" [shift, value] := by
   exact evalBuiltinCall_shr_bridge storage sender selector calldata shift value
 
@@ -729,7 +729,7 @@ example : verityEval "byte" [0, 0] = bridgeEval "byte" [0, 0] := by native_decid
 -- ## Context-lifted backend bridge (Phase 4 rewriting surface)
 --
 -- These tests validate that `evalBuiltinCallWithBackendContext .evmYulLean`
--- agrees with `evalBuiltinCallWithContext` on concrete inputs, exercising
+-- agrees with `legacyEvalBuiltinCallWithContext` on concrete inputs, exercising
 -- the 25 context-lifted bridge theorems that are the primary rewrite target
 -- for Phase 4 retargeting.
 
@@ -855,7 +855,8 @@ example : backendEvalWithContext "sload" [42] =
 example : backendEvalWithContext "mappingSlot" [0, 1] =
           verityEvalWithContext "mappingSlot" [0, 1] := by
   simp [backendEvalWithContext, verityEvalWithContext, evalBuiltinCallWithBackendContext,
-    evalBuiltinCallWithContext, evalBuiltinCallViaEvmYulLean]
+    evalBuiltinCallWithEvmYulLeanContext, legacyEvalBuiltinCallWithContext,
+    evalBuiltinCallViaEvmYulLean]
 
 /-- Context-lifted bridge: caller now reads the bridged execution context. -/
 example : backendEvalWithContext "caller" [] = verityEvalWithContext "caller" [] := by native_decide
@@ -874,7 +875,7 @@ example : backendEvalWithContext "calldatasize" [] = verityEvalWithContext "call
 /-- `calldatasize` is a UInt256 word observation, so Verity also reduces the
     bridged byte length modulo `2^256` rather than returning an unbounded Nat. -/
 example (selector : Nat) (calldata : List Nat) :
-    evalBuiltinCallWithContext
+    legacyEvalBuiltinCallWithContext
       testStorage
       testSender
       testMsgValue
@@ -888,7 +889,7 @@ example (selector : Nat) (calldata : List Nat) :
       "calldatasize"
       [] =
     some ((4 + calldata.length * 32) % Compiler.Constants.evmModulus) := by
-  simp [evalBuiltinCallWithContext, Compiler.Constants.evmModulus]
+  simp [legacyEvalBuiltinCallWithContext, Compiler.Constants.evmModulus]
 
 /-- Context-lifted bridge: callvalue now reads the bridged execution context. -/
 example : backendEvalWithContext "callvalue" [] = verityEvalWithContext "callvalue" [] := by native_decide

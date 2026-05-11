@@ -4,19 +4,22 @@ This document defines what it means to finish the transition from Verity's
 custom Yul interpreter to native EVMYulLean execution as the authoritative
 compiler-verification target.
 
-It is stricter than the current storage-semantics milestone. The SimpleStorage
+It is stricter than the current native EndToEnd surface. The SimpleStorage
 native theorem now discharges its retrieve, store, and selector bridge cases,
-but the generic compiler theorem stack still uses Verity's custom fuel-based
-Yul interpreter through:
+and the public generated-dispatcher theorem family targets native EVMYulLean
+dispatcher execution. Lower transition evidence still records Verity's custom
+Yul statement interpreter path through the EVMYulLean-backed builtin backend:
 
 ```lean
 interpretYulRuntimeWithBackend .evmYulLean
 ```
 
-That path proves the custom interpreter agrees with EVMYulLean-backed builtin
-semantics for the bridged fragment. The final transition is complete only when
-the public compiler-correctness theorem targets native EVMYulLean execution
-directly, or an equivalent wrapper whose only execution engine is
+The removed transition theorem name
+`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle` marks
+the old shape: composing Layer 3 through the reference oracle before rewriting
+to an EVMYulLean-backed builtin executor. The final transition is complete only
+when the public compiler-correctness theorem targets native EVMYulLean
+execution directly, or an equivalent wrapper whose only execution engine is
 `EvmYul.Yul.callDispatcher`.
 
 ## Current Baseline
@@ -25,13 +28,17 @@ The current baseline is:
 
 - Layer 2 proves semantic preservation from supported `CompilationModel`
   programs to IR.
-- Layer 3 proves IR-to-Yul preservation over Verity's custom statement
-  interpreter, retargeted to the `.evmYulLean` backend for builtin execution.
-- `Compiler.Proofs.YulGeneration.Backends.Native.interpretRuntimeNative` and
-  `interpretIRRuntimeNative` execute through native EVMYulLean, but the generic
-  native-vs-interpreter agreement is still an explicit theorem seam.
-- `simpleStorage_endToEnd_native_evmYulLean` is a concrete native theorem with
-  no public retrieve-hit, store-hit, or selector-miss bridge premises.
+- Public EndToEnd proofs now target
+  `Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative`,
+  which executes through native EVMYulLean. Helper-free and mapping-helper
+  generated-dispatcher wrappers consume concrete dispatcher lowering and build
+  full emitted-runtime native lowering internally.
+- Lower Layer 3 transition modules still contain isolated reference-oracle and
+  backend-wrapper evidence for the bridged fragment; that evidence is not the
+  public EndToEnd proof authority.
+- `simpleStorage_endToEnd_native_evmYulLean` is a concrete native theorem over
+  the direct projected `EvmYul.Yul.callDispatcher` result, with no public
+  retrieve-hit, store-hit, or selector-miss bridge premises.
 - The active compiler stack has zero project-level Lean axioms and zero `sorry`
   placeholders.
 
@@ -65,9 +72,9 @@ The transition is done only when all criteria in this section are true on
 - The theorem-facing native target is either `Native.interpretIRRuntimeNative`
   or a narrower wrapper that internally lowers to EVMYulLean and executes via
   `EvmYul.Yul.callDispatcher`.
-- No public theorem keeps a generic native-vs-custom-interpreter agreement
-  premise such as `nativeIRRuntimeAgreesWithInterpreter`,
-  `nativeCallDispatcherAgreesWithInterpreter`, or an equivalent bridge
+- No public theorem keeps a native-vs-custom-interpreter agreement premise such
+  as `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper`,
+  `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper`, or an equivalent bridge
   assumption.
 - Any remaining comparison with the custom interpreter is explicitly marked as
   regression or differential testing, not as the authoritative proof target.
@@ -259,7 +266,7 @@ Current architecture:
 
     interpretYulRuntimeWithBackend .evmYulLean
 
-  This is Verity's custom fuel-based Yul interpreter with EVMYulLean-backed
+  This is Verity's custom Yul statement interpreter with EVMYulLean-backed
   builtin semantics. The native path exists through:
 
     Native.interpretRuntimeNative
@@ -356,7 +363,7 @@ Before declaring the transition complete, verify these exact facts:
 
 ```bash
 ! rg "interpretYulRuntimeWithBackend \\.evmYulLean" Compiler/Proofs/EndToEnd.lean
-! rg "nativeIRRuntimeAgreesWithInterpreter|nativeCallDispatcherAgreesWithInterpreter" Compiler/Proofs/EndToEnd.lean
+! rg "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper|nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper" Compiler/Proofs/EndToEnd.lean
 ! rg "\\bsorry\\b|\\badmit\\b|^axiom " Compiler Verity Contracts
 python3 scripts/check_axioms.py
 python3 scripts/generate_print_axioms.py --check

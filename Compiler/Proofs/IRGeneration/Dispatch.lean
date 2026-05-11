@@ -173,7 +173,14 @@ theorem interpretContract_correct_of_compiled_functions
         (FunctionBody.initialIRStateForTx model tx initialWorld) =
       match irFns.find? (fun irFn => irFn.selector == tx.functionSelector) with
       | some irFn =>
-          if irFn.params.length ≤ tx.args.length then
+          if !irFn.payable && tx.msgValue % Compiler.Constants.evmModulus != 0 then
+            { success := false
+              returnValue := none
+              finalStorage := (FunctionBody.initialIRStateForTx model tx initialWorld).storage
+              finalMappings := Compiler.Proofs.storageAsMappings
+                (FunctionBody.initialIRStateForTx model tx initialWorld).storage
+              events := (FunctionBody.initialIRStateForTx model tx initialWorld).events }
+          else if irFn.params.length ≤ tx.args.length then
             execIRFunction irFn tx.args (FunctionBody.initialIRStateForTx model tx initialWorld)
           else
             { success := false
@@ -217,28 +224,49 @@ theorem interpretContract_correct_of_compiled_functions
           model.fields model.events model.errors sel fn irFn hcompileFn
       have hlenEq : irFn.params.length = fn.params.length := by
         simpa [hparamsEq]
-      by_cases hlen : fn.params.length ≤ tx.args.length
-      · rcases bindSupportedParams_some_of_supported fn.params tx.args
-            (hparamsSupported fn hfnMem) hlen with ⟨bindings, hbindings⟩
-        have hmatch := hfunction fn sel irFn bindings hfnMem hcompileFn hbindings
-        have hlenIr : irFn.params.length ≤ tx.args.length := by
-          simpa [hlenEq] using hlen
+      have hpayableEq :
+          irFn.payable = fn.isPayable :=
+        Function.compileFunctionSpec_ok_payable
+          model.fields model.events model.errors sel fn irFn hcompileFn
+      by_cases hguard : (!fn.isPayable && tx.msgValue % Compiler.Constants.evmModulus != 0) = true
+      · have hguardIr :
+            (!irFn.payable && tx.msgValue % Compiler.Constants.evmModulus != 0) = true := by
+          simpa [hpayableEq] using hguard
         rw [hinterp, hfindIr]
-        simpa [hfindPairs, hlenIr] using hmatch
-      · have hbindNone : SourceSemantics.bindSupportedParams fn.params tx.args = none := by
-          cases hbind : SourceSemantics.bindSupportedParams fn.params tx.args with
-          | none =>
-              rfl
-          | some bindings =>
-              exfalso
-              exact hlen (ParamLoading.bindSupportedParams_some_length hbind)
-        have hlenIr : ¬ irFn.params.length ≤ tx.args.length := by
-          simpa [hlenEq] using hlen
-        rw [hinterp, hfindIr]
-        simp [SourceSemantics.interpretFunction, hbindNone, hlenIr,
-          FunctionBody.sourceResultMatchesIRResult, SourceSemantics.revertedResult,
-          FunctionBody.initialIRStateForTx, FunctionBody.encodeStorage_withTransactionContext,
+        simp [hfindPairs, hguard, hguardIr, FunctionBody.sourceResultMatchesIRResult,
+          SourceSemantics.revertedResult, FunctionBody.initialIRStateForTx,
+          FunctionBody.encodeStorage_withTransactionContext,
           FunctionBody.encodeEvents_withTransactionContext]
+      ·
+        have hguardFalse :
+            (!fn.isPayable && tx.msgValue % Compiler.Constants.evmModulus != 0) = false :=
+          Bool.eq_false_iff.2 hguard
+        have hguardIrFalse :
+            (!irFn.payable && tx.msgValue % Compiler.Constants.evmModulus != 0) = false := by
+          simpa [hpayableEq] using hguardFalse
+        by_cases hlen : fn.params.length ≤ tx.args.length
+        · rcases bindSupportedParams_some_of_supported fn.params tx.args
+              (hparamsSupported fn hfnMem) hlen with ⟨bindings, hbindings⟩
+          have hmatch := hfunction fn sel irFn bindings hfnMem hcompileFn hbindings
+          have hlenIr : irFn.params.length ≤ tx.args.length := by
+            simpa [hlenEq] using hlen
+          rw [hinterp, hfindIr]
+          simpa [hfindPairs, hguardFalse, hguardIrFalse, hlenIr] using hmatch
+        · have hbindNone : SourceSemantics.bindSupportedParams fn.params tx.args = none := by
+            cases hbind : SourceSemantics.bindSupportedParams fn.params tx.args with
+            | none =>
+                rfl
+            | some bindings =>
+                exfalso
+                exact hlen (ParamLoading.bindSupportedParams_some_length hbind)
+          have hlenIr : ¬ irFn.params.length ≤ tx.args.length := by
+            simpa [hlenEq] using hlen
+          rw [hinterp, hfindIr]
+          simp [SourceSemantics.interpretFunction, hbindNone, hfindPairs, hguardFalse,
+            hguardIrFalse, hlenIr, FunctionBody.sourceResultMatchesIRResult,
+            SourceSemantics.revertedResult, FunctionBody.initialIRStateForTx,
+            FunctionBody.encodeStorage_withTransactionContext,
+            FunctionBody.encodeEvents_withTransactionContext]
 
 /-- Helper-proof-carrying wrapper for the dispatch theorem.
 The current proof still reduces helper-aware source semantics to the legacy

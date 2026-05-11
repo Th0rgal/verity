@@ -2,11 +2,15 @@
 
 This directory contains the verification proofs for Layer 3 (IR → Yul) of the Verity compiler pipeline.
 
-**Status**: Complete (PR #42). All statement equivalence proofs proven, universal dispatcher proven.
+**Status**: Legacy reference-oracle stack complete; native EVMYulLean dispatcher
+retargeting is in progress. The public end-to-end native target is now the
+`EvmYul.Yul.callDispatcher` theorem stack in `Compiler/Proofs/EndToEnd.lean`,
+not the fuel-parametric proof-interpreter preservation theorem in this
+directory.
 
 ## File Overview
 
-- **`Semantics.lean`** - Executable semantics for Yul execution
+- **`ReferenceOracle/Semantics.lean`** - Legacy executable oracle for Yul execution
   - State model (variables, storage, mappings, memory, calldata)
   - Expression evaluation (arithmetic, selectors, storage access)
   - Statement execution with fuel-parametric recursion
@@ -17,8 +21,10 @@ This directory contains the verification proofs for Layer 3 (IR → Yul) of the 
   - `resultsMatch` - Final result equivalence predicate
   - `execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv` - Statement list composition theorem
 
-- **`Preservation.lean`** - Main Layer 3 preservation theorem
-  - Proves Yul codegen preserves IR semantics
+- **`Preservation.lean`** - Legacy Layer 3 preservation theorem
+  - Proves Yul codegen preserves IR semantics for the reference-oracle path
+  - Kept as regression evidence while public compiler-correctness wrappers
+    route through the native dispatcher stack
 
 - **`StatementEquivalence.lean`** - Statement-level equivalence proofs
   - All 8 statement types proven (assign, storage load/store, mapping load/store, conditional, return, revert)
@@ -27,6 +33,19 @@ This directory contains the verification proofs for Layer 3 (IR → Yul) of the 
 
 - **`Codegen.lean`** - Yul code generation helper lemmas
   - Switch case generation and selector mapping
+
+- **`Backends/EvmYulLeanNativeHarness.lean`** - Native EVMYulLean execution
+  harness
+  - Lowers emitted runtime code to executable EVMYulLean contracts
+  - Provides the native `callDispatcher` result surface used by the active
+    end-to-end theorem stack
+
+- **`Backends/EvmYulLeanRetarget.lean`** - Bridged-fragment backend equivalence
+  evidence
+  - Keeps proof-interpreter/EVMYulLean backend equivalence isolated to the
+    bridged fragment
+  - Does not export contract-level proof-interpreter preservation as public
+    compiler-correctness authority
 
 - **`Lemmas.lean`** - General utility lemmas
 

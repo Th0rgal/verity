@@ -766,7 +766,18 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         )
         self.assertEqual(
             phase4["compileExpr_bridgedSource"],
-            "proven (pure source-expression fragment)",
+            "proven (source-expression fragment with parameter length, "
+            "storage, and storage-array length reads, ADT tag/field reads, "
+            "singleton and nested mapping reads through the abstract "
+            "mappingSlot bridge, mapping struct-member reads, "
+            "reserved exponentiation, boolean normalization, branchless "
+            "helpers, bridged environment reads, and unary calldata/memory/"
+            "transient reads)",
+        )
+        self.assertEqual(
+            phase4["compileExpr_mappingChain_bridgedSource"],
+            "proven (mappingChain source-expression wrapper through "
+            "the abstract mappingSlot bridge)",
         )
 
     def test_missing_retarget_theorem_is_not_reported_proven(self) -> None:
@@ -815,7 +826,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "missing",
         )
         self.assertEqual(
-            phase4["yulCodegen_preserves_semantics_evmYulLean"],
+            phase4["yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle"],
             "missing",
         )
 
@@ -872,7 +883,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
                     theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies : True := by
                       trivial
 
-                    theorem yulCodegen_preserves_semantics_evmYulLean : True := by
+                    theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -917,7 +928,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             "proven (conditional on bridged IR bodies)",
         )
         self.assertEqual(
-            phase4["yulCodegen_preserves_semantics_evmYulLean"],
+            phase4["yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle"],
             "proven (conditional on bridged IR bodies)",
         )
         self.assertEqual(phase4["admitted_bridge_dependencies"], [])
@@ -1045,7 +1056,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
                     theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies : True := by
                       trivial
 
-                    theorem yulCodegen_preserves_semantics_evmYulLean : True := by
+                    theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -1096,7 +1107,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         )
         self.assertIn(
             "smod",
-            phase4["yulCodegen_preserves_semantics_evmYulLean"],
+            phase4["yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle"],
         )
 
     def test_universal_body_closure_proven_in_repo(self) -> None:
@@ -1104,10 +1115,11 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         report = gen.build_report()
         phase4 = report["phase4_retarget"]
         self.assertIn("proven", phase4["compileStmtList_always_bridged"])
-        self.assertEqual(phase4["status"], "full_semantic_integration")
+        self.assertEqual(phase4["status"], "universal-safe-body-closure")
         self.assertEqual(
-            phase4["layers2_3_ir_matches_yul_evmYulLean"],
-            "proven (body hypotheses discharged)",
+            phase4["layers2_3_ir_matches_yul_evmYulLeanBackend"],
+            "removed from EndToEnd surface "
+            "(retarget evidence isolated in EvmYulLeanRetarget.lean)",
         )
 
     def _retarget_all_proven(self) -> str:
@@ -1142,7 +1154,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             theorem emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies : True := by
               trivial
 
-            theorem yulCodegen_preserves_semantics_evmYulLean : True := by
+            theorem yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle : True := by
               trivial
         """)
 
@@ -1159,7 +1171,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             end_to_end = tmp_path / "EndToEnd.lean"
             end_to_end.write_text(
                 textwrap.dedent("""\
-                    theorem layers2_3_ir_matches_yul_evmYulLean : True := by
+                    theorem layers2_3_ir_matches_yul_evmYulLeanBackend : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -1203,7 +1215,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             end_to_end = tmp_path / "EndToEnd.lean"
             end_to_end.write_text(
                 textwrap.dedent("""\
-                    theorem layers2_3_ir_matches_yul_evmYulLean : True := by
+                    theorem layers2_3_ir_matches_yul_evmYulLeanBackend : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -1242,7 +1254,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             end_to_end = tmp_path / "EndToEnd.lean"
             end_to_end.write_text(
                 textwrap.dedent("""\
-                    theorem layers2_3_ir_matches_yul_evmYulLean
+                    theorem layers2_3_ir_matches_yul_evmYulLeanBackend
                         (hFunctions : BridgedStmts body)
                         (hInternals : BridgedStmts internals) : True := by
                       trivial
@@ -1271,8 +1283,51 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         phase4 = report["phase4_retarget"]
         self.assertEqual(phase4["status"], "universal-safe-body-closure")
         self.assertEqual(
-            phase4["layers2_3_ir_matches_yul_evmYulLean"],
+            phase4["layers2_3_ir_matches_yul_evmYulLeanBackend"],
             "proven (conditional on bridged IR bodies)",
+        )
+
+    def test_body_closure_without_end_to_end_backend_wrapper_stays_universal(self) -> None:
+        """EndToEnd no longer needs the backend-wrapper theorem for the
+        universal safe-body closure milestone."""
+        with tempfile.TemporaryDirectory(dir=gen.ROOT) as tmp:
+            tmp_path = Path(tmp)
+            retarget = tmp_path / "EvmYulLeanRetarget.lean"
+            retarget.write_text(self._retarget_all_proven(), encoding="utf-8")
+
+            end_to_end = tmp_path / "EndToEnd.lean"
+            end_to_end.write_text(
+                textwrap.dedent("""\
+                    theorem layers2_3_ir_matches_native_evmYulLean : True := by
+                      trivial
+                """),
+                encoding="utf-8",
+            )
+
+            body_closure = tmp_path / "EvmYulLeanBodyClosure.lean"
+            body_closure.write_text(
+                textwrap.dedent("""\
+                    theorem compileStmtList_always_bridged : True := by
+                      trivial
+                """),
+                encoding="utf-8",
+            )
+
+            with patch.object(gen, "RETARGET_FILE", retarget), \
+                 patch.object(gen, "END_TO_END_FILE", end_to_end), \
+                 patch.object(gen, "BODY_CLOSURE_FILE", body_closure), \
+                 patch.object(
+                     gen,
+                     "_parse_bridge_lemmas",
+                     return_value=(["add"], []),
+                 ):
+                report = gen.build_report()
+        phase4 = report["phase4_retarget"]
+        self.assertEqual(phase4["status"], "universal-safe-body-closure")
+        self.assertEqual(
+            phase4["layers2_3_ir_matches_yul_evmYulLeanBackend"],
+            "removed from EndToEnd surface "
+            "(retarget evidence isolated in EvmYulLeanRetarget.lean)",
         )
 
     def test_universal_body_closure_with_admitted_deps_does_not_flip(self) -> None:
@@ -1286,7 +1341,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             end_to_end = tmp_path / "EndToEnd.lean"
             end_to_end.write_text(
                 textwrap.dedent("""\
-                    theorem layers2_3_ir_matches_yul_evmYulLean : True := by
+                    theorem layers2_3_ir_matches_yul_evmYulLeanBackend : True := by
                       trivial
                 """),
                 encoding="utf-8",
@@ -1406,7 +1461,7 @@ class ParseBridgedBuiltinsDefsTests(unittest.TestCase):
 
             def unbridgedBuiltins : List String := ["sload", "mappingSlot"]
         """)
-        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+        with patch.object(gen, "BRIDGE_PREDICATES_FILE", p):
             bridged, unbridged = gen._parse_bridged_builtins_defs()
         self.assertEqual(bridged, ["add", "caller", "sub"])
         self.assertEqual(unbridged, ["mappingSlot", "sload"])
@@ -1416,7 +1471,7 @@ class ParseBridgedBuiltinsDefsTests(unittest.TestCase):
             -- no defs here
             theorem foo := by sorry
         """)
-        with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
+        with patch.object(gen, "BRIDGE_PREDICATES_FILE", p):
             bridged, unbridged = gen._parse_bridged_builtins_defs()
         self.assertEqual(bridged, [])
         self.assertEqual(unbridged, [])

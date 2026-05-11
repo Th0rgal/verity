@@ -1,4 +1,5 @@
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
+import Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
 import EvmYul.Yul.Interpreter
 
 namespace Compiler.Proofs.YulGeneration.Backends
@@ -155,7 +156,7 @@ private def referenceRuntimeWithFuel
     (storage : IRStorageSlot → IRStorageWord) (events : List (List Nat)) :
     Compiler.Proofs.YulGeneration.YulResult :=
   let initialState := Compiler.Proofs.YulGeneration.YulState.initial tx storage events
-  match Compiler.Proofs.YulGeneration.execYulFuel fuel initialState (.stmts stmts) with
+  match Compiler.Proofs.YulGeneration.legacyExecYulFuel fuel initialState (.stmts stmts) with
   | .continue s =>
       { success := true
         returnValue := s.returnValue
@@ -1080,6 +1081,10 @@ example :
 
 example :
     nativeRejectsUnsupportedHeaderBuiltin "gaslimit" = true := by
+  native_decide
+
+example :
+    nativeRejectsUnsupportedHeaderBuiltin "selfbalance" = true := by
   native_decide
 
 example :

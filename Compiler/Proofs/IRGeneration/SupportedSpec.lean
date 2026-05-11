@@ -666,6 +666,7 @@ current whole-contract theorem. -/
 structure SupportedParamProfile (params : List Param) : Prop where
   namesNodup : (params.map (·.name)).Nodup
   supported : ∀ param ∈ params, SupportedExternalParamType param.ty
+  calldataThreshold : 4 + params.length * 32 < Compiler.Constants.evmModulus
 
 /-- Return-profile interface for selector-dispatched entrypoints covered by the
 current whole-contract theorem. -/
@@ -2240,6 +2241,12 @@ theorem SupportedFunction.paramsSupported
     ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
   hSupported.params.supported
 
+theorem SupportedFunction.paramCalldataThreshold
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hSupported : SupportedFunction spec fn) :
+    4 + fn.params.length * 32 < Compiler.Constants.evmModulus :=
+  hSupported.params.calldataThreshold
+
 theorem SupportedFunction.returnsSupported
     {spec : CompilationModel} {fn : FunctionSpec}
     (hSupported : SupportedFunction spec fn) :
@@ -2259,6 +2266,12 @@ theorem SupportedFunctionExceptMappingWrites.paramsSupported
     (hSupported : SupportedFunctionExceptMappingWrites spec fn) :
     ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
   hSupported.params.supported
+
+theorem SupportedFunctionExceptMappingWrites.paramCalldataThreshold
+    {spec : CompilationModel} {fn : FunctionSpec}
+    (hSupported : SupportedFunctionExceptMappingWrites spec fn) :
+    4 + fn.params.length * 32 < Compiler.Constants.evmModulus :=
+  hSupported.params.calldataThreshold
 
 theorem SupportedFunctionExceptMappingWrites.returnsSupported
     {spec : CompilationModel} {fn : FunctionSpec}
@@ -5467,6 +5480,14 @@ theorem SupportedSpec.selectorFunctionParamsSupported
     ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
   (hSupported.supportedFunctionOfSelectorDispatched hfn).params.supported
 
+theorem SupportedSpec.selectorFunctionParamCalldataThreshold
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors)
+    {fn : FunctionSpec}
+    (hfn : fn ∈ selectorDispatchedFunctions spec) :
+    4 + fn.params.length * 32 < Compiler.Constants.evmModulus :=
+  (hSupported.supportedFunctionOfSelectorDispatched hfn).params.calldataThreshold
+
 theorem SupportedSpecExceptMappingWrites.selectorFunctionParamsSupported
     {spec : CompilationModel} {selectors : List Nat}
     (hSupported : SupportedSpecExceptMappingWrites spec selectors)
@@ -5474,6 +5495,14 @@ theorem SupportedSpecExceptMappingWrites.selectorFunctionParamsSupported
     (hfn : fn ∈ selectorDispatchedFunctions spec) :
     ∀ param ∈ fn.params, SupportedExternalParamType param.ty :=
   (hSupported.supportedFunctionOfSelectorDispatched hfn).params.supported
+
+theorem SupportedSpecExceptMappingWrites.selectorFunctionParamCalldataThreshold
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpecExceptMappingWrites spec selectors)
+    {fn : FunctionSpec}
+    (hfn : fn ∈ selectorDispatchedFunctions spec) :
+    4 + fn.params.length * 32 < Compiler.Constants.evmModulus :=
+  (hSupported.supportedFunctionOfSelectorDispatched hfn).params.calldataThreshold
 
 theorem SupportedSpec.selectorFunctionParamNamesNodup
     {spec : CompilationModel} {selectors : List Nat}
@@ -5550,7 +5579,8 @@ private def counter_supported_function :
       nonSpecialEntrypoint := rfl
       params :=
         { namesNodup := by decide
-          supported := by intro param hparam; cases hparam }
+          supported := by intro param hparam; cases hparam
+          calldataThreshold := by decide }
       returns := { resolved := ⟨[.uint256], rfl, trivial⟩ }
       body :=
         { stmtList := .terminalCore (.return_ (.literal 42) (by simp [FunctionBody.exprBoundNamesInScope, FunctionBody.exprBoundNames]) .nil)
@@ -5633,7 +5663,8 @@ private def simpleStorage_supported_function :
       nonSpecialEntrypoint := rfl
       params :=
         { namesNodup := by decide
-          supported := by intro param hparam; cases hparam }
+          supported := by intro param hparam; cases hparam
+          calldataThreshold := by decide }
       returns := { resolved := ⟨[.uint256], rfl, trivial⟩ }
       body :=
         { stmtList := .terminalCore (.return_ (.literal 11) (by simp [FunctionBody.exprBoundNamesInScope, FunctionBody.exprBoundNames]) .nil)
