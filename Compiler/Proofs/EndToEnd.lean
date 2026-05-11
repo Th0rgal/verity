@@ -17101,6 +17101,124 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_bl
         Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
         hBody
 
+/-- Selected user bodies consisting of a single `.comment text` produce the
+same observable result as an empty body.
+
+`.comment` is a source-level no-op (`execIRStmt (.comment _) state = .continue
+state`), and its native lowering is `.Block []` per
+`lowerStmtGroupNativeWithSwitchIds_comment`. So the dispatcher-wrapped body
+becomes `.Block [.Block []]`, identical to the `.of_block_empty` native shape;
+the source side likewise falls through to `.continue stateWithParams`. The
+proof reuses the same `nativeSwitchStoreMarkedPrefixStateForId_reviveJump_eq`
+identity. -/
+private theorem nativeResultsMatchOn_execIRFunction_singleton_comment_body_markedPrefix
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (fn : IRFunction)
+    (switchId : Nat)
+    (store : EvmYul.Yul.VarStore)
+    (text : String)
+    (hBody : fn.body = [.comment text]) :
+    nativeResultsMatchOn observableSlots
+      (execIRFunction fn tx.args (applyIRTransactionContext tx state))
+      (.ok
+        (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+          (YulTransaction.ofIR tx) state.storage state.events
+          (.ok
+            ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              nativeContract (YulTransaction.ofIR tx) state.storage
+              (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                (Compiler.runtimeCode irContract) observableSlots)
+              switchId store).reviveJump, [])))) := by
+  simp only [nativeResultsMatchOn,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn]
+  unfold execIRFunction
+  simp [hBody, applyIRTransactionContext, execIRStmts, execIRStmt,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_reviveJump_eq]
+  constructor
+  · intro slot hSlot
+    exact
+      (Compiler.Proofs.YulGeneration.Backends.Native.projectResult_ok_nativeSwitchStoreMarkedPrefixStateForId_observableStorageSlot
+        nativeContract (YulTransaction.ofIR tx) state.storage state.events
+        (Compiler.runtimeCode irContract) observableSlots switchId store slot
+        hSlot).symm
+  · simpa [Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState]
+      using
+        (Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState_nativeSwitchStoreMarkedPrefixStateForId
+          nativeContract (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode irContract) observableSlots)
+          switchId store)
+
+/-- Build the direct selected-user-body execution bridge for contracts whose
+selected generated function body is exactly `[.comment text]` for some
+text.
+
+`.comment` lowers to `.Block []`, so the dispatcher-wrapped native body is
+`.Block [.Block []]` — identical to the `.of_block_empty` shape; this
+constructor consequently reuses `exec_block_block_nil_ok_add_ten`. -/
+private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_singleton_comment
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (hComment :
+      ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+        ∃ text, fn.body = [.comment text]) :
+    NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived irContract tx
+      state observableSlots := by
+  intro nativeContract fn reservedNames n0 cases' bodyNative bodyEnd
+    userBodyStart _hLowerRuntime hFind hUserBodyLower _hguards _hArgs
+  obtain ⟨text, hBody⟩ := hComment fn hFind
+  rw [hBody] at hUserBodyLower
+  rcases Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_comment_head_eq
+      reservedNames userBodyStart text [] bodyNative bodyEnd hUserBodyLower
+    with ⟨rest', hShape, hRest⟩
+  -- rest is empty so its lowering is empty
+  simp [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil]
+    at hRest
+  rcases hRest with ⟨hRest', _⟩
+  subst hRest'
+  subst hShape
+  let switchId :=
+    Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0
+  let final :=
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+      nativeContract (YulTransaction.ofIR tx) state.storage
+      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode irContract) observableSlots)
+      switchId
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+  let nativeYul :=
+    Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+      (YulTransaction.ofIR tx) state.storage state.events
+      (.ok (final.reviveJump, []))
+  have hFinalOk : ∃ shared store, final = EvmYul.Yul.State.Ok shared store := by
+    simp [final,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+      EvmYul.Yul.State.insert]
+  rcases hFinalOk with ⟨shared, store, hFinalOk⟩
+  refine ⟨final, nativeYul, shared, store, ?_, ?_, rfl, ?_⟩
+  · intro _pre suffix
+    simpa [final] using
+      (Compiler.Proofs.YulGeneration.Backends.Native.exec_block_block_nil_ok_add_ten
+        (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases')
+        suffix.length (some nativeContract) final)
+  · rw [hFinalOk]
+    rfl
+  · exact
+      nativeResultsMatchOn_execIRFunction_singleton_comment_body_markedPrefix
+        irContract tx state observableSlots nativeContract fn switchId
+        Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+        text hBody
+
 /-- Selected user bodies containing only `stop` execute as a native halt and
 project to the same observable result as `execIRFunction`. -/
 private theorem nativeResultsMatchOn_execIRFunction_stop_body_markedPrefix
