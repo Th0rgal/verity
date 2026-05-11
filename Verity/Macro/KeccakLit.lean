@@ -19,15 +19,14 @@ import Verity.Core
 
 namespace Verity
 
-/-- Convert a big-endian `ByteArray` to a `Nat` (byte 0 is most significant). -/
-def byteArrayToNatBE (ba : ByteArray) : Nat :=
-  ba.foldl (fun acc byte => acc * 256 + byte.toNat) 0
-
 /-- Compile-time Keccak-256 of a UTF-8 encoded string literal, returned as
     a `Nat` in big-endian word order.  Suitable for direct comparison with
-    `Uint256` storage slots and for constants. -/
+    `Uint256` storage slots and for constants.
+
+    Thin re-export of `KeccakEngine.keccak256_str_nat` so EDSL authors can
+    refer to the helper from the public `Verity` namespace. -/
 def keccak256_nat (s : String) : Nat :=
-  byteArrayToNatBE (KeccakEngine.keccak256_str s)
+  KeccakEngine.keccak256_str_nat s
 
 /-- Compile-time Keccak-256 of a UTF-8 encoded string literal, returned as
     a `Uint256`.  This is the canonical way to express ERC-7201-style

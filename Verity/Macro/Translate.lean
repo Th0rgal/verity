@@ -5677,22 +5677,17 @@ private def mkFindIdxParamSimpCommands
     cmds := cmds ++ fnCmds
   pure cmds
 
-/-- Convert a big-endian `ByteArray` to a `Nat`, treating byte 0 as most
-    significant.  Used for storage namespace computation (#1730, Axis 4). -/
-private def byteArrayToNatBE (ba : ByteArray) : Nat :=
-  ba.foldl (fun acc byte => acc * 256 + byte.toNat) 0
-
 /-- Compute the storage namespace for a contract.
     `storageNamespace("Foo") = keccak256("Foo.storage.v0")` as a 256-bit Nat.
     The result can be used as a base offset so different contracts never collide
     in the shared 2^256 storage address space.
     (#1730, Axis 4 Step 4a) -/
 def computeStorageNamespace (contractName : String) : Nat :=
-  byteArrayToNatBE (KeccakEngine.keccak256_str s!"{contractName}.storage.v0")
+  KeccakEngine.keccak256_str_nat s!"{contractName}.storage.v0"
 
 /-- Compute a storage namespace from an explicit user-provided namespace key. -/
 def computeStorageNamespaceKey (key : String) : Nat :=
-  byteArrayToNatBE (KeccakEngine.keccak256_str key)
+  KeccakEngine.keccak256_str_nat key
 
 def parseContractSyntax
     (stx : Syntax)
