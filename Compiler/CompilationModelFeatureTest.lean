@@ -2894,6 +2894,130 @@ private def sha256MemoryTwiceSmokeSpec : CompilationModel := {
   ]
 }
 
+private def bn256AddSmokeSpec : CompilationModel := {
+  name := "Bn256AddSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "add"
+      params := [
+        { name := "x1", ty := ParamType.uint256 }
+        , { name := "y1", ty := ParamType.uint256 }
+        , { name := "x2", ty := ParamType.uint256 }
+        , { name := "y2", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.uint256, ParamType.uint256]
+      body := [
+        Compiler.Modules.Precompiles.bn256Add
+          "x3" "y3"
+          (Expr.param "x1") (Expr.param "y1")
+          (Expr.param "x2") (Expr.param "y2"),
+        Stmt.returnValues [Expr.localVar "x3", Expr.localVar "y3"]
+      ]
+    }
+  ]
+}
+
+private def bn256AddBadAritySpec : CompilationModel := {
+  name := "Bn256AddBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "x1", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.ecm (Compiler.Modules.Precompiles.bn256AddModule "x3" "y3")
+          [Expr.param "x1"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def bn256ScalarMulSmokeSpec : CompilationModel := {
+  name := "Bn256ScalarMulSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "mul"
+      params := [
+        { name := "x", ty := ParamType.uint256 }
+        , { name := "y", ty := ParamType.uint256 }
+        , { name := "k", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.uint256, ParamType.uint256]
+      body := [
+        Compiler.Modules.Precompiles.bn256ScalarMul
+          "x2" "y2"
+          (Expr.param "x") (Expr.param "y") (Expr.param "k"),
+        Stmt.returnValues [Expr.localVar "x2", Expr.localVar "y2"]
+      ]
+    }
+  ]
+}
+
+private def bn256ScalarMulBadAritySpec : CompilationModel := {
+  name := "Bn256ScalarMulBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "x", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.ecm (Compiler.Modules.Precompiles.bn256ScalarMulModule "x2" "y2")
+          [Expr.param "x"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def bn256PairingSmokeSpec : CompilationModel := {
+  name := "Bn256PairingSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "pair"
+      params := [
+        { name := "inputOffset", ty := ParamType.uint256 }
+        , { name := "inputSize", ty := ParamType.uint256 }
+        , { name := "outputOffset", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.Precompiles.bn256Pairing
+          "ok"
+          (Expr.param "inputOffset")
+          (Expr.param "inputSize")
+          (Expr.param "outputOffset"),
+        Stmt.returnValues [Expr.localVar "ok"]
+      ]
+    }
+  ]
+}
+
+private def bn256PairingBadAritySpec : CompilationModel := {
+  name := "Bn256PairingBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "inputOffset", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.ecm (Compiler.Modules.Precompiles.bn256PairingModule "ok")
+          [Expr.param "inputOffset"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def abiEncodePackedWordsSmokeSpec : CompilationModel := {
   name := "AbiEncodePackedWordsSmoke"
   fields := []
@@ -4136,6 +4260,76 @@ set_option maxRecDepth 4096 in
     (contains sha256MemoryTrustReport "\"module\":\"sha256Memory\"" &&
       contains sha256MemoryTrustReport "\"assumption\":\"evm_sha256_precompile\"" &&
       contains sha256MemoryTrustReport "\"status\":\"assumed\"")
+  let bn256AddYul ←
+    expectCompileToYul "bn256Add smoke spec" bn256AddSmokeSpec
+  expectTrue "bn256Add ECM stores 4 input words contiguously"
+    (contains bn256AddYul "mstore(0, x1)" &&
+      contains bn256AddYul "mstore(32, y1)" &&
+      contains bn256AddYul "mstore(64, x2)" &&
+      contains bn256AddYul "mstore(96, y2)")
+  expectTrue "bn256Add ECM lowers to precompile 0x06 staticcall"
+    (contains bn256AddYul "staticcall(gas(), 6, 0, 128, 0, 64)")
+  expectTrue "bn256Add ECM reverts when the precompile call fails"
+    (contains bn256AddYul "if iszero(__bn256_add_success) {")
+  expectTrue "bn256Add ECM binds two output result variables from scratch memory"
+    (contains bn256AddYul "let x3 := 0" &&
+      contains bn256AddYul "let y3 := 0" &&
+      contains bn256AddYul "x3 := mload(0)" &&
+      contains bn256AddYul "y3 := mload(32)")
+  expectCompileErrorContains
+    "bn256Add ECM rejects invalid argument counts"
+    bn256AddBadAritySpec
+    "uses ECM 'bn256Add' with 1 arguments but it expects 4"
+  let bn256AddTrustReport := emitTrustReportJson [bn256AddSmokeSpec]
+  expectTrue "bn256Add trust report surfaces the BN256 add precompile assumption"
+    (contains bn256AddTrustReport "\"module\":\"bn256Add\"" &&
+      contains bn256AddTrustReport "\"assumption\":\"evm_bn256_add_precompile\"" &&
+      contains bn256AddTrustReport "\"status\":\"assumed\"")
+  let bn256ScalarMulYul ←
+    expectCompileToYul "bn256ScalarMul smoke spec" bn256ScalarMulSmokeSpec
+  expectTrue "bn256ScalarMul ECM stores 3 input words contiguously"
+    (contains bn256ScalarMulYul "mstore(0, x)" &&
+      contains bn256ScalarMulYul "mstore(32, y)" &&
+      contains bn256ScalarMulYul "mstore(64, k)")
+  expectTrue "bn256ScalarMul ECM lowers to precompile 0x07 staticcall"
+    (contains bn256ScalarMulYul "staticcall(gas(), 7, 0, 96, 0, 64)")
+  expectTrue "bn256ScalarMul ECM reverts when the precompile call fails"
+    (contains bn256ScalarMulYul "if iszero(__bn256_mul_success) {")
+  expectTrue "bn256ScalarMul ECM binds two output result variables from scratch memory"
+    (contains bn256ScalarMulYul "let x2 := 0" &&
+      contains bn256ScalarMulYul "let y2 := 0" &&
+      contains bn256ScalarMulYul "x2 := mload(0)" &&
+      contains bn256ScalarMulYul "y2 := mload(32)")
+  expectCompileErrorContains
+    "bn256ScalarMul ECM rejects invalid argument counts"
+    bn256ScalarMulBadAritySpec
+    "uses ECM 'bn256ScalarMul' with 1 arguments but it expects 3"
+  let bn256ScalarMulTrustReport := emitTrustReportJson [bn256ScalarMulSmokeSpec]
+  expectTrue "bn256ScalarMul trust report surfaces the BN256 scalar-mul precompile assumption"
+    (contains bn256ScalarMulTrustReport "\"module\":\"bn256ScalarMul\"" &&
+      contains bn256ScalarMulTrustReport "\"assumption\":\"evm_bn256_scalar_mul_precompile\"" &&
+      contains bn256ScalarMulTrustReport "\"status\":\"assumed\"")
+  let bn256PairingYul ←
+    expectCompileToYul "bn256Pairing smoke spec" bn256PairingSmokeSpec
+  expectTrue "bn256Pairing ECM binds the output offset once before the precompile call"
+    (contains bn256PairingYul "let __bn256_pairing_output_offset := outputOffset")
+  expectTrue "bn256Pairing ECM lowers to precompile 0x08 staticcall over the caller-supplied region"
+    (contains bn256PairingYul
+      "staticcall(gas(), 8, inputOffset, inputSize, __bn256_pairing_output_offset, 32)")
+  expectTrue "bn256Pairing ECM reverts when the precompile call fails"
+    (contains bn256PairingYul "if iszero(__bn256_pairing_success) {")
+  expectTrue "bn256Pairing ECM returns the boolean-typed word from output memory"
+    (contains bn256PairingYul "let ok := 0" &&
+      contains bn256PairingYul "ok := mload(__bn256_pairing_output_offset)")
+  expectCompileErrorContains
+    "bn256Pairing ECM rejects invalid argument counts"
+    bn256PairingBadAritySpec
+    "uses ECM 'bn256Pairing' with 1 arguments but it expects 3"
+  let bn256PairingTrustReport := emitTrustReportJson [bn256PairingSmokeSpec]
+  expectTrue "bn256Pairing trust report surfaces the BN256 pairing precompile assumption"
+    (contains bn256PairingTrustReport "\"module\":\"bn256Pairing\"" &&
+      contains bn256PairingTrustReport "\"assumption\":\"evm_bn256_pairing_precompile\"" &&
+      contains bn256PairingTrustReport "\"status\":\"assumed\"")
   let abiEncodePackedWordsYul ←
     expectCompileToYul "abiEncodePackedWords smoke spec" abiEncodePackedWordsSmokeSpec
   expectTrue "abiEncodePackedWords evaluates source words before clobbering scratch memory"

@@ -79,6 +79,9 @@ Standard modules ship in `Compiler/Modules/`:
 | `Hashing.sha256PackedStaticSegments` | Static byte-width packed SHA-256 | Writes 1- to 32-byte static segments, calls precompile 0x02 over the exact byte length, and binds digest word | `evm_sha256_precompile`, `abi_packed_static_segment_layout` |
 | `Precompiles.ecrecover` | Precompile 0x01 | ECDSA recovery, binds result address | `evm_ecrecover_precompile` |
 | `Precompiles.sha256Memory` / `Precompiles.sha256` | Precompile 0x02 | SHA-256 over an existing memory slice, binds digest word | `evm_sha256_precompile` |
+| `Precompiles.bn256Add` | Precompile 0x06 (EIP-196) | BN254 (alt_bn128) point addition; binds two output coordinate words and reverts on precompile failure | `evm_bn256_add_precompile` |
+| `Precompiles.bn256ScalarMul` | Precompile 0x07 (EIP-196) | BN254 scalar multiplication; binds two output coordinate words and reverts on precompile failure | `evm_bn256_scalar_mul_precompile` |
+| `Precompiles.bn256Pairing` | Precompile 0x08 (EIP-197) | BN254 optimal-Ate pairing check over a caller-supplied input region; binds the single 32-byte boolean word | `evm_bn256_pairing_precompile` |
 | `Callbacks.callback` | Parameterized | ABI-encode selector + static args + bytes, call target | `callback_target_interface` |
 | `Calls.withReturn` | Parameterized | Generic call/staticcall with single uint256 return | `external_call_abi_interface` |
 | `Calls.callWithValue` | Parameterized | Generic `call{value:v}` over an already prepared calldata slice, with revert bubbling | `generic_call_with_value_interface` |
