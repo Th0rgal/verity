@@ -1333,6 +1333,16 @@ useful to downstream adapters:
    Revived predicate then so does `.comment text :: rest`. Discharges the
    no-op head with `exec_block_noop_block_head_eq` and matches the source-side
    `.continue` step.
+   *Deferred to S8 wiring.* A direct Revived-level recursion is structurally
+   awkward because the Revived predicate's `nativeGeneratedSelectorHitUserBodyFuel`
+   computation depends on the contract's full `fn.body` size; recursing into
+   `rest` would require either a predicate-level refactor that parameterizes
+   over an explicit body shape, or full duplication of the predicate's logic
+   inline. Instead, the runtime dispatcher's `.comment "label" :: <real body>`
+   shape is handled at the `NativeGeneratedSelectorHitSuccessBridge` wiring
+   layer (step 7): each leaf Revived constructor pairs with a one-shot
+   comment-prefix adapter that strips the no-op label head, leaving the
+   `<real body>` to match an existing leaf constructor.
 5. **`.of_nativePreservableStraightStmts_leave`** — bodies of shape
    `<straight-stmts>; leave`. Composes `NativePreservableStraightStmts`
    preservation
