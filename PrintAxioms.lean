@@ -1158,6 +1158,8 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_empty_body  -- private
   -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_leave_body_markedPrefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_leave_body  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_block_leave_body_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_leave  -- private
   -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_stop_body_markedPrefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_stop_body  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_halt  -- private
@@ -4459,6 +4461,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_nil_ok
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_nil_ok_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_leave_ok_add_ten
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_block_leave_ok_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_stop_halt_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_noop_block_head_eq
   Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchPrefix_selector_initialState_ok
@@ -5490,4 +5493,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5204 theorems/lemmas (3506 public, 1698 private, 0 sorry'd)
+-- Total: 5207 theorems/lemmas (3507 public, 1700 private, 0 sorry'd)
