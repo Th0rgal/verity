@@ -1162,6 +1162,8 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_leave  -- private
   -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_block_empty_body_markedPrefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_empty  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_singleton_comment_body_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_singleton_comment  -- private
   -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_stop_body_markedPrefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_stop_body  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_halt  -- private
@@ -5496,4 +5498,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5210 theorems/lemmas (3508 public, 1702 private, 0 sorry'd)
+-- Total: 5212 theorems/lemmas (3508 public, 1704 private, 0 sorry'd)
