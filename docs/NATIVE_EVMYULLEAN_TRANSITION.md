@@ -1300,3 +1300,64 @@ scope so the native path does not look more complete than it is:
   release cycle.
 - Upstream any EVMYulLean fork changes needed for memory, returndata, logs, or
   external-call semantics.
+
+## G1 Incremental Plan: Generic `ExecOnlyBridgeAtFuelRevived`
+
+The remaining success-side blocker is a generic constructor for
+`NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived` that does not
+enumerate every concrete `fn.body` shape. The Revived predicate covers
+**non-halting** bodies; halting bodies (`stop`/`return`/`revert`) are owned by
+`NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel`, which already has a full
+shape family.
+
+Today only two Revived constructors exist:
+`NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_empty_body`
+(`fn.body = []`) and `.of_leave_body` (`fn.body = [.leave]`). The remaining
+Revived family is planned as a pyramid of independently-pushable
+constructors, each of which compiles green on its own and is independently
+useful to downstream adapters:
+
+1. **`.of_block_empty`** — `fn.body = [.block []]`. Lowers to
+   `[.Block []]`; closed by `exec_block_noop_block_head_eq` and
+   `exec_block_nil_ok`. Source-side `execIRFunction` collapses the inner empty
+   block to `.continue stateWithParams`, mirroring `.of_empty_body`. Needs a
+   companion `nativeResultsMatchOn_execIRFunction_block_empty_markedPrefix`
+   lemma.
+2. **`.of_block_leave`** — `fn.body = [.block [.leave]]`. Lowers to
+   `[.Block [.Leave]]`; closed by `exec_block_leave_ok_add_ten` after a
+   `Block`-head peel. Mirrors `.of_leave_body`.
+3. **`.of_singleton_comment`** — `fn.body = [.comment text]`. Lowers to
+   `[.Block []]` via `lowerStmtsNativeWithSwitchIds_comment_head_eq`. Source
+   side is `.continue state` (comment is a no-op at positive fuel).
+4. **`.of_comment_cons`** — recursive adapter: if the tail satisfies the
+   Revived predicate then so does `.comment text :: rest`. Discharges the
+   no-op head with `exec_block_noop_block_head_eq` and matches the source-side
+   `.continue` step.
+5. **`.of_nativePreservableStraightStmts_leave`** — bodies of shape
+   `<straight-stmts>; leave`. Composes `NativePreservableStraightStmts`
+   preservation
+   (`NativeBlockPreservesWord_lowerStmtsNativeWithSwitchIds_of_nativePreservableStraightStmts`)
+   with the `leave` checkpoint, yielding a `final.reviveJump` whose observable
+   slots equal the source-side post-state. Requires an
+   `execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave` companion
+   lemma in `IRInterpreter.lean` proving the source side falls through with the
+   same observable storage.
+6. **`.of_bridgedStraightStmts_falling_through`** — bodies of shape
+   `<straight-stmts>` (no terminator). The hardest piece: requires the source
+   side's `execIRStmts` falling through to `.continue` with native-side
+   `NativeBlockPreservesWord` preservation, combined with the function-end
+   fall-through convention shared between `execIRFunction` and `EvmYul.Yul.exec`.
+7. **Wire into `NativeGeneratedSelectorHitSuccessBridge`** — extend
+   `NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_*`
+   adapters so the new Revived constructors feed the existing
+   `BridgedStraightStmts` and `mappingFree` result-bridge composition stacks.
+8. **Drop the `hUserBodyHalt` premise from the supported-generated
+   call-dispatcher composition theorem** — once the Revived family covers the
+   same source-level scope as the Halt family, the public theorem premise
+   collapses.
+
+Each step lands as its own commit on `native-evmyullean-public-correctness`
+and keeps `lake build Compiler.Proofs.EndToEnd` green. The pyramid is designed
+so that partial completion (e.g., stopping after step 4) already removes
+specific `hUserBodyHalt` demand for trivially-non-halting bodies, even before
+the deep generic case at step 6 lands.
