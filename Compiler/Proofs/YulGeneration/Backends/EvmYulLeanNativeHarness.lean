@@ -7348,6 +7348,29 @@ theorem exec_block_leave_ok_add_ten
   rw [hFuel]
   simp [EvmYul.Yul.exec]
 
+/-- Executing the native lowering of a source `.block [.leave]` user body.
+
+`[.block [.leave]]` lowers to `[.Block [.Leave]]`; wrapped in the outer
+dispatcher block this becomes `.Block [.Block [.Leave]]`. The inner `.Leave`
+sets the leave flag on the underlying state, the inner block continues with
+its empty tail, and the outer block likewise continues with an empty tail —
+so the whole expression evaluates to `.ok state.setLeave`, identical to the
+flat `.Block [.Leave]` case but consuming two extra fuel for the nested
+block layer. -/
+theorem exec_block_block_leave_ok_add_ten
+    (fuel suffixLen : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.exec (fuel + suffixLen + 10) (.Block [.Block [.Leave]])
+        codeOverride state =
+      .ok (state.setLeave) := by
+  have hFuel :
+      fuel + suffixLen + 10 =
+        Nat.succ (Nat.succ (Nat.succ (Nat.succ (fuel + suffixLen + 6)))) := by
+    omega
+  rw [hFuel]
+  simp [EvmYul.Yul.exec]
+
 theorem exec_block_stop_halt_add_ten
     (fuel suffixLen : Nat)
     (codeOverride : Option EvmYul.Yul.Ast.YulContract)
