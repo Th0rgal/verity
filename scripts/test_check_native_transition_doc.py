@@ -244,10 +244,12 @@ class NativeTransitionDocCheckTests(unittest.TestCase):
         )
 
     def test_rejects_missing_source_level_generated_dispatcher_public_note(self) -> None:
+        # The doc may mention the canonical theorem name several times (status
+        # blurb, G1 plan, achievement summary). Replace every occurrence so the
+        # check actually sees a doc with no mention of the public theorem.
         text = check.DOC.read_text(encoding="utf-8").replace(
             "compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher",
             "compile_preserves_native_evmYulLean_of_compile_ok_supported_hidden_callDispatcher",
-            1,
         )
         errors = check.check_doc(text)
         self.assertTrue(
