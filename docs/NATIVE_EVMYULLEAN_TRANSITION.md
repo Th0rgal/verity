@@ -1371,3 +1371,70 @@ and keeps `lake build Compiler.Proofs.EndToEnd` green. The pyramid is designed
 so that partial completion (e.g., stopping after step 4) already removes
 specific `hUserBodyHalt` demand for trivially-non-halting bodies, even before
 the deep generic case at step 6 lands.
+
+### Status of G1 increments
+
+- **Step 1 (`.of_block_empty`)** — shipped (commit `fa980235`+rebase `8b46a6e7`).
+  Pairs with new harness lemma `exec_block_block_nil_ok_add_ten` and source
+  helper `nativeResultsMatchOn_execIRFunction_block_empty_body_markedPrefix`.
+- **Step 2 (`.of_block_leave`)** — shipped previously (`a5d2e0d3`). Harness:
+  `exec_block_block_leave_ok_add_ten`. Source helper:
+  `nativeResultsMatchOn_execIRFunction_block_leave_body_markedPrefix`.
+- **Step 3 (`.of_singleton_comment`)** — shipped (`f69044a1`+rebase `06723c83`).
+  Reuses `exec_block_block_nil_ok_add_ten`; existential text extraction in the
+  hypothesis. Source helper:
+  `nativeResultsMatchOn_execIRFunction_singleton_comment_body_markedPrefix`.
+- **Step 4 (`.of_comment_cons`)** — deferred to step 7 wiring (`8e31e756`).
+  Rationale: structural mismatch between the predicate's
+  `nativeGeneratedSelectorHitUserBodyFuel`-on-full-`fn.body` and a tail-body
+  recursion. Handled at the success-bridge layer via per-leaf comment-prefix
+  adapters.
+- **Step 5 (`.of_nativePreservableStraightStmts_leave`)** — **remaining**.
+  Companion lemma sketch:
+  ```
+  theorem execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave
+      (fuel : Nat) (state : IRState) (preStmts : List YulStmt)
+      (hStmts : NativePreservableStraightStmts preStmts)
+      (hFuel : sizeOf preStmts < fuel) :
+      ∃ state',
+        execIRStmts fuel state preStmts = .continue state' ∧
+        ∀ slot, state'.storage.getD slot 0 = state.storage.getD slot 0 ∧
+        state'.events = state.events
+  ```
+  Proof by induction on `preStmts` (or on the `NativePreservableStraightStmts`
+  predicate) using the per-constructor cases in
+  `EvmYulLeanNativeHarness.lean` lines ~18395–18410.
+  Constructor sketch: the lowered native body is
+  `lower(preStmts) ++ [.Leave]`; dispatcher-wrapped as
+  `.Block (lower(preStmts) ++ [.Leave])`. Use
+  `exec_block_append_eq_of_continue` (or similar splice lemma) to split exec
+  across the append, derive `NativeBlockPreservesWord` for each observable
+  slot via `NativeBlockPreservesWord_lowerStmtsNativeWithSwitchIds_of_nativePreservableStraightStmts`,
+  then peel the trailing `.Leave` with `exec_block_leave_ok_add_ten` after
+  one cons step.
+- **Step 6 (`.of_bridgedStraightStmts_falling_through`)** — **remaining**.
+  Hardest piece. Same machinery as step 5 minus the trailing leave: the
+  function-end fall-through convention must align `execIRFunction`'s
+  post-`execIRStmts` extraction with the dispatcher's outer block exit. Key
+  delta: source side returns `.continue state'` with no explicit terminator;
+  must show this projects observationally identical to native's
+  `.Block lower(preStmts)` `.ok` exit. Likely also needs an
+  `execIRFunction_continue_extract_eq` lemma showing the IR function's return
+  extraction at no-return-vars fn is a no-op.
+- **Step 7 (success-bridge wiring + `.of_comment_cons` collapse)** —
+  **remaining**. Extend `NativeGeneratedSelectorHitSuccessBridge.of_selected_*`
+  adapters to take per-leaf Revived constructors and inject the
+  `.comment "label"`-head strip via `exec_block_noop_block_head_eq`. Each
+  leaf gets a `_with_label_prefix` variant.
+- **Step 8 (drop `hUserBodyHalt`)** — **remaining**. Final theorem-level
+  collapse: after the Revived family covers all source-side non-halting
+  bodies the dispatcher can emit, the
+  `compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher`
+  signature drops its `hUserBodyHalt` premise.
+
+The shipped Step 1–3 constructors are independently useful: they directly
+discharge the Revived premise for contracts whose selected `fn.body` is one
+of `[]`, `[.leave]`, `[.block []]`, `[.block [.leave]]`, or `[.comment text]`.
+This is the observational-no-op family — concrete contracts whose user body
+is a label-only stub now have a direct Revived bridge without going through
+the halt path.
