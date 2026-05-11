@@ -1301,6 +1301,67 @@ scope so the native path does not look more complete than it is:
 - Upstream any EVMYulLean fork changes needed for memory, returndata, logs, or
   external-call semantics.
 
+## PR 1822 — Achievement Summary
+
+PR 1822 (`native-evmyullean-public-correctness`) lands the public-surface
+retarget plus the first five leaf `ExecOnlyBridgeAtFuelRevived` constructors.
+The Revived family now covers the observational-no-op body shapes a real
+dispatcher will emit for label-only user bodies. The deeper "straight prefix
+ending in `leave`/fall-through" cases are scoped out to a follow-up PR.
+
+### Shipped in this PR
+
+- **Public-surface retarget** — `interpretYulRuntimeEvmYulLean` and
+  `interpretYulRuntimeEvmYulLeanFuel`; Layer 3 and SimpleStorage EndToEnd
+  theorems retargeted to EVMYulLean conclusions; legacy reference-oracle
+  paths renamed to `..._via_reference_oracle`; `defaultBuiltinBackend := .evmYulLean`;
+  `legacyBuiltinBackend := .verity`, `legacyEvalBuiltinCallWithContext`,
+  `legacyExecYulFuel` opt-ins for old reference-oracle/bridge-comparison paths.
+- **Native EndToEnd surface** — `nativeResultsMatchOn`, the supported-compiler
+  generated direct `EvmYul.Yul.callDispatcher` theorem and its helper-free /
+  mapping-helper lowering wrappers, concrete SimpleStorage native theorem,
+  case freshness dispatcher adapters, mapping switch freshness wrappers.
+- **G1 increments S1–S4 (leaf Revived constructors)** —
+  `.of_block_empty`, `.of_block_leave`, `.of_singleton_comment` shipped on
+  `NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived`, plus the
+  pre-existing `.of_empty_body` and `.of_leave_body`. `.of_comment_cons` is
+  intentionally deferred to the success-bridge wiring layer (rationale below).
+  Together these five constructors cover every body of shape `[]`, `[.leave]`,
+  `[.block []]`, `[.block [.leave]]`, `[.comment text]` — the full
+  observational-no-op family.
+- **Supporting harness lemmas** — `exec_block_block_nil_ok_add_ten`,
+  `exec_block_block_leave_ok_add_ten`, `exec_block_noop_block_head_eq`,
+  `lowerStmtsNativeWithSwitchIds_comment_head_eq`, and the source-side
+  `nativeResultsMatchOn_execIRFunction_*_body_markedPrefix` family.
+- **Invariants preserved** — zero `sorry`, zero new axioms; `lake build
+  Compiler.Proofs.EndToEnd` green; `make check` validators (axioms,
+  capability boundary, builtin boundary, doc check) pass.
+
+### Remaining for a follow-up PR
+
+The composite `<straight-stmts>` and `<straight-stmts>; leave` body shapes,
+and the final wiring + premise drop, are deferred. They share heavy proof
+infrastructure (whole-block per-slot preservation, IR `execIRStmts`
+falling-through induction) that does not fit a single landable increment in
+the current branch's budget. See the
+[G1 Incremental Plan](#g1-incremental-plan-generic-execonlybridgeatfuelrevived)
+below for the exact constructor signatures, harness lemmas, and proof
+sketches that the follow-up PR needs to land:
+
+- **G1-S5** `.of_nativePreservableStraightStmts_leave` plus companion
+  `execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave` lemma.
+- **G1-S6** `.of_bridgedStraightStmts_falling_through` (the deepest case;
+  requires aligning `execIRFunction`'s fall-through extraction with the
+  dispatcher's outer block exit).
+- **G1-S7** Wire all five shipped leaves plus the two new constructors
+  through `NativeGeneratedSelectorHitSuccessBridge` adapters, including
+  per-leaf `_with_label_prefix` variants that strip a leading
+  `.comment "label"` head via `exec_block_noop_block_head_eq`. This step
+  also subsumes the deferred `.of_comment_cons` shape.
+- **G1-S8** Drop `hUserBodyHalt` from
+  `compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher`
+  once S5–S7 are in.
+
 ## G1 Incremental Plan: Generic `ExecOnlyBridgeAtFuelRevived`
 
 The remaining success-side blocker is a generic constructor for
@@ -1374,22 +1435,25 @@ the deep generic case at step 6 lands.
 
 ### Status of G1 increments
 
-- **Step 1 (`.of_block_empty`)** — shipped (commit `fa980235`+rebase `8b46a6e7`).
-  Pairs with new harness lemma `exec_block_block_nil_ok_add_ten` and source
-  helper `nativeResultsMatchOn_execIRFunction_block_empty_body_markedPrefix`.
-- **Step 2 (`.of_block_leave`)** — shipped previously (`a5d2e0d3`). Harness:
-  `exec_block_block_leave_ok_add_ten`. Source helper:
+- **Step 1 (`.of_block_empty`)** — **shipped in PR 1822**
+  (commit `fa980235`+rebase `8b46a6e7`). Pairs with new harness lemma
+  `exec_block_block_nil_ok_add_ten` and source helper
+  `nativeResultsMatchOn_execIRFunction_block_empty_body_markedPrefix`.
+- **Step 2 (`.of_block_leave`)** — **shipped in PR 1822** (`a5d2e0d3`).
+  Harness: `exec_block_block_leave_ok_add_ten`. Source helper:
   `nativeResultsMatchOn_execIRFunction_block_leave_body_markedPrefix`.
-- **Step 3 (`.of_singleton_comment`)** — shipped (`f69044a1`+rebase `06723c83`).
-  Reuses `exec_block_block_nil_ok_add_ten`; existential text extraction in the
-  hypothesis. Source helper:
+- **Step 3 (`.of_singleton_comment`)** — **shipped in PR 1822**
+  (`f69044a1`+rebase `06723c83`). Reuses `exec_block_block_nil_ok_add_ten`;
+  existential text extraction in the hypothesis. Source helper:
   `nativeResultsMatchOn_execIRFunction_singleton_comment_body_markedPrefix`.
-- **Step 4 (`.of_comment_cons`)** — deferred to step 7 wiring (`8e31e756`).
-  Rationale: structural mismatch between the predicate's
-  `nativeGeneratedSelectorHitUserBodyFuel`-on-full-`fn.body` and a tail-body
-  recursion. Handled at the success-bridge layer via per-leaf comment-prefix
-  adapters.
-- **Step 5 (`.of_nativePreservableStraightStmts_leave`)** — **remaining**.
+- **Step 4 (`.of_comment_cons`)** — **intentionally deferred to step 7
+  wiring** (`8e31e756`). Rationale: structural mismatch between the
+  predicate's `nativeGeneratedSelectorHitUserBodyFuel`-on-full-`fn.body`
+  and a tail-body recursion. Handled at the success-bridge layer via
+  per-leaf comment-prefix adapters (S7), not as a standalone Revived
+  constructor.
+- **Step 5 (`.of_nativePreservableStraightStmts_leave`)** — **deferred to
+  follow-up PR**.
   Companion lemma sketch:
   ```
   theorem execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave
@@ -1412,8 +1476,8 @@ the deep generic case at step 6 lands.
   slot via `NativeBlockPreservesWord_lowerStmtsNativeWithSwitchIds_of_nativePreservableStraightStmts`,
   then peel the trailing `.Leave` with `exec_block_leave_ok_add_ten` after
   one cons step.
-- **Step 6 (`.of_bridgedStraightStmts_falling_through`)** — **remaining**.
-  Hardest piece. Same machinery as step 5 minus the trailing leave: the
+- **Step 6 (`.of_bridgedStraightStmts_falling_through`)** — **deferred to
+  follow-up PR**. Hardest piece. Same machinery as step 5 minus the trailing leave: the
   function-end fall-through convention must align `execIRFunction`'s
   post-`execIRStmts` extraction with the dispatcher's outer block exit. Key
   delta: source side returns `.continue state'` with no explicit terminator;
@@ -1422,19 +1486,27 @@ the deep generic case at step 6 lands.
   `execIRFunction_continue_extract_eq` lemma showing the IR function's return
   extraction at no-return-vars fn is a no-op.
 - **Step 7 (success-bridge wiring + `.of_comment_cons` collapse)** —
-  **remaining**. Extend `NativeGeneratedSelectorHitSuccessBridge.of_selected_*`
-  adapters to take per-leaf Revived constructors and inject the
-  `.comment "label"`-head strip via `exec_block_noop_block_head_eq`. Each
-  leaf gets a `_with_label_prefix` variant.
-- **Step 8 (drop `hUserBodyHalt`)** — **remaining**. Final theorem-level
+  **deferred to follow-up PR**. Extend
+  `NativeGeneratedSelectorHitSuccessBridge.of_selected_*` adapters to take
+  per-leaf Revived constructors and inject the `.comment "label"`-head strip
+  via `exec_block_noop_block_head_eq`. Each leaf gets a `_with_label_prefix`
+  variant.
+- **Step 8 (drop `hUserBodyHalt`)** — **deferred to follow-up PR**. Final
+  theorem-level
   collapse: after the Revived family covers all source-side non-halting
   bodies the dispatcher can emit, the
   `compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher`
   signature drops its `hUserBodyHalt` premise.
 
-The shipped Step 1–3 constructors are independently useful: they directly
-discharge the Revived premise for contracts whose selected `fn.body` is one
-of `[]`, `[.leave]`, `[.block []]`, `[.block [.leave]]`, or `[.comment text]`.
-This is the observational-no-op family — concrete contracts whose user body
-is a label-only stub now have a direct Revived bridge without going through
-the halt path.
+The PR-1822 shipped constructors (Step 1–3, plus the pre-existing
+`.of_empty_body` and `.of_leave_body`) are independently useful: they
+directly discharge the Revived premise for contracts whose selected
+`fn.body` is one of `[]`, `[.leave]`, `[.block []]`, `[.block [.leave]]`, or
+`[.comment text]`. This is the observational-no-op family — concrete
+contracts whose user body is a label-only stub now have a direct Revived
+bridge without going through the halt path.
+
+Steps 5–8 remain the path to dropping `hUserBodyHalt` for non-trivial user
+bodies. A future PR should pick up `execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave`
+first (purely IR-side, no harness coupling) before tackling the full
+constructor proofs.
