@@ -580,7 +580,8 @@ def exprTouchesUnsupportedConstructorRawCalldataSurface : Expr → Bool
       exprTouchesUnsupportedConstructorRawCalldataSurface a ||
         exprTouchesUnsupportedConstructorRawCalldataSurface b
   | .dynamicBytesEq _ _ => false
-  | .ite c t e | .mulDivDown c t e | .mulDivUp c t e =>
+  | .ite c t e | .mulDivDown c t e | .mulDivUp c t e
+  | .mulDiv512Down c t e | .mulDiv512Up c t e =>
       exprTouchesUnsupportedConstructorRawCalldataSurface c ||
         exprTouchesUnsupportedConstructorRawCalldataSurface t ||
         exprTouchesUnsupportedConstructorRawCalldataSurface e
@@ -699,7 +700,8 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
         exprTouchesUnsupportedCoreSurface c
   | .wMulDown a b | .wDivUp a b =>
       exprTouchesUnsupportedCoreSurface a || exprTouchesUnsupportedCoreSurface b
-  | .mulDivDown a b c | .mulDivUp a b c =>
+  | .mulDivDown a b c | .mulDivUp a b c
+  | .mulDiv512Down a b c | .mulDiv512Up a b c =>
       exprTouchesUnsupportedCoreSurface a || exprTouchesUnsupportedCoreSurface b ||
         exprTouchesUnsupportedCoreSurface c
   | .slt a b | .sgt a b | .sdiv a b | .smod a b | .sar a b | .signextend a b =>
@@ -743,7 +745,8 @@ def exprTouchesUnsupportedStateSurface : Expr → Bool
         exprTouchesUnsupportedStateSurface elseVal
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedStateSurface a || exprTouchesUnsupportedStateSurface b
-  | .mulDivDown a b c | .mulDivUp a b c =>
+  | .mulDivDown a b c | .mulDivUp a b c
+  | .mulDiv512Down a b c | .mulDiv512Up a b c =>
       exprTouchesUnsupportedStateSurface a || exprTouchesUnsupportedStateSurface b ||
         exprTouchesUnsupportedStateSurface c
   | .constructorArg _ | .blobbasefee | .keccak256 _ _
@@ -789,7 +792,8 @@ def exprTouchesUnsupportedCallSurface : Expr → Bool
         exprTouchesUnsupportedCallSurface elseVal
   | .mapping2 _ a b | .mapping2Word _ a b _ | .structMember2 _ a b _ =>
       exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
-  | .mulDivDown a b c | .mulDivUp a b c =>
+  | .mulDivDown a b c | .mulDivUp a b c
+  | .mulDiv512Down a b c | .mulDiv512Up a b c =>
       exprTouchesUnsupportedCallSurface a ||
         exprTouchesUnsupportedCallSurface b ||
         exprTouchesUnsupportedCallSurface c
@@ -831,7 +835,8 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
         exprTouchesUnsupportedHelperSurface elseVal
   | .mapping2 _ a b | .mapping2Word _ a b _ | .structMember2 _ a b _ =>
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
-  | .mulDivDown a b c | .mulDivUp a b c =>
+  | .mulDivDown a b c | .mulDivUp a b c
+  | .mulDiv512Down a b c | .mulDiv512Up a b c =>
       exprTouchesUnsupportedHelperSurface a ||
         exprTouchesUnsupportedHelperSurface b ||
         exprTouchesUnsupportedHelperSurface c
@@ -883,7 +888,8 @@ def exprTouchesInternalHelperSurface : Expr → Bool
         exprTouchesInternalHelperSurface elseVal
   | .mapping2 _ a b | .mapping2Word _ a b _ | .structMember2 _ a b _ =>
       exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
-  | .mulDivDown a b c | .mulDivUp a b c =>
+  | .mulDivDown a b c | .mulDivUp a b c
+  | .mulDiv512Down a b c | .mulDiv512Up a b c =>
       exprTouchesInternalHelperSurface a ||
         exprTouchesInternalHelperSurface b ||
         exprTouchesInternalHelperSurface c
@@ -925,7 +931,8 @@ def exprTouchesUnsupportedForeignSurface : Expr → Bool
         exprTouchesUnsupportedForeignSurface elseVal
   | .mapping2 _ a b | .mapping2Word _ a b _ | .structMember2 _ a b _ =>
       exprTouchesUnsupportedForeignSurface a || exprTouchesUnsupportedForeignSurface b
-  | .mulDivDown a b c | .mulDivUp a b c =>
+  | .mulDivDown a b c | .mulDivUp a b c
+  | .mulDiv512Down a b c | .mulDiv512Up a b c =>
       exprTouchesUnsupportedForeignSurface a ||
         exprTouchesUnsupportedForeignSurface b ||
         exprTouchesUnsupportedForeignSurface c
@@ -966,7 +973,8 @@ def exprTouchesUnsupportedLowLevelSurface : Expr → Bool
         exprTouchesUnsupportedLowLevelSurface elseVal
   | .mapping2 _ a b | .mapping2Word _ a b _ | .structMember2 _ a b _ =>
       exprTouchesUnsupportedLowLevelSurface a || exprTouchesUnsupportedLowLevelSurface b
-  | .mulDivDown a b c | .mulDivUp a b c =>
+  | .mulDivDown a b c | .mulDivUp a b c
+  | .mulDiv512Down a b c | .mulDiv512Up a b c =>
       exprTouchesUnsupportedLowLevelSurface a ||
         exprTouchesUnsupportedLowLevelSurface b ||
         exprTouchesUnsupportedLowLevelSurface c
@@ -1001,7 +1009,8 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
         exprTouchesUnsupportedContractSurface c
   | .wMulDown a b | .wDivUp a b =>
       exprTouchesUnsupportedContractSurface a || exprTouchesUnsupportedContractSurface b
-  | .mulDivDown a b c | .mulDivUp a b c =>
+  | .mulDivDown a b c | .mulDivUp a b c
+  | .mulDiv512Down a b c | .mulDiv512Up a b c =>
       exprTouchesUnsupportedContractSurface a || exprTouchesUnsupportedContractSurface b ||
         exprTouchesUnsupportedContractSurface c
   | .mload a | .tload a | .calldataload a => exprTouchesUnsupportedContractSurface a
