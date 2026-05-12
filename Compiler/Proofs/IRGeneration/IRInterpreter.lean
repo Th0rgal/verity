@@ -1149,6 +1149,12 @@ def IRStmtPreservesObsAt (state : IRState) (stmt : YulStmt) : Prop :=
   refine ⟨state, fun _ => ?_⟩
   simp only [execIRStmt]
 
+@[simp] theorem IRStmtPreservesObsAt_funcDef (state : IRState)
+    (name : String) (params rets : List String) (body : List YulStmt) :
+    IRStmtPreservesObsAt state (.funcDef name params rets body) := by
+  refine ⟨state, fun _ => ?_⟩
+  simp only [execIRStmt]
+
 /-- Cross-cast for `.let_ name value`: at any state where `value` evaluates,
 the stmt continues, binding `name` to the evaluated result. -/
 theorem IRStmtPreservesObsAt_of_let_
@@ -1391,6 +1397,39 @@ theorem IRStmtPreservesObsAt_of_sstore_add
   -- reduction; CI's stricter Lean does not reduce the String-literal
   -- branch of the inner match via `simp only`. Use `simp` to fully reduce.
   simp [execIRStmt, hs, hv]
+
+/-- General cross-cast for `.expr (.call func args)` where `func` is NOT one
+of the special builtins (sstore/mstore/tstore/stop/return/revert/log*). The
+call falls through `execIRStmt`'s opaque-eval branch: requires the call to
+evaluate; yields `.continue state` with state unchanged. -/
+theorem IRStmtPreservesObsAt_of_expr_call_opaque
+    (state : IRState) (func : String) (args : List YulExpr)
+    (hNotSStore : func ≠ "sstore")
+    (hNotMStore : func ≠ "mstore")
+    (hNotTStore : func ≠ "tstore")
+    (hNotStop : ¬(func = "stop" ∧ args = []))
+    (hNotRevert : func ≠ "revert")
+    (hNotReturn : func ≠ "return")
+    (hNotLog : Compiler.Proofs.YulGeneration.isYulLogName func = false)
+    (hEval : ∃ v, evalIRExpr state (.call func args) = some v) :
+    IRStmtPreservesObsAt state (.expr (.call func args)) := by
+  obtain ⟨v, hv⟩ := hEval
+  refine ⟨state, fun _ => ?_⟩
+  cases args with
+  | nil =>
+      have hStopFalse : func ≠ "stop" := fun h => hNotStop ⟨h, rfl⟩
+      simp [execIRStmt, hStopFalse, hNotLog, hv]
+  | cons a rest =>
+      cases rest with
+      | nil =>
+          simp [execIRStmt, hNotLog, hv]
+      | cons b rest' =>
+          cases rest' with
+          | nil =>
+              simp [execIRStmt, hNotSStore, hNotMStore, hNotTStore,
+                hNotRevert, hNotReturn, hNotLog, hv]
+          | cons c rest'' =>
+              simp [execIRStmt, hNotLog, hv]
 
 /-- IR-side analog of `NativePreservableStraightStmt`: a statement whose IR
 execution terminates in `.continue _` (does not return / stop / revert /
