@@ -2518,6 +2518,9 @@ end Verity.AxiomAudit
   Compiler.Proofs.IRGeneration.IRStmtPreservesObsAt_of_log2
   Compiler.Proofs.IRGeneration.IRStmtPreservesObsAt_of_log3
   Compiler.Proofs.IRGeneration.IRStmtPreservesObsAt_of_log4
+  Compiler.Proofs.IRGeneration.IRStmtPreservesObsAt_of_sstore_mappingSlot
+  Compiler.Proofs.IRGeneration.IRStmtPreservesObsAt_of_sstore_ident
+  Compiler.Proofs.IRGeneration.IRStmtPreservesObsAt_of_sstore_add
   Compiler.Proofs.IRGeneration.execIRStmts_continue_of_nativePreservableStraightStmts_falling_through
   Compiler.Proofs.IRGeneration.execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave
   Compiler.Proofs.IRGeneration.IRState.withTx_sender
@@ -5528,4 +5531,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5242 theorems/lemmas (3538 public, 1704 private, 0 sorry'd)
+-- Total: 5245 theorems/lemmas (3541 public, 1704 private, 0 sorry'd)

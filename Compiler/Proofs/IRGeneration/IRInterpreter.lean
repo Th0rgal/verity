@@ -1343,6 +1343,57 @@ theorem IRStmtPreservesObsAt_of_log4
     Option.bind, applyYulLogCall?]
   rfl
 
+/-- Cross-cast for `.expr (.call "sstore" [.call "mappingSlot" [base, key], val])`:
+sstore-of-mappingSlot stores `val` at the abstract mapping entry computed
+from `(base, key)`. Requires all three sub-expressions to evaluate. -/
+theorem IRStmtPreservesObsAt_of_sstore_mappingSlot
+    (state : IRState) (baseExpr keyExpr valExpr : YulExpr)
+    (hBaseEval : ∃ b, evalIRExpr state baseExpr = some b)
+    (hKeyEval : ∃ k, evalIRExpr state keyExpr = some k)
+    (hValEval : ∃ v, evalIRExpr state valExpr = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "sstore"
+        [.call "mappingSlot" [baseExpr, keyExpr], valExpr])) := by
+  intro fuel
+  obtain ⟨b, hb⟩ := hBaseEval
+  obtain ⟨k, hk⟩ := hKeyEval
+  obtain ⟨v, hv⟩ := hValEval
+  refine ⟨{ state with storage :=
+      Compiler.Proofs.abstractStoreMappingEntry state.storage b k v }, ?_⟩
+  simp only [execIRStmt, hb, hk, hv]
+
+/-- Cross-cast for `.expr (.call "sstore" [.ident name, val])` — slot is read
+from a local variable binding. Requires the ident and val to evaluate. -/
+theorem IRStmtPreservesObsAt_of_sstore_ident
+    (state : IRState) (slotName : String) (valExpr : YulExpr)
+    (hSlotEval : ∃ s, state.getVar slotName = some s)
+    (hValEval : ∃ v, evalIRExpr state valExpr = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "sstore" [.ident slotName, valExpr])) := by
+  intro fuel
+  obtain ⟨s, hs⟩ := hSlotEval
+  obtain ⟨v, hv⟩ := hValEval
+  refine ⟨{ state with storage :=
+      Compiler.Proofs.abstractStoreStorageOrMapping state.storage s v }, ?_⟩
+  simp only [execIRStmt, evalIRExpr, hs, hv]
+
+/-- Cross-cast for `.expr (.call "sstore" [.call "add" [l, r], val])`: slot
+is the result of an `add` call. Falls through `execIRStmt`'s general
+non-mappingSlot sstore arm. -/
+theorem IRStmtPreservesObsAt_of_sstore_add
+    (state : IRState) (leftExpr rightExpr valExpr : YulExpr)
+    (hSlotEval : ∃ s,
+      evalIRExpr state (.call "add" [leftExpr, rightExpr]) = some s)
+    (hValEval : ∃ v, evalIRExpr state valExpr = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "sstore" [.call "add" [leftExpr, rightExpr], valExpr])) := by
+  intro fuel
+  obtain ⟨s, hs⟩ := hSlotEval
+  obtain ⟨v, hv⟩ := hValEval
+  refine ⟨{ state with storage :=
+      Compiler.Proofs.abstractStoreStorageOrMapping state.storage s v }, ?_⟩
+  simp only [execIRStmt, hs, hv]
+
 /-- IR-side analog of `NativePreservableStraightStmt`: a statement whose IR
 execution terminates in `.continue _` (does not return / stop / revert /
 otherwise terminate the function body).
