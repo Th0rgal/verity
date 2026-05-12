@@ -257,17 +257,14 @@ def fullMulDivHelper : YulStmt :=
       YulExpr.call "mul" [YulExpr.ident "prod1", YulExpr.ident "twos"]
     ]),
     -- Step 3: modular inverse of the (now-odd) denominator mod 2^256.
-    -- Seven Hensel-lifting rounds raise precision from 4 bits to 256 bits.
+    -- Six Hensel-lifting rounds raise the 4-bit seed `xor(2, 3*denominator)`
+    -- to full 256-bit precision (4 → 8 → 16 → 32 → 64 → 128 → 256).
+    -- OpenZeppelin's `Math.mulDiv` and Uniswap V3's `FullMath.mulDiv` use the
+    -- same six iterations; a seventh would lift to 512 bits, which is the
+    -- same value mod 2^256.
     YulStmt.let_ "inverse" (YulExpr.call "xor" [
       YulExpr.lit 2,
       YulExpr.call "mul" [YulExpr.lit 3, YulExpr.ident "denominator"]
-    ]),
-    YulStmt.assign "inverse" (YulExpr.call "mul" [
-      YulExpr.ident "inverse",
-      YulExpr.call "sub" [
-        YulExpr.lit 2,
-        YulExpr.call "mul" [YulExpr.ident "denominator", YulExpr.ident "inverse"]
-      ]
     ]),
     YulStmt.assign "inverse" (YulExpr.call "mul" [
       YulExpr.ident "inverse",
