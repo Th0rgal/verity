@@ -12,7 +12,7 @@ structure that the compiler can plug in without modification.
 | `ERC4626.lean` | `previewDeposit`, `previewMint`, `previewWithdraw`, `previewRedeem`, `convertToAssets`, `convertToShares`, `totalAssets`, `asset`, `maxDeposit`, `maxMint`, `maxWithdraw`, `maxRedeem`, `deposit` | canonical vault preview/conversion wrappers plus a standard deposit wrapper |
 | `Hashing.lean` | `abiEncodePackedWords` / `abiEncodePacked`, `sha256PackedWords` / `sha256Packed`, `abiEncodePackedStaticSegments`, `sha256PackedStaticSegments` | handwritten static packed hash preimage `mstore` choreography |
 | `Oracle.lean` | `oracleReadUint256` | canonical oracle read wrappers |
-| `Precompiles.lean` | `ecrecover`, `sha256Memory` / `sha256` | `Stmt.ecrecover`, handwritten SHA-256 precompile calls |
+| `Precompiles.lean` | `ecrecover`, `sha256Memory` / `sha256`, `bn256Add`, `bn256ScalarMul`, `bn256Pairing` | `Stmt.ecrecover`, handwritten SHA-256 / BN254 (alt_bn128) precompile calls |
 | `Callbacks.lean` | `callback` | `Stmt.callback` |
 | `Calls.lean` | `withReturn`, `callWithValue`, `callWithValueBytes`, `bubblingValueCall`, `bubblingValueCallNoOutput` | `Stmt.externalCallWithReturn`; generic `call{value:v}` adapter calls; handwritten low-level `call{value: ...}` wrappers |
 

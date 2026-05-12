@@ -194,4 +194,16 @@ def getSelector (hash : ByteArray) : BitVec 32 :=
 def keccak256_selector (s : String) : BitVec 32 :=
   getSelector (keccak256_str s)
 
+/-- Convert a big-endian `ByteArray` to a `Nat` (byte 0 is most significant).
+    Used by both storage-namespace computation (#1730) and the public
+    `keccak256_lit` EDSL sugar to interpret a 32-byte Keccak digest as a
+    256-bit `Uint256` word. -/
+def byteArrayToNatBE (ba : ByteArray) : Nat :=
+  ba.foldl (fun acc byte => acc * 256 + byte.toNat) 0
+
+/-- Compute the Keccak-256 hash of a UTF-8 encoded string and return it as a
+    `Nat` in big-endian word order. -/
+def keccak256_str_nat (s : String) : Nat :=
+  byteArrayToNatBE (keccak256_str s)
+
 end KeccakEngine
