@@ -1409,19 +1409,19 @@ theorem IRStmtPreservesObsAt_of_expr_call_opaque
   cases args with
   | nil =>
       have hStopFalse : func ≠ "stop" := fun h => hNotStop ⟨h, rfl⟩
-      simp only [execIRStmt, hStopFalse, hNotLog, hv]
+      simp only [execIRStmt, hStopFalse, hv]
   | cons a rest =>
       cases rest with
       | nil =>
-          simp only [execIRStmt, hNotLog, hv]
+          simp only [execIRStmt, hv]
       | cons b rest' =>
           cases rest' with
           | nil =>
-              -- hNotReturn/hNotRevert hypotheses needed for type-checking but
-              -- the kernel reduces the relevant match arms directly.
-              simp only [execIRStmt, hNotSStore, hNotMStore, hNotTStore, hv]
+              -- The outer match reduces by simp's nat-of-string inequality
+              -- handling; the hypotheses are needed only for elaboration.
+              simp only [execIRStmt, hv]
           | cons c rest'' =>
-              simp only [execIRStmt, hNotLog, hv]
+              simp only [execIRStmt, hv]
 
 /-- IR-side analog of `NativePreservableStraightStmt`: a statement whose IR
 execution terminates in `.continue _` (does not return / stop / revert /
