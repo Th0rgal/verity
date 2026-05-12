@@ -395,6 +395,7 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
   let mappingHelpersRequired := usesMapping fields
   let arrayHelpersRequired := contractUsesPlainArrayElement spec
   let arrayElementWordHelpersRequired := contractUsesArrayElementWord spec
+  let paramDynamicHeadWordHelpersRequired := contractUsesParamDynamicHeadWord spec
   let storageArrayHelpersRequired := contractUsesStorageArrayElement spec
   let dynamicBytesEqHelpersRequired := contractUsesDynamicBytesEq spec
   let fallbackSpec ← pickUniqueFunctionByName "fallback" spec.functions
@@ -414,6 +415,12 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
       , checkedArrayElementWordMemoryHelper
       , checkedArrayElementDynamicWordCalldataHelper
       , checkedArrayElementDynamicWordMemoryHelper
+      ]
+    else
+      []) ++
+    (if paramDynamicHeadWordHelpersRequired then
+      [ checkedParamDynamicHeadWordCalldataHelper
+      , checkedParamDynamicHeadWordMemoryHelper
       ]
     else
       [])

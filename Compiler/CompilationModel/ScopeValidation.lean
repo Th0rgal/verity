@@ -167,6 +167,21 @@ def validateScopedExprIdentifiers
       | none =>
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayElementDynamicWord"
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
+  | Expr.paramDynamicHeadWord name wordOffset => do
+      match findParamType params name with
+      | some ty@(ParamType.tuple _) =>
+          if isDynamicParamType ty then
+            let expectedWords := paramLocalHeadWords ty
+            if wordOffset < expectedWords then
+              pure ()
+            else
+              throw s!"Compilation error: {context} Expr.paramDynamicHeadWord '{name}' wordOffset {wordOffset} is outside head width {expectedWords} for {repr ty}"
+          else
+            throw s!"Compilation error: {context} Expr.paramDynamicHeadWord '{name}' requires a dynamically-encoded tuple parameter, got {repr ty}"
+      | some ty =>
+          throw s!"Compilation error: {context} Expr.paramDynamicHeadWord '{name}' requires a tuple parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.paramDynamicHeadWord"
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
   | Expr.structMember _ key _ =>
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount key

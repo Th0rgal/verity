@@ -122,6 +122,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.TypedImmutableSmoke.spec
   , Contracts.Smoke.TupleSmoke.spec
   , Contracts.Smoke.NamedStructParamSmoke.spec
+  , Contracts.Smoke.NamedStructDynamicRootLeafProjection.spec
   , Contracts.Smoke.CurveCutArraySmoke.spec
   , Contracts.Smoke.DynamicStructArraySmoke.spec
   , Contracts.Smoke.PackedStorageWriteSmoke.spec

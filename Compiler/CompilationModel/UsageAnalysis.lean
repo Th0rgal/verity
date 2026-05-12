@@ -175,6 +175,7 @@ def exprUsesArrayElementKind (includePlain includeWord : Bool) : Expr → Bool
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.storageArrayLength _
+  | Expr.paramDynamicHeadWord _ _
   | Expr.adtTag _ _ =>
       false
 termination_by e => sizeOf e
@@ -339,6 +340,7 @@ def exprUsesArrayElement : Expr → Bool
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.storageArrayLength _
+  | Expr.paramDynamicHeadWord _ _
   | Expr.adtTag _ _ =>
       false
 termination_by e => sizeOf e
@@ -473,6 +475,99 @@ def contractUsesArrayElementWord (spec : CompilationModel) : Bool :=
   contractUsesArrayElement spec &&
     (constructorUsesArrayElementWord spec.constructor || spec.functions.any functionUsesArrayElementWord)
 
+/-- Whether the given expression syntactically contains an
+    `Expr.paramDynamicHeadWord` (verity#1832). Walks the expression tree
+    rather than threading another flag through `exprUsesArrayElementKind`. -/
+partial def exprUsesParamDynamicHeadWord : Expr → Bool
+  | Expr.paramDynamicHeadWord _ _ => true
+  | e => match e with
+    | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
+    | Expr.mappingUint _ key | Expr.structMember _ key _
+    | Expr.storageArrayElement _ key | Expr.arrayElement _ key
+    | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _ =>
+        exprUsesParamDynamicHeadWord key
+    | Expr.mappingChain _ keys => keys.any exprUsesParamDynamicHeadWord
+    | Expr.mapping2 _ k1 k2 | Expr.mapping2Word _ k1 k2 _ | Expr.structMember2 _ k1 k2 _ =>
+        exprUsesParamDynamicHeadWord k1 || exprUsesParamDynamicHeadWord k2
+    | Expr.call gas target value inOffset inSize outOffset outSize =>
+        [gas, target, value, inOffset, inSize, outOffset, outSize].any
+          exprUsesParamDynamicHeadWord
+    | Expr.staticcall gas target inOffset inSize outOffset outSize
+    | Expr.delegatecall gas target inOffset inSize outOffset outSize =>
+        [gas, target, inOffset, inSize, outOffset, outSize].any
+          exprUsesParamDynamicHeadWord
+    | Expr.extcodesize a | Expr.mload a | Expr.tload a | Expr.calldataload a
+    | Expr.returndataOptionalBoolAt a | Expr.bitNot a | Expr.logicalNot a =>
+        exprUsesParamDynamicHeadWord a
+    | Expr.keccak256 a b =>
+        exprUsesParamDynamicHeadWord a || exprUsesParamDynamicHeadWord b
+    | Expr.externalCall _ args | Expr.internalCall _ args | Expr.adtConstruct _ _ args =>
+        args.any exprUsesParamDynamicHeadWord
+    | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+    | Expr.mod a b | Expr.smod a b
+    | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
+    | Expr.sar a b | Expr.signextend a b
+    | Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b
+    | Expr.le a b | Expr.logicalAnd a b | Expr.logicalOr a b
+    | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b | Expr.ceilDiv a b =>
+        exprUsesParamDynamicHeadWord a || exprUsesParamDynamicHeadWord b
+    | Expr.mulDivDown a b c | Expr.mulDivUp a b c | Expr.ite a b c =>
+        exprUsesParamDynamicHeadWord a || exprUsesParamDynamicHeadWord b ||
+        exprUsesParamDynamicHeadWord c
+    | _ => false
+
+partial def stmtUsesParamDynamicHeadWord : Stmt → Bool
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value
+  | Stmt.setStorageAddr _ value | Stmt.setStorageWord _ _ value
+  | Stmt.storageArrayPush _ value | Stmt.return value | Stmt.require value _ =>
+      exprUsesParamDynamicHeadWord value
+  | Stmt.setStorageArrayElement _ index value =>
+      exprUsesParamDynamicHeadWord index || exprUsesParamDynamicHeadWord value
+  | Stmt.requireError cond _ args =>
+      exprUsesParamDynamicHeadWord cond || args.any exprUsesParamDynamicHeadWord
+  | Stmt.revertError _ args | Stmt.emit _ args | Stmt.returnValues args =>
+      args.any exprUsesParamDynamicHeadWord
+  | Stmt.mstore offset value | Stmt.tstore offset value =>
+      exprUsesParamDynamicHeadWord offset || exprUsesParamDynamicHeadWord value
+  | Stmt.calldatacopy a b c | Stmt.returndataCopy a b c =>
+      exprUsesParamDynamicHeadWord a || exprUsesParamDynamicHeadWord b ||
+      exprUsesParamDynamicHeadWord c
+  | Stmt.setMapping _ k v | Stmt.setMappingWord _ k _ v
+  | Stmt.setMappingPackedWord _ k _ _ v | Stmt.setMappingUint _ k v
+  | Stmt.setStructMember _ k _ v =>
+      exprUsesParamDynamicHeadWord k || exprUsesParamDynamicHeadWord v
+  | Stmt.setMappingChain _ keys v =>
+      keys.any exprUsesParamDynamicHeadWord || exprUsesParamDynamicHeadWord v
+  | Stmt.setMapping2 _ k1 k2 v | Stmt.setMapping2Word _ k1 k2 _ v
+  | Stmt.setStructMember2 _ k1 k2 _ v =>
+      exprUsesParamDynamicHeadWord k1 || exprUsesParamDynamicHeadWord k2 ||
+      exprUsesParamDynamicHeadWord v
+  | Stmt.ite cond thenBranch elseBranch =>
+      exprUsesParamDynamicHeadWord cond ||
+      thenBranch.any stmtUsesParamDynamicHeadWord ||
+      elseBranch.any stmtUsesParamDynamicHeadWord
+  | Stmt.forEach _ count body =>
+      exprUsesParamDynamicHeadWord count || body.any stmtUsesParamDynamicHeadWord
+  | Stmt.unsafeBlock _ body =>
+      body.any stmtUsesParamDynamicHeadWord
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprUsesParamDynamicHeadWord scrutinee ||
+        branches.any (fun (_, _, body) => body.any stmtUsesParamDynamicHeadWord)
+  | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args
+  | Stmt.externalCallBind _ _ args | Stmt.tryExternalCallBind _ _ _ args
+  | Stmt.ecm _ args =>
+      args.any exprUsesParamDynamicHeadWord
+  | Stmt.rawLog topics dataOffset dataSize =>
+      topics.any exprUsesParamDynamicHeadWord ||
+      exprUsesParamDynamicHeadWord dataOffset || exprUsesParamDynamicHeadWord dataSize
+  | _ => false
+
+def contractUsesParamDynamicHeadWord (spec : CompilationModel) : Bool :=
+  (match spec.constructor with
+    | none => false
+    | some ctor => ctor.body.any stmtUsesParamDynamicHeadWord) ||
+  spec.functions.any (fun fn => fn.body.any stmtUsesParamDynamicHeadWord)
+
 private def nestedPlainWithWordIndex : Expr :=
   Expr.arrayElement "plain" (Expr.arrayElementWord "word" (Expr.literal 0) 1 0)
 
@@ -545,6 +640,7 @@ def exprUsesStorageArrayElement : Expr → Bool
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.paramDynamicHeadWord _ _
   | Expr.adtTag _ _ =>
       false
   | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _ =>
@@ -688,6 +784,7 @@ def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.paramDynamicHeadWord _ _
   | Expr.adtTag _ _ =>
       false
 termination_by e => sizeOf e

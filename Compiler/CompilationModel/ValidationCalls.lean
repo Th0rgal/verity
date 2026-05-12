@@ -31,6 +31,10 @@ def reservedExternalNames
       ]
     else
       []
+  let paramDynamicHeadWordHelpers :=
+    [ checkedParamDynamicHeadWordCalldataHelperName
+    , checkedParamDynamicHeadWordMemoryHelperName
+    ]
   let storageArrayHelpers :=
     if storageArrayHelpersRequired then
       [checkedStorageArrayElementHelperName]
@@ -43,7 +47,7 @@ def reservedExternalNames
       []
   let builtins := [builtinExpName]
   let entrypoints := ["fallback", "receive"]
-  (mappingHelpers ++ arrayHelpers ++ arrayElementWordHelpers ++ storageArrayHelpers ++ dynamicBytesEqHelpers ++ builtins ++ entrypoints).eraseDups
+  (mappingHelpers ++ arrayHelpers ++ arrayElementWordHelpers ++ paramDynamicHeadWordHelpers ++ storageArrayHelpers ++ dynamicBytesEqHelpers ++ builtins ++ entrypoints).eraseDups
 
 def firstReservedExternalCollision
     (spec : CompilationModel)
@@ -182,6 +186,7 @@ def validateInternalCallShapesInExpr
   | Expr.calldatasize | Expr.returndataSize
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.paramDynamicHeadWord _ _
   | Expr.dynamicBytesEq _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       pure ()
@@ -435,6 +440,7 @@ def validateExternalCallTargetsInExpr
   | Expr.calldatasize | Expr.returndataSize
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.paramDynamicHeadWord _ _
   | Expr.dynamicBytesEq _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       pure ()

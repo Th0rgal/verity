@@ -350,6 +350,14 @@ inductive Expr
       nested dynamic members; `wordOffset` indexes the element head after the
       ABI element offset has been resolved. -/
   | arrayElementDynamicWord (name : String) (index : Expr) (wordOffset : Nat)
+  /-- Checked word access inside the head of a directly-passed struct/tuple
+      parameter whose ABI encoding is dynamic.  `wordOffset` indexes the
+      parameter's head section after the outer offset pointer has been
+      resolved by the parameter loader.  Used for `param.field` projections
+      where `param` is a struct that carries nested dynamic members and the
+      projected field is a single-word static leaf at a fixed head offset.
+      (verity#1832) -/
+  | paramDynamicHeadWord (name : String) (wordOffset : Nat)
   | storageArrayLength (field : String)  -- Read the length word of a storage dynamic array (#1571)
   | storageArrayElement (field : String) (index : Expr)  -- Checked element access of a storage dynamic array (#1571)
   /-- Equality on direct `bytes` / `string` parameters loaded from calldata or memory.

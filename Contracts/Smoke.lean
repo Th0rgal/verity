@@ -1053,18 +1053,17 @@ verity_contract NamedStructDynamicProjectionRejected where
     let notes := config.notes
     return 0
 
-/--
-error: struct parameter projection from an ABI-dynamic root is not supported; use a static struct parameter or wait for nested-dynamic ABI decoding (#1832)
--/
-#guard_msgs in
-verity_contract NamedStructDynamicRootLeafProjectionRejected where
+-- Dynamic-root leaf projection (verity#1832): a single-word static field
+-- on a struct parameter whose ABI encoding is dynamic (carries nested
+-- dynamic members) is now supported. Lowers to `Expr.paramDynamicHeadWord`.
+verity_contract NamedStructDynamicRootLeafProjection where
   storage
 
   struct DynamicConfig where
     notes : Array Uint256,
     maker : Address
 
-  function badDynamicLeaf (config : DynamicConfig) : Address := do
+  function goodDynamicLeaf (config : DynamicConfig) : Address := do
     return config.maker
 
 /--
@@ -1896,6 +1895,7 @@ end SpecGenSmoke
 #check_contract SpecialEntrypointSmoke
 #check_contract TupleSmoke
 #check_contract NamedStructParamSmoke
+#check_contract NamedStructDynamicRootLeafProjection
 #check_contract CurveCutArraySmoke
 #check_contract DynamicStructArraySmoke
 #check_contract PackedStorageWriteSmoke

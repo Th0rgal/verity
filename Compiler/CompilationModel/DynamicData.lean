@@ -32,6 +32,12 @@ def checkedArrayElementDynamicWordCalldataHelperName : String :=
 def checkedArrayElementDynamicWordMemoryHelperName : String :=
   "__verity_array_element_dynamic_word_memory_checked"
 
+def checkedParamDynamicHeadWordCalldataHelperName : String :=
+  "__verity_param_dynamic_head_word_calldata_checked"
+
+def checkedParamDynamicHeadWordMemoryHelperName : String :=
+  "__verity_param_dynamic_head_word_memory_checked"
+
 def checkedStorageArrayElementHelperName : String :=
   "__verity_storage_array_element_checked"
 
@@ -130,6 +136,39 @@ def checkedArrayElementDynamicWordCalldataHelper : YulStmt :=
 
 def checkedArrayElementDynamicWordMemoryHelper : YulStmt :=
   checkedArrayElementDynamicWordHelper checkedArrayElementDynamicWordMemoryHelperName "mload" none
+
+/-- Yul helper for `Expr.paramDynamicHeadWord` (verity#1832). Reads the
+    word at `data_offset + word_offset * 32`, where `data_offset` is the
+    `{name}_data_offset` produced by `genDynamicParamLoads` for a
+    dynamic-tuple parameter (verity#1839 ensures this points at the
+    first head word of the tuple, not 32 bytes past it). Reverts if the
+    computed position would read past `calldatasize - 32` (calldata
+    variant); the memory variant trusts its source. -/
+private def checkedParamDynamicHeadWordHelper (helperName loadOp : String) (sizeExpr? : Option YulExpr) : YulStmt :=
+  let wordPos := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.call "mul" [YulExpr.ident "word_offset", YulExpr.lit 32]
+  ]
+  let sizeCheck :=
+    match sizeExpr? with
+    | some sizeExpr =>
+        [YulStmt.if_ (YulExpr.call "gt" [
+          YulExpr.ident "__head_word_pos",
+          YulExpr.call "sub" [sizeExpr, YulExpr.lit 32]
+        ]) [
+          YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+        ]]
+    | none => []
+  YulStmt.funcDef helperName ["data_offset", "word_offset"] ["word"] (
+    [YulStmt.let_ "__head_word_pos" wordPos] ++ sizeCheck ++ [
+      YulStmt.assign "word" (YulExpr.call loadOp [YulExpr.ident "__head_word_pos"])
+    ])
+
+def checkedParamDynamicHeadWordCalldataHelper : YulStmt :=
+  checkedParamDynamicHeadWordHelper checkedParamDynamicHeadWordCalldataHelperName "calldataload" (some (YulExpr.call "calldatasize" []))
+
+def checkedParamDynamicHeadWordMemoryHelper : YulStmt :=
+  checkedParamDynamicHeadWordHelper checkedParamDynamicHeadWordMemoryHelperName "mload" none
 
 def checkedStorageArrayElementHelper : YulStmt :=
   YulStmt.funcDef checkedStorageArrayElementHelperName ["slot", "index"] ["word"] [

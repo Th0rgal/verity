@@ -274,6 +274,7 @@ def exprReadsStateOrEnv : Expr → Bool
       if name == builtinExpName then exprListReadsStateOrEnv args else true
   | Expr.internalCall _ _ => true
   | Expr.arrayLength _ => false
+  | Expr.paramDynamicHeadWord _ _ => false
   | Expr.storageArrayLength _ => true
   | Expr.storageArrayElement _ index => true || exprReadsStateOrEnv index
   | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _ => exprReadsStateOrEnv index
@@ -352,7 +353,14 @@ def exprWritesState : Expr → Bool
       exprWritesState index
   | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _ =>
       exprWritesState index
-  | _ =>
+  -- Pure leaves: no state writes. Listed explicitly to avoid `_mutual.eq_def`
+  -- heartbeat-ceiling failures when new constructors land.
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
+  | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance
+  | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.paramDynamicHeadWord _ _
+  | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
@@ -634,7 +642,16 @@ def exprContainsExternalCall : Expr → Bool
   | Expr.adtConstruct _ _ args =>
       exprListContainsExternalCall args
   | Expr.dynamicBytesEq _ _ => false
-  | _ => false
+  -- Pure leaves: no external call inside. Listed explicitly to avoid
+  -- `_mutual.eq_def` heartbeat-ceiling failures when new constructors land.
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
+  | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance
+  | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.storageArrayLength _
+  | Expr.paramDynamicHeadWord _ _
+  | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
+      false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -689,7 +706,16 @@ def exprMayContainExternalCall : Expr → Bool
   | Expr.adtConstruct _ _ args =>
       exprListMayContainExternalCall args
   | Expr.dynamicBytesEq _ _ => false
-  | _ => false
+  -- Pure leaves: no external call inside. Listed explicitly to avoid
+  -- `_mutual.eq_def` heartbeat-ceiling failures when new constructors land.
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
+  | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance
+  | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.storageArrayLength _
+  | Expr.paramDynamicHeadWord _ _
+  | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
+      false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -1145,6 +1171,7 @@ def exprContainsAdtConstruct : Expr → Bool
   | Expr.blobbasefee | Expr.calldatasize | Expr.returndataSize
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.paramDynamicHeadWord _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       false
 termination_by e => sizeOf e

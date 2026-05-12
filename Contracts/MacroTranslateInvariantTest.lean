@@ -338,6 +338,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.BytesEqSmoke.spec
   , Contracts.Smoke.TupleSmoke.spec
   , Contracts.Smoke.NamedStructParamSmoke.spec
+  , Contracts.Smoke.NamedStructDynamicRootLeafProjection.spec
   , Contracts.Smoke.CurveCutArraySmoke.spec
   , Contracts.Smoke.DynamicStructArraySmoke.spec
   , Contracts.Smoke.PackedStorageWriteSmoke.spec
@@ -458,6 +459,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("TupleSmoke", ["setFromPair((uint256,uint256))", "getPair(uint256)", "processConfig((address,address,uint256))"])
   , ("NamedStructParamSmoke", ["readBorrowFee((uint256,uint256))", "storeNestedFee(((uint256,uint256),address),uint256)",
       "readNestedMaker(((uint256,uint256),address))"])
+  , ("NamedStructDynamicRootLeafProjection", ["goodDynamicLeaf((uint256[],address))"])
   , ("CurveCutArraySmoke", ["firstCutXt((uint256,uint256,int256)[])", "returnCut((uint256,uint256,int256)[],uint256)",
       "storeCut((uint256,uint256,int256)[],uint256)", "storeTwoCuts((uint256,uint256,int256)[],uint256,uint256)"])
   , ("DynamicStructArraySmoke", ["tokenOf((uint256[],(address,uint256,bytes32),(uint256[],bytes32)[],address,uint256)[],uint256)",
@@ -579,6 +581,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("BytesEqSmoke", ["0xfc39552e", "0x2c16057d", "0x3eb6f0de"])
   , ("TupleSmoke", ["0x712ea680", "0xbdf391cc", "0x01b427d2"])
   , ("NamedStructParamSmoke", ["0xa01f780b", "0x38946c6d", "0x596635bb"])
+  , ("NamedStructDynamicRootLeafProjection", ["0x08ec4886"])
   , ("CurveCutArraySmoke", ["0xefca8f0f", "0x6f413e6b", "0x0d7610a3", "0xbea7dfd2"])
   , ("DynamicStructArraySmoke", ["0xcbe2b47b", "0x587d08b7", "0x0b7d2799", "0x1fae5c19"])
   , ("PackedStorageWriteSmoke", ["0xa0522387", "0x233ab149"])

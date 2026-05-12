@@ -293,6 +293,14 @@ def compileExpr (fields : List Field)
         indexExpr,
         YulExpr.lit wordOffset
       ])
+  | Expr.paramDynamicHeadWord name wordOffset => do
+      let helperName := match dynamicSource with
+        | .calldata => checkedParamDynamicHeadWordCalldataHelperName
+        | .memory => checkedParamDynamicHeadWordMemoryHelperName
+      pure (YulExpr.call helperName [
+        YulExpr.ident s!"{name}_data_offset",
+        YulExpr.lit wordOffset
+      ])
   | Expr.storageArrayLength field =>
       match findFieldWithResolvedSlot fields field with
       | some (f, slot) =>

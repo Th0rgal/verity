@@ -116,6 +116,7 @@ def validateInteropExpr (context : String) : Expr → Except String Unit
   | Expr.caller | Expr.blockTimestamp | Expr.blockNumber
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.paramDynamicHeadWord _ _
   | Expr.dynamicBytesEq _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       pure ()

@@ -1732,23 +1732,51 @@ private def paramStructProjection?
   else
     none
 
+/-- Resolve a `param.field[.field2…]` projection where `param` is a struct
+    parameter whose ABI encoding is dynamic (carries nested dynamic
+    members) and the projected leaf is a single-word static value at a
+    fixed head offset. Returns `(paramName, fieldTy, wordOffset)`. The
+    word offset is the head-word index relative to the parameter's
+    `{name}_data_offset`, which after verity#1839 points at the first
+    head word of the encoded tuple (no length prefix). (verity#1832) -/
+private def paramDynamicHeadProjection?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × ValueType × Nat) := do
+  let (root, path) ←
+    match (stripParens stx).raw with
+    | .ident _ raw _ _ =>
+        let parts := raw.toString.splitOn "."
+        let rec findParamPath : List String → Option (String × List String)
+          | [] | [_] => none
+          | rootName :: fieldName :: rest =>
+              if params.any (fun p => p.name == rootName) then
+                some (rootName, fieldName :: rest)
+              else
+                findParamPath (fieldName :: rest)
+        findParamPath parts
+    | _ =>
+        let (rootStx, path) ← structProjectionPath? stx
+        match stripParens rootStx with
+        | `(term| $id:ident) => some (toString id.getId, path)
+        | _ => none
+  let param ← params.find? (fun p => p.name == root)
+  if !valueTypeUsesDynamicData param.ty then
+    none
+  else
+    let (fieldTy, wordOffset) ← structFieldHeadOffset? param.ty path
+    if isSingleWordStaticValueType fieldTy then
+      some (root, fieldTy, wordOffset)
+    else
+      none
+
 private def isParamStructNonLeafProjection (params : Array ParamDecl) (stx : Term) : Bool :=
   match paramStructProjectionResolved? params stx with
   | some (_, fieldTy, _) => !isSingleWordStaticValueType fieldTy
   | none => false
 
-private def isParamStructDynamicRootProjection (params : Array ParamDecl) (stx : Term) : Bool :=
-  match paramStructProjectionResolved? params stx with
-  | some (_, fieldTy, rootTy) => isSingleWordStaticValueType fieldTy && valueTypeUsesDynamicData rootTy
-  | none => false
-
 private def throwStructNonLeafProjectionError (stx : Term) : CommandElabM α :=
   throwErrorAt stx
     "non-leaf struct parameter projection is not supported; project a scalar or static single-word leaf field instead (#1832)"
-
-private def throwStructDynamicRootProjectionError (stx : Term) : CommandElabM α :=
-  throwErrorAt stx
-    "struct parameter projection from an ABI-dynamic root is not supported; use a static struct parameter or wait for nested-dynamic ABI decoding (#1832)"
 
 private def renderValueType (ty : ValueType) : String :=
   reprStr ty
@@ -2191,8 +2219,8 @@ private partial def inferPureExprType
     requireWordLikeType index "arrayElement index" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
     pure fieldTy
   else
-  if isParamStructDynamicRootProjection params stx then
-    throwStructDynamicRootProjectionError stx
+  if let some (_, fieldTy, _) := paramDynamicHeadProjection? params stx then
+    pure fieldTy
   else
   if isParamStructNonLeafProjection params stx then
     throwStructNonLeafProjectionError stx
@@ -3033,8 +3061,13 @@ partial def translatePureExprWithTypes
         $(natTerm elementWords)
         $(natTerm wordOffset))
   else
-  if isParamStructDynamicRootProjection params stx then
-    throwStructDynamicRootProjectionError stx
+  -- Direct dynamic-tuple parameter leaf projection (verity#1832): read a
+  -- single-word static field at a fixed head offset from a dynamically
+  -- encoded struct parameter.
+  if let some (paramName, _fieldTy, wordOffset) := paramDynamicHeadProjection? params stx then
+    `(Compiler.CompilationModel.Expr.paramDynamicHeadWord
+      $(strTerm paramName)
+      $(natTerm wordOffset))
   else
   if isParamStructNonLeafProjection params stx then
     throwStructNonLeafProjectionError stx
