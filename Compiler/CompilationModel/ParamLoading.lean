@@ -21,6 +21,15 @@ private def dynamicArrayElementStrideWords (elemTy : ParamType) : Nat :=
   else
     max 1 (paramHeadSize elemTy / 32)
 
+/-- Whether the dynamic param shape is length-prefixed in the ABI tail.
+    Dynamic arrays (`T[]`), `bytes`, and `string` all begin with a 32-byte
+    length word followed by data. Dynamic tuples (structs containing nested
+    dynamic members) do not — their offset pointer dereferences directly
+    to the first head word of the tuple's encoding. (verity#1839) -/
+private def isLengthPrefixedDynamicShape : ParamType → Bool
+  | ParamType.bytes | ParamType.string | ParamType.array _ => true
+  | _ => false
+
 private def genDynamicParamLoads
     (loadWord : YulExpr → YulExpr) (sizeExpr : YulExpr) (headSize : Nat)
     (baseOffset : Nat) (name : String) (ty : ParamType) (headOffset : Nat) :
@@ -45,36 +54,48 @@ private def genDynamicParamLoads
   ]) [
     YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
   ]
-  let lengthLoad := YulStmt.let_ s!"{name}_length"
-    (loadWord absoluteOffset)
-  let tailHeadEndName := s!"{name}_tail_head_end"
-  let tailHeadEndLoad := YulStmt.let_ tailHeadEndName
-    (YulExpr.call "add" [absoluteOffset, YulExpr.lit 32])
-  let tailRemainingName := s!"{name}_tail_remaining"
-  let tailRemainingLoad := YulStmt.let_ tailRemainingName
-    (YulExpr.call "sub" [sizeExpr, YulExpr.ident tailHeadEndName])
-  let lengthBoundsCheck :=
-    match ty with
-    | ParamType.bytes | ParamType.string =>
-        [YulStmt.if_ (YulExpr.call "gt" [
-            YulExpr.ident s!"{name}_length",
-            YulExpr.ident tailRemainingName
-          ]) [
-            YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
-          ]]
-    | ParamType.array elemTy =>
-        let elemWords := dynamicArrayElementStrideWords elemTy
-        [YulStmt.if_ (YulExpr.call "gt" [
-            YulExpr.ident s!"{name}_length",
-            YulExpr.call "div" [YulExpr.ident tailRemainingName, YulExpr.lit (32 * elemWords)]
-          ]) [
-            YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
-          ]]
-    | _ => []
-  let dataOffsetLoad := YulStmt.let_ s!"{name}_data_offset"
-    (YulExpr.ident tailHeadEndName)
-  [offsetLoad, offsetBoundsCheck, absoluteOffsetLoad, absoluteBoundsCheck, lengthLoad, tailHeadEndLoad, tailRemainingLoad]
-    ++ lengthBoundsCheck ++ [dataOffsetLoad]
+  let preamble := [offsetLoad, offsetBoundsCheck, absoluteOffsetLoad, absoluteBoundsCheck]
+  if isLengthPrefixedDynamicShape ty then
+    -- Length-prefixed shape (T[] / bytes / string): the offset points to a
+    -- length word, the data starts 32 bytes later.
+    let lengthLoad := YulStmt.let_ s!"{name}_length"
+      (loadWord absoluteOffset)
+    let tailHeadEndName := s!"{name}_tail_head_end"
+    let tailHeadEndLoad := YulStmt.let_ tailHeadEndName
+      (YulExpr.call "add" [absoluteOffset, YulExpr.lit 32])
+    let tailRemainingName := s!"{name}_tail_remaining"
+    let tailRemainingLoad := YulStmt.let_ tailRemainingName
+      (YulExpr.call "sub" [sizeExpr, YulExpr.ident tailHeadEndName])
+    let lengthBoundsCheck :=
+      match ty with
+      | ParamType.bytes | ParamType.string =>
+          [YulStmt.if_ (YulExpr.call "gt" [
+              YulExpr.ident s!"{name}_length",
+              YulExpr.ident tailRemainingName
+            ]) [
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+            ]]
+      | ParamType.array elemTy =>
+          let elemWords := dynamicArrayElementStrideWords elemTy
+          [YulStmt.if_ (YulExpr.call "gt" [
+              YulExpr.ident s!"{name}_length",
+              YulExpr.call "div" [YulExpr.ident tailRemainingName, YulExpr.lit (32 * elemWords)]
+            ]) [
+              YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+            ]]
+      | _ => []
+    let dataOffsetLoad := YulStmt.let_ s!"{name}_data_offset"
+      (YulExpr.ident tailHeadEndName)
+    preamble ++ [lengthLoad, tailHeadEndLoad, tailRemainingLoad]
+      ++ lengthBoundsCheck ++ [dataOffsetLoad]
+  else
+    -- Dynamic tuple / fixedArray-with-dynamic-head: no length word; the
+    -- offset points directly to the first head word of the tuple. Set
+    -- `_data_offset` straight to `_abs_offset` so downstream Expr lowerings
+    -- read `_data_offset + word_offset * 32` (verity#1839, prerequisite
+    -- for verity#1832 macro routing).
+    let dataOffsetLoad := YulStmt.let_ s!"{name}_data_offset" absoluteOffset
+    preamble ++ [dataOffsetLoad]
 
 def genScalarLoad
     (loadWord : YulExpr → YulExpr) (name : String) (ty : ParamType) (offset : Nat) :
