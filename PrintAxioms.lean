@@ -2494,9 +2494,12 @@ end Verity.AxiomAudit
   Compiler.Proofs.IRGeneration.execIRStmts_single_stop_succ_succ
   Compiler.Proofs.IRGeneration.execIRStmts_single_leave_succ_succ
   Compiler.Proofs.IRGeneration.execIRStmts_single_block_stop_length_insufficient
+  Compiler.Proofs.IRGeneration.execIRStmts_continue_of_nativePreservableStraightStmts_falling_through
+  Compiler.Proofs.IRGeneration.execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave
   Compiler.Proofs.IRGeneration.IRState.withTx_sender
   Compiler.Proofs.IRGeneration.IRState.withTx_storage
   Compiler.Proofs.IRGeneration.IRState.withTx_events
+  Compiler.Proofs.IRGeneration.execIRFunction_continue_extract_eq
   Compiler.Proofs.IRGeneration.findInternalFunction?_eq_none_of_internalFunctions_nil
   Compiler.Proofs.IRGeneration.legacyCompatibleExternalBodies_of_legacyCompatibleRuntimeContract
   Compiler.Proofs.IRGeneration.evalIRExprWithInternals_eq_evalIRExpr_of_no_internal
@@ -5501,4 +5504,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5215 theorems/lemmas (3511 public, 1704 private, 0 sorry'd)
+-- Total: 5218 theorems/lemmas (3514 public, 1704 private, 0 sorry'd)
