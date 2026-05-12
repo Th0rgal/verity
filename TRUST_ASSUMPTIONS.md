@@ -113,5 +113,5 @@ High-level semantics can expose intermediate state in reverted computations. EVM
 
 ---
 
-**Last Updated**: 2026-04-20
+**Last Updated**: 2026-05-12
 **Maintainer Rule**: Update on every trust-boundary-relevant code change.

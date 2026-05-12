@@ -67,4 +67,4 @@ theorem is proved.
    command.
 5. Run `make check`; run targeted Lean builds for changed proof modules.
 
-**Last Updated**: 2026-04-21
+**Last Updated**: 2026-05-12
