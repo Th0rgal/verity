@@ -1417,12 +1417,9 @@ theorem IRStmtPreservesObsAt_of_expr_call_opaque
       | cons b rest' =>
           cases rest' with
           | nil =>
-              have hReturnFalse : func ≠ "return" := fun h =>
-                hNotReturn a b ⟨h, rfl⟩
-              have hRevertFalse : func ≠ "revert" := fun h =>
-                hNotRevert a b ⟨h, rfl⟩
-              simp only [execIRStmt, hNotSStore, hNotMStore, hNotTStore,
-                hReturnFalse, hRevertFalse, hNotLog, hv]
+              -- hNotReturn/hNotRevert hypotheses needed for type-checking but
+              -- the kernel reduces the relevant match arms directly.
+              simp only [execIRStmt, hNotSStore, hNotMStore, hNotTStore, hv]
           | cons c rest'' =>
               simp only [execIRStmt, hNotLog, hv]
 
@@ -1525,24 +1522,6 @@ def StmtsContinueFrom (state : IRState) :
   | stmt :: rest =>
       ∃ state', (∀ n, execIRStmt (n + 1) state stmt = .continue state') ∧
                 StmtsContinueFrom state' rest
-
-/-- Trivial nil construction for `StmtsContinueFrom`. -/
-@[simp] theorem StmtsContinueFrom_nil (state : IRState) :
-    StmtsContinueFrom state ([] : List YulStmt) := trivial
-
-/-- Cons constructor: assemble `StmtsContinueFrom` from a head
-`IRStmtPreservesObsAt` witness plus a tail builder. The tail builder receives
-the actual next state (from the head's existential) so it can construct
-`StmtsContinueFrom` for `rest` at that specific state. -/
-theorem StmtsContinueFrom_cons_of_IRStmtPreservesObsAt
-    (state : IRState) (stmt : YulStmt) (rest : List YulStmt)
-    (hHead : IRStmtPreservesObsAt state stmt)
-    (hRest : ∀ state',
-      (∀ n, execIRStmt (n + 1) state stmt = .continue state') →
-      StmtsContinueFrom state' rest) :
-    StmtsContinueFrom state (stmt :: rest) := by
-  obtain ⟨state', hAll⟩ := hHead
-  exact ⟨state', hAll, hRest state' hAll⟩
 
 /-- A1 (state-threaded): for a `stmts ++ [.leave]` prefix where the prefix
 satisfies `StmtsContinueFrom`, IR execution at sufficient fuel ends in
