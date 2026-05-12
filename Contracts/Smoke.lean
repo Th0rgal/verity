@@ -342,6 +342,44 @@ verity_contract SafeMulRequireSmoke where
     setStorage product next
     return next
 
+-- Solidity-0.8 default-revert arithmetic (verity#1752).
+--
+-- `addPanic` / `subPanic` / `mulPanic` / `divPanic` are ergonomic bind
+-- sources that model the Solidity 0.8 default semantics for `a + b`,
+-- `a - b`, `a * b`, `a / b` on `uint256`: revert with `Panic(0x11)` on
+-- overflow / underflow and `Panic(0x12)` on division by zero, rather
+-- than wrapping mod `2^256`. They desugar to the same IR as
+-- `let x ← requireSomeUint (safeXxx a b) "<fixed message>"`, which
+-- collapses the visual divergence from the Solidity source while
+-- still reverting on the same boundary conditions.
+verity_contract ArithmeticPanicSmoke where
+  storage
+    balance : Uint256 := slot 0
+
+  function deposit (amount : Uint256) : Uint256 := do
+    let current ← getStorage balance
+    let next ← addPanic current amount
+    setStorage balance next
+    return next
+
+  function withdraw (amount : Uint256) : Uint256 := do
+    let current ← getStorage balance
+    let next ← subPanic current amount
+    setStorage balance next
+    return next
+
+  function scaleStored (factor : Uint256) : Uint256 := do
+    let current ← getStorage balance
+    let next ← mulPanic current factor
+    setStorage balance next
+    return next
+
+  function shareStored (divisor : Uint256) : Uint256 := do
+    let current ← getStorage balance
+    let next ← divPanic current divisor
+    setStorage balance next
+    return next
+
 verity_contract SignedBuiltinSmoke where
   storage
     signedSlot : Int256 := slot 0
@@ -1890,6 +1928,7 @@ end SpecGenSmoke
 #check_contract StorageWordsSmoke
 #check_contract CustomErrorSmoke
 #check_contract SafeMulRequireSmoke
+#check_contract ArithmeticPanicSmoke
 #check_contract SignedBuiltinSmoke
 #check_contract StatelessSmoke
 #check_contract SpecialEntrypointSmoke

@@ -125,6 +125,45 @@ def requireSomeUint (opt : Option Uint256) (message : String) : Contract Uint256
     -- Return 0 as a fallback for type checking
     return 0
 
+/-! ### Solidity-0.8 default-revert arithmetic (verity#1752)
+
+These wrappers expose the same semantics as Solidity 0.8's `a + b` / `a - b` /
+`a * b` / `a / b` on `uint256`, where overflow / underflow / division-by-zero
+reverts with `Panic(0x11)` / `Panic(0x12)` rather than wrapping mod `2^256`.
+
+They are thin compositions of `safeAdd` / `safeSub` / `safeMul` / `safeDiv` with
+`requireSomeUint`, recognised by the `verity_contract` macro as ergonomic bind
+sources so contract authors can write the Solidity-faithful form on one line:
+
+```lean
+let total ← addPanic total amount
+```
+
+instead of the visually divergent
+
+```lean
+let total ← requireSomeUint (safeAdd total amount) "Overflow"
+```
+
+The macro lowers `let x ← addPanic a b` directly to the same IR as
+`let x ← requireSomeUint (safeAdd a b) "Panic(0x11): arithmetic overflow"`. -/
+
+/-- `a + b` on `Uint256` with Solidity-0.8 panic-on-overflow semantics. -/
+def addPanic (a b : Uint256) : Contract Uint256 :=
+  requireSomeUint (safeAdd a b) "Panic(0x11): arithmetic overflow"
+
+/-- `a - b` on `Uint256` with Solidity-0.8 panic-on-underflow semantics. -/
+def subPanic (a b : Uint256) : Contract Uint256 :=
+  requireSomeUint (safeSub a b) "Panic(0x11): arithmetic underflow"
+
+/-- `a * b` on `Uint256` with Solidity-0.8 panic-on-overflow semantics. -/
+def mulPanic (a b : Uint256) : Contract Uint256 :=
+  requireSomeUint (safeMul a b) "Panic(0x11): arithmetic overflow"
+
+/-- `a / b` on `Uint256` with Solidity-0.8 panic-on-division-by-zero semantics. -/
+def divPanic (a b : Uint256) : Contract Uint256 :=
+  requireSomeUint (safeDiv a b) "Panic(0x12): division by zero"
+
 -- Full-result simp lemmas for requireSomeUint
 @[simp] theorem requireSomeUint_some (v : Uint256) (msg : String) (s : ContractState) :
   (requireSomeUint (some v) msg).run s = ContractResult.success v s := rfl
