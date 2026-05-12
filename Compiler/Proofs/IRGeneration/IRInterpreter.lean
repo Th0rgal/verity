@@ -1054,77 +1054,66 @@ need to import the native-harness file (which would form a cycle via
 `NativePreservableStraightStmt` to `IRStmtPreservesObs` is deferred to
 `Compiler/Proofs/EndToEnd.lean` (Layer D's responsibility per the plan). -/
 
-/-- IR-side analog of `NativePreservableStraightStmt`: a statement that runs
-to `.continue` for any fuel `≥ 1`, preserving observable storage and events.
+/-- IR-side analog of `NativePreservableStraightStmt`: a statement whose IR
+execution terminates in `.continue _` (does not return / stop / revert /
+otherwise terminate the function body).
 
-Definitionally weaker than the native predicate (the native predicate adds
-side conditions about bridged expressions and lowering) — strictly the part
-of the native predicate that the IR-side induction in A1/A2 needs. -/
+Genuinely weaker than strict-equality on storage and events. Many
+`NativePreservableStraightStmt` constructors (sstore, log0..log4, tstore,
+mstore, etc.) DO mutate storage/events in IR semantics; the bridge to the
+native side handles that via state projection on the harness side, not via
+per-stmt identity here. The constructors of `NativePreservableStraightStmt`
+this predicate is NOT satisfied by are the explicit terminators
+(`expr_stop`, `expr_return`, `expr_revert`); those are excluded from the
+prefix shapes consumed by D1/D2 in any case. -/
 def IRStmtPreservesObs (stmt : YulStmt) : Prop :=
   ∀ fuel state, ∃ state',
-    execIRStmt (fuel + 1) state stmt = .continue state' ∧
-    state'.storage = state.storage ∧
-    state'.events = state.events
+    execIRStmt (fuel + 1) state stmt = .continue state'
 
-/-- A2 — option (b): IR-side induction for a falling-through prefix of
-`IRStmtPreservesObs` statements. Fuel `stmts.length + fuel + 1` is enough to
-walk the whole list, ending in `.continue` with storage/events preserved. -/
+/-- A2: IR-side induction for a falling-through prefix of statements that
+each terminate in `.continue _`. Fuel `stmts.length + fuel + 1` is enough to
+walk the whole list, ending in `.continue _`. -/
 theorem execIRStmts_continue_of_nativePreservableStraightStmts_falling_through
     (stmts : List YulStmt)
     (hStmts : ∀ stmt, stmt ∈ stmts → IRStmtPreservesObs stmt)
     (fuel : Nat) (state : IRState) :
     ∃ state',
-      execIRStmts (stmts.length + fuel + 1) state stmts = .continue state' ∧
-      state'.storage = state.storage ∧
-      state'.events = state.events := by
+      execIRStmts (stmts.length + fuel + 1) state stmts = .continue state' := by
   induction stmts generalizing state fuel with
   | nil =>
-      refine ⟨state, ?_, rfl, rfl⟩
+      refine ⟨state, ?_⟩
       simp [execIRStmts]
   | cons s rest ih =>
       have hHead : IRStmtPreservesObs s := hStmts s (by simp)
       have hRest : ∀ stmt, stmt ∈ rest → IRStmtPreservesObs stmt := by
         intro stmt hMem
         exact hStmts stmt (by simp [hMem])
-      -- Outer fuel: (rest.length + 1) + fuel + 1 = Nat.succ (rest.length + fuel + 1)
-      -- after one step on `s :: rest`, inner per-stmt fuel is rest.length + fuel + 1
-      -- and recursive call on `rest` receives the same.
-      obtain ⟨s', hHeadEq, hStor, hEv⟩ := hHead (rest.length + fuel) state
-      obtain ⟨s'', hRecEq, hStor', hEv'⟩ := ih hRest fuel s'
-      refine ⟨s'', ?_, ?_, ?_⟩
-      · -- Normalise outer fuel: (s :: rest).length + fuel + 1
-        --                    = (rest.length + fuel + 1) + 1, in Nat.succ form
-        have hLen :
-            (s :: rest).length + fuel + 1 = (rest.length + fuel + 1) + 1 := by
-          simp only [List.length_cons]; omega
-        rw [hLen]
-        -- (rest.length + fuel + 1) + 1 is definitionally Nat.succ (rest.length + fuel + 1)
-        simp only [execIRStmts, hHeadEq, hRecEq]
-      · rw [hStor', hStor]
-      · rw [hEv', hEv]
+      obtain ⟨s', hHeadEq⟩ := hHead (rest.length + fuel) state
+      obtain ⟨s'', hRecEq⟩ := ih hRest fuel s'
+      refine ⟨s'', ?_⟩
+      have hLen :
+          (s :: rest).length + fuel + 1 = (rest.length + fuel + 1) + 1 := by
+        simp only [List.length_cons]; omega
+      rw [hLen]
+      simp only [execIRStmts, hHeadEq, hRecEq]
 
-/-- A1 — option (b): IR-side induction for a prefix of `IRStmtPreservesObs`
-statements followed by a trailing `.leave`. Fuel `stmts.length + fuel + 2`
+/-- A1: IR-side induction for a prefix of statements that each terminate in
+`.continue _`, followed by a trailing `.leave`. Fuel `stmts.length + fuel + 2`
 is enough to walk the prefix and the `.leave` terminator, ending in
-`.continue` with storage/events preserved. -/
+`.continue _`. -/
 theorem execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave
     (stmts : List YulStmt)
     (hStmts : ∀ stmt, stmt ∈ stmts → IRStmtPreservesObs stmt)
     (fuel : Nat) (state : IRState) :
     ∃ state',
       execIRStmts (stmts.length + fuel + 2) state (stmts ++ [.leave]) =
-        .continue state' ∧
-      state'.storage = state.storage ∧
-      state'.events = state.events := by
+        .continue state' := by
   induction stmts generalizing state fuel with
   | nil =>
-      refine ⟨state, ?_, rfl, rfl⟩
-      -- ([] ++ [.leave]) = [.leave]; fuel = 0 + fuel + 2 = (fuel + 1) + 1
+      refine ⟨state, ?_⟩
       show execIRStmts (0 + fuel + 2) state ([] ++ [YulStmt.leave])
           = .continue state
       simp only [List.nil_append, Nat.zero_add]
-      -- Now: execIRStmts (fuel + 2) state [.leave] = .continue state
-      -- which is `Nat.succ (Nat.succ fuel)` form
       show execIRStmts (fuel + 1 + 1) state [YulStmt.leave] = .continue state
       simp only [execIRStmts, execIRStmt]
   | cons s rest ih =>
@@ -1132,21 +1121,18 @@ theorem execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave
       have hRest : ∀ stmt, stmt ∈ rest → IRStmtPreservesObs stmt := by
         intro stmt hMem
         exact hStmts stmt (by simp [hMem])
-      obtain ⟨s', hHeadEq, hStor, hEv⟩ := hHead (rest.length + fuel + 1) state
-      obtain ⟨s'', hRecEq, hStor', hEv'⟩ := ih hRest fuel s'
-      refine ⟨s'', ?_, ?_, ?_⟩
-      · have hLen :
-            (s :: rest).length + fuel + 2 = (rest.length + fuel + 2) + 1 := by
-          simp only [List.length_cons]; omega
-        -- LHS list: (s :: rest) ++ [.leave] = s :: (rest ++ [.leave])
-        show execIRStmts ((s :: rest).length + fuel + 2) state
-              ((s :: rest) ++ [YulStmt.leave]) = .continue s''
-        rw [hLen]
-        show execIRStmts (rest.length + fuel + 2 + 1) state
-              ((s :: rest) ++ [YulStmt.leave]) = .continue s''
-        simp only [List.cons_append, execIRStmts, hHeadEq, hRecEq]
-      · rw [hStor', hStor]
-      · rw [hEv', hEv]
+      obtain ⟨s', hHeadEq⟩ := hHead (rest.length + fuel + 1) state
+      obtain ⟨s'', hRecEq⟩ := ih hRest fuel s'
+      refine ⟨s'', ?_⟩
+      have hLen :
+          (s :: rest).length + fuel + 2 = (rest.length + fuel + 2) + 1 := by
+        simp only [List.length_cons]; omega
+      show execIRStmts ((s :: rest).length + fuel + 2) state
+            ((s :: rest) ++ [YulStmt.leave]) = .continue s''
+      rw [hLen]
+      show execIRStmts (rest.length + fuel + 2 + 1) state
+            ((s :: rest) ++ [YulStmt.leave]) = .continue s''
+      simp only [List.cons_append, execIRStmts, hHeadEq, hRecEq]
 
 /-! ## IR Function Execution -/
 
