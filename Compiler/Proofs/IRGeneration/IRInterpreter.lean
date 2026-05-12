@@ -1112,6 +1112,42 @@ def NotTerminator (stmt : YulStmt) : Prop :=
 @[simp] theorem NotTerminator_leave : NotTerminator .leave := by
   refine ⟨?_, ?_, ?_⟩ <;> · intros; intro h; cases h
 
+/-- State-relative variant of `IRStmtPreservesObs`: at this specific state,
+`stmt` runs to `.continue _` in IR. Compared with `IRStmtPreservesObs`
+(state-quantified), this allows the per-stmt witness to depend on the
+state's variable bindings — necessary for constructors like `let_`,
+`assign`, and most `expr_*` cases whose IR semantics revert when
+`evalIRExpr` fails.
+
+For the state-quantified version, only the always-continue constructors
+(`.comment`, `.leave`, `.funcDef`) satisfy the predicate unconditionally;
+this state-relative variant is what the Layer-D cross-cast actually needs. -/
+def IRStmtPreservesObsAt (state : IRState) (stmt : YulStmt) : Prop :=
+  ∀ fuel, ∃ state',
+    execIRStmt (fuel + 1) state stmt = .continue state'
+
+/-- `IRStmtPreservesObs stmt ↔ ∀ state, IRStmtPreservesObsAt state stmt`. -/
+theorem IRStmtPreservesObs_iff_forall_state (stmt : YulStmt) :
+    IRStmtPreservesObs stmt ↔ ∀ state, IRStmtPreservesObsAt state stmt := by
+  constructor
+  · intro h state fuel
+    obtain ⟨state', heq⟩ := h fuel state
+    exact ⟨state', heq⟩
+  · intro h fuel state
+    exact h state fuel
+
+@[simp] theorem IRStmtPreservesObsAt_comment (state : IRState) (text : String) :
+    IRStmtPreservesObsAt state (.comment text) := by
+  intro fuel
+  refine ⟨state, ?_⟩
+  simp only [execIRStmt]
+
+@[simp] theorem IRStmtPreservesObsAt_leave (state : IRState) :
+    IRStmtPreservesObsAt state .leave := by
+  intro fuel
+  refine ⟨state, ?_⟩
+  simp only [execIRStmt]
+
 /-- IR-side analog of `NativePreservableStraightStmt`: a statement whose IR
 execution terminates in `.continue _` (does not return / stop / revert /
 otherwise terminate the function body).
