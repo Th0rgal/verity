@@ -3198,12 +3198,14 @@ mutual
         simp [exprTouchesInternalHelperSurface,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed ha,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hb]
-    | mulDivDown a b c | mulDivUp a b c =>
+    | mulDivDown a b c | mulDivUp a b c | mulDiv512Down a b c | mulDiv512Up a b c =>
         simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
         simp [exprTouchesInternalHelperSurface,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface.1.1,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface.1.2,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface.2]
+    | paramDynamicHeadWord _ _ =>
+        simp [exprTouchesInternalHelperSurface]
     | ite c t e =>
         simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
         simp [exprTouchesInternalHelperSurface,
@@ -3600,7 +3602,8 @@ private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
       rw [exprTouchesUnsupportedCallSurface_eq_featureOr a,
           exprTouchesUnsupportedCallSurface_eq_featureOr b]
       simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
-  | mulDivDown a b c | mulDivUp a b c =>
+  | mulDivDown a b c | mulDivUp a b c
+  | mulDiv512Down a b c | mulDiv512Up a b c =>
       simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
       rw [exprTouchesUnsupportedCallSurface_eq_featureOr a,
@@ -3613,6 +3616,9 @@ private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
       rw [exprTouchesUnsupportedCallSurface_eq_featureOr a,
           exprTouchesUnsupportedCallSurface_eq_featureOr b]
       simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+  | paramDynamicHeadWord _ _ =>
+      simp [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
+        exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
 termination_by sizeOf expr
 decreasing_by all_goals (subst_vars; simp_wf; try omega)
 
@@ -3787,7 +3793,8 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
       simp [exprTouchesUnsupportedContractSurface,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed lhs hcore.1 hstate.1 hcalls.1,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed rhs hcore.2 hstate.2 hcalls.2]
-  | mulDivDown a b c | mulDivUp a b c =>
+  | mulDivDown a b c | mulDivUp a b c
+  | mulDiv512Down a b c | mulDiv512Up a b c =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp only [exprTouchesUnsupportedStateSurface, Bool.or_eq_false_iff] at hstate
       simp only [exprTouchesUnsupportedCallSurface, Bool.or_eq_false_iff] at hcalls
@@ -3795,6 +3802,8 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed a hcore.1.1 hstate.1.1 hcalls.1.1,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed b hcore.1.2 hstate.1.2 hcalls.1.2,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed c hcore.2 hstate.2 hcalls.2]
+  | paramDynamicHeadWord _ _ =>
+      simp [exprTouchesUnsupportedCoreSurface] at hcore
   | logicalNot a =>
       simp only [exprTouchesUnsupportedCoreSurface] at hcore
       simp only [exprTouchesUnsupportedStateSurface] at hstate
@@ -3866,12 +3875,15 @@ private theorem exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed cond hcore.1.1,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed thenVal hcore.1.2,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed elseVal hcore.2]
-  | mulDivDown a b c | mulDivUp a b c =>
+  | mulDivDown a b c | mulDivUp a b c
+  | mulDiv512Down a b c | mulDiv512Up a b c =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprTouchesUnsupportedCallSurface,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed a hcore.1.1,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed b hcore.1.2,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed c hcore.2]
+  | paramDynamicHeadWord _ _ =>
+      simp [exprTouchesUnsupportedCoreSurface] at hcore
   | _ => cases hcore
 termination_by sizeOf expr
 decreasing_by all_goals (subst_vars; simp_wf; try omega)
@@ -4134,12 +4146,15 @@ theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
       simp [exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.2]
-  | mulDivDown a b c | mulDivUp a b c =>
+  | mulDivDown a b c | mulDivUp a b c
+  | mulDiv512Down a b c | mulDiv512Up a b c =>
       simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
       simp [exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1.1,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1.2,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.2]
+  | paramDynamicHeadWord _ _ =>
+      simp [exprTouchesUnsupportedContractSurface] at hsurface
   | ite cond thenVal elseVal =>
       simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
       simp [exprTouchesUnsupportedHelperSurface,
@@ -4333,7 +4348,8 @@ private theorem exprUsesArrayElement_eq_false_of_coreClosed
       simp [exprUsesArrayElement,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.1,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.2]
-  | mulDivDown a b c | mulDivUp a b c =>
+  | mulDivDown a b c | mulDivUp a b c
+  | mulDiv512Down a b c | mulDiv512Up a b c =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprUsesArrayElement,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.1.1,
@@ -4349,6 +4365,7 @@ private theorem exprUsesArrayElement_eq_false_of_coreClosed
         exprUsesArrayElement_eq_false_of_coreClosed hcore.1.2,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.2]
   | storage _ | storageAddr _ => simp [exprUsesArrayElement]
+  | paramDynamicHeadWord _ _ => simp [exprTouchesUnsupportedCoreSurface] at hcore
   | _ => simp [exprTouchesUnsupportedCoreSurface] at hcore
 termination_by sizeOf expr
 decreasing_by all_goals (subst_vars; simp_wf; try omega)
@@ -4381,7 +4398,8 @@ private theorem exprUsesStorageArrayElement_eq_false_of_coreClosed
       simp [exprUsesStorageArrayElement,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.1,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.2]
-  | mulDivDown a b c | mulDivUp a b c =>
+  | mulDivDown a b c | mulDivUp a b c
+  | mulDiv512Down a b c | mulDiv512Up a b c =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprUsesStorageArrayElement,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.1.1,
@@ -4399,6 +4417,7 @@ private theorem exprUsesStorageArrayElement_eq_false_of_coreClosed
   | storage _ | storageAddr _ => simp [exprUsesStorageArrayElement]
   | arrayElement _ _ =>
       simp [exprTouchesUnsupportedCoreSurface] at hcore
+  | paramDynamicHeadWord _ _ => simp [exprTouchesUnsupportedCoreSurface] at hcore
   | _ => simp [exprTouchesUnsupportedCoreSurface] at hcore
 termination_by sizeOf expr
 decreasing_by all_goals (subst_vars; simp_wf; try omega)
@@ -4431,7 +4450,8 @@ private theorem exprUsesDynamicBytesEq_eq_false_of_coreClosed
       simp [exprUsesDynamicBytesEq,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.1,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.2]
-  | mulDivDown a b c | mulDivUp a b c =>
+  | mulDivDown a b c | mulDivUp a b c
+  | mulDiv512Down a b c | mulDiv512Up a b c =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprUsesDynamicBytesEq,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.1.1,
@@ -4447,6 +4467,7 @@ private theorem exprUsesDynamicBytesEq_eq_false_of_coreClosed
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.1.2,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.2]
   | storage _ | storageAddr _ => simp [exprUsesDynamicBytesEq]
+  | paramDynamicHeadWord _ _ => simp [exprTouchesUnsupportedCoreSurface] at hcore
   | _ => simp [exprTouchesUnsupportedCoreSurface] at hcore
 termination_by sizeOf expr
 decreasing_by all_goals (subst_vars; simp_wf; try omega)
