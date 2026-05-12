@@ -78,9 +78,13 @@ def exprContainsUnsafeLogicalCallLike (expr : Expr) : Bool :=
   | Expr.logicalAnd a b | Expr.logicalOr a b =>
       (exprContainsCallLike a || exprContainsCallLike b) ||
       exprContainsUnsafeLogicalCallLike a || exprContainsUnsafeLogicalCallLike b
-  | Expr.mulDivUp a b c
-  | Expr.mulDiv512Up a b c =>
+  | Expr.mulDivUp a b c =>
       exprContainsCallLike c ||
+      exprContainsUnsafeLogicalCallLike a || exprContainsUnsafeLogicalCallLike b || exprContainsUnsafeLogicalCallLike c
+  | Expr.mulDiv512Up a b c =>
+      -- `mulDiv512Up` lowers to a single helper-function call where each
+      -- operand is evaluated once at the call site, so a call-like `c` is
+      -- safe (no duplication). Treat it like `mulDiv512Down`. (verity#1761)
       exprContainsUnsafeLogicalCallLike a || exprContainsUnsafeLogicalCallLike b || exprContainsUnsafeLogicalCallLike c
   | Expr.wDivUp a b =>
       exprContainsCallLike b ||

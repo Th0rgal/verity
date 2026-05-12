@@ -39,6 +39,7 @@ def exprBoundNames : Expr → List String
   | .adtField _ _ _ _ storageField => [storageField]
   | .arrayElement name index | .arrayElementWord name index _ _
   | .arrayElementDynamicWord name index _ => name :: exprBoundNames index
+  | .paramDynamicHeadWord name _ => [name]
   | .arrayLength name => [name]
   | .storageArrayLength name => [name]
   | .storageArrayElement name index => name :: exprBoundNames index
@@ -49,7 +50,8 @@ def exprBoundNames : Expr → List String
   | .wDivUp a b | .min a b | .max a b | .ceilDiv a b
   | .shl a b | .shr a b | .sar a b | .signextend a b =>
       exprBoundNames a ++ exprBoundNames b
-  | .mulDivDown a b c | .mulDivUp a b c =>
+  | .mulDivDown a b c | .mulDivUp a b c
+  | .mulDiv512Down a b c | .mulDiv512Up a b c =>
       exprBoundNames a ++ exprBoundNames b ++ exprBoundNames c
   | .bitNot a | .logicalNot a => exprBoundNames a
   | .ite cond thenVal elseVal =>
