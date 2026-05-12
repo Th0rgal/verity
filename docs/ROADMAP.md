@@ -160,6 +160,20 @@ Package-boundary rule for the Unlink audit:
 - Keep Verity-core additions protocol-agnostic. A feature belongs in Verity core
   only if it models ordinary Solidity/EVM behavior or reusable audit ergonomics.
 
+Translation tracking:
+
+- The verity-benchmark case
+  [`cases/unlink_xyz/pool/`](https://github.com/lfglabs-dev/verity-benchmark/tree/main/cases/unlink_xyz/pool)
+  is the canonical Verity model of `UnlinkPool` and the verified-DSL surface
+  side of [#1760](https://github.com/lfglabs-dev/verity/issues/1760). It is
+  currently at `stage: scoped` because three public ZK entry points (`transfer`,
+  `withdraw`, `adapterWithdraw`) take struct-array parameters with nested
+  dynamic members (`uint256[] nullifierHashes`, `uint256[] newCommitments`,
+  `Ciphertext[] ciphertexts`, `Call[] calls`). The macro currently rejects
+  struct-parameter projection from an ABI-dynamic root at
+  `Verity/Macro/Translate.lean:1715`. Promotion to `build_green` is the
+  Unlink-side trigger for closing #1760.
+
 ---
 
 ## Lessons from UnlinkPool (#185)
