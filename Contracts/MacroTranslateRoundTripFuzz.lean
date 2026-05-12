@@ -152,6 +152,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.CEISmoke.spec
   , Contracts.Smoke.CEILadderSmoke.spec
   , Contracts.Smoke.RolesSmoke.spec
+  , Contracts.Smoke.RolesMappingSmoke.spec
   , Contracts.Smoke.NewtypeSmoke.spec
   , Contracts.Smoke.NewtypeStorageSmoke.spec
   , Contracts.Smoke.NamespacedStorageSmoke.spec
