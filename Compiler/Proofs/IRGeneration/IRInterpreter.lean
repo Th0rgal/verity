@@ -1054,6 +1054,64 @@ need to import the native-harness file (which would form a cycle via
 `NativePreservableStraightStmt` to `IRStmtPreservesObs` is deferred to
 `Compiler/Proofs/EndToEnd.lean` (Layer D's responsibility per the plan). -/
 
+/-- Side condition: `stmt` is not a Yul `letMany`.
+
+Rationale: the simple IR executor (`execIRStmt`) returns `.revert` on
+`.letMany` by design — `letMany` only arises in compiler output for
+internal/external function calls and try/catch, which go through the
+contract-aware `execIRStmtsWithInternals` path instead. D1/D2's prefix
+shape (`preStmts ++ [.leave]`, or `preStmts` falling through) requires
+each prefix stmt to actually `.continue` in IR, so `letMany` must be
+excluded by this side condition. -/
+def LetManyFree (stmt : YulStmt) : Prop :=
+  ∀ targets value, stmt ≠ YulStmt.letMany targets value
+
+/-- Side condition: `stmt` is not one of the three explicit IR-side
+terminators (`stop`, `return`, `revert`). These are valid
+`NativePreservableStraightStmt` constructors but produce `.stop _`,
+`.return _ _`, or `.revert _` rather than `.continue _` in IR — they
+must not appear in a prefix that ends with `.leave` (would terminate
+before the leave runs). -/
+def NotTerminator (stmt : YulStmt) : Prop :=
+  (∀ offset size,
+    stmt ≠ YulStmt.expr (YulExpr.call "return" [offset, size])) ∧
+  (∀ offset size,
+    stmt ≠ YulStmt.expr (YulExpr.call "revert" [offset, size])) ∧
+  stmt ≠ YulStmt.expr (YulExpr.call "stop" [])
+
+@[simp] theorem LetManyFree_comment (text : String) : LetManyFree (.comment text) := by
+  intro _ _ h; cases h
+
+@[simp] theorem LetManyFree_let_ (name : String) (value : YulExpr) :
+    LetManyFree (.let_ name value) := by
+  intro _ _ h; cases h
+
+@[simp] theorem LetManyFree_assign (name : String) (value : YulExpr) :
+    LetManyFree (.assign name value) := by
+  intro _ _ h; cases h
+
+@[simp] theorem LetManyFree_expr (e : YulExpr) :
+    LetManyFree (.expr e) := by
+  intro _ _ h; cases h
+
+@[simp] theorem LetManyFree_leave : LetManyFree .leave := by
+  intro _ _ h; cases h
+
+@[simp] theorem NotTerminator_comment (text : String) :
+    NotTerminator (.comment text) := by
+  refine ⟨?_, ?_, ?_⟩ <;> · intros; intro h; cases h
+
+@[simp] theorem NotTerminator_let_ (name : String) (value : YulExpr) :
+    NotTerminator (.let_ name value) := by
+  refine ⟨?_, ?_, ?_⟩ <;> · intros; intro h; cases h
+
+@[simp] theorem NotTerminator_assign (name : String) (value : YulExpr) :
+    NotTerminator (.assign name value) := by
+  refine ⟨?_, ?_, ?_⟩ <;> · intros; intro h; cases h
+
+@[simp] theorem NotTerminator_leave : NotTerminator .leave := by
+  refine ⟨?_, ?_, ?_⟩ <;> · intros; intro h; cases h
+
 /-- IR-side analog of `NativePreservableStraightStmt`: a statement whose IR
 execution terminates in `.continue _` (does not return / stop / revert /
 otherwise terminate the function body).
