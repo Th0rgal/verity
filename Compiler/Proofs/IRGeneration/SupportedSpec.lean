@@ -10,6 +10,7 @@ set_option linter.unnecessarySimpa false
 set_option linter.unusedSimpArgs false
 set_option linter.unusedTactic false
 set_option linter.unusedVariables false
+set_option maxHeartbeats 4000000
 
 namespace Compiler.Proofs.IRGeneration
 
@@ -557,6 +558,7 @@ def exprTouchesUnsupportedConstructorRawCalldataSurface : Expr → Bool
   | .chainid | .msgValue | .selfBalance | .blockTimestamp | .blockNumber
   | .blobbasefee | .constructorArg _ | .returndataSize | .extcodesize _ => false
   | .calldatasize => true
+  | .paramDynamicHeadWord _ _ => true
   | .storage _ | .storageAddr _ | .arrayLength _ | .storageArrayLength _ => false
   | .logicalNot a | .bitNot a | .mload a | .tload a | .returndataOptionalBoolAt a =>
       exprTouchesUnsupportedConstructorRawCalldataSurface a
@@ -684,6 +686,7 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .literal _ | .param _ | .caller | .contractAddress
   | .chainid | .msgValue | .blockTimestamp | .blockNumber
   | .blobbasefee | .calldatasize | .localVar _ => false
+  | .paramDynamicHeadWord _ _ => true
   | .selfBalance => true
   | .storage _ | .storageAddr _ => false
   | .add a b | .sub a b | .mul a b | .div a b | .mod a b
@@ -726,6 +729,7 @@ def exprTouchesUnsupportedStateSurface : Expr → Bool
   | .literal _ | .param _ | .caller | .contractAddress
   | .chainid | .msgValue | .selfBalance | .blockTimestamp | .blockNumber
   | .localVar _ => false
+  | .paramDynamicHeadWord _ _ => true
   | .storage _ | .storageAddr _ => true
   | .mapping _ _ | .mappingWord _ _ _ | .mappingPackedWord _ _ _ _
   | .mapping2 _ _ _ | .mapping2Word _ _ _ _ | .mappingUint _ _ | .mappingChain _ _
@@ -771,6 +775,7 @@ def exprTouchesUnsupportedCallSurface : Expr → Bool
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
   | .storageArrayLength _ => false
+  | .paramDynamicHeadWord _ _ => false
   | .mload a | .tload a | .calldataload a => exprTouchesUnsupportedCallSurface a
   | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
   | .bitAnd a b | .bitOr a b | .bitXor a b | .eq a b
@@ -813,6 +818,7 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
   | .storageArrayLength _ | .externalCall _ _ => false
+  | .paramDynamicHeadWord _ _ => false
   | .mload a | .tload a | .calldataload a => exprTouchesUnsupportedHelperSurface a
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _ => false
   | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
@@ -864,6 +870,7 @@ def exprTouchesInternalHelperSurface : Expr → Bool
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
   | .storageArrayLength _ | .externalCall _ _ => false
+  | .paramDynamicHeadWord _ _ => false
   | .mload a | .tload a | .calldataload a => exprTouchesInternalHelperSurface a
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _ => false
   | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
@@ -909,6 +916,7 @@ def exprTouchesUnsupportedForeignSurface : Expr → Bool
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
   | .storageArrayLength _ | .internalCall _ _ => false
+  | .paramDynamicHeadWord _ _ => false
   | .mload a | .tload a | .calldataload a => exprTouchesUnsupportedForeignSurface a
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _ => false
   | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
@@ -952,6 +960,7 @@ def exprTouchesUnsupportedLowLevelSurface : Expr → Bool
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
   | .storageArrayLength _ | .internalCall _ _ | .externalCall _ _ => false
+  | .paramDynamicHeadWord _ _ => false
   | .mload a | .tload a | .calldataload a => exprTouchesUnsupportedLowLevelSurface a
   | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b
   | .bitAnd a b | .bitOr a b | .bitXor a b | .eq a b
@@ -992,6 +1001,7 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .literal _ | .param _ | .caller | .contractAddress
   | .chainid | .msgValue | .blockTimestamp | .blockNumber
   | .blobbasefee | .calldatasize | .localVar _ => false
+  | .paramDynamicHeadWord _ _ => true
   | .selfBalance => true
   | .storage _ | .storageAddr _ => true
   | .add a b | .sub a b | .mul a b | .div a b | .mod a b
@@ -1655,7 +1665,8 @@ mutual
     | .slt a b | .le a b | .logicalAnd a b | .logicalOr a b | .wMulDown a b
     | .wDivUp a b | .min a b | .max a b | .ceilDiv a b =>
         exprInternalHelperCallNames a ++ exprInternalHelperCallNames b
-    | .mulDivDown a b c | .mulDivUp a b c =>
+    | .mulDivDown a b c | .mulDivUp a b c
+    | .mulDiv512Down a b c | .mulDiv512Up a b c =>
         exprInternalHelperCallNames a ++ exprInternalHelperCallNames b ++
           exprInternalHelperCallNames c
     | .bitNot a | .logicalNot a =>
@@ -1665,8 +1676,14 @@ mutual
           exprInternalHelperCallNames elseVal
     | .externalCall _ args =>
         exprListInternalHelperCallNames args
-    | _ =>
-        []
+    | .adtConstruct _ _ args =>
+        exprListInternalHelperCallNames args
+    | .literal _ | .param _ | .localVar _ | .caller | .contractAddress
+    | .chainid | .msgValue | .selfBalance | .blockTimestamp | .blockNumber
+    | .blobbasefee | .calldatasize | .returndataSize | .constructorArg _
+    | .storage _ | .storageAddr _ | .arrayLength _ | .storageArrayLength _
+    | .adtTag _ _ | .adtField _ _ _ _ _ | .dynamicBytesEq _ _
+    | .paramDynamicHeadWord _ _ => []
   termination_by e => sizeOf e
   decreasing_by all_goals simp_wf; all_goals omega
 
