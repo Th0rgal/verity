@@ -1173,6 +1173,36 @@ theorem IRStmtPreservesObsAt_of_sstore_lit_expr
       Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot v }, ?_⟩
   simp only [execIRStmt, evalIRExpr, hv]
 
+/-- Cross-cast for `.expr (.call "tstore" [offset, val])`: at any state where
+both `offset` and `val` evaluate, the stmt continues, updating transient
+storage. -/
+theorem IRStmtPreservesObsAt_of_tstore
+    (state : IRState) (offsetExpr valExpr : YulExpr)
+    (hOffsetEval : ∃ o, evalIRExpr state offsetExpr = some o)
+    (hValEval : ∃ v, evalIRExpr state valExpr = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "tstore" [offsetExpr, valExpr])) := by
+  intro fuel
+  obtain ⟨o, ho⟩ := hOffsetEval
+  obtain ⟨v, hv⟩ := hValEval
+  refine ⟨{ state with transientStorage := fun x =>
+      if x = o then v else state.transientStorage x }, ?_⟩
+  simp only [execIRStmt, ho, hv]
+
+/-- Cross-cast for `.expr (.call "mstore" [offset, val])`: at any state where
+both `offset` and `val` evaluate, the stmt continues, updating memory. -/
+theorem IRStmtPreservesObsAt_of_mstore
+    (state : IRState) (offsetExpr valExpr : YulExpr)
+    (hOffsetEval : ∃ o, evalIRExpr state offsetExpr = some o)
+    (hValEval : ∃ v, evalIRExpr state valExpr = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "mstore" [offsetExpr, valExpr])) := by
+  intro fuel
+  obtain ⟨o, ho⟩ := hOffsetEval
+  obtain ⟨v, hv⟩ := hValEval
+  refine ⟨{ state with memory := fun x => if x = o then v else state.memory x }, ?_⟩
+  simp only [execIRStmt, ho, hv]
+
 /-- IR-side analog of `NativePreservableStraightStmt`: a statement whose IR
 execution terminates in `.continue _` (does not return / stop / revert /
 otherwise terminate the function body).
