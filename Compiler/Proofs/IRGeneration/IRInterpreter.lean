@@ -23,6 +23,14 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Verity.Core
 
+-- The Layer A log-cross-cast theorems (IRStmtPreservesObsAt_of_log0..log4)
+-- use `simp` with `applyYulLogCall?` and other simp lemmas that the
+-- `linter.unusedSimpArgs` may flag as unused even when load-bearing,
+-- because they're consumed by simp's match-reduction rather than direct
+-- rewrites. Disable for this file, matching the precedent in
+-- Compiler.Proofs.IRGeneration.Function.lean (line 11).
+set_option linter.unusedSimpArgs false
+
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
@@ -1217,7 +1225,7 @@ theorem IRStmtPreservesObsAt_of_mstore8
       (.expr (.call "mstore8" [offsetExpr, valExpr])) := by
   obtain ⟨v, hv⟩ := hEval
   refine ⟨state, fun _ => ?_⟩
-  simp only [execIRStmt, isYulLogName, hv]
+  simp [execIRStmt, isYulLogName, hv]
 
 /-- Cross-cast for `.expr (.call "calldatacopy" [dst, src, sz])`: opaque
 fallthrough, continues with state unchanged given the call evaluates. -/
@@ -1229,7 +1237,7 @@ theorem IRStmtPreservesObsAt_of_calldatacopy
       (.expr (.call "calldatacopy" [dstExpr, srcExpr, sizeExpr])) := by
   obtain ⟨v, hv⟩ := hEval
   refine ⟨state, fun _ => ?_⟩
-  simp only [execIRStmt, isYulLogName, hv]
+  simp [execIRStmt, isYulLogName, hv]
 
 /-- Cross-cast for `.expr (.call "returndatacopy" [dst, src, sz])`: opaque
 fallthrough. -/
@@ -1241,7 +1249,7 @@ theorem IRStmtPreservesObsAt_of_returndatacopy
       (.expr (.call "returndatacopy" [dstExpr, srcExpr, sizeExpr])) := by
   obtain ⟨v, hv⟩ := hEval
   refine ⟨state, fun _ => ?_⟩
-  simp only [execIRStmt, isYulLogName, hv]
+  simp [execIRStmt, isYulLogName, hv]
 
 /-- Cross-cast for `.expr (.call "log0" [offset, size])`. Updates events by
 appending a Yul log entry. -/
@@ -1254,9 +1262,8 @@ theorem IRStmtPreservesObsAt_of_log0
   obtain ⟨o, ho⟩ := hOffsetEval
   obtain ⟨s, hs⟩ := hSizeEval
   refine ⟨state.appendYulLog o s [], fun _ => ?_⟩
-  simp only [execIRStmt, isYulLogName, evalIRExprs, ho, hs,
+  simp [execIRStmt, isYulLogName, evalIRExprs, ho, hs,
     Option.bind, applyYulLogCall?]
-  rfl
 
 /-- Cross-cast for `.expr (.call "log1" [offset, size, topic0])`. -/
 theorem IRStmtPreservesObsAt_of_log1
@@ -1270,9 +1277,8 @@ theorem IRStmtPreservesObsAt_of_log1
   obtain ⟨s, hs⟩ := hSizeEval
   obtain ⟨t, ht⟩ := hTopic0Eval
   refine ⟨state.appendYulLog o s [t], fun _ => ?_⟩
-  simp only [execIRStmt, isYulLogName, evalIRExprs, ho, hs, ht,
+  simp [execIRStmt, isYulLogName, evalIRExprs, ho, hs, ht,
     Option.bind, applyYulLogCall?]
-  rfl
 
 /-- Cross-cast for `.expr (.call "log2" [...])`. -/
 theorem IRStmtPreservesObsAt_of_log2
@@ -1288,9 +1294,8 @@ theorem IRStmtPreservesObsAt_of_log2
   obtain ⟨t0, ht0⟩ := hT0Eval
   obtain ⟨t1, ht1⟩ := hT1Eval
   refine ⟨state.appendYulLog o s [t0, t1], fun _ => ?_⟩
-  simp only [execIRStmt, isYulLogName, evalIRExprs, ho, hs, ht0, ht1,
+  simp [execIRStmt, isYulLogName, evalIRExprs, ho, hs, ht0, ht1,
     Option.bind, applyYulLogCall?]
-  rfl
 
 /-- Cross-cast for `.expr (.call "log3" [...])`. -/
 theorem IRStmtPreservesObsAt_of_log3
@@ -1308,9 +1313,8 @@ theorem IRStmtPreservesObsAt_of_log3
   obtain ⟨t1, ht1⟩ := hT1Eval
   obtain ⟨t2, ht2⟩ := hT2Eval
   refine ⟨state.appendYulLog o s [t0, t1, t2], fun _ => ?_⟩
-  simp only [execIRStmt, isYulLogName, evalIRExprs, ho, hs, ht0, ht1, ht2,
+  simp [execIRStmt, isYulLogName, evalIRExprs, ho, hs, ht0, ht1, ht2,
     Option.bind, applyYulLogCall?]
-  rfl
 
 /-- Cross-cast for `.expr (.call "log4" [...])`. -/
 theorem IRStmtPreservesObsAt_of_log4
@@ -1331,9 +1335,8 @@ theorem IRStmtPreservesObsAt_of_log4
   obtain ⟨t2, ht2⟩ := hT2Eval
   obtain ⟨t3, ht3⟩ := hT3Eval
   refine ⟨state.appendYulLog o s [t0, t1, t2, t3], fun _ => ?_⟩
-  simp only [execIRStmt, isYulLogName, evalIRExprs, ho, hs, ht0, ht1, ht2, ht3,
+  simp [execIRStmt, isYulLogName, evalIRExprs, ho, hs, ht0, ht1, ht2, ht3,
     Option.bind, applyYulLogCall?]
-  rfl
 
 /-- Cross-cast for `.expr (.call "sstore" [.call "mappingSlot" [base, key], val])`:
 sstore-of-mappingSlot stores `val` at the abstract mapping entry computed
@@ -1388,40 +1391,6 @@ theorem IRStmtPreservesObsAt_of_sstore_add
   -- reduction; CI's stricter Lean does not reduce the String-literal
   -- branch of the inner match via `simp only`. Use `simp` to fully reduce.
   simp [execIRStmt, hs, hv]
-
-/-- General cross-cast for `.expr (.call func args)` where `func` is NOT one
-of the special builtins (sstore/mstore/tstore/stop/return/revert/log*). The
-call falls through `execIRStmt`'s opaque-eval branch: requires the call to
-evaluate; yields `.continue state` with state unchanged. -/
-theorem IRStmtPreservesObsAt_of_expr_call_opaque
-    (state : IRState) (func : String) (args : List YulExpr)
-    (hNotSStore : func ≠ "sstore")
-    (hNotMStore : func ≠ "mstore")
-    (hNotTStore : func ≠ "tstore")
-    (hNotStop : ¬(func = "stop" ∧ args = []))
-    (hNotRevert : ∀ a b, ¬(func = "revert" ∧ args = [a, b]))
-    (hNotReturn : ∀ a b, ¬(func = "return" ∧ args = [a, b]))
-    (hNotLog : Compiler.Proofs.YulGeneration.isYulLogName func = false)
-    (hEval : ∃ v, evalIRExpr state (.call func args) = some v) :
-    IRStmtPreservesObsAt state (.expr (.call func args)) := by
-  obtain ⟨v, hv⟩ := hEval
-  refine ⟨state, fun _ => ?_⟩
-  cases args with
-  | nil =>
-      have hStopFalse : func ≠ "stop" := fun h => hNotStop ⟨h, rfl⟩
-      simp only [execIRStmt, hStopFalse, hv]
-  | cons a rest =>
-      cases rest with
-      | nil =>
-          simp only [execIRStmt, hv]
-      | cons b rest' =>
-          cases rest' with
-          | nil =>
-              -- The outer match reduces by simp's nat-of-string inequality
-              -- handling; the hypotheses are needed only for elaboration.
-              simp only [execIRStmt, hv]
-          | cons c rest'' =>
-              simp only [execIRStmt, hv]
 
 /-- IR-side analog of `NativePreservableStraightStmt`: a statement whose IR
 execution terminates in `.continue _` (does not return / stop / revert /
