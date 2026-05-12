@@ -12,7 +12,6 @@ import Contracts.ERC20.ERC20
 import Contracts.ERC721.ERC721
 import Compiler.Modules.Calls
 import Compiler.Modules.ERC20
-import Compiler.Modules.Calls
 import Compiler.Modules.Oracle
 
 namespace Contracts.Smoke
