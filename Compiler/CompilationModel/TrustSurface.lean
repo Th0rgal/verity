@@ -411,14 +411,6 @@ private def isProxyUpgradeabilityMechanic (mechanic : String) : Bool :=
 private def collectProxyUpgradeabilityMechanicsFromMechanics (mechanics : List String) : List String :=
   dedupPreserve (mechanics.filter isProxyUpgradeabilityMechanic)
 
-private def isRuntimeIntrospectionMechanic (mechanic : String) : Bool :=
-  match mechanic with
-  | "blockNumber" | "contractAddress" | "chainid" | "blobbasefee" => true
-  | _ => false
-
-private def collectRuntimeIntrospectionMechanicsFromMechanics (mechanics : List String) : List String :=
-  dedupPreserve (mechanics.filter isRuntimeIntrospectionMechanic)
-
 private partial def collectEventEmissionExprMechanics : Expr → List String
   | .externalCall _ args
   | .internalCall _ args =>
