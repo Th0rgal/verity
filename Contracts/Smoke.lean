@@ -2486,6 +2486,32 @@ verity_contract RolesSmoke where
     let current ← getStorage counter
     return current
 
+-- Mapping-keyed roles / requires(<mapping>) smoke test (verity#1837)
+--
+-- For role-as-mapping access control (the `onlyRelayer` / `onlyMinter`
+-- pattern), the role storage is a `mapping(address => uint256)` (0/1 flag)
+-- instead of a scalar Address. `requires(relayers)` then auto-injects
+-- `require(storage[relayers][caller] != 0) "Access denied: caller is not relayers"`.
+verity_contract RolesMappingSmoke where
+  storage
+    relayers : Address → Uint256 := slot 0
+    counter  : Uint256 := slot 1
+
+  constructor (initialRelayer : Address) := do
+    setMapping relayers initialRelayer 1
+
+  -- requires(relayers) auto-injects:
+  --   let sender ← msgSender
+  --   let value  ← getMapping relayers sender
+  --   require (value != 0) "Access denied: caller is not relayers"
+  function setCounter (value : Uint256) requires(relayers) : Unit := do
+    setStorage counter value
+
+  -- Normal function without access control
+  function getCounter () : Uint256 := do
+    let current ← getStorage counter
+    return current
+
 -- Newtype smoke test (#1727, Axis 1 Step 3a)
 -- Declares semantic newtypes that are erased to base types at EVM level
 verity_contract NewtypeSmoke where
@@ -2516,6 +2542,7 @@ verity_contract NewtypeSmoke where
     return current
 
 #check_contract RolesSmoke
+#check_contract RolesMappingSmoke
 #check_contract NewtypeSmoke
 
 -- Smoke test for newtype-TYPED storage fields (not just newtype params).

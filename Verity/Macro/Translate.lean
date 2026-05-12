@@ -1208,60 +1208,96 @@ private def mkInitGuardedBody
                   $[$elems:doElem]*)
       | _ => throwErrorAt fn.body "function body must be a do block"
 
+/-- Classifies a `requires(role)` annotation by the shape of the named storage
+    field. `scalarAddress` is the canonical `onlyOwner` shape — a scalar
+    Address-typed slot; the macro injects `require (caller == storage[slot])`.
+    `mappingAddress` is the role-as-mapping shape (e.g. `onlyRelayer`,
+    `onlyMinter`) — a `mapping(address => uint256)` slot used as a 0/1 flag;
+    the macro injects `require (storage[slot][caller] != 0)`. (verity#1837) -/
+private inductive RoleKind where
+  | scalarAddress
+  | mappingAddress
+
 /-- Resolve the storage field referenced by a `requires(role)` annotation.
-    The role must be an Address-typed scalar storage field. -/
+    Accepts either an Address-typed scalar field (`onlyOwner`-style) or an
+    `Address → Uint256` mapping field (`onlyRelayer`-style, verity#1837). -/
 private def resolveRoleField
     (fields : Array StorageFieldDecl) (roleIdent : Ident) (fnIdent : Ident)
-    : CommandElabM StorageFieldDecl := do
+    : CommandElabM (StorageFieldDecl × RoleKind) := do
   let roleName := toString roleIdent.getId
   match fields.find? (fun f => f.name == roleName) with
   | none =>
       throwErrorAt roleIdent s!"function '{toString fnIdent.getId}': requires references unknown storage field '{roleName}'; known fields: {(fields.map (·.name)).toList}"
   | some field =>
       match field.ty with
-      | .scalar .address | .scalar (.newtype _ .address) => pure field
-      | _ => throwErrorAt roleIdent s!"function '{toString fnIdent.getId}': requires({roleName}) must reference an Address-typed storage field, but '{roleName}' has a different type"
+      | .scalar .address | .scalar (.newtype _ .address) =>
+          pure (field, .scalarAddress)
+      | .mappingAddressToUint256 =>
+          pure (field, .mappingAddress)
+      | _ => throwErrorAt roleIdent s!"function '{toString fnIdent.getId}': requires({roleName}) must reference an Address-typed scalar storage field or an Address→Uint256 mapping (role-as-mapping), but '{roleName}' has a different type"
 
 /-- Generate IR-level prelude statements for a `requires(role)` annotation.
-    Injects `Stmt.require (Expr.eq Expr.caller (Expr.storage roleField)) "Access denied: only role"`.
-    (#1728, Axis 2 Step 2c) -/
+    Scalar Address: injects `Stmt.require (Expr.eq Expr.caller (Expr.storageAddr roleField)) message`.
+    Address→Uint256 mapping: injects `Stmt.require (Expr.mapping roleField Expr.caller) message`
+    (the truthy check works because the value is 0 or non-zero).
+    (#1728, Axis 2 Step 2c; mapping-keyed extension verity#1837) -/
 private def roleGuardPreludeStmtTerms
     (fields : Array StorageFieldDecl)
     (fn : FunctionDecl) : CommandElabM (Array Term) := do
   match fn.requiresRole with
   | none => pure #[]
   | some roleIdent =>
-      let field ← resolveRoleField fields roleIdent fn.ident
+      let (field, kind) ← resolveRoleField fields roleIdent fn.ident
       let message := strTerm s!"Access denied: caller is not {field.name}"
-      pure #[
-        ← `(Compiler.CompilationModel.Stmt.require
-              (Compiler.CompilationModel.Expr.eq
-                (Compiler.CompilationModel.Expr.caller)
-                (Compiler.CompilationModel.Expr.storageAddr $(strTerm field.name)))
-              $message)
-      ]
+      match kind with
+      | .scalarAddress =>
+          pure #[
+            ← `(Compiler.CompilationModel.Stmt.require
+                  (Compiler.CompilationModel.Expr.eq
+                    (Compiler.CompilationModel.Expr.caller)
+                    (Compiler.CompilationModel.Expr.storageAddr $(strTerm field.name)))
+                  $message)
+          ]
+      | .mappingAddress =>
+          pure #[
+            ← `(Compiler.CompilationModel.Stmt.require
+                  (Compiler.CompilationModel.Expr.mapping $(strTerm field.name)
+                    Compiler.CompilationModel.Expr.caller)
+                  $message)
+          ]
 
 /-- Transform the source-level do-block body to inject a role access control check
-    at the start.  Injects `let __sender ← msgSender; let __roleHolder ← getStorageAddr field;
-    require (__sender == __roleHolder) "Access denied: caller is not role"`.
-    (#1728, Axis 2 Step 2c) -/
+    at the start. Scalar Address: `let __sender ← msgSender; let __roleHolder ← getStorageAddr field;
+    require (__sender == __roleHolder) message`. Address→Uint256 mapping:
+    `let __sender ← msgSender; let __roleValue ← getMapping field __sender;
+    require (__roleValue != 0) message`.
+    (#1728, Axis 2 Step 2c; mapping-keyed extension verity#1837) -/
 private def mkRoleGuardedBody
     (fields : Array StorageFieldDecl)
     (fn : FunctionDecl) : CommandElabM Term := do
   match fn.requiresRole with
   | none => pure fn.body
   | some roleIdent =>
-      let field ← resolveRoleField fields roleIdent fn.ident
+      let (field, kind) ← resolveRoleField fields roleIdent fn.ident
       let senderVar := mkIdent (Name.mkSimple s!"__verity_role_sender_{field.name}")
-      let holderVar := mkIdent (Name.mkSimple s!"__verity_role_holder_{field.name}")
       let message := strTerm s!"Access denied: caller is not {field.name}"
       match fn.body with
       | `(term| do $[$elems:doElem]*) =>
-          `(do
-              let $senderVar ← msgSender
-              let $holderVar ← getStorageAddr $field.ident
-              require ($senderVar == $holderVar) $message
-              $[$elems:doElem]*)
+          match kind with
+          | .scalarAddress =>
+              let holderVar := mkIdent (Name.mkSimple s!"__verity_role_holder_{field.name}")
+              `(do
+                  let $senderVar ← msgSender
+                  let $holderVar ← getStorageAddr $field.ident
+                  require ($senderVar == $holderVar) $message
+                  $[$elems:doElem]*)
+          | .mappingAddress =>
+              let valueVar := mkIdent (Name.mkSimple s!"__verity_role_value_{field.name}")
+              `(do
+                  let $senderVar ← msgSender
+                  let $valueVar ← getMapping $field.ident $senderVar
+                  require ($valueVar != 0) $message
+                  $[$elems:doElem]*)
       | _ => throwErrorAt fn.body "function body must be a do block"
 
 private def mkImmutableBoundBody

@@ -369,6 +369,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.CEISmoke.spec
   , Contracts.Smoke.CEILadderSmoke.spec
   , Contracts.Smoke.RolesSmoke.spec
+  , Contracts.Smoke.RolesMappingSmoke.spec
   , Contracts.Smoke.NewtypeSmoke.spec
   , Contracts.Smoke.NewtypeStorageSmoke.spec
   , Contracts.Smoke.NamespacedStorageSmoke.spec
@@ -500,6 +501,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("CEISmoke", ["increment()", "getCounter()", "updateThenCall(uint256)", "callThenUpdate(uint256)"])
   , ("CEILadderSmoke", ["callThenStoreGuarded(uint256)", "callThenStoreProved(uint256)", "storeThenCall(uint256)", "increment()"])
   , ("RolesSmoke", ["setCounter(uint256)", "getCounter()"])
+  , ("RolesMappingSmoke", ["setCounter(uint256)", "getCounter()"])
   , ("NewtypeSmoke", ["mint(uint256,uint256)", "setMinter(address)", "getNextTokenId()"])
   , ("NewtypeStorageSmoke", ["setTokenId(uint256)", "getTokenId()", "setAdmin(address)", "getAdmin()"])
   , ("NamespacedStorageSmoke", ["deposit(uint256)", "getOwner()"])
@@ -612,6 +614,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("CEISmoke", ["0xd09de08a", "0x8ada066e", "0x8c468aed", "0x4955cfdb"])
   , ("CEILadderSmoke", ["0xaf0ac94c", "0xe9ab4836", "0xb6fbe456", "0xd09de08a"])
   , ("RolesSmoke", ["0x8bb5d9c3", "0x8ada066e"])
+  , ("RolesMappingSmoke", ["0x8bb5d9c3", "0x8ada066e"])
   , ("NewtypeSmoke", ["0x1b2ef1ca", "0xfca3b5aa", "0xcaa0f92a"])
   , ("NewtypeStorageSmoke", ["0xc929ccf3", "0x010a38f5", "0x704b6c02", "0x6e9960c3"])
   , ("NamespacedStorageSmoke", ["0xb6b55f25", "0x893d20e8"])
@@ -729,6 +732,10 @@ private def checkMutabilitySmoke : IO Unit := do
   let _ := @Contracts.Smoke.RolesSmoke.setCounter_requires_role
   -- getCounter has no requires → gets normal _cei_compliant
   let _ := @Contracts.Smoke.RolesSmoke.getCounter_cei_compliant
+  -- Mapping-keyed roles (verity#1837): setCounter with requires(relayers : Address → Uint256)
+  -- still produces the _requires_role theorem.
+  let _ := @Contracts.Smoke.RolesMappingSmoke.setCounter_requires_role
+  let _ := @Contracts.Smoke.RolesMappingSmoke.getCounter_cei_compliant
   -- Verify NewtypeSmoke generates standard _cei_compliant theorems (#1727, Axis 1 Step 3a).
   -- Newtypes are erased — functions compile with base types.
   let _ := @Contracts.Smoke.NewtypeSmoke.mint_cei_compliant
