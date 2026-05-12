@@ -477,3 +477,58 @@ stalled or fabricated phantom branches under the same scope. The pragmatic
 path forward is for a human engineer (or a sequence of bounded agent
 sessions, each with its own PR for one DAG node) to land the layers
 incrementally.
+
+## Implementation status & known issue with Layer A's predicate (May 2026)
+
+**Layers shipped on the PR branch (`native-evmyullean-g1-s5-s8-followup`):**
+- Layer B (B1, B2, B3) — commit `8b9077ab`. B2 is degenerate
+  (`simpa [List.append_nil] using hPre`); D2 will likely need a stronger B2.
+- Layer A (A1, A2, A3) — commits `1fdab2b2` then `ade52b0c`. The first
+  commit shipped a vacuous `IRStmtPreservesObs` predicate (required strict
+  storage AND events equality, false for sstore/log/etc). The second commit
+  weakened it to just `execIRStmt _ state stmt = .continue state'`.
+
+**Remaining issue with the weakened predicate:**
+
+Even after the weakening, `IRStmtPreservesObs` is still not satisfied
+*unconditionally* for most `NativePreservableStraightStmt` constructors.
+Reasons (visible in `IRInterpreter.lean:execIRStmt`):
+
+1. `letMany _ _` unconditionally returns `.revert state` in IR (IR's
+   semantics for `.letMany` is currently a stub revert).
+2. `let_`, `assign`, all `expr_*` constructors that take expression args
+   (`sstore`, `mstore`, `tstore`, `log0..4`, `calldatacopy`,
+   `returndatacopy`, etc.) return `.revert` when their expressions
+   fail to evaluate. The predicate quantifies over ALL states, so it
+   only holds for stmts whose expressions evaluate in every state —
+   essentially literals and well-bound references only.
+3. The 3 explicit terminators (`expr_stop`, `expr_return`, `expr_revert`)
+   are excluded by the prefix-then-`.leave` shape but the predicate has
+   no way to reflect that.
+
+So the cross-cast lemma `IRStmtPreservesObs.of_nativePreservableStraightStmt`
+that D1 was supposed to use is provable ONLY for `.comment text`. For
+everything else, D1 needs additional witnesses (state-relative
+evaluability) or a different decomposition entirely.
+
+**Recommended path for the next implementer:**
+
+The cleanest correct shape is a state-relative predicate:
+
+```lean
+def IRStmtPreservesObs (stmt : YulStmt) (state : IRState) : Prop :=
+  ∀ fuel, ∃ state', execIRStmt (fuel + 1) state stmt = .continue state'
+```
+
+Then A1/A2 thread state through the inductive hypothesis. The cross-cast
+becomes "given a NativePreservableStraightStmt and a witness that all
+intermediate states evaluate the stmt's expressions, IRStmtPreservesObs
+holds at each step." For compiled IR this is true because the compiler
+guarantees variable bindings; this fact lives in the source-side helpers
+already templated as `nativeResultsMatchOn_execIRFunction_*_markedPrefix`.
+
+**Substrate caveat:** during the May 2026 attempts, the orchestrator-worker
+substrate hit `orphan_no_runner` and freeze failures on 4/4 spawn attempts
+for Layer D and Layer EF, with no convergence in this session. Direct
+implementation across multiple turns is the only working path until the
+substrate (sandboxed.sh) is fixed.
