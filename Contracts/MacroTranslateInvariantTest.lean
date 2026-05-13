@@ -7,6 +7,7 @@ import Compiler.Selector
 import Compiler.Hex
 import Contracts
 import Contracts.Smoke
+import Contracts.Smoke.MathlibReservedBinderEscape
 import Contracts.Smoke.PackedHashECMSmoke
 import Contracts.Smoke.SelfBalanceSmoke
 import Contracts.ProxyUpgradeabilityMacroSmoke
