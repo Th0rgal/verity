@@ -1723,6 +1723,22 @@ private def arrayElementStructProjection?
   else
     none
 
+/-- Resolve `(arrayElement <param> <i>).<dynamicField>` projections whose
+    projected field is a dynamically-sized member (`Array<T>`, `bytes`,
+    `string`). Returns `(paramName, index, fieldTy, elemTy, wordOffset)`
+    just like `arrayElementStructProjection?`, but with the dynamic-leaf
+    type test inverted: this helper succeeds exactly when the projected
+    field is dynamic (so the macro can lower into
+    `Expr.arrayElementDynamicMemberLength` / future G2 element-indexing
+    constructors). (verity#1849, G1) -/
+private def arrayElementDynamicMemberProjection?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × Term × ValueType × ValueType × Nat) := do
+  let resolved@(_, _, fieldTy, _, _) ← arrayElementStructProjectionResolved? params stx
+  match fieldTy with
+  | .array _ | .bytes | .string => some resolved
+  | _ => none
+
 private def paramStructProjection?
     (params : Array ParamDecl)
     (stx : Term) : Option (String × ValueType) := do
@@ -2381,10 +2397,16 @@ private partial def inferPureExprType
         requireWordLikeType arg "low-level call" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg visitingConstants)
       pure .uint256
   | `(term| arrayLength $name:term) =>
-      match lookupNamedValueType? constDecls immutableDecls params locals (← expectStringOrIdent name) with
-      | some (.array _) => pure .uint256
-      | some ty => throwErrorAt name s!"arrayLength expects an Array value, got {renderValueType ty}"
-      | none => throwErrorAt name "unknown array value"
+      -- verity#1849, G1: accept `arrayLength (arrayElement <param> <i>).<dynField>`
+      -- projections where `dynField` is a dynamic member of the struct-array
+      -- element type. Lowers through `Expr.arrayElementDynamicMemberLength`.
+      if let some _ := arrayElementDynamicMemberProjection? params name then
+        pure .uint256
+      else
+        match lookupNamedValueType? constDecls immutableDecls params locals (← expectStringOrIdent name) with
+        | some (.array _) => pure .uint256
+        | some ty => throwErrorAt name s!"arrayLength expects an Array value, got {renderValueType ty}"
+        | none => throwErrorAt name "unknown array value"
   | `(term| arrayElement $name:term $index:term) => do
       requireWordLikeType index "arrayElement index" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
       let sourceTy ← requireDirectParamRef name "arrayElement" params
@@ -3305,7 +3327,18 @@ partial def translatePureExprWithTypes
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals outOffset visitingConstants)
           $(← translatePureExprWithTypes fields constDecls immutableDecls params locals outSize visitingConstants))
   | `(term| arrayLength $name:term) =>
-      `(Compiler.CompilationModel.Expr.arrayLength $(strTerm (← expectStringOrIdent name)))
+      -- verity#1849, G1: `arrayLength (arrayElement <param> <i>).<dynField>`
+      -- lowers through `Expr.arrayElementDynamicMemberLength`, reading the
+      -- length word of the dynamic member at the resolved head offset.
+      if let some (paramName, index, _fieldTy, _elemTy, wordOffset) :=
+          arrayElementDynamicMemberProjection? params name then
+        let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants
+        `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+            $(strTerm paramName)
+            $indexExpr
+            $(natTerm wordOffset))
+      else
+        `(Compiler.CompilationModel.Expr.arrayLength $(strTerm (← expectStringOrIdent name)))
   | `(term| arrayElement $name:term $index:term) =>
       `(Compiler.CompilationModel.Expr.arrayElement
           $(strTerm (← expectStringOrIdent name))
