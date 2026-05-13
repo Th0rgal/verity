@@ -7,6 +7,7 @@ import Compiler.Selector
 import Compiler.Hex
 import Contracts
 import Contracts.Smoke
+import Contracts.Smoke.ArrayElementDynamicMemberElementSmoke
 import Contracts.Smoke.ArrayElementDynamicMemberLengthSmoke
 import Contracts.Smoke.MathlibReservedBinderEscape
 import Contracts.Smoke.PackedHashECMSmoke
@@ -357,6 +358,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.SelfBalanceSmoke.spec
   , Contracts.Smoke.MathlibReservedBinderEscape.spec
   , Contracts.Smoke.ArrayElementDynamicMemberLengthSmoke.spec
+  , Contracts.Smoke.ArrayElementDynamicMemberElementSmoke.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
   , Contracts.Smoke.TryExternalCallSmoke.spec
@@ -489,6 +491,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("SelfBalanceSmoke", ["currentBalance()", "balancePlus(uint256)"])
   , ("MathlibReservedBinderEscape", ["transferLike(address,uint256)", "transferLikeFrom(address,address,uint256)"])
   , ("ArrayElementDynamicMemberLengthSmoke", ["proofLength((uint256[],address,uint256)[],uint256)"])
+  , ("ArrayElementDynamicMemberElementSmoke", ["proofAt((uint256[],address,uint256)[],uint256,uint256)"])
   , ("StructMappingSmoke", ["setPosition(address,uint256,uint256,address)", "totalPositionShares(address)",
       "delegateOf(address)", "setApproval(address,address,uint256,uint256)", "approvalOf(address,address)",
       "approvalNonce(address,address)"])
@@ -610,6 +613,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("SelfBalanceSmoke", ["0xce845d1d", "0x13b0662c"])
   , ("MathlibReservedBinderEscape", ["0x4fee5360", "0x4d1b4491"])
   , ("ArrayElementDynamicMemberLengthSmoke", ["0xfbb81f5b"])
+  , ("ArrayElementDynamicMemberElementSmoke", ["0x1ffe901b"])
   , ("StructMappingSmoke", ["0x468c900e", "0xe7933b6a", "0x8d22ea2a", "0xf4536007", "0xcb01943e",
       "0x6c241120"])
   , ("ExternalCallSmoke", ["0x32fdff86", "0x21209dbd"])
