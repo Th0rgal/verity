@@ -3249,6 +3249,10 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.1)
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.2)
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2)
+  | .mulDiv512Down _ _ _, hsurface =>
+      simp [exprTouchesUnsupportedContractSurface] at hsurface
+  | .mulDiv512Up _ _ _, hsurface =>
+      simp [exprTouchesUnsupportedContractSurface] at hsurface
 
 private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
     {fields : List Field}

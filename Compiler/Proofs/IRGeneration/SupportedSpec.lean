@@ -703,10 +703,10 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
         exprTouchesUnsupportedCoreSurface c
   | .wMulDown a b | .wDivUp a b =>
       exprTouchesUnsupportedCoreSurface a || exprTouchesUnsupportedCoreSurface b
-  | .mulDivDown a b c | .mulDivUp a b c
-  | .mulDiv512Down a b c | .mulDiv512Up a b c =>
+  | .mulDivDown a b c | .mulDivUp a b c =>
       exprTouchesUnsupportedCoreSurface a || exprTouchesUnsupportedCoreSurface b ||
         exprTouchesUnsupportedCoreSurface c
+  | .mulDiv512Down _ _ _ | .mulDiv512Up _ _ _ => true
   | .slt a b | .sgt a b | .sdiv a b | .smod a b | .sar a b | .signextend a b =>
       exprTouchesUnsupportedCoreSurface a || exprTouchesUnsupportedCoreSurface b
   | .mload a | .tload a | .calldataload a => exprTouchesUnsupportedCoreSurface a
@@ -1019,10 +1019,10 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
         exprTouchesUnsupportedContractSurface c
   | .wMulDown a b | .wDivUp a b =>
       exprTouchesUnsupportedContractSurface a || exprTouchesUnsupportedContractSurface b
-  | .mulDivDown a b c | .mulDivUp a b c
-  | .mulDiv512Down a b c | .mulDiv512Up a b c =>
+  | .mulDivDown a b c | .mulDivUp a b c =>
       exprTouchesUnsupportedContractSurface a || exprTouchesUnsupportedContractSurface b ||
         exprTouchesUnsupportedContractSurface c
+  | .mulDiv512Down _ _ _ | .mulDiv512Up _ _ _ => true
   | .mload a | .tload a | .calldataload a => exprTouchesUnsupportedContractSurface a
   | .mapping _ _ | .mappingWord _ _ _ | .mappingPackedWord _ _ _ _
   | .mapping2 _ _ _ | .mapping2Word _ _ _ _ | .mappingUint _ _ | .mappingChain _ _
@@ -3793,8 +3793,7 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
       simp [exprTouchesUnsupportedContractSurface,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed lhs hcore.1 hstate.1 hcalls.1,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed rhs hcore.2 hstate.2 hcalls.2]
-  | mulDivDown a b c | mulDivUp a b c
-  | mulDiv512Down a b c | mulDiv512Up a b c =>
+  | mulDivDown a b c | mulDivUp a b c =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp only [exprTouchesUnsupportedStateSurface, Bool.or_eq_false_iff] at hstate
       simp only [exprTouchesUnsupportedCallSurface, Bool.or_eq_false_iff] at hcalls
@@ -3802,6 +3801,8 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed a hcore.1.1 hstate.1.1 hcalls.1.1,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed b hcore.1.2 hstate.1.2 hcalls.1.2,
         exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed c hcore.2 hstate.2 hcalls.2]
+  | mulDiv512Down _ _ _ | mulDiv512Up _ _ _ =>
+      simp [exprTouchesUnsupportedCoreSurface] at hcore
   | paramDynamicHeadWord _ _ =>
       simp [exprTouchesUnsupportedCoreSurface] at hcore
   | logicalNot a =>
@@ -3875,13 +3876,14 @@ private theorem exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed cond hcore.1.1,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed thenVal hcore.1.2,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed elseVal hcore.2]
-  | mulDivDown a b c | mulDivUp a b c
-  | mulDiv512Down a b c | mulDiv512Up a b c =>
+  | mulDivDown a b c | mulDivUp a b c =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprTouchesUnsupportedCallSurface,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed a hcore.1.1,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed b hcore.1.2,
         exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed c hcore.2]
+  | mulDiv512Down _ _ _ | mulDiv512Up _ _ _ =>
+      simp [exprTouchesUnsupportedCoreSurface] at hcore
   | paramDynamicHeadWord _ _ =>
       simp [exprTouchesUnsupportedCoreSurface] at hcore
   | _ => cases hcore
@@ -4146,13 +4148,14 @@ theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
       simp [exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.2]
-  | mulDivDown a b c | mulDivUp a b c
-  | mulDiv512Down a b c | mulDiv512Up a b c =>
+  | mulDivDown a b c | mulDivUp a b c =>
       simp only [exprTouchesUnsupportedContractSurface, Bool.or_eq_false_iff] at hsurface
       simp [exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1.1,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.1.2,
         exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed hsurface.2]
+  | mulDiv512Down _ _ _ | mulDiv512Up _ _ _ =>
+      simp [exprTouchesUnsupportedContractSurface] at hsurface
   | paramDynamicHeadWord _ _ =>
       simp [exprTouchesUnsupportedContractSurface] at hsurface
   | ite cond thenVal elseVal =>
@@ -4348,13 +4351,14 @@ private theorem exprUsesArrayElement_eq_false_of_coreClosed
       simp [exprUsesArrayElement,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.1,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.2]
-  | mulDivDown a b c | mulDivUp a b c
-  | mulDiv512Down a b c | mulDiv512Up a b c =>
+  | mulDivDown a b c | mulDivUp a b c =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprUsesArrayElement,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.1.1,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.1.2,
         exprUsesArrayElement_eq_false_of_coreClosed hcore.2]
+  | mulDiv512Down _ _ _ | mulDiv512Up _ _ _ =>
+      simp [exprTouchesUnsupportedCoreSurface] at hcore
   | bitNot a | tload a | calldataload a | mload a =>
       simp only [exprTouchesUnsupportedCoreSurface] at hcore
       simp [exprUsesArrayElement, exprUsesArrayElement_eq_false_of_coreClosed hcore]
@@ -4398,13 +4402,14 @@ private theorem exprUsesStorageArrayElement_eq_false_of_coreClosed
       simp [exprUsesStorageArrayElement,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.1,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.2]
-  | mulDivDown a b c | mulDivUp a b c
-  | mulDiv512Down a b c | mulDiv512Up a b c =>
+  | mulDivDown a b c | mulDivUp a b c =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprUsesStorageArrayElement,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.1.1,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.1.2,
         exprUsesStorageArrayElement_eq_false_of_coreClosed hcore.2]
+  | mulDiv512Down _ _ _ | mulDiv512Up _ _ _ =>
+      simp [exprTouchesUnsupportedCoreSurface] at hcore
   | bitNot a | tload a | calldataload a | mload a =>
       simp only [exprTouchesUnsupportedCoreSurface] at hcore
       simp [exprUsesStorageArrayElement, exprUsesStorageArrayElement_eq_false_of_coreClosed hcore]
@@ -4450,13 +4455,14 @@ private theorem exprUsesDynamicBytesEq_eq_false_of_coreClosed
       simp [exprUsesDynamicBytesEq,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.1,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.2]
-  | mulDivDown a b c | mulDivUp a b c
-  | mulDiv512Down a b c | mulDiv512Up a b c =>
+  | mulDivDown a b c | mulDivUp a b c =>
       simp only [exprTouchesUnsupportedCoreSurface, Bool.or_eq_false_iff] at hcore
       simp [exprUsesDynamicBytesEq,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.1.1,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.1.2,
         exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore.2]
+  | mulDiv512Down _ _ _ | mulDiv512Up _ _ _ =>
+      simp [exprTouchesUnsupportedCoreSurface] at hcore
   | bitNot a | tload a | calldataload a | mload a =>
       simp only [exprTouchesUnsupportedCoreSurface] at hcore
       simp [exprUsesDynamicBytesEq, exprUsesDynamicBytesEq_eq_false_of_coreClosed hcore]
@@ -5334,6 +5340,562 @@ theorem SupportedSpecExceptMappingWrites.contractUsesDynamicBytesEq_eq_false
         rw [stmtListUsesDynamicBytesEq_eq_any] at this
         simpa using this
       simp [contractUsesDynamicBytesEq, hctor, hctorDynamic, hfunctionsAny]
+
+-- Helpers for paramDynamicHeadWord / mulDiv512: upstream added new Expr
+-- constructors that appear in `compileValidatedCore`'s internalFunctions
+-- gate; SupportedSpec excludes them since they aren't in `ExprCompileCore`.
+
+private theorem stmtListUsesParamDynamicHeadWord_eq_any (stmts : List Stmt) :
+    stmtListUsesParamDynamicHeadWord stmts = stmts.any stmtUsesParamDynamicHeadWord := by
+  induction stmts with
+  | nil => simp [stmtListUsesParamDynamicHeadWord, List.any]
+  | cons s ss ih => simp [stmtListUsesParamDynamicHeadWord, List.any_cons, ih]
+
+private theorem stmtListUsesMulDiv512_eq_any (stmts : List Stmt) :
+    stmtListUsesMulDiv512 stmts = stmts.any stmtUsesMulDiv512 := by
+  induction stmts with
+  | nil => simp [stmtListUsesMulDiv512, List.any]
+  | cons s ss ih => simp [stmtListUsesMulDiv512, List.any_cons, ih]
+
+private theorem exprListUsesParamDynamicHeadWord_eq_any (exprs : List Expr) :
+    exprListUsesParamDynamicHeadWord exprs = exprs.any exprUsesParamDynamicHeadWord := by
+  induction exprs with
+  | nil => simp [exprListUsesParamDynamicHeadWord, List.any]
+  | cons e es ih => simp [exprListUsesParamDynamicHeadWord, List.any_cons, ih]
+
+private theorem exprListUsesMulDiv512_eq_any (exprs : List Expr) :
+    exprListUsesMulDiv512 exprs = exprs.any exprUsesMulDiv512 := by
+  induction exprs with
+  | nil => simp [exprListUsesMulDiv512, List.any]
+  | cons e es ih => simp [exprListUsesMulDiv512, List.any_cons, ih]
+
+private theorem exprCompileCore_usesParamDynamicHeadWord_false
+    {expr : Expr}
+    (hcore : FunctionBody.ExprCompileCore expr) :
+    exprUsesParamDynamicHeadWord expr = false := by
+  induction hcore with
+  | literal | param | localVar | caller | contractAddress | msgValue
+    | blockTimestamp | blockNumber | chainid
+    | blobbasefee | calldatasize =>
+      simp [exprUsesParamDynamicHeadWord]
+  | add _ _ ihL ihR | sub _ _ ihL ihR | mul _ _ ihL ihR
+    | div _ _ ihL ihR | mod _ _ ihL ihR | eq _ _ ihL ihR
+    | lt _ _ ihL ihR | gt _ _ ihL ihR | ge _ _ ihL ihR
+    | le _ _ ihL ihR | logicalAnd _ _ ihL ihR | logicalOr _ _ ihL ihR
+    | bitAnd _ _ ihL ihR | bitOr _ _ ihL ihR | bitXor _ _ ihL ihR
+    | shl _ _ ihL ihR | shr _ _ ihL ihR
+    | min _ _ ihL ihR | max _ _ ihL ihR | ceilDiv _ _ ihL ihR
+    | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR
+    | slt _ _ ihL ihR | sgt _ _ ihL ihR | sdiv _ _ ihL ihR
+    | smod _ _ ihL ihR | sar _ _ ihL ihR | signextend _ _ ihL ihR =>
+      simp [exprUsesParamDynamicHeadWord, ihL, ihR]
+  | mulDivDown _ _ _ ihA ihB ihC | mulDivUp _ _ _ ihA ihB ihC =>
+      simp [exprUsesParamDynamicHeadWord, ihA, ihB, ihC]
+  | logicalNot _ ih | bitNot _ ih | tload _ ih | calldataload _ ih | mload _ ih =>
+      simp [exprUsesParamDynamicHeadWord, ih]
+  | ite _ _ _ ihC ihT ihE =>
+      simp [exprUsesParamDynamicHeadWord, ihC, ihT, ihE]
+
+private theorem exprCompileCore_usesMulDiv512_false
+    {expr : Expr}
+    (hcore : FunctionBody.ExprCompileCore expr) :
+    exprUsesMulDiv512 expr = false := by
+  induction hcore with
+  | literal | param | localVar | caller | contractAddress | msgValue
+    | blockTimestamp | blockNumber | chainid
+    | blobbasefee | calldatasize =>
+      unfold exprUsesMulDiv512; rfl
+  | add _ _ ihL ihR | sub _ _ ihL ihR | mul _ _ ihL ihR
+    | div _ _ ihL ihR | mod _ _ ihL ihR | eq _ _ ihL ihR
+    | lt _ _ ihL ihR | gt _ _ ihL ihR | ge _ _ ihL ihR
+    | le _ _ ihL ihR | logicalAnd _ _ ihL ihR | logicalOr _ _ ihL ihR
+    | bitAnd _ _ ihL ihR | bitOr _ _ ihL ihR | bitXor _ _ ihL ihR
+    | shl _ _ ihL ihR | shr _ _ ihL ihR
+    | min _ _ ihL ihR | max _ _ ihL ihR | ceilDiv _ _ ihL ihR
+    | wMulDown _ _ ihL ihR | wDivUp _ _ ihL ihR
+    | slt _ _ ihL ihR | sgt _ _ ihL ihR | sdiv _ _ ihL ihR
+    | smod _ _ ihL ihR | sar _ _ ihL ihR | signextend _ _ ihL ihR =>
+      unfold exprUsesMulDiv512
+      simp [ihL, ihR]
+  | mulDivDown _ _ _ ihA ihB ihC | mulDivUp _ _ _ ihA ihB ihC =>
+      unfold exprUsesMulDiv512
+      simp [ihA, ihB, ihC]
+  | logicalNot _ ih | bitNot _ ih | tload _ ih | calldataload _ ih | mload _ ih =>
+      unfold exprUsesMulDiv512
+      simp [ih]
+  | ite _ _ _ ihC ihT ihE =>
+      unfold exprUsesMulDiv512
+      simp [ihC, ihT, ihE]
+
+private theorem exprListCompileCore_usesParamDynamicHeadWord_false
+    {exprs : List Expr}
+    (hcore : ∀ expr ∈ exprs, FunctionBody.ExprCompileCore expr) :
+    exprs.any exprUsesParamDynamicHeadWord = false := by
+  induction exprs with
+  | nil => rfl
+  | cons e rest ih =>
+      simp [List.any_cons,
+        exprCompileCore_usesParamDynamicHeadWord_false (hcore e (List.mem_cons_self ..)),
+        ih (fun e he => hcore e (List.mem_cons_of_mem _ he))]
+
+private theorem exprListCompileCore_usesMulDiv512_false
+    {exprs : List Expr}
+    (hcore : ∀ expr ∈ exprs, FunctionBody.ExprCompileCore expr) :
+    exprs.any exprUsesMulDiv512 = false := by
+  induction exprs with
+  | nil => rfl
+  | cons e rest ih =>
+      simp [List.any_cons,
+        exprCompileCore_usesMulDiv512_false (hcore e (List.mem_cons_self ..)),
+        ih (fun e he => hcore e (List.mem_cons_of_mem _ he))]
+
+private theorem stmtListCompileCore_usesParamDynamicHeadWord_false
+    {scope : List String} {stmts : List Stmt}
+    (hcore : FunctionBody.StmtListCompileCore scope stmts) :
+    stmts.any stmtUsesParamDynamicHeadWord = false := by
+  induction hcore with
+  | nil => rfl
+  | letVar hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue, ih]
+  | assignVar hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue, ih]
+  | require_ hcond _ _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hcond, ih]
+  | return_ hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue, ih]
+  | stop _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord, ih]
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hoffset,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue, ih]
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hoffset,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue, ih]
+
+private theorem stmtListCompileCore_usesMulDiv512_false
+    {scope : List String} {stmts : List Stmt}
+    (hcore : FunctionBody.StmtListCompileCore scope stmts) :
+    stmts.any stmtUsesMulDiv512 = false := by
+  induction hcore with
+  | nil => rfl
+  | letVar hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hvalue, ih]
+  | assignVar hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hvalue, ih]
+  | require_ hcond _ _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hcond, ih]
+  | return_ hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hvalue, ih]
+  | stop _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512, ih]
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hoffset,
+        exprCompileCore_usesMulDiv512_false hvalue, ih]
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hoffset,
+        exprCompileCore_usesMulDiv512_false hvalue, ih]
+
+private theorem stmtListTerminalCore_usesParamDynamicHeadWord_false
+    {scope : List String} {stmts : List Stmt}
+    (hcore : FunctionBody.StmtListTerminalCore scope stmts) :
+    stmts.any stmtUsesParamDynamicHeadWord = false := by
+  induction hcore with
+  | letVar hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue, ih]
+  | assignVar hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue, ih]
+  | require_ hcond _ _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hcond, ih]
+  | return_ hvalue _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue,
+        stmtListCompileCore_usesParamDynamicHeadWord_false ih]
+  | stop ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        stmtListCompileCore_usesParamDynamicHeadWord_false ih]
+  | ite hcond _ _ _ hCompile ih_then ih_else =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        stmtListUsesParamDynamicHeadWord_eq_any,
+        exprCompileCore_usesParamDynamicHeadWord_false hcond, ih_then, ih_else,
+        stmtListCompileCore_usesParamDynamicHeadWord_false hCompile]
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hoffset,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue, ih]
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hoffset,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue, ih]
+
+private theorem stmtListTerminalCore_usesMulDiv512_false
+    {scope : List String} {stmts : List Stmt}
+    (hcore : FunctionBody.StmtListTerminalCore scope stmts) :
+    stmts.any stmtUsesMulDiv512 = false := by
+  induction hcore with
+  | letVar hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hvalue, ih]
+  | assignVar hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hvalue, ih]
+  | require_ hcond _ _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hcond, ih]
+  | return_ hvalue _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hvalue,
+        stmtListCompileCore_usesMulDiv512_false ih]
+  | stop ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        stmtListCompileCore_usesMulDiv512_false ih]
+  | ite hcond _ _ _ hCompile ih_then ih_else =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        stmtListUsesMulDiv512_eq_any,
+        exprCompileCore_usesMulDiv512_false hcond, ih_then, ih_else,
+        stmtListCompileCore_usesMulDiv512_false hCompile]
+  | mstore hoffset _ hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hoffset,
+        exprCompileCore_usesMulDiv512_false hvalue, ih]
+  | tstore hoffset _ hvalue _ _ ih =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hoffset,
+        exprCompileCore_usesMulDiv512_false hvalue, ih]
+
+private theorem listAny_append {α : Type} (f : α → Bool) (xs ys : List α) :
+    (xs ++ ys).any f = (xs.any f || ys.any f) := by
+  induction xs with
+  | nil => simp
+  | cons x xs ih => simp [List.any_cons, ih, Bool.or_assoc]
+
+open Verity.Core.Free in
+private theorem supportedStmtList_usesParamDynamicHeadWord_false
+    {fields : List Field} {scope : List String} {stmts : List Stmt}
+    (h : SupportedStmtList fields scope stmts) :
+    stmts.any stmtUsesParamDynamicHeadWord = false := by
+  induction h with
+  | compileCore hcore => exact stmtListCompileCore_usesParamDynamicHeadWord_false hcore
+  | terminalCore hterminal => exact stmtListTerminalCore_usesParamDynamicHeadWord_false hterminal
+  | setStorageSingleSlot hvalue _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | setStorageAddrSingleSlot hvalue _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | mstoreSingle hoffset _ hvalue _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hoffset,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | tstoreSingle hoffset _ hvalue _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hoffset,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | letStorageField _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord, exprUsesParamDynamicHeadWord]
+  | letStorageAddrField _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord, exprUsesParamDynamicHeadWord]
+  | assignStorageField _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord, exprUsesParamDynamicHeadWord]
+  | assignStorageAddrField _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord, exprUsesParamDynamicHeadWord]
+  | emitEvent hcoreAll _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprListUsesParamDynamicHeadWord_eq_any,
+        exprListCompileCore_usesParamDynamicHeadWord_false hcoreAll]
+  | letMappingField hkey _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord, exprUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey]
+  | letMappingWordField hkey _ _ | letMappingUintField hkey _ _
+  | letMappingPackedWordField hkey _ _ | letStructMemberField hkey _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord, exprUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey]
+  | letMapping2Field hkey1 _ hkey2 _ _ | letMapping2WordField hkey1 _ hkey2 _ _
+  | letStructMember2Field hkey1 _ hkey2 _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord, exprUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey1,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey2]
+  | setMappingUintSingle hkey _ hvalue _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | setMappingChainSingle hkeys _ hvalue _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprListUsesParamDynamicHeadWord_eq_any,
+        exprListCompileCore_usesParamDynamicHeadWord_false hkeys,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | setMappingSingle hkey _ hvalue _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | setMappingWordSingle hkey _ hvalue _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | setMappingPackedWordSingle hkey _ hvalue _ _ _ _ _ _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | setStructMemberSingle hkey _ hvalue _ _ _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | setMapping2Single hkey1 _ hkey2 _ hvalue _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey1,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey2,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | setMapping2WordSingle hkey1 _ hkey2 _ hvalue _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey1,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey2,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | setStructMember2Single hkey1 _ hkey2 _ hvalue _ _ _ _ =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey1,
+        exprCompileCore_usesParamDynamicHeadWord_false hkey2,
+        exprCompileCore_usesParamDynamicHeadWord_false hvalue]
+  | requireClause clause _ ih =>
+      simp only [List.any_cons, Bool.or_eq_false_iff]
+      refine ⟨?_, ih⟩
+      cases clause with | mk family n m p q message =>
+          cases family with
+          | binary op =>
+              cases op <;>
+                simp [RequireLiteralGuardFamilyClause.toStmt,
+                  stmtUsesParamDynamicHeadWord, exprUsesParamDynamicHeadWord]
+          | andEqLt =>
+              simp [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesParamDynamicHeadWord, exprUsesParamDynamicHeadWord]
+          | orEqLt =>
+              simp [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesParamDynamicHeadWord, exprUsesParamDynamicHeadWord]
+  | iteTerminal hcond _ hthen helse =>
+      simp [List.any_cons, stmtUsesParamDynamicHeadWord,
+        stmtListUsesParamDynamicHeadWord_eq_any,
+        exprCompileCore_usesParamDynamicHeadWord_false hcond,
+        stmtListTerminalCore_usesParamDynamicHeadWord_false hthen,
+        stmtListTerminalCore_usesParamDynamicHeadWord_false helse]
+  | @append _ pfx sfx _ _ ihPfx ihSfx =>
+      rw [listAny_append, ihPfx, ihSfx]
+      simp
+
+open Verity.Core.Free in
+private theorem supportedStmtList_usesMulDiv512_false
+    {fields : List Field} {scope : List String} {stmts : List Stmt}
+    (h : SupportedStmtList fields scope stmts) :
+    stmts.any stmtUsesMulDiv512 = false := by
+  induction h with
+  | compileCore hcore => exact stmtListCompileCore_usesMulDiv512_false hcore
+  | terminalCore hterminal => exact stmtListTerminalCore_usesMulDiv512_false hterminal
+  | setStorageSingleSlot hvalue _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | setStorageAddrSingleSlot hvalue _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | mstoreSingle hoffset _ hvalue _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hoffset,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | tstoreSingle hoffset _ hvalue _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hoffset,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | letStorageField _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512, exprUsesMulDiv512]
+  | letStorageAddrField _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512, exprUsesMulDiv512]
+  | assignStorageField _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512, exprUsesMulDiv512]
+  | assignStorageAddrField _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512, exprUsesMulDiv512]
+  | emitEvent hcoreAll _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprListUsesMulDiv512_eq_any,
+        exprListCompileCore_usesMulDiv512_false hcoreAll]
+  | letMappingField hkey _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512, exprUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hkey]
+  | letMappingWordField hkey _ _ | letMappingUintField hkey _ _
+  | letMappingPackedWordField hkey _ _ | letStructMemberField hkey _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512, exprUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hkey]
+  | letMapping2Field hkey1 _ hkey2 _ _ | letMapping2WordField hkey1 _ hkey2 _ _
+  | letStructMember2Field hkey1 _ hkey2 _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512, exprUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hkey1,
+        exprCompileCore_usesMulDiv512_false hkey2]
+  | setMappingUintSingle hkey _ hvalue _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hkey,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | setMappingChainSingle hkeys _ hvalue _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprListUsesMulDiv512_eq_any,
+        exprListCompileCore_usesMulDiv512_false hkeys,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | setMappingSingle hkey _ hvalue _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hkey,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | setMappingWordSingle hkey _ hvalue _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hkey,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | setMappingPackedWordSingle hkey _ hvalue _ _ _ _ _ _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hkey,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | setStructMemberSingle hkey _ hvalue _ _ _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hkey,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | setMapping2Single hkey1 _ hkey2 _ hvalue _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hkey1,
+        exprCompileCore_usesMulDiv512_false hkey2,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | setMapping2WordSingle hkey1 _ hkey2 _ hvalue _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hkey1,
+        exprCompileCore_usesMulDiv512_false hkey2,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | setStructMember2Single hkey1 _ hkey2 _ hvalue _ _ _ _ =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        exprCompileCore_usesMulDiv512_false hkey1,
+        exprCompileCore_usesMulDiv512_false hkey2,
+        exprCompileCore_usesMulDiv512_false hvalue]
+  | requireClause clause _ ih =>
+      simp only [List.any_cons, Bool.or_eq_false_iff]
+      refine ⟨?_, ih⟩
+      cases clause with | mk family n m p q message =>
+          cases family with
+          | binary op =>
+              cases op <;>
+                simp [RequireLiteralGuardFamilyClause.toStmt,
+                  stmtUsesMulDiv512, exprUsesMulDiv512]
+          | andEqLt =>
+              simp [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesMulDiv512, exprUsesMulDiv512]
+          | orEqLt =>
+              simp [RequireLiteralGuardFamilyClause.toStmt,
+                stmtUsesMulDiv512, exprUsesMulDiv512]
+  | iteTerminal hcond _ hthen helse =>
+      simp [List.any_cons, stmtUsesMulDiv512,
+        stmtListUsesMulDiv512_eq_any,
+        exprCompileCore_usesMulDiv512_false hcond,
+        stmtListTerminalCore_usesMulDiv512_false hthen,
+        stmtListTerminalCore_usesMulDiv512_false helse]
+  | @append _ pfx sfx _ _ ihPfx ihSfx =>
+      rw [listAny_append, ihPfx, ihSfx]
+      simp
+
+theorem SupportedSpec.contractUsesParamDynamicHeadWord_eq_false
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    contractUsesParamDynamicHeadWord spec = false := by
+  have hfunctions :
+      ∀ fn ∈ spec.functions, fn.body.any stmtUsesParamDynamicHeadWord = false := by
+    intro fn hmem
+    exact supportedStmtList_usesParamDynamicHeadWord_false
+      (hSupported.functions fn hmem).body.stmtList
+  have hfunctionsAny :
+      spec.functions.any (fun fn => fn.body.any stmtUsesParamDynamicHeadWord) = false :=
+    listAny_eq_false_of_mem_eq_false
+      (fun fn => fn.body.any stmtUsesParamDynamicHeadWord) spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesParamDynamicHeadWord, hctor, hfunctionsAny]
+  | some ctor =>
+      have hctor_p :
+          ctor.body.any stmtUsesParamDynamicHeadWord = false :=
+        supportedStmtList_usesParamDynamicHeadWord_false
+          (hSupported.constructor ctor hctor).body.stmtList
+      simp [contractUsesParamDynamicHeadWord, hctor, hctor_p, hfunctionsAny]
+
+theorem SupportedSpec.contractUsesMulDiv512_eq_false
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpec spec selectors) :
+    contractUsesMulDiv512 spec = false := by
+  have hfunctions :
+      ∀ fn ∈ spec.functions, fn.body.any stmtUsesMulDiv512 = false := by
+    intro fn hmem
+    exact supportedStmtList_usesMulDiv512_false
+      (hSupported.functions fn hmem).body.stmtList
+  have hfunctionsAny :
+      spec.functions.any (fun fn => fn.body.any stmtUsesMulDiv512) = false :=
+    listAny_eq_false_of_mem_eq_false
+      (fun fn => fn.body.any stmtUsesMulDiv512) spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesMulDiv512, hctor, hfunctionsAny]
+  | some ctor =>
+      have hctor_p :
+          ctor.body.any stmtUsesMulDiv512 = false :=
+        supportedStmtList_usesMulDiv512_false
+          (hSupported.constructor ctor hctor).body.stmtList
+      simp [contractUsesMulDiv512, hctor, hctor_p, hfunctionsAny]
+
+theorem SupportedSpecExceptMappingWrites.contractUsesParamDynamicHeadWord_eq_false
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
+    contractUsesParamDynamicHeadWord spec = false := by
+  have hfunctions :
+      ∀ fn ∈ spec.functions, fn.body.any stmtUsesParamDynamicHeadWord = false := by
+    intro fn hmem
+    exact supportedStmtList_usesParamDynamicHeadWord_false
+      (hSupported.functions fn hmem).body.stmtList
+  have hfunctionsAny :
+      spec.functions.any (fun fn => fn.body.any stmtUsesParamDynamicHeadWord) = false :=
+    listAny_eq_false_of_mem_eq_false
+      (fun fn => fn.body.any stmtUsesParamDynamicHeadWord) spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesParamDynamicHeadWord, hctor, hfunctionsAny]
+  | some ctor =>
+      have hctor_p :
+          ctor.body.any stmtUsesParamDynamicHeadWord = false :=
+        supportedStmtList_usesParamDynamicHeadWord_false
+          (hSupported.constructor ctor hctor).body.stmtList
+      simp [contractUsesParamDynamicHeadWord, hctor, hctor_p, hfunctionsAny]
+
+theorem SupportedSpecExceptMappingWrites.contractUsesMulDiv512_eq_false
+    {spec : CompilationModel} {selectors : List Nat}
+    (hSupported : SupportedSpecExceptMappingWrites spec selectors) :
+    contractUsesMulDiv512 spec = false := by
+  have hfunctions :
+      ∀ fn ∈ spec.functions, fn.body.any stmtUsesMulDiv512 = false := by
+    intro fn hmem
+    exact supportedStmtList_usesMulDiv512_false
+      (hSupported.functions fn hmem).body.stmtList
+  have hfunctionsAny :
+      spec.functions.any (fun fn => fn.body.any stmtUsesMulDiv512) = false :=
+    listAny_eq_false_of_mem_eq_false
+      (fun fn => fn.body.any stmtUsesMulDiv512) spec.functions hfunctions
+  cases hctor : spec.constructor with
+  | none =>
+      simp [contractUsesMulDiv512, hctor, hfunctionsAny]
+  | some ctor =>
+      have hctor_p :
+          ctor.body.any stmtUsesMulDiv512 = false :=
+        supportedStmtList_usesMulDiv512_false
+          (hSupported.constructor ctor hctor).body.stmtList
+      simp [contractUsesMulDiv512, hctor, hctor_p, hfunctionsAny]
 
 
 theorem SupportedSpec.normalizedFields
