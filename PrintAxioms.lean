@@ -4583,6 +4583,11 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched
   Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchDefaultGuard_matched_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.lowerNativeSwitchBlock_selectorExpr_eq_nativeSwitchParts
+  Compiler.Proofs.YulGeneration.Backends.Native.reviveJump_Ok_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.reviveJump_OutOfFuel_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.reviveJump_Leave_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.reviveJump_Continue_eq
+  Compiler.Proofs.YulGeneration.Backends.Native.reviveJump_Break_eq
   Compiler.Proofs.YulGeneration.Backends.Native.state_lookup_insert_of_ne
   Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_insert_of_ne
   Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_insert_self_ok
@@ -4753,6 +4758,9 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons
   Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_cons_stmt
   Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_singleton
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_nil
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_cons
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_singleton
   Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_forall_stmt
   Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_forall_stmt_write_not_mem
   Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem
@@ -4822,6 +4830,8 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_letMany_lowerExprNative_of_bridgedExpr_mappingContract
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerAssignNative_of_bridgedExpr_mappingContract
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_empty_block
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_leave
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_empty_block
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_comment
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let_of_write_not_mem
@@ -5563,4 +5573,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5277 theorems/lemmas (3552 public, 1725 private, 0 sorry'd)
+-- Total: 5287 theorems/lemmas (3562 public, 1725 private, 0 sorry'd)
