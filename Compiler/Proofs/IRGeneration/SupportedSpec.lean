@@ -3215,7 +3215,7 @@ mutual
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed ha,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hb]
     | mulDivDown a b c | mulDivUp a b c
-  | mulDiv512Down a b c | mulDiv512Up a b c =>
+    | mulDiv512Down a b c | mulDiv512Up a b c =>
         simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
         simp [exprTouchesInternalHelperSurface,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface.1.1,
