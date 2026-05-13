@@ -4763,6 +4763,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_nil
   Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_cons
   Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_singleton
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_block
   Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_forall_stmt
   Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_forall_stmt_write_not_mem
   Compiler.Proofs.YulGeneration.Backends.Native.nativeStmtWriteNames_not_mem_of_nativeStmtsWriteNames_not_mem
@@ -4834,6 +4835,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_empty_block
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_leave
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_empty_block
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_block_leave
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_comment
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let_of_write_not_mem
@@ -5575,4 +5577,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5289 theorems/lemmas (3562 public, 1727 private, 0 sorry'd)
+-- Total: 5291 theorems/lemmas (3564 public, 1727 private, 0 sorry'd)

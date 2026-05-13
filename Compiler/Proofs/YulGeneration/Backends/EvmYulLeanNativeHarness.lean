@@ -12827,6 +12827,19 @@ theorem NativeBlockPreservesWord_revived_singleton
   NativeBlockPreservesWord_revived_cons name value stmt [] codeOverride hStmt
     (NativeBlockPreservesWord_revived_nil name value codeOverride)
 
+/-- `_revived` `.Block` constructor adapter — mirrors the OLD-form
+`NativeStmtPreservesWord_block`. `.Block body` exec and a list-body
+preservation share the same definition shape, so the witness is the
+hypothesis directly. -/
+theorem NativeStmtPreservesWord_revived_block
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hBody : NativeBlockPreservesWord_revived name value body codeOverride) :
+    NativeStmtPreservesWord_revived name value (.Block body) codeOverride :=
+  hBody
+
 theorem NativeBlockPreservesWord_of_forall_stmt
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
@@ -14498,6 +14511,18 @@ theorem NativeStmtPreservesWord_revived_empty_block
       simp [EvmYul.Yul.exec] at hExec
       subst hExec
       exact hLookup
+
+/-- `_revived` form for the `.Block [.Leave]` shape produced by E4's
+lowering of an IR `[.block [.leave]]` body. Composes the `_revived` block
+adapter with the `_revived` singleton + leave lemma. -/
+theorem NativeStmtPreservesWord_revived_block_leave
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeStmtPreservesWord_revived name value (.Block [.Leave]) codeOverride :=
+  NativeStmtPreservesWord_revived_block name value [.Leave] codeOverride
+    (NativeBlockPreservesWord_revived_singleton name value .Leave codeOverride
+      (NativeStmtPreservesWord_revived_leave name value codeOverride))
 
 theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_comment
     (name : EvmYul.Identifier)
