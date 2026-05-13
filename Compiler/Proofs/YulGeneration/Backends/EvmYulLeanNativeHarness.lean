@@ -14484,6 +14484,21 @@ theorem NativeStmtPreservesWord_revived_leave
           subst final
           simpa [EvmYul.Yul.State.setLeave] using hLookup
 
+/-- Empty-block preservation in the `_revived` form. `exec _ (.Block []) _ s`
+returns `s` unchanged, so the conclusion is just the hypothesis. -/
+theorem NativeStmtPreservesWord_revived_empty_block
+    (name : EvmYul.Identifier)
+    (expected : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeStmtPreservesWord_revived name expected (.Block []) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero => simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [EvmYul.Yul.exec] at hExec
+      subst hExec
+      exact hLookup
+
 theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_comment
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
