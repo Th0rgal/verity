@@ -44,6 +44,10 @@ verity_contract UnlinkPoolShapeCheckSmoke where
     newCommitments : Array Uint256,
     contextHash : Uint256
 
+  errors
+    error PoolInvalidInputShape ()
+    error PoolInvalidOutputShape ()
+
   -- G1: read the `.length` of a dynamic member inside a struct-array
   -- element. The macro lowers this to
   -- `Expr.arrayElementDynamicMemberLength "txs" (param "idx") wordOffset`
@@ -64,14 +68,30 @@ verity_contract UnlinkPoolShapeCheckSmoke where
   function commitmentAt (txs : Array Transaction, idx : Uint256, k : Uint256) : Uint256 := do
     return arrayElement (arrayElement txs idx).newCommitments k
 
-  -- The full shape-check pattern from `UnlinkPool.transfer` (UnlinkPool.sol:341-342)
-  -- is `if (txn.nullifierHashes.length != c.inputCount) revert PoolInvalidInputShape();`.
-  -- Translating the `requireError`/`revert` form requires combining G1 with the
-  -- existing `cmp_eq` boolean predicate; the `cmp_eq` arm currently rejects
-  -- the G1 projection on the compile-model path, so we leave the
-  -- straight-line G1/G2 reads above and document the residual gap rather
-  -- than ship a half-working revert form. The next session adds the
-  -- `cmp_eq (G1) X` lift via the same projection helper.
+  -- Mirrors UnlinkPool.transfer's `if (txn.nullifierHashes.length != c.inputCount)
+  -- revert PoolInvalidInputShape();` (UnlinkPool.sol:341). `requireError`
+  -- reverts when the predicate is `false`, so the Solidity inequality flips to
+  -- an equality predicate on `requireError`.
+  function validateInputShape (txs : Array Transaction, idx : Uint256, expectedInputCount : Uint256) : Unit := do
+    requireError ((arrayLength (arrayElement txs idx).nullifierHashes) == expectedInputCount)
+      PoolInvalidInputShape ()
+
+  -- Mirrors UnlinkPool.sol:342, same shape for the output commitments.
+  function validateOutputShape (txs : Array Transaction, idx : Uint256, expectedOutputCount : Uint256) : Unit := do
+    requireError ((arrayLength (arrayElement txs idx).newCommitments) == expectedOutputCount)
+      PoolInvalidOutputShape ()
+
+  -- NOTE: the full `forEach` loop over `txs` calling `validateInputShape` /
+  -- `validateOutputShape` per element (mirroring `UnlinkPool.transfer`'s
+  -- outer for loop) currently hits the known `forEach` macro-source
+  -- limitation: the loop binder isn't visible to executable-Lean
+  -- references inside the body (see `ForEachMutableLocalMacroRejected`
+  -- in this file's sibling tests, and the P1 "`forEach`
+  -- mutable-local verification/docs" item in `docs/ROADMAP.md`). The
+  -- single-tx shape-check helpers above already exercise the canonical
+  -- G1 + G2 sites from the production audit code; wrapping them in the
+  -- outer loop is the follow-up once the `forEach` body-elaboration
+  -- limitation is lifted.
 
 example :
     UnlinkPoolShapeCheckSmoke.nullifierCountOf_modelBody =
