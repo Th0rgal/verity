@@ -2556,6 +2556,14 @@ private def adtAliasPayloadMemoizesExprSpec : CompilationModel := {
       ]
     }
   ]
+  externals := [
+    { name := "echo"
+      params := [ParamType.uint256]
+      returnType := some ParamType.uint256
+      returns := [ParamType.uint256]
+      axiomNames := ["echo_matches_identity"]
+    }
+  ]
   adtTypes := [
     { name := "Choice"
       variants := [
