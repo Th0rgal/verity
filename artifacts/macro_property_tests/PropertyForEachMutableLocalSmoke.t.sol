@@ -26,6 +26,15 @@ contract PropertyForEachMutableLocalSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
+    // Property 2: TODO decode and assert `sumUnsafe` result
+    function testTODO_SumUnsafe_DecodeAndAssert() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("sumUnsafe(uint256[])", _singletonUintArray(1)));
+        require(ok, "sumUnsafe reverted unexpectedly");
+        assertEq(ret.length, 32, "sumUnsafe ABI return length mismatch (expected 32 bytes)");
+        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
+        ret;
+    }
 
     function _singletonUintArray(uint256 x) internal pure returns (uint256[] memory arr) {
         arr = new uint256[](1);

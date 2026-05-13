@@ -5533,6 +5533,21 @@ private partial def rewriteForEachExecutableDoElem
       let thenBranch ← rewriteForEachExecutableDoSeq thenBranch
       let elseBranch ← rewriteForEachExecutableDoSeq elseBranch
       pure #[← `(doElem| if $cond then $thenBranch else $elseBranch)]
+  | `(doElem| tryCatch $attempt:term $handler:term) =>
+      let tryCatchFn := Lean.mkIdentFrom attempt `_root_.Contracts.tryCatchWord
+      match stripParens handler with
+      | `(term| fun $name:ident => do $[$catchElems:doElem]*) =>
+          let catchElems ← rewriteForEachExecutableDoElems catchElems
+          pure #[← `(doElem| $tryCatchFn:ident $attempt (fun $name => do $[$catchElems:doElem]*))]
+      | `(term| do $[$catchElems:doElem]*) =>
+          let catchElems ← rewriteForEachExecutableDoElems catchElems
+          pure #[← `(doElem| $tryCatchFn:ident $attempt (fun _ => do $[$catchElems:doElem]*))]
+      | _ =>
+          throwErrorAt handler
+            "tryCatch handler must be `fun _ => do ...` or a direct `do ...` block"
+  | `(doElem| unsafe $_reason:str do $body:doSeq) =>
+      let body ← rewriteForEachExecutableDoSeq body
+      pure #[← `(doElem| do $body)]
   | other =>
       pure #[other]
 end

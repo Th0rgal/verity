@@ -1357,12 +1357,31 @@ verity_contract MultiReturnHelperSmoke where
 
 verity_contract ForEachMutableLocalSmoke where
   storage
+    seen : Uint256 := slot 0
 
   function sumValues (values : Array Uint256) : Uint256 := do
     let mut total := 0
     forEach "i" (arrayLength values) (do
       let value := arrayElement values i
       total := add total value)
+    return total
+
+  function allow_post_interaction_writes sumOnCatch (values : Array Uint256)
+    local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
+    : Uint256 := do
+    tryCatch (call 0 0 1 0 0 0 0) (do
+      forEach "i" (arrayLength values) (do
+        let value := arrayElement values i
+        setStorage seen value))
+    let current ← getStorage seen
+    return current
+
+  function sumUnsafe (values : Array Uint256) : Uint256 := do
+    let mut total := 0
+    unsafe "test: nested forEach binder in executable unsafe block" do
+      forEach "i" (arrayLength values) (do
+        let value := arrayElement values i
+        total := add total value)
     return total
 
 example :
