@@ -1797,6 +1797,29 @@ private def throwStructNonLeafProjectionError (stx : Term) : CommandElabM α :=
 private def renderValueType (ty : ValueType) : String :=
   reprStr ty
 
+/-- verity#1849, G3: allow `Array <wordLike>` and `bytes` / `string` as
+    external-call / event / custom-error argument types when the argument
+    is a direct param reference. The lowering still happens through
+    `Expr.param`, which becomes `YulExpr.ident name`; for `Array <T>` /
+    `bytes` / `string` direct-param leaves the resulting Yul ident is
+    really the `{name}_data_offset` / `{name}_length` pair that the
+    dynamic-data param loader already binds, so callers can forward
+    pre-decoded dynamic-data leaves directly. The CompilationModel's
+    `Expr.externalCall` Yul-call lowering accepts this shape verbatim
+    (one Yul arg per `Expr` arg) — the actual ABI encoding for downstream
+    Solidity targets is handled by the ECM / `Stmt.externalCallBind`
+    family, not by `Expr.externalCall`. -/
+private def isWordOrDirectArrayType (ty : ValueType) : Bool :=
+  match ty with
+  | .array elemTy => isSingleWordStaticValueType elemTy
+  | .bytes | .string => true
+  | _ => isWordLikeValueType ty
+
+private def requireWordOrDirectArrayType (stx : Syntax) (context : String) (ty : ValueType) : CommandElabM Unit := do
+  unless isWordOrDirectArrayType ty do
+    throwErrorAt stx
+      s!"{context} requires a word-like value or a direct `Array <wordLike>`/`bytes`/`string` parameter reference, got {renderValueType ty}"
+
 private def requireWordLikeType (stx : Syntax) (context : String) (ty : ValueType) : CommandElabM Unit := do
   unless isWordLikeValueType ty do
     throwErrorAt stx s!"{context} requires a word-like value (Uint256, Int256, Uint8, Address, or Bytes32), got {renderValueType ty}"
@@ -2442,7 +2465,9 @@ private partial def inferPureExprType
       match stripParens args with
       | `(term| [ $[$xs],* ]) =>
           for x in xs do
-            requireWordLikeType x s!"externalCall '{extName}' argument" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x visitingConstants)
+            -- verity#1849, G3: accept `Array <wordLike>` / `bytes` / `string`
+            -- direct param refs alongside word-like args.
+            requireWordOrDirectArrayType x s!"externalCall '{extName}' argument" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x visitingConstants)
       | _ => throwErrorAt args "expected list literal [..]"
       match externalDecls.find? (fun ext => ext.name == extName) with
       | some ext =>
@@ -2654,7 +2679,9 @@ private partial def inferBindSourceType
       match stripParens args with
       | `(term| [ $[$xs],* ]) =>
           for x in xs do
-            requireWordLikeType x s!"tryExternalCall '{extName}' argument"
+            -- verity#1849, G3: accept `Array <wordLike>` / `bytes` / `string`
+            -- direct param refs alongside word-like args.
+            requireWordOrDirectArrayType x s!"tryExternalCall '{extName}' argument"
               (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
       | _ => throwErrorAt args "expected list literal [..]"
       match externalDecls.find? (fun ext => ext.name == extName) with
@@ -2749,12 +2776,22 @@ private partial def inferTupleSourceTypes?
       | `(term| arrayElement $name:term $index:term) => do
           requireWordLikeType index "arrayElement index"
             (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index)
-          let sourceTy ← requireDirectParamRef name "arrayElement" params
-          match sourceTy with
-          | .array (.tuple elemTys) =>
-              let _ ← requireSupportedArrayElementTupleSourceType name "arrayElement tuple destructuring" sourceTy
-              pure (some elemTys.toArray)
-          | _ => pure none
+          -- verity#1849, G2: `arrayElement (arrayElement <param> <i>).<dynField> <k>`
+          -- never destructures into a tuple — fall through to the scalar
+          -- return path. The compound projection's name isn't a direct param
+          -- ref so `requireDirectParamRef` would throw if invoked here.
+          if (arrayElementDynamicMemberProjection? params name).isSome then
+            pure none
+          else
+            match directParamNameWithType? params name with
+            | none => pure none
+            | some _ =>
+                let sourceTy ← requireDirectParamRef name "arrayElement" params
+                match sourceTy with
+                | .array (.tuple elemTys) =>
+                    let _ ← requireSupportedArrayElementTupleSourceType name "arrayElement tuple destructuring" sourceTy
+                    pure (some elemTys.toArray)
+                | _ => pure none
       | `(term| tryExternalCall $name:term $args:term) =>
           let extName := ← expectStringOrIdent name
           match stripParens args with
@@ -3540,6 +3577,12 @@ private def arrayElementTupleElemExprs?
     (rhs : Term) : CommandElabM (Option (Array Term)) := do
   match stripParens rhs with
   | `(term| arrayElement $name:term $index:term) =>
+      -- verity#1849, G2: compound projections never destructure into a tuple.
+      if (arrayElementDynamicMemberProjection? params name).isSome then
+        return none
+      match directParamNameWithType? params name with
+      | none => return none
+      | some _ => pure ()
       let paramName := ← expectStringOrIdent name
       match params.find? (fun p => p.name == paramName) with
       | some { ty := .array (.tuple elemTys), .. } =>
@@ -3583,6 +3626,12 @@ private def arrayElementTupleDestructureStmts?
     (names : Array (Option String)) : CommandElabM (Option (Array Term × TypedLocal)) := do
   match stripParens rhs with
   | `(term| arrayElement $name:term $index:term) =>
+      -- verity#1849, G2: compound projections never destructure into a tuple.
+      if (arrayElementDynamicMemberProjection? params name).isSome then
+        return none
+      match directParamNameWithType? params name with
+      | none => return none
+      | some _ => pure ()
       let paramName := ← expectStringOrIdent name
       match params.find? (fun p => p.name == paramName) with
       | some { ty := .array (.tuple elemTys), .. } =>
@@ -3661,6 +3710,14 @@ private def arrayElementTupleReturnStmts?
     (rhs : Term) : CommandElabM (Option (Array Term × TypedLocal)) := do
   match stripParens rhs with
   | `(term| arrayElement $name:term $index:term) =>
+      -- verity#1849, G2: compound projections (`(arrayElement <p> <i>).<dynField>`)
+      -- never destructure into a tuple return — bail out without throwing on
+      -- the non-ident name. The scalar return path will pick this up.
+      if (arrayElementDynamicMemberProjection? params name).isSome then
+        return none
+      match directParamNameWithType? params name with
+      | none => return none
+      | some _ => pure ()
       let paramName := ← expectStringOrIdent name
       match params.find? (fun p => p.name == paramName) with
       | some { ty := .array (.tuple elemTys), .. } =>

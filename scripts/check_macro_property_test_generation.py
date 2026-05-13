@@ -24,6 +24,8 @@ EXCLUDED_CONTRACTS = {
     # covered by Lean macro invariant and round-trip tests instead.
     "DynamicStructArraySmoke",
     "ArrayElementDynamicMemberLengthSmoke",
+    "ArrayElementDynamicMemberElementSmoke",
+    "UnlinkPoolShapeCheckSmoke",
     # The generated no-revert stub cannot currently fund the contract before
     # exercising `callWithValue`; Lean/Yul/trust-report tests cover this ECM.
     "CallWithValueSmoke",
