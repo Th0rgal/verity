@@ -159,10 +159,15 @@ private theorem compileValidatedCore_ok_yields_internalFunctions_nil
     hSupported.contractUsesStorageArrayElement_eq_false
   have hdynamicBytesEq : contractUsesDynamicBytesEq model = false :=
     hSupported.contractUsesDynamicBytesEq_eq_false
+  have hmulDiv512 : contractUsesMulDiv512 model = false :=
+    hSupported.contractUsesMulDiv512_eq_false
+  have hparamDyn : contractUsesParamDynamicHeadWord model = false :=
+    hSupported.contractUsesParamDynamicHeadWord_eq_false
   unfold compileValidatedCore at hcore
   rw [hSupported.normalizedFields, hfallback, hreceive,
     contractUsesPlainArrayElement, contractUsesArrayElementWord, harray,
-    hstorageArray, hdynamicBytesEq, hnoInternalFns, hSupported.noAdtTypes] at hcore
+    hstorageArray, hdynamicBytesEq, hmulDiv512, hparamDyn,
+    hnoInternalFns, hSupported.noAdtTypes] at hcore
   simp only [bind, Except.bind, pure, Except.pure, List.mapM_nil] at hcore
   rcases hmap :
       ((model.functions.filter

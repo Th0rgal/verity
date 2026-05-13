@@ -475,60 +475,83 @@ def contractUsesArrayElementWord (spec : CompilationModel) : Bool :=
   contractUsesArrayElement spec &&
     (constructorUsesArrayElementWord spec.constructor || spec.functions.any functionUsesArrayElementWord)
 
-/-- Whether the given expression syntactically contains an
-    `Expr.paramDynamicHeadWord` (verity#1832). Walks the expression tree
-    rather than threading another flag through `exprUsesArrayElementKind`. -/
-partial def exprUsesParamDynamicHeadWord : Expr → Bool
+-- Whether the given expression syntactically contains an
+-- `Expr.paramDynamicHeadWord` (verity#1832). Plain `def` (not `partial`) so the
+-- `SupportedSpec.contractUsesParamDynamicHeadWord_eq_false` proof chain in
+-- `SupportedSpec.lean` can simp/unfold each case.
+mutual
+def exprUsesParamDynamicHeadWord : Expr → Bool
   | Expr.paramDynamicHeadWord _ _ => true
-  | e => match e with
-    | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
-    | Expr.mappingUint _ key | Expr.structMember _ key _
-    | Expr.storageArrayElement _ key | Expr.arrayElement _ key
-    | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _ =>
-        exprUsesParamDynamicHeadWord key
-    | Expr.mappingChain _ keys => keys.any exprUsesParamDynamicHeadWord
-    | Expr.mapping2 _ k1 k2 | Expr.mapping2Word _ k1 k2 _ | Expr.structMember2 _ k1 k2 _ =>
-        exprUsesParamDynamicHeadWord k1 || exprUsesParamDynamicHeadWord k2
-    | Expr.call gas target value inOffset inSize outOffset outSize =>
-        [gas, target, value, inOffset, inSize, outOffset, outSize].any
-          exprUsesParamDynamicHeadWord
-    | Expr.staticcall gas target inOffset inSize outOffset outSize
-    | Expr.delegatecall gas target inOffset inSize outOffset outSize =>
-        [gas, target, inOffset, inSize, outOffset, outSize].any
-          exprUsesParamDynamicHeadWord
-    | Expr.extcodesize a | Expr.mload a | Expr.tload a | Expr.calldataload a
-    | Expr.returndataOptionalBoolAt a | Expr.bitNot a | Expr.logicalNot a =>
-        exprUsesParamDynamicHeadWord a
-    | Expr.keccak256 a b =>
-        exprUsesParamDynamicHeadWord a || exprUsesParamDynamicHeadWord b
-    | Expr.externalCall _ args | Expr.internalCall _ args | Expr.adtConstruct _ _ args =>
-        args.any exprUsesParamDynamicHeadWord
-    | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
-    | Expr.mod a b | Expr.smod a b
-    | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
-    | Expr.sar a b | Expr.signextend a b
-    | Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b
-    | Expr.le a b | Expr.logicalAnd a b | Expr.logicalOr a b
-    | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b | Expr.ceilDiv a b =>
-        exprUsesParamDynamicHeadWord a || exprUsesParamDynamicHeadWord b
-    | Expr.mulDivDown a b c | Expr.mulDivUp a b c
-    | Expr.mulDiv512Down a b c | Expr.mulDiv512Up a b c
-    | Expr.ite a b c =>
-        exprUsesParamDynamicHeadWord a || exprUsesParamDynamicHeadWord b ||
-        exprUsesParamDynamicHeadWord c
-    | _ => false
+  | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
+  | Expr.mappingUint _ key | Expr.structMember _ key _
+  | Expr.storageArrayElement _ key | Expr.arrayElement _ key
+  | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _ =>
+      exprUsesParamDynamicHeadWord key
+  | Expr.mappingChain _ keys => exprListUsesParamDynamicHeadWord keys
+  | Expr.mapping2 _ k1 k2 | Expr.mapping2Word _ k1 k2 _ | Expr.structMember2 _ k1 k2 _ =>
+      exprUsesParamDynamicHeadWord k1 || exprUsesParamDynamicHeadWord k2
+  | Expr.call gas target value inOffset inSize outOffset outSize =>
+      exprUsesParamDynamicHeadWord gas || exprUsesParamDynamicHeadWord target ||
+      exprUsesParamDynamicHeadWord value || exprUsesParamDynamicHeadWord inOffset ||
+      exprUsesParamDynamicHeadWord inSize || exprUsesParamDynamicHeadWord outOffset ||
+      exprUsesParamDynamicHeadWord outSize
+  | Expr.staticcall gas target inOffset inSize outOffset outSize
+  | Expr.delegatecall gas target inOffset inSize outOffset outSize =>
+      exprUsesParamDynamicHeadWord gas || exprUsesParamDynamicHeadWord target ||
+      exprUsesParamDynamicHeadWord inOffset || exprUsesParamDynamicHeadWord inSize ||
+      exprUsesParamDynamicHeadWord outOffset || exprUsesParamDynamicHeadWord outSize
+  | Expr.extcodesize a | Expr.mload a | Expr.tload a | Expr.calldataload a
+  | Expr.returndataOptionalBoolAt a | Expr.bitNot a | Expr.logicalNot a =>
+      exprUsesParamDynamicHeadWord a
+  | Expr.keccak256 a b =>
+      exprUsesParamDynamicHeadWord a || exprUsesParamDynamicHeadWord b
+  | Expr.externalCall _ args | Expr.internalCall _ args | Expr.adtConstruct _ _ args =>
+      exprListUsesParamDynamicHeadWord args
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+  | Expr.mod a b | Expr.smod a b
+  | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
+  | Expr.sar a b | Expr.signextend a b
+  | Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b
+  | Expr.le a b | Expr.logicalAnd a b | Expr.logicalOr a b
+  | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b | Expr.ceilDiv a b =>
+      exprUsesParamDynamicHeadWord a || exprUsesParamDynamicHeadWord b
+  | Expr.mulDivDown a b c | Expr.mulDivUp a b c
+  | Expr.mulDiv512Down a b c | Expr.mulDiv512Up a b c
+  | Expr.ite a b c =>
+      exprUsesParamDynamicHeadWord a || exprUsesParamDynamicHeadWord b ||
+      exprUsesParamDynamicHeadWord c
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _
+  | Expr.storage _ | Expr.storageAddr _
+  | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance
+  | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.storageArrayLength _
+  | Expr.dynamicBytesEq _ _
+  | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
+      false
+termination_by e => sizeOf e
+decreasing_by all_goals simp_wf; all_goals omega
 
-partial def stmtUsesParamDynamicHeadWord : Stmt → Bool
+def exprListUsesParamDynamicHeadWord : List Expr → Bool
+  | [] => false
+  | e :: es => exprUsesParamDynamicHeadWord e || exprListUsesParamDynamicHeadWord es
+termination_by es => sizeOf es
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+mutual
+def stmtUsesParamDynamicHeadWord : Stmt → Bool
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value
   | Stmt.setStorageAddr _ value | Stmt.setStorageWord _ _ value
   | Stmt.storageArrayPush _ value | Stmt.return value | Stmt.require value _ =>
       exprUsesParamDynamicHeadWord value
   | Stmt.setStorageArrayElement _ index value =>
       exprUsesParamDynamicHeadWord index || exprUsesParamDynamicHeadWord value
+  | Stmt.storageArrayPop _ => false
   | Stmt.requireError cond _ args =>
-      exprUsesParamDynamicHeadWord cond || args.any exprUsesParamDynamicHeadWord
+      exprUsesParamDynamicHeadWord cond || exprListUsesParamDynamicHeadWord args
   | Stmt.revertError _ args | Stmt.emit _ args | Stmt.returnValues args =>
-      args.any exprUsesParamDynamicHeadWord
+      exprListUsesParamDynamicHeadWord args
   | Stmt.mstore offset value | Stmt.tstore offset value =>
       exprUsesParamDynamicHeadWord offset || exprUsesParamDynamicHeadWord value
   | Stmt.calldatacopy a b c | Stmt.returndataCopy a b c =>
@@ -539,30 +562,48 @@ partial def stmtUsesParamDynamicHeadWord : Stmt → Bool
   | Stmt.setStructMember _ k _ v =>
       exprUsesParamDynamicHeadWord k || exprUsesParamDynamicHeadWord v
   | Stmt.setMappingChain _ keys v =>
-      keys.any exprUsesParamDynamicHeadWord || exprUsesParamDynamicHeadWord v
+      exprListUsesParamDynamicHeadWord keys || exprUsesParamDynamicHeadWord v
   | Stmt.setMapping2 _ k1 k2 v | Stmt.setMapping2Word _ k1 k2 _ v
   | Stmt.setStructMember2 _ k1 k2 _ v =>
       exprUsesParamDynamicHeadWord k1 || exprUsesParamDynamicHeadWord k2 ||
       exprUsesParamDynamicHeadWord v
   | Stmt.ite cond thenBranch elseBranch =>
       exprUsesParamDynamicHeadWord cond ||
-      thenBranch.any stmtUsesParamDynamicHeadWord ||
-      elseBranch.any stmtUsesParamDynamicHeadWord
+        stmtListUsesParamDynamicHeadWord thenBranch ||
+        stmtListUsesParamDynamicHeadWord elseBranch
   | Stmt.forEach _ count body =>
-      exprUsesParamDynamicHeadWord count || body.any stmtUsesParamDynamicHeadWord
+      exprUsesParamDynamicHeadWord count || stmtListUsesParamDynamicHeadWord body
   | Stmt.unsafeBlock _ body =>
-      body.any stmtUsesParamDynamicHeadWord
+      stmtListUsesParamDynamicHeadWord body
   | Stmt.matchAdt _ scrutinee branches =>
-      exprUsesParamDynamicHeadWord scrutinee ||
-        branches.any (fun (_, _, body) => body.any stmtUsesParamDynamicHeadWord)
+      exprUsesParamDynamicHeadWord scrutinee || matchBranchesUseParamDynamicHeadWord branches
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args
   | Stmt.externalCallBind _ _ args | Stmt.tryExternalCallBind _ _ _ args
   | Stmt.ecm _ args =>
-      args.any exprUsesParamDynamicHeadWord
+      exprListUsesParamDynamicHeadWord args
   | Stmt.rawLog topics dataOffset dataSize =>
-      topics.any exprUsesParamDynamicHeadWord ||
-      exprUsesParamDynamicHeadWord dataOffset || exprUsesParamDynamicHeadWord dataSize
-  | _ => false
+      exprListUsesParamDynamicHeadWord topics ||
+        exprUsesParamDynamicHeadWord dataOffset ||
+        exprUsesParamDynamicHeadWord dataSize
+  | Stmt.returnArray _ | Stmt.returnBytes _ | Stmt.returnStorageWords _
+  | Stmt.revertReturndata | Stmt.stop =>
+      false
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListUsesParamDynamicHeadWord : List Stmt → Bool
+  | [] => false
+  | s :: ss => stmtUsesParamDynamicHeadWord s || stmtListUsesParamDynamicHeadWord ss
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesUseParamDynamicHeadWord : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListUsesParamDynamicHeadWord body || matchBranchesUseParamDynamicHeadWord rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
+end
 
 def contractUsesParamDynamicHeadWord (spec : CompilationModel) : Bool :=
   (match spec.constructor with
@@ -570,54 +611,80 @@ def contractUsesParamDynamicHeadWord (spec : CompilationModel) : Bool :=
     | some ctor => ctor.body.any stmtUsesParamDynamicHeadWord) ||
   spec.functions.any (fun fn => fn.body.any stmtUsesParamDynamicHeadWord)
 
-/-- Whether the given expression syntactically contains an
-    `Expr.mulDiv512Down` or `Expr.mulDiv512Up` (verity#1761). -/
-partial def exprUsesMulDiv512 : Expr → Bool
+-- Whether the given expression syntactically contains an
+-- `Expr.mulDiv512Down` or `Expr.mulDiv512Up` (verity#1761).
+-- Plain `def` (not `partial`) so the `SupportedSpec.contractUsesMulDiv512_eq_false`
+-- proof chain in `SupportedSpec.lean` can simp/unfold each case.
+mutual
+def exprUsesMulDiv512 : Expr → Bool
   | Expr.mulDiv512Down _ _ _ | Expr.mulDiv512Up _ _ _ => true
-  | e => match e with
-    | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
-    | Expr.mappingUint _ key | Expr.structMember _ key _
-    | Expr.storageArrayElement _ key | Expr.arrayElement _ key
-    | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _ =>
-        exprUsesMulDiv512 key
-    | Expr.mappingChain _ keys => keys.any exprUsesMulDiv512
-    | Expr.mapping2 _ k1 k2 | Expr.mapping2Word _ k1 k2 _ | Expr.structMember2 _ k1 k2 _ =>
-        exprUsesMulDiv512 k1 || exprUsesMulDiv512 k2
-    | Expr.call gas target value inOffset inSize outOffset outSize =>
-        [gas, target, value, inOffset, inSize, outOffset, outSize].any exprUsesMulDiv512
-    | Expr.staticcall gas target inOffset inSize outOffset outSize
-    | Expr.delegatecall gas target inOffset inSize outOffset outSize =>
-        [gas, target, inOffset, inSize, outOffset, outSize].any exprUsesMulDiv512
-    | Expr.extcodesize a | Expr.mload a | Expr.tload a | Expr.calldataload a
-    | Expr.returndataOptionalBoolAt a | Expr.bitNot a | Expr.logicalNot a =>
-        exprUsesMulDiv512 a
-    | Expr.keccak256 a b =>
-        exprUsesMulDiv512 a || exprUsesMulDiv512 b
-    | Expr.externalCall _ args | Expr.internalCall _ args | Expr.adtConstruct _ _ args =>
-        args.any exprUsesMulDiv512
-    | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
-    | Expr.mod a b | Expr.smod a b
-    | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
-    | Expr.sar a b | Expr.signextend a b
-    | Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b
-    | Expr.le a b | Expr.logicalAnd a b | Expr.logicalOr a b
-    | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b | Expr.ceilDiv a b =>
-        exprUsesMulDiv512 a || exprUsesMulDiv512 b
-    | Expr.mulDivDown a b c | Expr.mulDivUp a b c | Expr.ite a b c =>
-        exprUsesMulDiv512 a || exprUsesMulDiv512 b || exprUsesMulDiv512 c
-    | _ => false
+  | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
+  | Expr.mappingUint _ key | Expr.structMember _ key _
+  | Expr.storageArrayElement _ key | Expr.arrayElement _ key
+  | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _ =>
+      exprUsesMulDiv512 key
+  | Expr.mappingChain _ keys => exprListUsesMulDiv512 keys
+  | Expr.mapping2 _ k1 k2 | Expr.mapping2Word _ k1 k2 _ | Expr.structMember2 _ k1 k2 _ =>
+      exprUsesMulDiv512 k1 || exprUsesMulDiv512 k2
+  | Expr.call gas target value inOffset inSize outOffset outSize =>
+      exprUsesMulDiv512 gas || exprUsesMulDiv512 target || exprUsesMulDiv512 value ||
+      exprUsesMulDiv512 inOffset || exprUsesMulDiv512 inSize ||
+      exprUsesMulDiv512 outOffset || exprUsesMulDiv512 outSize
+  | Expr.staticcall gas target inOffset inSize outOffset outSize
+  | Expr.delegatecall gas target inOffset inSize outOffset outSize =>
+      exprUsesMulDiv512 gas || exprUsesMulDiv512 target ||
+      exprUsesMulDiv512 inOffset || exprUsesMulDiv512 inSize ||
+      exprUsesMulDiv512 outOffset || exprUsesMulDiv512 outSize
+  | Expr.extcodesize a | Expr.mload a | Expr.tload a | Expr.calldataload a
+  | Expr.returndataOptionalBoolAt a | Expr.bitNot a | Expr.logicalNot a =>
+      exprUsesMulDiv512 a
+  | Expr.keccak256 a b =>
+      exprUsesMulDiv512 a || exprUsesMulDiv512 b
+  | Expr.externalCall _ args | Expr.internalCall _ args | Expr.adtConstruct _ _ args =>
+      exprListUsesMulDiv512 args
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+  | Expr.mod a b | Expr.smod a b
+  | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
+  | Expr.sar a b | Expr.signextend a b
+  | Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b
+  | Expr.le a b | Expr.logicalAnd a b | Expr.logicalOr a b
+  | Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b | Expr.ceilDiv a b =>
+      exprUsesMulDiv512 a || exprUsesMulDiv512 b
+  | Expr.mulDivDown a b c | Expr.mulDivUp a b c | Expr.ite a b c =>
+      exprUsesMulDiv512 a || exprUsesMulDiv512 b || exprUsesMulDiv512 c
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _
+  | Expr.storage _ | Expr.storageAddr _
+  | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance
+  | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.storageArrayLength _
+  | Expr.paramDynamicHeadWord _ _
+  | Expr.dynamicBytesEq _ _
+  | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
+      false
+termination_by e => sizeOf e
+decreasing_by all_goals simp_wf; all_goals omega
 
-partial def stmtUsesMulDiv512 : Stmt → Bool
+def exprListUsesMulDiv512 : List Expr → Bool
+  | [] => false
+  | e :: es => exprUsesMulDiv512 e || exprListUsesMulDiv512 es
+termination_by es => sizeOf es
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+mutual
+def stmtUsesMulDiv512 : Stmt → Bool
   | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value
   | Stmt.setStorageAddr _ value | Stmt.setStorageWord _ _ value
   | Stmt.storageArrayPush _ value | Stmt.return value | Stmt.require value _ =>
       exprUsesMulDiv512 value
   | Stmt.setStorageArrayElement _ index value =>
       exprUsesMulDiv512 index || exprUsesMulDiv512 value
+  | Stmt.storageArrayPop _ => false
   | Stmt.requireError cond _ args =>
-      exprUsesMulDiv512 cond || args.any exprUsesMulDiv512
+      exprUsesMulDiv512 cond || exprListUsesMulDiv512 args
   | Stmt.revertError _ args | Stmt.emit _ args | Stmt.returnValues args =>
-      args.any exprUsesMulDiv512
+      exprListUsesMulDiv512 args
   | Stmt.mstore offset value | Stmt.tstore offset value =>
       exprUsesMulDiv512 offset || exprUsesMulDiv512 value
   | Stmt.calldatacopy a b c | Stmt.returndataCopy a b c =>
@@ -627,29 +694,46 @@ partial def stmtUsesMulDiv512 : Stmt → Bool
   | Stmt.setStructMember _ k _ v =>
       exprUsesMulDiv512 k || exprUsesMulDiv512 v
   | Stmt.setMappingChain _ keys v =>
-      keys.any exprUsesMulDiv512 || exprUsesMulDiv512 v
+      exprListUsesMulDiv512 keys || exprUsesMulDiv512 v
   | Stmt.setMapping2 _ k1 k2 v | Stmt.setMapping2Word _ k1 k2 _ v
   | Stmt.setStructMember2 _ k1 k2 _ v =>
       exprUsesMulDiv512 k1 || exprUsesMulDiv512 k2 || exprUsesMulDiv512 v
   | Stmt.ite cond thenBranch elseBranch =>
       exprUsesMulDiv512 cond ||
-      thenBranch.any stmtUsesMulDiv512 ||
-      elseBranch.any stmtUsesMulDiv512
+        stmtListUsesMulDiv512 thenBranch ||
+        stmtListUsesMulDiv512 elseBranch
   | Stmt.forEach _ count body =>
-      exprUsesMulDiv512 count || body.any stmtUsesMulDiv512
+      exprUsesMulDiv512 count || stmtListUsesMulDiv512 body
   | Stmt.unsafeBlock _ body =>
-      body.any stmtUsesMulDiv512
+      stmtListUsesMulDiv512 body
   | Stmt.matchAdt _ scrutinee branches =>
-      exprUsesMulDiv512 scrutinee ||
-        branches.any (fun (_, _, body) => body.any stmtUsesMulDiv512)
+      exprUsesMulDiv512 scrutinee || matchBranchesUseMulDiv512 branches
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args
   | Stmt.externalCallBind _ _ args | Stmt.tryExternalCallBind _ _ _ args
   | Stmt.ecm _ args =>
-      args.any exprUsesMulDiv512
+      exprListUsesMulDiv512 args
   | Stmt.rawLog topics dataOffset dataSize =>
-      topics.any exprUsesMulDiv512 ||
-      exprUsesMulDiv512 dataOffset || exprUsesMulDiv512 dataSize
-  | _ => false
+      exprListUsesMulDiv512 topics ||
+        exprUsesMulDiv512 dataOffset || exprUsesMulDiv512 dataSize
+  | Stmt.returnArray _ | Stmt.returnBytes _ | Stmt.returnStorageWords _
+  | Stmt.revertReturndata | Stmt.stop =>
+      false
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListUsesMulDiv512 : List Stmt → Bool
+  | [] => false
+  | s :: ss => stmtUsesMulDiv512 s || stmtListUsesMulDiv512 ss
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesUseMulDiv512 : List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListUsesMulDiv512 body || matchBranchesUseMulDiv512 rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
+end
 
 def contractUsesMulDiv512 (spec : CompilationModel) : Bool :=
   (match spec.constructor with

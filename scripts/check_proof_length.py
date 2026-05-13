@@ -153,6 +153,11 @@ ALLOWLIST: set[str] = {
     "supportedStmtList_usesStorageArrayElement_false",
     "supportedStmtList_usesDynamicBytesEq_false",
     "supportedStmtList_usesArrayElement_false",
+    # Mirror of supportedStmtList_usesDynamicBytesEq_false for verity#1761/#1832:
+    # one explicit case per SupportedStmtList constructor, dispatching to the
+    # matching exprCompileCore_uses{MulDiv512,ParamDynamicHeadWord}_false leaf.
+    "supportedStmtList_usesMulDiv512_false",
+    "supportedStmtList_usesParamDynamicHeadWord_false",
     # --- Mapping slot and field resolution proofs ---
     "findResolvedFieldAtSlotCopyFrom_of_member",
     "firstFieldWriteSlotConflictCopyFrom_some_of_seen_slot_member",
