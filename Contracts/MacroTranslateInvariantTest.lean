@@ -358,6 +358,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.BlockTimestampSmoke.spec
   , Contracts.Smoke.SelfBalanceSmoke.spec
   , Contracts.Smoke.MathlibReservedBinderEscape.spec
+  , Contracts.Smoke.ForEachMutableLocalSmoke.spec
   , Contracts.Smoke.ArrayElementDynamicMemberLengthSmoke.spec
   , Contracts.Smoke.ArrayElementDynamicMemberElementSmoke.spec
   , Contracts.Smoke.UnlinkPoolShapeCheckSmoke.spec
@@ -492,6 +493,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("BlockTimestampSmoke", ["nowish()", "timestampPlus(uint256)", "blobFeePlus(uint256)"])
   , ("SelfBalanceSmoke", ["currentBalance()", "balancePlus(uint256)"])
   , ("MathlibReservedBinderEscape", ["transferLike(address,uint256)", "transferLikeFrom(address,address,uint256)"])
+  , ("ForEachMutableLocalSmoke", ["sumValues(uint256[])"])
   , ("ArrayElementDynamicMemberLengthSmoke", ["proofLength((uint256[],address,uint256)[],uint256)"])
   , ("ArrayElementDynamicMemberElementSmoke", ["proofAt((uint256[],address,uint256)[],uint256,uint256)"])
   , ("UnlinkPoolShapeCheckSmoke", ["nullifierCountOf((uint256,uint256[],uint256[],uint256)[],uint256)",
@@ -621,6 +623,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("BlockTimestampSmoke", ["0xa676760e", "0x8c041599", "0x7150df5e"])
   , ("SelfBalanceSmoke", ["0xce845d1d", "0x13b0662c"])
   , ("MathlibReservedBinderEscape", ["0x4fee5360", "0x4d1b4491"])
+  , ("ForEachMutableLocalSmoke", ["0x60bc84bc"])
   , ("ArrayElementDynamicMemberLengthSmoke", ["0xfbb81f5b"])
   , ("ArrayElementDynamicMemberElementSmoke", ["0x1ffe901b"])
   , ("UnlinkPoolShapeCheckSmoke", ["0x4b6e2141", "0xdb1ca006", "0x41620c25", "0x76524b94",
