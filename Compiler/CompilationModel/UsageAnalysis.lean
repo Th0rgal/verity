@@ -475,10 +475,11 @@ def contractUsesArrayElementWord (spec : CompilationModel) : Bool :=
   contractUsesArrayElement spec &&
     (constructorUsesArrayElementWord spec.constructor || spec.functions.any functionUsesArrayElementWord)
 
+-- Whether the given expression syntactically contains an
+-- `Expr.paramDynamicHeadWord` (verity#1832). Plain `def` (not `partial`) so the
+-- `SupportedSpec.contractUsesParamDynamicHeadWord_eq_false` proof chain in
+-- `SupportedSpec.lean` can simp/unfold each case.
 mutual
-/-- Whether the given expression syntactically contains an
-    `Expr.paramDynamicHeadWord` (verity#1832). Walks the expression tree
-    rather than threading another flag through `exprUsesArrayElementKind`. -/
 def exprUsesParamDynamicHeadWord : Expr → Bool
   | Expr.paramDynamicHeadWord _ _ => true
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
@@ -519,12 +520,14 @@ def exprUsesParamDynamicHeadWord : Expr → Bool
   | Expr.ite a b c =>
       exprUsesParamDynamicHeadWord a || exprUsesParamDynamicHeadWord b ||
       exprUsesParamDynamicHeadWord c
-  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _
-  | Expr.storageAddr _ | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue
-  | Expr.selfBalance | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _
+  | Expr.storage _ | Expr.storageAddr _
+  | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance
+  | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
-  | Expr.storageArrayLength _ | Expr.dynamicBytesEq _ _ | Expr.adtTag _ _
-  | Expr.adtField _ _ _ _ _ =>
+  | Expr.storageArrayLength _
+  | Expr.dynamicBytesEq _ _
+  | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
@@ -566,22 +569,22 @@ def stmtUsesParamDynamicHeadWord : Stmt → Bool
       exprUsesParamDynamicHeadWord v
   | Stmt.ite cond thenBranch elseBranch =>
       exprUsesParamDynamicHeadWord cond ||
-      stmtListUsesParamDynamicHeadWord thenBranch ||
-      stmtListUsesParamDynamicHeadWord elseBranch
+        stmtListUsesParamDynamicHeadWord thenBranch ||
+        stmtListUsesParamDynamicHeadWord elseBranch
   | Stmt.forEach _ count body =>
       exprUsesParamDynamicHeadWord count || stmtListUsesParamDynamicHeadWord body
   | Stmt.unsafeBlock _ body =>
       stmtListUsesParamDynamicHeadWord body
   | Stmt.matchAdt _ scrutinee branches =>
-      exprUsesParamDynamicHeadWord scrutinee ||
-        matchBranchesUseParamDynamicHeadWord branches
+      exprUsesParamDynamicHeadWord scrutinee || matchBranchesUseParamDynamicHeadWord branches
   | Stmt.internalCall _ args | Stmt.internalCallAssign _ _ args
   | Stmt.externalCallBind _ _ args | Stmt.tryExternalCallBind _ _ _ args
   | Stmt.ecm _ args =>
       exprListUsesParamDynamicHeadWord args
   | Stmt.rawLog topics dataOffset dataSize =>
       exprListUsesParamDynamicHeadWord topics ||
-      exprUsesParamDynamicHeadWord dataOffset || exprUsesParamDynamicHeadWord dataSize
+        exprUsesParamDynamicHeadWord dataOffset ||
+        exprUsesParamDynamicHeadWord dataSize
   | Stmt.returnArray _ | Stmt.returnBytes _ | Stmt.returnStorageWords _
   | Stmt.revertReturndata | Stmt.stop =>
       false
@@ -594,8 +597,7 @@ def stmtListUsesParamDynamicHeadWord : List Stmt → Bool
 termination_by ss => sizeOf ss
 decreasing_by all_goals simp_wf; all_goals omega
 
-def matchBranchesUseParamDynamicHeadWord :
-    List (String × List String × List Stmt) → Bool
+def matchBranchesUseParamDynamicHeadWord : List (String × List String × List Stmt) → Bool
   | [] => false
   | (_, _, body) :: rest =>
       stmtListUsesParamDynamicHeadWord body || matchBranchesUseParamDynamicHeadWord rest
@@ -609,9 +611,11 @@ def contractUsesParamDynamicHeadWord (spec : CompilationModel) : Bool :=
     | some ctor => ctor.body.any stmtUsesParamDynamicHeadWord) ||
   spec.functions.any (fun fn => fn.body.any stmtUsesParamDynamicHeadWord)
 
+-- Whether the given expression syntactically contains an
+-- `Expr.mulDiv512Down` or `Expr.mulDiv512Up` (verity#1761).
+-- Plain `def` (not `partial`) so the `SupportedSpec.contractUsesMulDiv512_eq_false`
+-- proof chain in `SupportedSpec.lean` can simp/unfold each case.
 mutual
-/-- Whether the given expression syntactically contains an
-    `Expr.mulDiv512Down` or `Expr.mulDiv512Up` (verity#1761). -/
 def exprUsesMulDiv512 : Expr → Bool
   | Expr.mulDiv512Down _ _ _ | Expr.mulDiv512Up _ _ _ => true
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
@@ -648,12 +652,15 @@ def exprUsesMulDiv512 : Expr → Bool
       exprUsesMulDiv512 a || exprUsesMulDiv512 b
   | Expr.mulDivDown a b c | Expr.mulDivUp a b c | Expr.ite a b c =>
       exprUsesMulDiv512 a || exprUsesMulDiv512 b || exprUsesMulDiv512 c
-  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _
-  | Expr.storageAddr _ | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue
-  | Expr.selfBalance | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _
+  | Expr.storage _ | Expr.storageAddr _
+  | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance
+  | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
-  | Expr.storageArrayLength _ | Expr.paramDynamicHeadWord _ _
-  | Expr.dynamicBytesEq _ _ | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
+  | Expr.storageArrayLength _
+  | Expr.paramDynamicHeadWord _ _
+  | Expr.dynamicBytesEq _ _
+  | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       false
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
@@ -693,8 +700,8 @@ def stmtUsesMulDiv512 : Stmt → Bool
       exprUsesMulDiv512 k1 || exprUsesMulDiv512 k2 || exprUsesMulDiv512 v
   | Stmt.ite cond thenBranch elseBranch =>
       exprUsesMulDiv512 cond ||
-      stmtListUsesMulDiv512 thenBranch ||
-      stmtListUsesMulDiv512 elseBranch
+        stmtListUsesMulDiv512 thenBranch ||
+        stmtListUsesMulDiv512 elseBranch
   | Stmt.forEach _ count body =>
       exprUsesMulDiv512 count || stmtListUsesMulDiv512 body
   | Stmt.unsafeBlock _ body =>
@@ -707,7 +714,7 @@ def stmtUsesMulDiv512 : Stmt → Bool
       exprListUsesMulDiv512 args
   | Stmt.rawLog topics dataOffset dataSize =>
       exprListUsesMulDiv512 topics ||
-      exprUsesMulDiv512 dataOffset || exprUsesMulDiv512 dataSize
+        exprUsesMulDiv512 dataOffset || exprUsesMulDiv512 dataSize
   | Stmt.returnArray _ | Stmt.returnBytes _ | Stmt.returnStorageWords _
   | Stmt.revertReturndata | Stmt.stop =>
       false
@@ -720,8 +727,7 @@ def stmtListUsesMulDiv512 : List Stmt → Bool
 termination_by ss => sizeOf ss
 decreasing_by all_goals simp_wf; all_goals omega
 
-def matchBranchesUseMulDiv512 :
-    List (String × List String × List Stmt) → Bool
+def matchBranchesUseMulDiv512 : List (String × List String × List Stmt) → Bool
   | [] => false
   | (_, _, body) :: rest =>
       stmtListUsesMulDiv512 body || matchBranchesUseMulDiv512 rest

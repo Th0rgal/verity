@@ -7,6 +7,7 @@ import Compiler.Selector
 import Compiler.Hex
 import Contracts
 import Contracts.Smoke
+import Contracts.Smoke.MathlibReservedBinderEscape
 import Contracts.Smoke.PackedHashECMSmoke
 import Contracts.Smoke.SelfBalanceSmoke
 import Contracts.ProxyUpgradeabilityMacroSmoke
@@ -353,6 +354,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.HelperExternalArgumentSmoke.spec
   , Contracts.Smoke.BlockTimestampSmoke.spec
   , Contracts.Smoke.SelfBalanceSmoke.spec
+  , Contracts.Smoke.MathlibReservedBinderEscape.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
   , Contracts.Smoke.TryExternalCallSmoke.spec
@@ -483,6 +485,7 @@ private def expectedExternalSignatures : List (String × List String) :=
       "bindExternalArg(uint256)", "tupleExternalArg(uint256)", "statementExternalArg(uint256)"])
   , ("BlockTimestampSmoke", ["nowish()", "timestampPlus(uint256)", "blobFeePlus(uint256)"])
   , ("SelfBalanceSmoke", ["currentBalance()", "balancePlus(uint256)"])
+  , ("MathlibReservedBinderEscape", ["transferLike(address,uint256)", "transferLikeFrom(address,address,uint256)"])
   , ("StructMappingSmoke", ["setPosition(address,uint256,uint256,address)", "totalPositionShares(address)",
       "delegateOf(address)", "setApproval(address,address,uint256,uint256)", "approvalOf(address,address)",
       "approvalNonce(address,address)"])
@@ -602,6 +605,7 @@ private def expectedExternalSelectors : List (String × List String) :=
       "0xb503d0dd", "0xcdc18015", "0xe41657c6"])
   , ("BlockTimestampSmoke", ["0xa676760e", "0x8c041599", "0x7150df5e"])
   , ("SelfBalanceSmoke", ["0xce845d1d", "0x13b0662c"])
+  , ("MathlibReservedBinderEscape", ["0x4fee5360", "0x4d1b4491"])
   , ("StructMappingSmoke", ["0x468c900e", "0xe7933b6a", "0x8d22ea2a", "0xf4536007", "0xcb01943e",
       "0x6c241120"])
   , ("ExternalCallSmoke", ["0x32fdff86", "0x21209dbd"])

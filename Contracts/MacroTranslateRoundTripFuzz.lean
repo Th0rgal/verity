@@ -7,6 +7,7 @@ import Contracts.ProxyUpgradeabilityMacroSmoke
 import Contracts.ProxyUpgradeabilityLayoutCompatibleSmoke
 import Contracts.ProxyUpgradeabilityLayoutIncompatibleSmoke
 import Contracts.Smoke
+import Contracts.Smoke.MathlibReservedBinderEscape
 import Contracts.Smoke.PackedHashECMSmoke
 import Contracts.Smoke.SelfBalanceSmoke
 
@@ -138,6 +139,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.HelperExternalArgumentSmoke.spec
   , Contracts.Smoke.BlockTimestampSmoke.spec
   , Contracts.Smoke.SelfBalanceSmoke.spec
+  , Contracts.Smoke.MathlibReservedBinderEscape.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
   , Contracts.Smoke.TryExternalCallSmoke.spec

@@ -25,70 +25,76 @@ FUNCTION_RE = re.compile(
     r"^\s*function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*:\s*(.+?)\s*:=\s*",
 )
 CONSTRUCTOR_RE = re.compile(r"^\s*constructor\s*\(([^)]*)\)\s*:=\s*")
-PARAM_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*$")
+# `_IDENT` captures a user-facing identifier with optional `«…»` raw-identifier
+# escape (verity#1847). The capture group excludes the guillemets so downstream
+# name lookups stay consistent with the compiled CompilationModel param/field
+# names (which are stored without guillemets).
+_IDENT = r"«?([A-Za-z_][A-Za-z0-9_]*)»?"
+
+PARAM_RE = re.compile(rf"^\s*{_IDENT}\s*:\s*(.+?)\s*$")
 NEWTYPE_RE = re.compile(
     r"^\s*([A-Z][A-Za-z0-9_]*)\s*:\s*([A-Za-z0-9_]+)\s*$",
 )
 STRUCT_RE = re.compile(r"^\s*struct\s+([A-Za-z_][A-Za-z0-9_]*)\s+where\s*(.*?)\s*$")
 STORAGE_RE = re.compile(
-    r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*:=\s*slot\s+([0-9]+)\s*$",
+    rf"^\s*{_IDENT}\s*:\s*(.+?)\s*:=\s*slot\s+([0-9]+)\s*$",
 )
 VALUE_BINDING_RE = re.compile(
-    r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*:=\s*(.+?)\s*$",
+    rf"^\s*{_IDENT}\s*:\s*(.+?)\s*:=\s*(.+?)\s*$",
 )
 STORAGE_READ_RE = re.compile(
-    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*(getStorage|getStorageAddr)\s+([A-Za-z_][A-Za-z0-9_]*)$"
+    rf"let\s+{_IDENT}\s*←\s*(getStorage|getStorageAddr)\s+{_IDENT}$"
 )
 STORAGE_ARRAY_LENGTH_RE = re.compile(
-    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*getStorageArrayLength\s+([A-Za-z_][A-Za-z0-9_]*)$"
+    rf"let\s+{_IDENT}\s*←\s*getStorageArrayLength\s+{_IDENT}$"
 )
 STORAGE_ARRAY_ELEMENT_RE = re.compile(
-    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*getStorageArrayElement\s+"
-    r"([A-Za-z_][A-Za-z0-9_]*)\s+([0-9]+)$"
+    rf"let\s+{_IDENT}\s*←\s*getStorageArrayElement\s+"
+    rf"{_IDENT}\s+([0-9]+)$"
 )
 MAPPING_READ_RE = re.compile(
-    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*"
+    rf"let\s+{_IDENT}\s*←\s*"
     r"(getMapping|getMappingUint|getMappingAddr|getMappingUintAddr)\s+"
-    r"([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)$"
+    rf"{_IDENT}\s+{_IDENT}$"
 )
 MAPPING2_READ_RE = re.compile(
-    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*getMapping2\s+"
-    r"([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)$"
+    rf"let\s+{_IDENT}\s*←\s*getMapping2\s+"
+    rf"{_IDENT}\s+{_IDENT}\s+{_IDENT}$"
 )
 MAPPING_WORD_READ_RE = re.compile(
-    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*getMappingWord\s+"
-    r"([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s+([0-9]+)$"
+    rf"let\s+{_IDENT}\s*←\s*getMappingWord\s+"
+    rf"{_IDENT}\s+{_IDENT}\s+([0-9]+)$"
 )
 MAPPING_N_READ_RE = re.compile(
-    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*getMappingN\s+"
-    r"([A-Za-z_][A-Za-z0-9_]*)\s+\[(.+)\]$"
+    rf"let\s+{_IDENT}\s*←\s*getMappingN\s+"
+    rf"{_IDENT}\s+\[(.+)\]$"
 )
 STRUCT_MEMBER_READ_RE = re.compile(
-    r'let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*structMember\s+"([^"]+)"\s+'
-    r'([A-Za-z_][A-Za-z0-9_]*)\s+"([^"]+)"$'
+    rf'let\s+{_IDENT}\s*←\s*structMember\s+"([^"]+)"\s+'
+    rf'{_IDENT}\s+"([^"]+)"$'
 )
 STRUCT_MEMBER2_READ_RE = re.compile(
-    r'let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*structMember2\s+"([^"]+)"\s+'
-    r'([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s+"([^"]+)"$'
+    rf'let\s+{_IDENT}\s*←\s*structMember2\s+"([^"]+)"\s+'
+    rf'{_IDENT}\s+{_IDENT}\s+"([^"]+)"$'
 )
 NON_ZERO_REQUIRE_RE = re.compile(
-    r'require\s+\(([A-Za-z_][A-Za-z0-9_]*)\s*!=\s*0\)\s+"[^"]+"$'
+    rf'require\s+\({_IDENT}\s*!=\s*0\)\s+"[^"]+"$'
 )
 BUILTIN_READ_RE = re.compile(
-    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*(msgSender|msgValue)$"
+    rf"let\s+{_IDENT}\s*←\s*(msgSender|msgValue)$"
 )
 EXTERNAL_READ_RE = re.compile(
-    r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*←\s*(balanceOf|allowance|totalSupply)\s+(.+)$"
+    rf"let\s+{_IDENT}\s*←\s*(balanceOf|allowance|totalSupply)\s+(.+)$"
 )
 ORACLE_ECM_MODULE_RE = re.compile(
     r"\(fun resultVar => Compiler\.Modules\.Oracle\.oracleReadUint256Module resultVar "
     r"(0x[0-9A-Fa-f]+|[0-9]+)\s+([0-9]+)\)"
 )
 PARAM_COMPARE_RETURN_RE = re.compile(
-    r"return\s+\(?([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=)\s*([A-Za-z_][A-Za-z0-9_]*)\)?$"
+    rf"return\s+\(?{_IDENT}\s*(==|!=)\s*{_IDENT}\)?$"
 )
 PARAM_COMPARE_BRANCH_RE = re.compile(
-    r"if\s+([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=)\s*([A-Za-z_][A-Za-z0-9_]*)\s+then$"
+    rf"if\s+{_IDENT}\s*(==|!=)\s*{_IDENT}\s+then$"
 )
 
 

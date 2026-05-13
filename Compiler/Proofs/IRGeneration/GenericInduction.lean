@@ -3249,9 +3249,14 @@ private theorem exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_fals
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.1)
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.1.2)
         (exprCompileCore_of_exprTouchesUnsupportedContractSurface_eq_false hsurface.2)
-  | .mulDiv512Down _ _ _, hsurface =>
+  | .mulDiv512Down _ _ _, hsurface | .mulDiv512Up _ _ _, hsurface =>
+      -- `mulDiv512Down/Up` is unsupported by the contract surface (verity#1761
+      -- codegen-only; no `ExprCompileCore` constructor), so this branch is
+      -- vacuous.
       simp [exprTouchesUnsupportedContractSurface] at hsurface
-  | .mulDiv512Up _ _ _, hsurface =>
+  | .paramDynamicHeadWord _ _, hsurface =>
+      -- Same vacuous handling for `paramDynamicHeadWord` (verity#1832
+      -- codegen-only).
       simp [exprTouchesUnsupportedContractSurface] at hsurface
 
 private theorem fieldName_mem_fields_of_findFieldWithResolvedSlot_some
