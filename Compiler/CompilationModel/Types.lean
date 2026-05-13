@@ -358,6 +358,25 @@ inductive Expr
       projected field is a single-word static leaf at a fixed head offset.
       (verity#1832) -/
   | paramDynamicHeadWord (name : String) (wordOffset : Nat)
+  /-- Length of a dynamic member inside a struct-array element.  Given a
+      struct-array parameter `name` indexed at `index`, dereferences the
+      head pointer at `wordOffset` (relative to the element's head
+      section), then reads the length word at that pointer.  Used for
+      `arrayLength (arrayElement <param> <i>).<dynamicField>` projections,
+      e.g. `txn.nullifierHashes.length` where `txn` is an element of a
+      struct-array parameter.  (verity#1849, G1) -/
+  | arrayElementDynamicMemberLength (name : String) (index : Expr) (wordOffset : Nat)
+  /-- Element access into a dynamic word-array member nested inside a
+      struct-array element.  Given a struct-array parameter `name` indexed
+      at `index`, dereferences the head pointer at `wordOffset` (relative
+      to the element's head section), then reads the word at offset
+      `32 + innerIndex*32` from that pointer after bounds-checking
+      `innerIndex` against the member's stored length.  Used for
+      `arrayElement (arrayElement <param> <i>).<dynamicField> <k>`
+      projections, e.g. `txn.nullifierHashes[k]` where `txn` is an
+      element of a struct-array parameter and `nullifierHashes` is an
+      `Array Uint256` member.  (verity#1849, G2) -/
+  | arrayElementDynamicMemberElement (name : String) (index : Expr) (wordOffset : Nat) (innerIndex : Expr)
   | storageArrayLength (field : String)  -- Read the length word of a storage dynamic array (#1571)
   | storageArrayElement (field : String) (index : Expr)  -- Checked element access of a storage dynamic array (#1571)
   /-- Equality on direct `bytes` / `string` parameters loaded from calldata or memory.

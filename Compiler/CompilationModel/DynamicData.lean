@@ -38,6 +38,18 @@ def checkedParamDynamicHeadWordCalldataHelperName : String :=
 def checkedParamDynamicHeadWordMemoryHelperName : String :=
   "__verity_param_dynamic_head_word_memory_checked"
 
+def checkedArrayElementDynamicMemberLengthCalldataHelperName : String :=
+  "__verity_array_element_dynamic_member_length_calldata_checked"
+
+def checkedArrayElementDynamicMemberLengthMemoryHelperName : String :=
+  "__verity_array_element_dynamic_member_length_memory_checked"
+
+def checkedArrayElementDynamicMemberElementCalldataHelperName : String :=
+  "__verity_array_element_dynamic_member_element_calldata_checked"
+
+def checkedArrayElementDynamicMemberElementMemoryHelperName : String :=
+  "__verity_array_element_dynamic_member_element_memory_checked"
+
 /-- Yul helper name for `Expr.mulDiv512Down` — OpenZeppelin/Solmate-style
     full-precision multiply-divide with round-toward-zero. (verity#1761) -/
 def fullMulDivHelperName : String :=
@@ -179,6 +191,172 @@ def checkedParamDynamicHeadWordCalldataHelper : YulStmt :=
 
 def checkedParamDynamicHeadWordMemoryHelper : YulStmt :=
   checkedParamDynamicHeadWordHelper checkedParamDynamicHeadWordMemoryHelperName "mload" none
+
+/-- Yul helper for `Expr.arrayElementDynamicMemberLength` (verity#1849, G1).
+    Reads the length word of a dynamically-sized member nested inside a
+    struct-array element.  Given the array's `data_offset`/`length`, the
+    element `index`, and the `word_offset` of the dynamic member's head
+    pointer (relative to the element's head section), the helper:
+
+    1. bounds-checks `index < length`;
+    2. loads `__element_rel_offset` from the array's offset table;
+    3. bounds-checks the element offset against the offset table size;
+    4. loads `__member_rel_offset` from the element head at `word_offset`;
+    5. bounds-checks the member-data position against `calldatasize`
+       (calldata variant only — the memory variant trusts its source);
+    6. returns the length word stored at the member-data position.
+
+    The dynamic-member head pointer is element-relative per Solidity's
+    ABI: the member-data section is found at
+    `element_head + __member_rel_offset` where
+    `element_head = data_offset + __element_rel_offset`. -/
+private def checkedArrayElementDynamicMemberLengthHelper
+    (helperName loadOp : String) (sizeExpr? : Option YulExpr) : YulStmt :=
+  let offsetTableBytes := YulExpr.call "mul" [YulExpr.ident "length", YulExpr.lit 32]
+  let elementOffsetSlot := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.call "mul" [YulExpr.ident "index", YulExpr.lit 32]
+  ]
+  let elementHeadPos := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.ident "__element_rel_offset"
+  ]
+  let memberHeadSlot := YulExpr.call "add" [
+    YulExpr.ident "__element_head_pos",
+    YulExpr.call "mul" [YulExpr.ident "word_offset", YulExpr.lit 32]
+  ]
+  let memberDataPos := YulExpr.call "add" [
+    YulExpr.ident "__element_head_pos",
+    YulExpr.ident "__member_rel_offset"
+  ]
+  let sizeCheck :=
+    match sizeExpr? with
+    | some sizeExpr =>
+        [YulStmt.if_ (YulExpr.call "gt" [
+          YulExpr.ident "__member_data_pos",
+          YulExpr.call "sub" [sizeExpr, YulExpr.lit 32]
+        ]) [
+          YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+        ]]
+    | none => []
+  YulStmt.funcDef helperName ["data_offset", "length", "index", "word_offset"] ["word"] (
+    [
+      YulStmt.if_ (YulExpr.call "iszero" [
+        YulExpr.call "lt" [YulExpr.ident "index", YulExpr.ident "length"]
+      ]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ],
+      YulStmt.let_ "__element_rel_offset" (YulExpr.call loadOp [elementOffsetSlot]),
+      YulStmt.if_ (YulExpr.call "lt" [YulExpr.ident "__element_rel_offset", offsetTableBytes]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ],
+      YulStmt.let_ "__element_head_pos" elementHeadPos,
+      YulStmt.let_ "__member_rel_offset" (YulExpr.call loadOp [memberHeadSlot]),
+      YulStmt.let_ "__member_data_pos" memberDataPos
+    ] ++ sizeCheck ++ [
+      YulStmt.assign "word" (YulExpr.call loadOp [YulExpr.ident "__member_data_pos"])
+    ])
+
+def checkedArrayElementDynamicMemberLengthCalldataHelper : YulStmt :=
+  checkedArrayElementDynamicMemberLengthHelper
+    checkedArrayElementDynamicMemberLengthCalldataHelperName
+    "calldataload"
+    (some (YulExpr.call "calldatasize" []))
+
+def checkedArrayElementDynamicMemberLengthMemoryHelper : YulStmt :=
+  checkedArrayElementDynamicMemberLengthHelper
+    checkedArrayElementDynamicMemberLengthMemoryHelperName
+    "mload"
+    none
+
+/-- Yul helper for `Expr.arrayElementDynamicMemberElement` (verity#1849, G2).
+    Reads element `inner_index` of a dynamic word-array member nested
+    inside struct-array element `index`.  Layout walk:
+
+    1. bounds-check `index < length` (outer array);
+    2. load `__element_rel_offset` from the outer offset table;
+    3. bounds-check the element offset against the offset-table size;
+    4. load `__member_rel_offset` from the element head at `word_offset`;
+    5. compute `__member_data_pos = element_head + __member_rel_offset`,
+       which holds the dynamic member's length word followed by its data;
+    6. load `__member_length` from `__member_data_pos`;
+    7. bounds-check `inner_index < __member_length`;
+    8. compute `__word_pos = __member_data_pos + 32 + inner_index*32`;
+    9. bounds-check `__word_pos` against `calldatasize` (calldata variant
+       only — the memory variant trusts its source);
+    10. return `load(__word_pos)`. -/
+private def checkedArrayElementDynamicMemberElementHelper
+    (helperName loadOp : String) (sizeExpr? : Option YulExpr) : YulStmt :=
+  let offsetTableBytes := YulExpr.call "mul" [YulExpr.ident "length", YulExpr.lit 32]
+  let elementOffsetSlot := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.call "mul" [YulExpr.ident "index", YulExpr.lit 32]
+  ]
+  let elementHeadPos := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.ident "__element_rel_offset"
+  ]
+  let memberHeadSlot := YulExpr.call "add" [
+    YulExpr.ident "__element_head_pos",
+    YulExpr.call "mul" [YulExpr.ident "word_offset", YulExpr.lit 32]
+  ]
+  let memberDataPos := YulExpr.call "add" [
+    YulExpr.ident "__element_head_pos",
+    YulExpr.ident "__member_rel_offset"
+  ]
+  let wordPos := YulExpr.call "add" [
+    YulExpr.ident "__member_data_pos",
+    YulExpr.call "add" [
+      YulExpr.lit 32,
+      YulExpr.call "mul" [YulExpr.ident "inner_index", YulExpr.lit 32]
+    ]
+  ]
+  let sizeCheck :=
+    match sizeExpr? with
+    | some sizeExpr =>
+        [YulStmt.if_ (YulExpr.call "gt" [
+          YulExpr.ident "__word_pos",
+          YulExpr.call "sub" [sizeExpr, YulExpr.lit 32]
+        ]) [
+          YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+        ]]
+    | none => []
+  YulStmt.funcDef helperName ["data_offset", "length", "index", "word_offset", "inner_index"] ["word"] (
+    [
+      YulStmt.if_ (YulExpr.call "iszero" [
+        YulExpr.call "lt" [YulExpr.ident "index", YulExpr.ident "length"]
+      ]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ],
+      YulStmt.let_ "__element_rel_offset" (YulExpr.call loadOp [elementOffsetSlot]),
+      YulStmt.if_ (YulExpr.call "lt" [YulExpr.ident "__element_rel_offset", offsetTableBytes]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ],
+      YulStmt.let_ "__element_head_pos" elementHeadPos,
+      YulStmt.let_ "__member_rel_offset" (YulExpr.call loadOp [memberHeadSlot]),
+      YulStmt.let_ "__member_data_pos" memberDataPos,
+      YulStmt.let_ "__member_length" (YulExpr.call loadOp [YulExpr.ident "__member_data_pos"]),
+      YulStmt.if_ (YulExpr.call "iszero" [
+        YulExpr.call "lt" [YulExpr.ident "inner_index", YulExpr.ident "__member_length"]
+      ]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ],
+      YulStmt.let_ "__word_pos" wordPos
+    ] ++ sizeCheck ++ [
+      YulStmt.assign "word" (YulExpr.call loadOp [YulExpr.ident "__word_pos"])
+    ])
+
+def checkedArrayElementDynamicMemberElementCalldataHelper : YulStmt :=
+  checkedArrayElementDynamicMemberElementHelper
+    checkedArrayElementDynamicMemberElementCalldataHelperName
+    "calldataload"
+    (some (YulExpr.call "calldatasize" []))
+
+def checkedArrayElementDynamicMemberElementMemoryHelper : YulStmt :=
+  checkedArrayElementDynamicMemberElementHelper
+    checkedArrayElementDynamicMemberElementMemoryHelperName
+    "mload"
+    none
 
 /-- OpenZeppelin/Solmate-style full-precision multiply-divide:
     `fullMulDiv(a, b, c)` returns `floor((a * b) / c)` where the

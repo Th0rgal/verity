@@ -420,6 +420,15 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
       , checkedArrayElementWordMemoryHelper
       , checkedArrayElementDynamicWordCalldataHelper
       , checkedArrayElementDynamicWordMemoryHelper
+      -- verity#1849 G1: dynamic-member length helpers share the
+      -- `arrayElementWord` gate because they read the same struct-array
+      -- elements and have negligible code size; conservative emission is
+      -- correct and avoids a separate predicate.
+      , checkedArrayElementDynamicMemberLengthCalldataHelper
+      , checkedArrayElementDynamicMemberLengthMemoryHelper
+      -- verity#1849 G2: dynamic-member element helpers gated the same way.
+      , checkedArrayElementDynamicMemberElementCalldataHelper
+      , checkedArrayElementDynamicMemberElementMemoryHelper
       ]
     else
       []) ++

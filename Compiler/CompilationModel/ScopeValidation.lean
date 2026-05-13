@@ -4,6 +4,8 @@ import Compiler.CompilationModel.IssueRefs
 import Compiler.CompilationModel.LogicalPurity
 import Compiler.CompilationModel.EcmAxiomCollection
 
+set_option maxHeartbeats 800000
+
 namespace Compiler.CompilationModel
 
 def findParamType (params : List Param) (name : String) : Option ParamType :=
@@ -167,6 +169,39 @@ def validateScopedExprIdentifiers
       | none =>
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayElementDynamicWord"
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
+  | Expr.arrayElementDynamicMemberLength name index wordOffset => do
+      match findParamType params name with
+      | some ty@(ParamType.array elemTy) =>
+          if isDynamicParamType elemTy then
+            let expectedWords := paramLocalHeadWords elemTy
+            if wordOffset < expectedWords then
+              pure ()
+            else
+              throw s!"Compilation error: {context} Expr.arrayElementDynamicMemberLength '{name}' wordOffset {wordOffset} is outside dynamic element head width {expectedWords} for {repr ty}"
+          else
+            throw s!"Compilation error: {context} Expr.arrayElementDynamicMemberLength '{name}' requires an array parameter with dynamic ABI elements, got {repr ty}"
+      | some ty =>
+          throw s!"Compilation error: {context} Expr.arrayElementDynamicMemberLength '{name}' requires array parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayElementDynamicMemberLength"
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
+  | Expr.arrayElementDynamicMemberElement name index wordOffset innerIndex => do
+      match findParamType params name with
+      | some ty@(ParamType.array elemTy) =>
+          if isDynamicParamType elemTy then
+            let expectedWords := paramLocalHeadWords elemTy
+            if wordOffset < expectedWords then
+              pure ()
+            else
+              throw s!"Compilation error: {context} Expr.arrayElementDynamicMemberElement '{name}' wordOffset {wordOffset} is outside dynamic element head width {expectedWords} for {repr ty}"
+          else
+            throw s!"Compilation error: {context} Expr.arrayElementDynamicMemberElement '{name}' requires an array parameter with dynamic ABI elements, got {repr ty}"
+      | some ty =>
+          throw s!"Compilation error: {context} Expr.arrayElementDynamicMemberElement '{name}' requires array parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayElementDynamicMemberElement"
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount innerIndex
   | Expr.paramDynamicHeadWord name wordOffset => do
       match findParamType params name with
       | some ty@(ParamType.tuple _) =>

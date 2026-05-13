@@ -101,6 +101,13 @@ def exprUsesArrayElementKind (includePlain includeWord : Bool) : Expr → Bool
   | Expr.arrayElementDynamicWord _ index _ =>
       let nested := exprUsesArrayElementKind includePlain includeWord index
       if nested then true else includeWord
+  | Expr.arrayElementDynamicMemberLength _ index _ =>
+      let nested := exprUsesArrayElementKind includePlain includeWord index
+      if nested then true else includeWord
+  | Expr.arrayElementDynamicMemberElement _ index _ innerIndex =>
+      let nestedIndex := exprUsesArrayElementKind includePlain includeWord index
+      let nestedInner := exprUsesArrayElementKind includePlain includeWord innerIndex
+      if nestedIndex || nestedInner then true else includeWord
   | Expr.mapping _ key => exprUsesArrayElementKind includePlain includeWord key
   | Expr.mappingWord _ key _ => exprUsesArrayElementKind includePlain includeWord key
   | Expr.mappingPackedWord _ key _ _ => exprUsesArrayElementKind includePlain includeWord key
@@ -293,7 +300,9 @@ attribute [simp] exprUsesArrayElementKind exprListUsesArrayElementKind
 
 mutual
 def exprUsesArrayElement : Expr → Bool
-  | Expr.arrayElement _ _ | Expr.arrayElementWord _ _ _ _ | Expr.arrayElementDynamicWord _ _ _ =>
+  | Expr.arrayElement _ _ | Expr.arrayElementWord _ _ _ _ | Expr.arrayElementDynamicWord _ _ _
+  | Expr.arrayElementDynamicMemberLength _ _ _
+  | Expr.arrayElementDynamicMemberElement _ _ _ _ =>
       true
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
   | Expr.mappingUint _ key | Expr.structMember _ key _ =>
@@ -485,8 +494,11 @@ def exprUsesParamDynamicHeadWord : Expr → Bool
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
   | Expr.mappingUint _ key | Expr.structMember _ key _
   | Expr.storageArrayElement _ key | Expr.arrayElement _ key
-  | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _ =>
+  | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _
+  | Expr.arrayElementDynamicMemberLength _ key _ =>
       exprUsesParamDynamicHeadWord key
+  | Expr.arrayElementDynamicMemberElement _ key _ innerKey =>
+      exprUsesParamDynamicHeadWord key || exprUsesParamDynamicHeadWord innerKey
   | Expr.mappingChain _ keys => exprListUsesParamDynamicHeadWord keys
   | Expr.mapping2 _ k1 k2 | Expr.mapping2Word _ k1 k2 _ | Expr.structMember2 _ k1 k2 _ =>
       exprUsesParamDynamicHeadWord k1 || exprUsesParamDynamicHeadWord k2
@@ -621,8 +633,11 @@ def exprUsesMulDiv512 : Expr → Bool
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
   | Expr.mappingUint _ key | Expr.structMember _ key _
   | Expr.storageArrayElement _ key | Expr.arrayElement _ key
-  | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _ =>
+  | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _
+  | Expr.arrayElementDynamicMemberLength _ key _ =>
       exprUsesMulDiv512 key
+  | Expr.arrayElementDynamicMemberElement _ key _ innerKey =>
+      exprUsesMulDiv512 key || exprUsesMulDiv512 innerKey
   | Expr.mappingChain _ keys => exprListUsesMulDiv512 keys
   | Expr.mapping2 _ k1 k2 | Expr.mapping2Word _ k1 k2 _ | Expr.structMember2 _ k1 k2 _ =>
       exprUsesMulDiv512 k1 || exprUsesMulDiv512 k2
@@ -816,8 +831,11 @@ def exprUsesStorageArrayElement : Expr → Bool
   | Expr.paramDynamicHeadWord _ _
   | Expr.adtTag _ _ =>
       false
-  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _ =>
+  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicMemberLength _ index _ =>
       exprUsesStorageArrayElement index
+  | Expr.arrayElementDynamicMemberElement _ index _ innerIndex =>
+      exprUsesStorageArrayElement index || exprUsesStorageArrayElement innerIndex
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -935,7 +953,10 @@ def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.externalCall _ args | Expr.internalCall _ args =>
       exprListUsesDynamicBytesEq args
   | Expr.storageArrayElement _ index | Expr.arrayElement _ index
-  | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _ => exprUsesDynamicBytesEq index
+  | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicMemberLength _ index _ => exprUsesDynamicBytesEq index
+  | Expr.arrayElementDynamicMemberElement _ index _ innerIndex =>
+      exprUsesDynamicBytesEq index || exprUsesDynamicBytesEq innerIndex
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b
   | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
