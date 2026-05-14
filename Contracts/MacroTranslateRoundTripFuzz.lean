@@ -9,6 +9,7 @@ import Contracts.ProxyUpgradeabilityLayoutIncompatibleSmoke
 import Contracts.Smoke
 import Contracts.Smoke.ArrayElementDynamicMemberElementSmoke
 import Contracts.Smoke.ArrayElementDynamicMemberLengthSmoke
+import Contracts.Smoke.FixedArrayStructSmoke
 import Contracts.Smoke.UnlinkPoolShapeCheckSmoke
 import Contracts.Smoke.MathlibReservedBinderEscape
 import Contracts.Smoke.PackedHashECMSmoke
@@ -147,6 +148,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ForEachMutableLocalSmoke.spec
   , Contracts.Smoke.ArrayElementDynamicMemberLengthSmoke.spec
   , Contracts.Smoke.ArrayElementDynamicMemberElementSmoke.spec
+  , Contracts.Smoke.FixedArrayStructSmoke.spec
   , Contracts.Smoke.UnlinkPoolShapeCheckSmoke.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec

@@ -9,6 +9,7 @@ import Contracts
 import Contracts.Smoke
 import Contracts.Smoke.ArrayElementDynamicMemberElementSmoke
 import Contracts.Smoke.ArrayElementDynamicMemberLengthSmoke
+import Contracts.Smoke.FixedArrayStructSmoke
 import Contracts.Smoke.UnlinkPoolShapeCheckSmoke
 import Contracts.Smoke.MathlibReservedBinderEscape
 import Contracts.Smoke.PackedHashECMSmoke
@@ -362,6 +363,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ForEachMutableLocalSmoke.spec
   , Contracts.Smoke.ArrayElementDynamicMemberLengthSmoke.spec
   , Contracts.Smoke.ArrayElementDynamicMemberElementSmoke.spec
+  , Contracts.Smoke.FixedArrayStructSmoke.spec
   , Contracts.Smoke.UnlinkPoolShapeCheckSmoke.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
@@ -499,6 +501,10 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("ForEachMutableLocalSmoke", ["sumValues(uint256[])", "sumOnCatch(uint256[])", "sumUnsafe(uint256[])"])
   , ("ArrayElementDynamicMemberLengthSmoke", ["proofLength((uint256[],address,uint256)[],uint256)"])
   , ("ArrayElementDynamicMemberElementSmoke", ["proofAt((uint256[],address,uint256)[],uint256,uint256)"])
+  , ("FixedArrayStructSmoke", ["rootOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
+      "nullifierCountOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
+      "commitmentCountOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
+      "ciphertextCountOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)"])
   , ("UnlinkPoolShapeCheckSmoke", ["nullifierCountOf((uint256,uint256[],uint256[],uint256)[],uint256)",
       "commitmentCountOf((uint256,uint256[],uint256[],uint256)[],uint256)",
       "nullifierAt((uint256,uint256[],uint256[],uint256)[],uint256,uint256)",
@@ -632,6 +638,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("ForEachMutableLocalSmoke", ["0x60bc84bc", "0x566ab477", "0x463324b5"])
   , ("ArrayElementDynamicMemberLengthSmoke", ["0xfbb81f5b"])
   , ("ArrayElementDynamicMemberElementSmoke", ["0x1ffe901b"])
+  , ("FixedArrayStructSmoke", ["0xe6f8cf0c", "0xf7910f7f", "0x82db9141", "0x82cb906c"])
   , ("UnlinkPoolShapeCheckSmoke", ["0x4b6e2141", "0xdb1ca006", "0x41620c25", "0x76524b94",
       "0xfc01c1ec", "0xe4a609b8", "0x2e759c7f"])
   , ("StructMappingSmoke", ["0x468c900e", "0xe7933b6a", "0x8d22ea2a", "0xf4536007", "0xcb01943e",

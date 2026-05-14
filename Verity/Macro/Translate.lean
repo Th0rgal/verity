@@ -28,6 +28,7 @@ inductive ValueType where
   | string
   | bytes
   | array (elemTy : ValueType)
+  | fixedArray (elemTy : ValueType) (size : Nat)
   | tuple (elemTys : List ValueType)
   | unit
   | newtype (name : String) (baseType : ValueType)  -- Semantic newtype; erased to baseType (#1727 Steps 3b/3c)
@@ -182,6 +183,7 @@ private partial def valueTypeSignatureComponent : ValueType → String
   | .bytes => "scalar_bytes"
   | .unit => "scalar_unit"
   | .array ty => "array_" ++ valueTypeSignatureComponent ty
+  | .fixedArray ty size => "fixed_array_" ++ toString size ++ "_" ++ valueTypeSignatureComponent ty
   | .tuple tys => "tuple" ++ toString tys.length ++ "_" ++ String.intercalate "__" (tys.map valueTypeSignatureComponent)
   | .newtype name baseType => "newtype_" ++ name ++ "_" ++ valueTypeSignatureComponent baseType
   | .struct name fields =>
@@ -195,6 +197,7 @@ private def functionSignatureKey (fn : FunctionDecl) : String :=
 private partial def valueTypeAbiSignatureComponent : ValueType → String
   | .newtype _ baseType => valueTypeAbiSignatureComponent baseType
   | .array ty => "array_" ++ valueTypeAbiSignatureComponent ty
+  | .fixedArray ty size => "fixed_array_" ++ toString size ++ "_" ++ valueTypeAbiSignatureComponent ty
   | .tuple tys => "tuple" ++ toString tys.length ++ "_" ++ String.intercalate "__" (tys.map valueTypeAbiSignatureComponent)
   | .struct _ fields =>
       "tuple" ++ toString fields.length ++ "_" ++ String.intercalate "__" (fields.map (fun field => valueTypeAbiSignatureComponent field.snd))
@@ -360,6 +363,13 @@ private partial def valueTypeFromSyntax
       | .unit => throwErrorAt ty "unsupported type '{ty}'; Array Unit is not allowed"
       | .array _ => throwErrorAt ty "unsupported type '{ty}'; nested arrays are not supported"
       | _ => pure (.array elem)
+  | `(term| FixedArray $elemTy:term $size:num) =>
+      let elem ← valueTypeFromSyntax newtypes structDecls adtDecls elemTy
+      let n ← natFromSyntax size
+      match elem with
+      | .unit => throwErrorAt ty "unsupported type '{ty}'; FixedArray Unit is not allowed"
+      | .array _ => throwErrorAt ty "unsupported type '{ty}'; FixedArray of dynamic Array is not supported"
+      | _ => pure (.fixedArray elem n)
   | `(term| Tuple [ $[$elemTys:term],* ]) =>
       let elems ← elemTys.mapM (valueTypeFromSyntax newtypes structDecls adtDecls)
       if elems.size < 2 then
@@ -380,9 +390,9 @@ private partial def valueTypeFromSyntax
           | some decl =>
               let maxFields := decl.variants.foldl (fun acc v => max acc v.fields.size) 0
               pure (.adt decl.name maxFields)
-          | none => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, a user-defined struct, or a user-defined type from the `types` or `inductive` section"
+          | none => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, FixedArray <type> <size>, Tuple [...], Unit, a user-defined struct, or a user-defined type from the `types` or `inductive` section"
   | _ =>
-      throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, a user-defined struct, or a user-defined type from the `types` or `inductive` section"
+      throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, FixedArray <type> <size>, Tuple [...], Unit, a user-defined struct, or a user-defined type from the `types` or `inductive` section"
 
 private def storageTypeFromSyntax (newtypes : Array NewtypeDecl) (structDecls : Array StructDecl := #[]) (adtDecls : Array AdtDecl := #[]) (ty : Term) : CommandElabM StorageType := do
   let keyTypeFromSyntax (stx : Term) : CommandElabM MappingKeyType := do
@@ -489,6 +499,7 @@ private def modelFieldTypeTerm (ty : StorageType) : CommandElabM Term :=
   | .scalar .string => throwError "storage fields cannot be String; use Uint256 encoding"
   | .scalar .bytes => throwError "storage fields cannot be Bytes; use Uint256 encoding"
   | .scalar (.array _) => throwError "storage fields cannot be Array; use mapping encodings"
+  | .scalar (.fixedArray _ _) => throwError "storage fields cannot be FixedArray; use mapping encodings"
   | .scalar (.tuple _) => throwError "storage fields cannot be Tuple; use mapping encodings"
   | .scalar (.struct _ _) =>
       throwError
@@ -539,6 +550,8 @@ private partial def modelParamTypeTerm (ty : ValueType) : CommandElabM Term :=
   | .bytes => `(Compiler.CompilationModel.ParamType.bytes)
   | .array elemTy => do
       `(Compiler.CompilationModel.ParamType.array $(← modelParamTypeTerm elemTy))
+  | .fixedArray elemTy size => do
+      `(Compiler.CompilationModel.ParamType.fixedArray $(← modelParamTypeTerm elemTy) $(natTerm size))
   | .tuple elemTys => do
       let elemTerms ← elemTys.mapM modelParamTypeTerm
       `(Compiler.CompilationModel.ParamType.tuple [ $[$elemTerms.toArray],* ])
@@ -564,6 +577,7 @@ private def modelReturnTypeTerm (ty : ValueType) : CommandElabM Term :=
   | .string => `(none)
   | .bytes => `(none)
   | .array _ => `(none)
+  | .fixedArray _ _ => `(none)
   | .tuple _ => `(none)
   | .struct _ _ => `(none)
   | .newtype _ baseType => modelReturnTypeTerm baseType
@@ -582,6 +596,8 @@ private partial def modelReturnsTerm (ty : ValueType) : CommandElabM Term :=
   | .bytes => `([Compiler.CompilationModel.ParamType.bytes])
   | .array elemTy => do
       `([Compiler.CompilationModel.ParamType.array $(← modelParamTypeTerm elemTy)])
+  | .fixedArray elemTy size => do
+      `([Compiler.CompilationModel.ParamType.fixedArray $(← modelParamTypeTerm elemTy) $(natTerm size)])
   | .tuple elemTys => do
       let elemTerms ← elemTys.mapM modelParamTypeTerm
       `([ $[$elemTerms.toArray],* ])
@@ -606,6 +622,9 @@ private partial def valueTypeFromModelParamType? : Compiler.CompilationModel.Par
   | .array elemTy => do
       let elem ← valueTypeFromModelParamType? elemTy
       some (.array elem)
+  | .fixedArray elemTy size => do
+      let elem ← valueTypeFromModelParamType? elemTy
+      some (.fixedArray elem size)
   | .tuple elemTys => do
       let elems ← elemTys.mapM valueTypeFromModelParamType?
       some (.tuple elems)
@@ -613,7 +632,6 @@ private partial def valueTypeFromModelParamType? : Compiler.CompilationModel.Par
       let base ← valueTypeFromModelParamType? baseType
       some (.newtype name base)
   | .adt name maxFields => some (.adt name maxFields)
-  | .fixedArray _ _ => none
 
 private unsafe def evalQualifiedFunctionSpec
     (fnName : Name) : CommandElabM Compiler.CompilationModel.FunctionSpec := do
@@ -661,6 +679,8 @@ private partial def contractValueTypeTerm (ty : ValueType) : CommandElabM Term :
   | .string => `(String)
   | .bytes => `(ByteArray)
   | .array elemTy => do
+      `(Array $(← contractValueTypeTerm elemTy))
+  | .fixedArray elemTy _size => do
       `(Array $(← contractValueTypeTerm elemTy))
   | .tuple elemTys => mkTupleContractType elemTys
   | .unit => `(Unit)
@@ -1066,6 +1086,7 @@ private partial def containsAdtValueType : ValueType → Bool
   | .adt _ _ => true
   | .newtype _ baseType => containsAdtValueType baseType
   | .array elemTy => containsAdtValueType elemTy
+  | .fixedArray elemTy _ => containsAdtValueType elemTy
   | .tuple elemTys => elemTys.any containsAdtValueType
   | .struct _ fields => fields.any (fun field => containsAdtValueType field.snd)
   | _ => false
@@ -1491,6 +1512,9 @@ private def externalCallDynamicArgSupported (ty : ValueType) : Bool :=
 
 private partial def staticAbiWordCount? : ValueType → Option Nat
   | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool => some 1
+  | .fixedArray elemTy size => do
+      let elemWords ← staticAbiWordCount? elemTy
+      some (size * elemWords)
   | .tuple elemTys =>
       elemTys.foldl
         (fun acc ty =>
@@ -1511,6 +1535,10 @@ private partial def staticAbiWordCount? : ValueType → Option Nat
 private partial def abiLocalHeadWordCount? : ValueType → Option Nat
   | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool
   | .string | .bytes | .array _ => some 1
+  | .fixedArray elemTy size => do
+      match staticAbiWordCount? elemTy with
+      | some elemWords => some (size * elemWords)
+      | none => some size
   | .tuple elemTys =>
       elemTys.foldl
         (fun acc ty =>
@@ -1530,6 +1558,7 @@ private partial def abiLocalHeadWordCount? : ValueType → Option Nat
 
 private partial def valueTypeUsesDynamicData : ValueType → Bool
   | .string | .bytes | .array _ => true
+  | .fixedArray elemTy _ => valueTypeUsesDynamicData elemTy
   | .tuple elemTys => elemTys.any valueTypeUsesDynamicData
   | .struct _ fields => fields.any (fun field => valueTypeUsesDynamicData field.snd)
   | .newtype _ baseType => valueTypeUsesDynamicData baseType
@@ -1539,6 +1568,11 @@ private partial def valueTypeUsesDynamicData : ValueType → Bool
 private partial def abiParentHeadWordCount? (ty : ValueType) : Option Nat :=
   match ty with
   | .string | .bytes | .array _ => some 1
+  | .fixedArray elemTy size =>
+      if valueTypeUsesDynamicData (.fixedArray elemTy size) then
+        some 1
+      else
+        abiLocalHeadWordCount? (.fixedArray elemTy size)
   | .tuple _ | .struct _ _ =>
       if valueTypeUsesDynamicData ty then
         some 1
@@ -2098,6 +2132,7 @@ private def internalHelperSpecName
 private partial def hasDynamicInternalHelperType (ty : ValueType) : Bool :=
   match ty with
   | .string | .bytes | .array _ => true
+  | .fixedArray elemTy _ => hasDynamicInternalHelperType elemTy
   | .tuple elemTys => elemTys.any hasDynamicInternalHelperType
   | .struct _ fields => fields.any (fun field => hasDynamicInternalHelperType field.snd)
   | _ => false
@@ -5677,6 +5712,7 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
     | .scalar .string => throwError "storage field cannot be String; use Uint256 encoding"
     | .scalar .bytes => throwError "storage field cannot be Bytes; use Uint256 encoding"
     | .scalar (.array _) => throwError "storage field cannot be Array; use mapping encodings"
+    | .scalar (.fixedArray _ _) => throwError "storage field cannot be FixedArray; use mapping encodings"
     | .scalar (.tuple _) => throwError "storage field cannot be Tuple; use mapping encodings"
     | .scalar (.struct _ _) => throwError "storage field cannot be named struct; use mapping encodings"
     | .scalar .unit => throwError "storage field cannot be Unit"
