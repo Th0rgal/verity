@@ -1887,6 +1887,28 @@ private def arrayElementDynamicTupleArg?
         none
   | _ => none
 
+private def abiHeadWordTarget?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × Option Term × ValueType) := do
+  match stripParens stx with
+  | `(term| arrayElement $name:term $index:term) =>
+      let paramName ←
+        match stripParens name with
+        | `(term| $id:ident) => some (toString id.getId)
+        | _ => none
+      let param ← params.find? (fun p => p.name == paramName)
+      let elemTy ← match param.ty with
+        | .array elemTy => some elemTy
+        | _ => none
+      some (paramName, some index, elemTy)
+  | _ => do
+      let paramName ←
+        match stripParens stx with
+        | `(term| $id:ident) => some (toString id.getId)
+        | _ => none
+      let param ← params.find? (fun p => p.name == paramName)
+      some (paramName, none, param.ty)
+
 private def isParamStructNonLeafProjection (params : Array ParamDecl) (stx : Term) : Bool :=
   match paramStructProjectionResolved? params stx with
   | some (_, fieldTy, _) => !isSingleWordStaticValueType fieldTy
@@ -2390,6 +2412,25 @@ private partial def inferPureExprType
       match params[(← natFromSyntax idx)]? with
       | some param => pure param.ty
       | none => throwErrorAt stx s!"constructorArg index {idx.raw.reprint.getD ""} is out of bounds"
+  | `(term| abiHeadWord $target:term $wordOffset:num) => do
+      let offset ← natFromSyntax wordOffset
+      let some (_, index?, ty) := abiHeadWordTarget? params target
+        | throwErrorAt target "abiHeadWord requires a direct parameter or `arrayElement <param> <index>` target"
+      if let some index := index? then
+        requireWordLikeType index "arrayElement index"
+          (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
+      let headWords? :=
+        if valueTypeUsesDynamicData ty then
+          abiLocalHeadWordCount? ty
+        else
+          staticAbiWordCount? ty
+      match headWords? with
+      | some headWords =>
+          unless offset < headWords do
+            throwErrorAt stx s!"abiHeadWord offset {offset} is out of bounds for target with {headWords} ABI head word(s)"
+      | none =>
+          throwErrorAt target s!"abiHeadWord target type has no ABI head-word layout: {renderValueType ty}"
+      pure .uint256
   | `(term| Verity.msgSender) =>
       throwPureContextAccessorError stx "msgSender"
   | `(term| Verity.msgValue) =>
@@ -3334,6 +3375,34 @@ partial def translatePureExprWithTypes
   | `(term| false) => `(Compiler.CompilationModel.Expr.literal 0)
   | `(term| constructorArg $idx:num) =>
       `(Compiler.CompilationModel.Expr.constructorArg $idx)
+  | `(term| abiHeadWord $target:term $wordOffset:num) => do
+      let offset ← natFromSyntax wordOffset
+      let some (paramName, index?, ty) := abiHeadWordTarget? params target
+        | throwErrorAt target "abiHeadWord requires a direct parameter or `arrayElement <param> <index>` target"
+      match index? with
+      | some index =>
+          let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants
+          if valueTypeUsesDynamicData ty then
+            `(Compiler.CompilationModel.Expr.arrayElementDynamicWord
+              $(strTerm paramName)
+              $indexExpr
+              $(natTerm offset))
+          else
+            let elementWords ←
+              match staticAbiWordCount? ty with
+              | some n => pure n
+              | none => throwErrorAt target "abiHeadWord array element target requires a static ABI word layout"
+            `(Compiler.CompilationModel.Expr.arrayElementWord
+              $(strTerm paramName)
+              $indexExpr
+              $(natTerm elementWords)
+              $(natTerm offset))
+      | none =>
+          unless valueTypeUsesDynamicData ty do
+            throwErrorAt target "abiHeadWord direct parameter targets must have dynamic ABI head layout"
+          `(Compiler.CompilationModel.Expr.paramDynamicHeadWord
+            $(strTerm paramName)
+            $(natTerm offset))
   | `(term| Verity.msgSender) =>
       throwPureContextAccessorError stx "msgSender"
   | `(term| Verity.msgValue) =>

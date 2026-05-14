@@ -42,6 +42,12 @@ verity_contract FixedArrayStructSmoke where
   function ciphertextCountOf (txs : Array Transaction, idx : Uint256) : Uint256 := do
     return arrayLength (arrayElement txs idx).ciphertexts
 
+  function proofPA0Of (txs : Array Transaction, idx : Uint256) : Uint256 := do
+    return abiHeadWord (arrayElement txs idx) 0
+
+  function proofPC1OfTxn (txn : Transaction) : Uint256 := do
+    return abiHeadWord txn 7
+
 example :
     FixedArrayStructSmoke.rootOf_modelBody =
       [ Compiler.CompilationModel.Stmt.return
@@ -76,6 +82,23 @@ example :
             "txs"
             (Compiler.CompilationModel.Expr.param "idx")
             13)
+      ] := rfl
+
+example :
+    FixedArrayStructSmoke.proofPA0Of_modelBody =
+      [ Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.arrayElementDynamicWord
+            "txs"
+            (Compiler.CompilationModel.Expr.param "idx")
+            0)
+      ] := rfl
+
+example :
+    FixedArrayStructSmoke.proofPC1OfTxn_modelBody =
+      [ Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.paramDynamicHeadWord
+            "txn"
+            7)
       ] := rfl
 
 end Contracts.Smoke
