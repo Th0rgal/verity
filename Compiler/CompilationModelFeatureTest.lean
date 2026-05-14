@@ -1881,6 +1881,9 @@ open Verity.EVM.Uint256
 verity_contract MacroEventTrace where
   storage
 
+  event_defs
+    event Transfer(@indexed amount : Uint256, total : Uint256)
+
   function emitNamed (amount : Uint256, bonus : Uint256) : Unit := do
     emit "Transfer" [amount, add amount bonus]
 
@@ -1908,6 +1911,17 @@ def emitDynamicLogModelUsesStmtRawLog : Bool :=
   | _ => false
 
 example : emitDynamicLogModelUsesStmtRawLog = true := by native_decide
+
+def eventTraceSpecCarriesEventMetadata : Bool :=
+  match MacroEventTrace.spec.events with
+  | [{ name := "Transfer",
+       params := [
+        { name := "amount", ty := ParamType.uint256, kind := EventParamKind.indexed },
+        { name := "total", ty := ParamType.uint256, kind := EventParamKind.unindexed }
+       ] }] => true
+  | _ => false
+
+example : eventTraceSpecCarriesEventMetadata = true := by native_decide
 
 def emitNamedExecutableAppendsNamedEvent : Bool :=
   match MacroEventTrace.emitNamed 7 5 Verity.defaultState with
@@ -4082,6 +4096,8 @@ set_option maxRecDepth 4096 in
     MacroImmutableSmoke.typedImmutableExecutableReadsConvertedValues
   expectTrue "macro emit lowers to Stmt.emit"
     MacroEventTraceSmoke.emitNamedModelUsesStmtEmit
+  expectTrue "macro event declarations populate CompilationModel event metadata"
+    MacroEventTraceSmoke.eventTraceSpecCarriesEventMetadata
   expectTrue "macro rawLog lowers to Stmt.rawLog with dynamic topic expressions"
     MacroEventTraceSmoke.emitDynamicLogModelUsesStmtRawLog
   expectTrue "macro emit executable path appends the named event trace"

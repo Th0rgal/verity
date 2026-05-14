@@ -75,6 +75,17 @@ structure ErrorDecl where
   name : String
   params : Array ValueType
 
+structure EventParamDecl where
+  ident : Ident
+  name : String
+  ty : ValueType
+  isIndexed : Bool
+
+structure EventDecl where
+  ident : Ident
+  name : String
+  params : Array EventParamDecl
+
 structure ConstantDecl where
   ident : Ident
   name : String
@@ -787,6 +798,42 @@ private def parseError (newtypes : Array NewtypeDecl) (structDecls : Array Struc
         params := ← params.mapM (valueTypeFromSyntax newtypes structDecls adtDecls)
       }
   | _ => throwErrorAt stx "invalid custom error declaration"
+
+private def parseEventParam
+    (newtypes : Array NewtypeDecl)
+    (structDecls : Array StructDecl)
+    (adtDecls : Array AdtDecl)
+    (stx : Syntax) : CommandElabM EventParamDecl := do
+  match stx with
+  | `(verityEventParam| $name:ident : $ty:term) =>
+      pure {
+        ident := name
+        name := toString name.getId
+        ty := ← valueTypeFromSyntax newtypes structDecls adtDecls ty
+        isIndexed := false
+      }
+  | `(verityEventParam| @indexed $name:ident : $ty:term) =>
+      pure {
+        ident := name
+        name := toString name.getId
+        ty := ← valueTypeFromSyntax newtypes structDecls adtDecls ty
+        isIndexed := true
+      }
+  | _ => throwErrorAt stx "invalid event parameter declaration"
+
+private def parseEvent
+    (newtypes : Array NewtypeDecl)
+    (structDecls : Array StructDecl)
+    (adtDecls : Array AdtDecl)
+    (stx : Syntax) : CommandElabM EventDecl := do
+  match stx with
+  | `(verityEvent| event $name:ident ($[$params:verityEventParam],*)) =>
+      pure {
+        ident := name
+        name := toString name.getId
+        params := ← params.mapM (parseEventParam newtypes structDecls adtDecls)
+      }
+  | _ => throwErrorAt stx "invalid event declaration"
 
 private def parseConstant (newtypes : Array NewtypeDecl) (stx : Syntax) : CommandElabM ConstantDecl := do
   match stx with
@@ -6321,6 +6368,24 @@ private def mkModelErrorTerm (err : ErrorDecl) : CommandElabM Term := do
       $(strTerm err.name)
       [ $[$paramTerms],* ])
 
+private def mkModelEventParamTerm (param : EventParamDecl) : CommandElabM Term := do
+  let tyTerm ← modelParamTypeTerm param.ty
+  let kindTerm ←
+    if param.isIndexed then
+      `(Compiler.CompilationModel.EventParamKind.indexed)
+    else
+      `(Compiler.CompilationModel.EventParamKind.unindexed)
+  `(Compiler.CompilationModel.EventParam.mk
+      $(strTerm param.name)
+      $tyTerm
+      $kindTerm)
+
+private def mkModelEventTerm (ev : EventDecl) : CommandElabM Term := do
+  let paramTerms ← ev.params.mapM mkModelEventParamTerm
+  `(Compiler.CompilationModel.EventDef.mk
+      $(strTerm ev.name)
+      [ $[$paramTerms],* ])
+
 private def mkModelExternalTerm (ext : ExternalDecl) : CommandElabM Term := do
   let paramTerms ← ext.params.mapM modelParamTypeTerm
   let returnTerms ← ext.returnTys.mapM modelParamTypeTerm
@@ -6405,6 +6470,7 @@ private def mkSpecCommand
     (contractName : String)
     (fields : Array StorageFieldDecl)
     (errorDecls : Array ErrorDecl)
+    (eventDecls : Array EventDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
@@ -6416,6 +6482,7 @@ private def mkSpecCommand
   let allFields := fields ++ immutableFields
   let fieldTerms ← allFields.mapM mkModelFieldTerm
   let errorTerms ← errorDecls.mapM mkModelErrorTerm
+  let eventTerms ← eventDecls.mapM mkModelEventTerm
   let externalTerms ← externalDecls.mapM mkModelExternalTerm
   let constructorTerm ←
     match ctor, immutableDecls.isEmpty with
@@ -6499,6 +6566,7 @@ private def mkSpecCommand
     name := $(strTerm contractName)
     fields := [ $[$fieldTerms],* ]
     «errors» := [ $[$errorTerms],* ]
+    «events» := [ $[$eventTerms],* ]
     «constructor» := $constructorTerm
     functions := [ $[$allFunctionTerms],* ]
     «externals» := [ $[$externalTerms],* ]
@@ -6599,9 +6667,9 @@ def computeStorageNamespaceKey (key : String) : Nat :=
 def parseContractSyntax
     (stx : Syntax)
     : CommandElabM
-        (Ident × Array NewtypeDecl × Array StructDecl × Array AdtDecl × Array StorageFieldDecl × Array ErrorDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl × Option Nat) := do
+        (Ident × Array NewtypeDecl × Array StructDecl × Array AdtDecl × Array StorageFieldDecl × Array ErrorDecl × Array EventDecl × Array ConstantDecl × Array ImmutableDecl × Array ExternalDecl × Option ConstructorDecl × Array FunctionDecl × Option Nat) := do
   match stx with
-  | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? $[inductive $[$adtDecls:verityAdtDecl]*]? $[$nsSpec:verityNamespaceSpec]? storage $[$storageFields:verityStorageField]* $[$structDecls:verityStructDecl]* $[errors $[$errorDecls:verityError]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
+  | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? $[inductive $[$adtDecls:verityAdtDecl]*]? $[$nsSpec:verityNamespaceSpec]? storage $[$storageFields:verityStorageField]* $[$structDecls:verityStructDecl]* $[errors $[$errorDecls:verityError]*]? $[event_defs $[$eventDecls:verityEvent]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$functions:verityFunction]*) =>
       -- Parse newtypes first — they are needed by all downstream type resolution
       let parsedNewtypes ←
         match newtypeDecls with
@@ -6665,6 +6733,10 @@ def parseContractSyntax
         match errorDecls with
         | some decls => decls.mapM (parseError parsedNewtypes parsedStructs parsedAdts)
         | none => pure #[]
+      let parsedEvents ←
+        match eventDecls with
+        | some decls => decls.mapM (parseEvent parsedNewtypes parsedStructs parsedAdts)
+        | none => pure #[]
       let parsedConstants ←
         match constantDecls with
         | some decls => decls.mapM (parseConstant parsedNewtypes)
@@ -6691,6 +6763,7 @@ def parseContractSyntax
         , parsedAdts
         , parsedFields
         , parsedErrors
+        , parsedEvents
         , parsedConstants
         , parsedImmutables
         , parsedExternals
@@ -7016,6 +7089,7 @@ def mkSpecCommandPublic
     (contractName : String)
     (fields : Array StorageFieldDecl)
     (errorDecls : Array ErrorDecl)
+    (eventDecls : Array EventDecl)
     (constDecls : Array ConstantDecl)
     (immutableDecls : Array ImmutableDecl)
     (externalDecls : Array ExternalDecl)
@@ -7023,7 +7097,7 @@ def mkSpecCommandPublic
     (functions : Array FunctionDecl)
     (adtDecls : Array AdtDecl)
     (storageNamespace : Option Nat) : CommandElabM Cmd :=
-  mkSpecCommand contractName fields errorDecls constDecls immutableDecls externalDecls ctor functions adtDecls storageNamespace
+  mkSpecCommand contractName fields errorDecls eventDecls constDecls immutableDecls externalDecls ctor functions adtDecls storageNamespace
 
 def mkFindIdxFieldSimpCommandsPublic
     (contractIdent : Ident)
