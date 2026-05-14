@@ -18947,6 +18947,77 @@ private theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_empty
           reservedNames n0))
       (EvmYul.UInt256.ofNat 1) (some nativeContract)
 
+/-- Selected user bodies of shape `[.block []]` lower to `[.Block []]`, which
+preserves the generated matched flag via `NativeStmtPreservesWord_empty_block`. -/
+private theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_block_empty
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (hBlockEmpty :
+      ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+        fn.body = [.block []]) :
+    NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel irContract tx := by
+  intro nativeContract fn reservedNames n0 cases' body' bodyNative bodyStart
+    bodyEnd userBodyStart _hLowerRuntime hFind _hCase _hBodyLower
+    hUserBodyLower _pre _suffix _hCases
+  have hBody : fn.body = [.block []] := hBlockEmpty fn hFind
+  rw [hBody] at hUserBodyLower
+  simp [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons,
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil,
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_block,
+    Bind.bind, Except.bind, Pure.pure, Except.pure, List.append_nil]
+    at hUserBodyLower
+  rcases hUserBodyLower with ⟨rfl, _rfl⟩
+  exact
+    Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_singleton
+      (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames n0))
+      (EvmYul.UInt256.ofNat 1) (.Block []) (some nativeContract)
+      (Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_empty_block
+        (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames n0))
+        (EvmYul.UInt256.ofNat 1) (some nativeContract))
+
+/-- Selected user bodies of shape `[.comment text]` lower to `[.Block []]`
+(comments are no-ops in the native backend), which preserves the generated
+matched flag via `NativeStmtPreservesWord_empty_block`. -/
+private theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_singleton_comment
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (hComment :
+      ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+        ∃ text, fn.body = [.comment text]) :
+    NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel irContract tx := by
+  intro nativeContract fn reservedNames n0 cases' body' bodyNative bodyStart
+    bodyEnd userBodyStart _hLowerRuntime hFind _hCase _hBodyLower
+    hUserBodyLower _pre _suffix _hCases
+  obtain ⟨text, hBody⟩ := hComment fn hFind
+  rw [hBody] at hUserBodyLower
+  rcases Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_comment_head_eq
+      reservedNames userBodyStart text [] bodyNative bodyEnd hUserBodyLower
+    with ⟨rest', hShape, hRest⟩
+  simp [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil]
+    at hRest
+  rcases hRest with ⟨hRest', _⟩
+  subst hRest'
+  subst hShape
+  exact
+    Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_singleton
+      (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames n0))
+      (EvmYul.UInt256.ofNat 1) (.Block []) (some nativeContract)
+      (Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_empty_block
+        (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames n0))
+        (EvmYul.UInt256.ofNat 1) (some nativeContract))
+
 /-- Empty selected user bodies discharge the full revived selector-hit user-body
 bridge. -/
 private theorem NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived.of_empty_body
@@ -21423,6 +21494,72 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_empty_body
     hSelectorRange hSelectorsRange hNoWrap
     (NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived.of_empty_body
       irContract tx state observableSlots hEmpty)
+
+/-- Selected user bodies of shape `[.block []]` supply the named selector-hit
+success bridge.  The exec-only Revived leaf is the existing `of_block_empty`
+constructor; the matched-flag preservation half is discharged by the
+matching preserves bridge `of_block_empty`. -/
+private theorem NativeGeneratedSelectorHitSuccessBridge.of_block_empty
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (hSupported : SupportedSpec spec selectors)
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (hcompile : CompilationModel.compile spec selectors = Except.ok irContract)
+    (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
+    (hSelectorsRange :
+      ∀ selector, selector ∈ selectors →
+        selector < Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hBlockEmpty :
+      ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+        fn.body = [.block []]) :
+    NativeGeneratedSelectorHitSuccessBridge irContract tx state
+      observableSlots :=
+  NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_preserves
+    spec selectors hSupported irContract tx state observableSlots hcompile
+    hSelectorRange hSelectorsRange hNoWrap
+    (NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_empty
+      irContract tx state observableSlots hBlockEmpty)
+    (NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_block_empty
+      irContract tx hBlockEmpty)
+
+/-- Selected user bodies of shape `[.comment text]` supply the named selector-hit
+success bridge.  The exec-only Revived leaf is the existing `of_singleton_comment`
+constructor; the matched-flag preservation half is discharged by the
+matching preserves bridge `of_singleton_comment`.  The lowered native shape is
+identical to `.of_block_empty` (a single `.Block []`), so the same
+`NativeStmtPreservesWord_empty_block` discharges the inner per-stmt obligation. -/
+private theorem NativeGeneratedSelectorHitSuccessBridge.of_singleton_comment
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (hSupported : SupportedSpec spec selectors)
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (hcompile : CompilationModel.compile spec selectors = Except.ok irContract)
+    (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
+    (hSelectorsRange :
+      ∀ selector, selector ∈ selectors →
+        selector < Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hComment :
+      ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+        ∃ text, fn.body = [.comment text]) :
+    NativeGeneratedSelectorHitSuccessBridge irContract tx state
+      observableSlots :=
+  NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_preserves
+    spec selectors hSupported irContract tx state observableSlots hcompile
+    hSelectorRange hSelectorsRange hNoWrap
+    (NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_singleton_comment
+      irContract tx state observableSlots hComment)
+    (NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_singleton_comment
+      irContract tx hComment)
 
 /-- Generated `callDispatcher` result theorem from `SupportedSpec + compile`,
 modulo the exact-fuel lowered-user-body proof stated against

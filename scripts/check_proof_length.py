@@ -43,6 +43,19 @@ ALLOWLIST: set[str] = {
     "eval_compileExpr_mulDivUp_of_compiled",
     "eval_compileExpr_logicalAnd_of_compiled",
     "eval_compileExpr_logicalOr_of_compiled",
+    # Per-constructor cases-on-Expr proofs: each new Expr constructor (e.g.
+    # paramDynamicHeadWord, mulDiv512Down/Up from upstream commits cf5cb844 +
+    # 6b2af37c) adds a new arm. The proof body is mechanical (same simp pattern
+    # per constructor) so splitting wouldn't reduce complexity.
+    "exprUsesStorageArrayElement_eq_false_of_coreClosed",
+    "exprUsesDynamicBytesEq_eq_false_of_coreClosed",
+    "exprUsesArrayElement_eq_false_of_coreClosed",
+    "exprTouchesUnsupportedCallSurface_eq_false_of_coreClosed",
+    # SupportedStmtList → unused-feature-surface inductions for new partial-def
+    # flags from upstream cf5cb844 + 6b2af37c. The proof induct on every
+    # SupportedStmtList constructor (~30 cases each) with mechanical simp.
+    "supportedStmtList_usesParamDynamicHeadWord_false",
+    "supportedStmtList_usesMulDiv512_false",
     # --- Core expression/statement compilation ---
     "compileExpr_core_ok",
     "compileRequireFailCond_core_ok",

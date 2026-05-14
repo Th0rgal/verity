@@ -23,6 +23,14 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Verity.Core
 
+-- The Layer A log-cross-cast theorems (IRStmtPreservesObsAt_of_log0..log4)
+-- use `simp` with `applyYulLogCall?` and other simp lemmas that the
+-- `linter.unusedSimpArgs` may flag as unused even when load-bearing,
+-- because they're consumed by simp's match-reduction rather than direct
+-- rewrites. Disable for this file, matching the precedent in
+-- Compiler.Proofs.IRGeneration.Function.lean (line 11).
+set_option linter.unusedSimpArgs false
+
 namespace Compiler.Proofs.IRGeneration
 
 open Compiler
@@ -1041,6 +1049,575 @@ theorem execIRStmts_single_block_stop_length_insufficient
         .revert state := by
   simp [execIRStmts, execIRStmt]
 
+/-! ## IR-side companion predicate and induction for Layer A
+
+These are the IR-side companions to `NativePreservableStraightStmt`
+(`Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean:17864`).
+We use **option (b)** of the Layer A design (see
+`docs/NATIVE_EVMYULLEAN_G1_FOLLOWUP_PLAN.md`, Layer A): inline an IR-side
+analog predicate (`IRStmtPreservesObs`) here so that this module does not
+need to import the native-harness file (which would form a cycle via
+`Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter` →
+`Compiler.Proofs.IRGeneration.IRStorageWord`). The cross-cast from
+`NativePreservableStraightStmt` to `IRStmtPreservesObs` is deferred to
+`Compiler/Proofs/EndToEnd.lean` (Layer D's responsibility per the plan). -/
+
+/-- Side condition: `stmt` is not a Yul `letMany`.
+
+Rationale: the simple IR executor (`execIRStmt`) returns `.revert` on
+`.letMany` by design — `letMany` only arises in compiler output for
+internal/external function calls and try/catch, which go through the
+contract-aware `execIRStmtsWithInternals` path instead. D1/D2's prefix
+shape (`preStmts ++ [.leave]`, or `preStmts` falling through) requires
+each prefix stmt to actually `.continue` in IR, so `letMany` must be
+excluded by this side condition. -/
+def LetManyFree (stmt : YulStmt) : Prop :=
+  ∀ targets value, stmt ≠ YulStmt.letMany targets value
+
+/-- Side condition: `stmt` is not one of the three explicit IR-side
+terminators (`stop`, `return`, `revert`). These are valid
+`NativePreservableStraightStmt` constructors but produce `.stop _`,
+`.return _ _`, or `.revert _` rather than `.continue _` in IR — they
+must not appear in a prefix that ends with `.leave` (would terminate
+before the leave runs). -/
+def NotTerminator (stmt : YulStmt) : Prop :=
+  (∀ offset size,
+    stmt ≠ YulStmt.expr (YulExpr.call "return" [offset, size])) ∧
+  (∀ offset size,
+    stmt ≠ YulStmt.expr (YulExpr.call "revert" [offset, size])) ∧
+  stmt ≠ YulStmt.expr (YulExpr.call "stop" [])
+
+@[simp] theorem LetManyFree_comment (text : String) : LetManyFree (.comment text) := by
+  intro _ _ h; cases h
+
+@[simp] theorem LetManyFree_let_ (name : String) (value : YulExpr) :
+    LetManyFree (.let_ name value) := by
+  intro _ _ h; cases h
+
+@[simp] theorem LetManyFree_assign (name : String) (value : YulExpr) :
+    LetManyFree (.assign name value) := by
+  intro _ _ h; cases h
+
+@[simp] theorem LetManyFree_expr (e : YulExpr) :
+    LetManyFree (.expr e) := by
+  intro _ _ h; cases h
+
+@[simp] theorem LetManyFree_leave : LetManyFree .leave := by
+  intro _ _ h; cases h
+
+@[simp] theorem NotTerminator_comment (text : String) :
+    NotTerminator (.comment text) := by
+  refine ⟨?_, ?_, ?_⟩ <;> · intros; intro h; cases h
+
+@[simp] theorem NotTerminator_let_ (name : String) (value : YulExpr) :
+    NotTerminator (.let_ name value) := by
+  refine ⟨?_, ?_, ?_⟩ <;> · intros; intro h; cases h
+
+@[simp] theorem NotTerminator_assign (name : String) (value : YulExpr) :
+    NotTerminator (.assign name value) := by
+  refine ⟨?_, ?_, ?_⟩ <;> · intros; intro h; cases h
+
+@[simp] theorem NotTerminator_leave : NotTerminator .leave := by
+  refine ⟨?_, ?_, ?_⟩ <;> · intros; intro h; cases h
+
+/-- State-relative variant of `IRStmtPreservesObs`: at this specific state,
+`stmt` runs to `.continue _` in IR. Compared with `IRStmtPreservesObs`
+(state-quantified), this allows the per-stmt witness to depend on the
+state's variable bindings — necessary for constructors like `let_`,
+`assign`, and most `expr_*` cases whose IR semantics revert when
+`evalIRExpr` fails.
+
+The `∃ state'` is OUTSIDE the `∀ fuel`: for any preservable atomic stmt,
+the resulting state is fuel-independent. This shape makes the predicate
+directly composable with `StmtsContinueFrom` for state-threaded induction.
+
+For the state-quantified `IRStmtPreservesObs`, only the always-continue
+constructors (`.comment`, `.leave`, `.funcDef`) satisfy the predicate
+unconditionally; this state-relative variant is what the Layer-D
+cross-cast actually needs. -/
+def IRStmtPreservesObsAt (state : IRState) (stmt : YulStmt) : Prop :=
+  ∃ state', ∀ fuel,
+    execIRStmt (fuel + 1) state stmt = .continue state'
+
+@[simp] theorem IRStmtPreservesObsAt_comment (state : IRState) (text : String) :
+    IRStmtPreservesObsAt state (.comment text) := by
+  refine ⟨state, fun _ => ?_⟩
+  simp only [execIRStmt]
+
+@[simp] theorem IRStmtPreservesObsAt_leave (state : IRState) :
+    IRStmtPreservesObsAt state .leave := by
+  refine ⟨state, fun _ => ?_⟩
+  simp only [execIRStmt]
+
+@[simp] theorem IRStmtPreservesObsAt_funcDef (state : IRState)
+    (name : String) (params rets : List String) (body : List YulStmt) :
+    IRStmtPreservesObsAt state (.funcDef name params rets body) := by
+  refine ⟨state, fun _ => ?_⟩
+  simp only [execIRStmt]
+
+/-- Cross-cast for `.let_ name value`: at any state where `value` evaluates,
+the stmt continues, binding `name` to the evaluated result. -/
+theorem IRStmtPreservesObsAt_of_let_
+    (state : IRState) (name : String) (value : YulExpr)
+    (hEval : ∃ v, evalIRExpr state value = some v) :
+    IRStmtPreservesObsAt state (.let_ name value) := by
+  obtain ⟨v, hv⟩ := hEval
+  refine ⟨state.setVar name v, fun _ => ?_⟩
+  simp only [execIRStmt, hv]
+
+/-- Cross-cast for `.assign name value`: at any state where `value` evaluates,
+the stmt continues, updating `name`'s binding. -/
+theorem IRStmtPreservesObsAt_of_assign
+    (state : IRState) (name : String) (value : YulExpr)
+    (hEval : ∃ v, evalIRExpr state value = some v) :
+    IRStmtPreservesObsAt state (.assign name value) := by
+  obtain ⟨v, hv⟩ := hEval
+  refine ⟨state.setVar name v, fun _ => ?_⟩
+  simp only [execIRStmt, hv]
+
+/-- Cross-cast for `.expr (.call "sstore" [slot, val])` with literal slot:
+at any state where `val` evaluates, the stmt continues, updating storage. -/
+theorem IRStmtPreservesObsAt_of_sstore_lit_expr
+    (state : IRState) (slot : Nat) (valExpr : YulExpr)
+    (hEval : ∃ v, evalIRExpr state valExpr = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "sstore" [.lit slot, valExpr])) := by
+  obtain ⟨v, hv⟩ := hEval
+  refine ⟨{ state with storage :=
+      Compiler.Proofs.abstractStoreStorageOrMapping state.storage slot v },
+    fun _ => ?_⟩
+  simp only [execIRStmt, evalIRExpr, hv]
+
+/-- Cross-cast for `.expr (.call "tstore" [offset, val])`: at any state where
+both `offset` and `val` evaluate, the stmt continues, updating transient
+storage. -/
+theorem IRStmtPreservesObsAt_of_tstore
+    (state : IRState) (offsetExpr valExpr : YulExpr)
+    (hOffsetEval : ∃ o, evalIRExpr state offsetExpr = some o)
+    (hValEval : ∃ v, evalIRExpr state valExpr = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "tstore" [offsetExpr, valExpr])) := by
+  obtain ⟨o, ho⟩ := hOffsetEval
+  obtain ⟨v, hv⟩ := hValEval
+  refine ⟨{ state with transientStorage := fun x =>
+      if x = o then v else state.transientStorage x }, fun _ => ?_⟩
+  simp only [execIRStmt, ho, hv]
+
+/-- Cross-cast for `.expr (.call "mstore" [offset, val])`: at any state where
+both `offset` and `val` evaluate, the stmt continues, updating memory. -/
+theorem IRStmtPreservesObsAt_of_mstore
+    (state : IRState) (offsetExpr valExpr : YulExpr)
+    (hOffsetEval : ∃ o, evalIRExpr state offsetExpr = some o)
+    (hValEval : ∃ v, evalIRExpr state valExpr = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "mstore" [offsetExpr, valExpr])) := by
+  obtain ⟨o, ho⟩ := hOffsetEval
+  obtain ⟨v, hv⟩ := hValEval
+  refine ⟨{ state with memory := fun x => if x = o then v else state.memory x },
+    fun _ => ?_⟩
+  simp only [execIRStmt, ho, hv]
+
+/-- Cross-cast for `.expr (.call "mstore8" [offset, val])`: the IR evaluator
+treats `mstore8` opaquely (the fallthrough `.continue state` branch), so the
+stmt continues with state unchanged provided the call's args evaluate.
+Note: the IR model does NOT capture mstore8's byte-write effect on memory;
+the bridge to native relies on the harness side projection rather than the
+IR side update. -/
+theorem IRStmtPreservesObsAt_of_mstore8
+    (state : IRState) (offsetExpr valExpr : YulExpr)
+    (hEval : ∃ v, evalIRExpr state
+      (.call "mstore8" [offsetExpr, valExpr]) = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "mstore8" [offsetExpr, valExpr])) := by
+  obtain ⟨v, hv⟩ := hEval
+  refine ⟨state, fun _ => ?_⟩
+  simp [execIRStmt, isYulLogName, hv]
+
+/-- Cross-cast for `.expr (.call "calldatacopy" [dst, src, sz])`: opaque
+fallthrough, continues with state unchanged given the call evaluates. -/
+theorem IRStmtPreservesObsAt_of_calldatacopy
+    (state : IRState) (dstExpr srcExpr sizeExpr : YulExpr)
+    (hEval : ∃ v, evalIRExpr state
+      (.call "calldatacopy" [dstExpr, srcExpr, sizeExpr]) = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "calldatacopy" [dstExpr, srcExpr, sizeExpr])) := by
+  obtain ⟨v, hv⟩ := hEval
+  refine ⟨state, fun _ => ?_⟩
+  simp [execIRStmt, isYulLogName, hv]
+
+/-- Cross-cast for `.expr (.call "returndatacopy" [dst, src, sz])`: opaque
+fallthrough. -/
+theorem IRStmtPreservesObsAt_of_returndatacopy
+    (state : IRState) (dstExpr srcExpr sizeExpr : YulExpr)
+    (hEval : ∃ v, evalIRExpr state
+      (.call "returndatacopy" [dstExpr, srcExpr, sizeExpr]) = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "returndatacopy" [dstExpr, srcExpr, sizeExpr])) := by
+  obtain ⟨v, hv⟩ := hEval
+  refine ⟨state, fun _ => ?_⟩
+  simp [execIRStmt, isYulLogName, hv]
+
+/-- Cross-cast for `.expr (.call "log0" [offset, size])`. Updates events by
+appending a Yul log entry. -/
+theorem IRStmtPreservesObsAt_of_log0
+    (state : IRState) (offsetExpr sizeExpr : YulExpr)
+    (hOffsetEval : ∃ o, evalIRExpr state offsetExpr = some o)
+    (hSizeEval : ∃ s, evalIRExpr state sizeExpr = some s) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "log0" [offsetExpr, sizeExpr])) := by
+  obtain ⟨o, ho⟩ := hOffsetEval
+  obtain ⟨s, hs⟩ := hSizeEval
+  refine ⟨state.appendYulLog o s [], fun _ => ?_⟩
+  simp [execIRStmt, isYulLogName, evalIRExprs, ho, hs,
+    Option.bind, applyYulLogCall?]
+
+/-- Cross-cast for `.expr (.call "log1" [offset, size, topic0])`. -/
+theorem IRStmtPreservesObsAt_of_log1
+    (state : IRState) (offsetExpr sizeExpr topic0Expr : YulExpr)
+    (hOffsetEval : ∃ o, evalIRExpr state offsetExpr = some o)
+    (hSizeEval : ∃ s, evalIRExpr state sizeExpr = some s)
+    (hTopic0Eval : ∃ t, evalIRExpr state topic0Expr = some t) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "log1" [offsetExpr, sizeExpr, topic0Expr])) := by
+  obtain ⟨o, ho⟩ := hOffsetEval
+  obtain ⟨s, hs⟩ := hSizeEval
+  obtain ⟨t, ht⟩ := hTopic0Eval
+  refine ⟨state.appendYulLog o s [t], fun _ => ?_⟩
+  simp [execIRStmt, isYulLogName, evalIRExprs, ho, hs, ht,
+    Option.bind, applyYulLogCall?]
+
+/-- Cross-cast for `.expr (.call "log2" [...])`. -/
+theorem IRStmtPreservesObsAt_of_log2
+    (state : IRState) (offsetExpr sizeExpr t0Expr t1Expr : YulExpr)
+    (hOffsetEval : ∃ o, evalIRExpr state offsetExpr = some o)
+    (hSizeEval : ∃ s, evalIRExpr state sizeExpr = some s)
+    (hT0Eval : ∃ t, evalIRExpr state t0Expr = some t)
+    (hT1Eval : ∃ t, evalIRExpr state t1Expr = some t) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "log2" [offsetExpr, sizeExpr, t0Expr, t1Expr])) := by
+  obtain ⟨o, ho⟩ := hOffsetEval
+  obtain ⟨s, hs⟩ := hSizeEval
+  obtain ⟨t0, ht0⟩ := hT0Eval
+  obtain ⟨t1, ht1⟩ := hT1Eval
+  refine ⟨state.appendYulLog o s [t0, t1], fun _ => ?_⟩
+  simp [execIRStmt, isYulLogName, evalIRExprs, ho, hs, ht0, ht1,
+    Option.bind, applyYulLogCall?]
+
+/-- Cross-cast for `.expr (.call "log3" [...])`. -/
+theorem IRStmtPreservesObsAt_of_log3
+    (state : IRState) (offsetExpr sizeExpr t0Expr t1Expr t2Expr : YulExpr)
+    (hOffsetEval : ∃ o, evalIRExpr state offsetExpr = some o)
+    (hSizeEval : ∃ s, evalIRExpr state sizeExpr = some s)
+    (hT0Eval : ∃ t, evalIRExpr state t0Expr = some t)
+    (hT1Eval : ∃ t, evalIRExpr state t1Expr = some t)
+    (hT2Eval : ∃ t, evalIRExpr state t2Expr = some t) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "log3" [offsetExpr, sizeExpr, t0Expr, t1Expr, t2Expr])) := by
+  obtain ⟨o, ho⟩ := hOffsetEval
+  obtain ⟨s, hs⟩ := hSizeEval
+  obtain ⟨t0, ht0⟩ := hT0Eval
+  obtain ⟨t1, ht1⟩ := hT1Eval
+  obtain ⟨t2, ht2⟩ := hT2Eval
+  refine ⟨state.appendYulLog o s [t0, t1, t2], fun _ => ?_⟩
+  simp [execIRStmt, isYulLogName, evalIRExprs, ho, hs, ht0, ht1, ht2,
+    Option.bind, applyYulLogCall?]
+
+/-- Cross-cast for `.expr (.call "log4" [...])`. -/
+theorem IRStmtPreservesObsAt_of_log4
+    (state : IRState) (offsetExpr sizeExpr t0Expr t1Expr t2Expr t3Expr : YulExpr)
+    (hOffsetEval : ∃ o, evalIRExpr state offsetExpr = some o)
+    (hSizeEval : ∃ s, evalIRExpr state sizeExpr = some s)
+    (hT0Eval : ∃ t, evalIRExpr state t0Expr = some t)
+    (hT1Eval : ∃ t, evalIRExpr state t1Expr = some t)
+    (hT2Eval : ∃ t, evalIRExpr state t2Expr = some t)
+    (hT3Eval : ∃ t, evalIRExpr state t3Expr = some t) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "log4"
+        [offsetExpr, sizeExpr, t0Expr, t1Expr, t2Expr, t3Expr])) := by
+  obtain ⟨o, ho⟩ := hOffsetEval
+  obtain ⟨s, hs⟩ := hSizeEval
+  obtain ⟨t0, ht0⟩ := hT0Eval
+  obtain ⟨t1, ht1⟩ := hT1Eval
+  obtain ⟨t2, ht2⟩ := hT2Eval
+  obtain ⟨t3, ht3⟩ := hT3Eval
+  refine ⟨state.appendYulLog o s [t0, t1, t2, t3], fun _ => ?_⟩
+  simp [execIRStmt, isYulLogName, evalIRExprs, ho, hs, ht0, ht1, ht2, ht3,
+    Option.bind, applyYulLogCall?]
+
+/-- Cross-cast for `.expr (.call "sstore" [.call "mappingSlot" [base, key], val])`:
+sstore-of-mappingSlot stores `val` at the abstract mapping entry computed
+from `(base, key)`. Requires all three sub-expressions to evaluate. -/
+theorem IRStmtPreservesObsAt_of_sstore_mappingSlot
+    (state : IRState) (baseExpr keyExpr valExpr : YulExpr)
+    (hBaseEval : ∃ b, evalIRExpr state baseExpr = some b)
+    (hKeyEval : ∃ k, evalIRExpr state keyExpr = some k)
+    (hValEval : ∃ v, evalIRExpr state valExpr = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "sstore"
+        [.call "mappingSlot" [baseExpr, keyExpr], valExpr])) := by
+  obtain ⟨b, hb⟩ := hBaseEval
+  obtain ⟨k, hk⟩ := hKeyEval
+  obtain ⟨v, hv⟩ := hValEval
+  refine ⟨{ state with storage :=
+      Compiler.Proofs.abstractStoreMappingEntry state.storage b k v },
+    fun _ => ?_⟩
+  simp only [execIRStmt, hb, hk, hv]
+
+/-- Cross-cast for `.expr (.call "sstore" [.ident name, val])` — slot is read
+from a local variable binding. Requires the ident and val to evaluate. -/
+theorem IRStmtPreservesObsAt_of_sstore_ident
+    (state : IRState) (slotName : String) (valExpr : YulExpr)
+    (hSlotEval : ∃ s, state.getVar slotName = some s)
+    (hValEval : ∃ v, evalIRExpr state valExpr = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "sstore" [.ident slotName, valExpr])) := by
+  obtain ⟨s, hs⟩ := hSlotEval
+  obtain ⟨v, hv⟩ := hValEval
+  refine ⟨{ state with storage :=
+      Compiler.Proofs.abstractStoreStorageOrMapping state.storage s v },
+    fun _ => ?_⟩
+  simp only [execIRStmt, evalIRExpr, hs, hv]
+
+/-- Cross-cast for `.expr (.call "sstore" [.call "add" [l, r], val])`: slot
+is the result of an `add` call. Falls through `execIRStmt`'s general
+non-mappingSlot sstore arm. -/
+theorem IRStmtPreservesObsAt_of_sstore_add
+    (state : IRState) (leftExpr rightExpr valExpr : YulExpr)
+    (hSlotEval : ∃ s,
+      evalIRExpr state (.call "add" [leftExpr, rightExpr]) = some s)
+    (hValEval : ∃ v, evalIRExpr state valExpr = some v) :
+    IRStmtPreservesObsAt state
+      (.expr (.call "sstore" [.call "add" [leftExpr, rightExpr], valExpr])) := by
+  obtain ⟨s, hs⟩ := hSlotEval
+  obtain ⟨v, hv⟩ := hValEval
+  refine ⟨{ state with storage :=
+      Compiler.Proofs.abstractStoreStorageOrMapping state.storage s v },
+    fun _ => ?_⟩
+  -- The outer slot-shape match (.call "mappingSlot" vs _) needs explicit
+  -- reduction; CI's stricter Lean does not reduce the String-literal
+  -- branch of the inner match via `simp only`. Use `simp` to fully reduce.
+  simp [execIRStmt, hs, hv]
+
+/-- General cross-cast for `.expr (.call func args)` where `func` is NOT one
+of the special builtins (sstore/mstore/tstore/stop/return/revert/log*). The
+call falls through `execIRStmt`'s opaque-eval branch: requires the call to
+evaluate; yields `.continue state` with state unchanged. -/
+theorem IRStmtPreservesObsAt_of_expr_call_opaque
+    (state : IRState) (func : String) (args : List YulExpr)
+    (hNotSStore : func ≠ "sstore")
+    (hNotMStore : func ≠ "mstore")
+    (hNotTStore : func ≠ "tstore")
+    (hNotStop : ¬(func = "stop" ∧ args = []))
+    (hNotRevert : func ≠ "revert")
+    (hNotReturn : func ≠ "return")
+    (hNotLog : Compiler.Proofs.YulGeneration.isYulLogName func = false)
+    (hEval : ∃ v, evalIRExpr state (.call func args) = some v) :
+    IRStmtPreservesObsAt state (.expr (.call func args)) := by
+  obtain ⟨v, hv⟩ := hEval
+  refine ⟨state, fun _ => ?_⟩
+  cases args with
+  | nil =>
+      have hStopFalse : func ≠ "stop" := fun h => hNotStop ⟨h, rfl⟩
+      simp [execIRStmt, hStopFalse, hNotLog, hv]
+  | cons a rest =>
+      cases rest with
+      | nil =>
+          simp [execIRStmt, hNotLog, hv]
+      | cons b rest' =>
+          cases rest' with
+          | nil =>
+              simp [execIRStmt, hNotSStore, hNotMStore, hNotTStore,
+                hNotRevert, hNotReturn, hNotLog, hv]
+          | cons c rest'' =>
+              simp [execIRStmt, hNotLog, hv]
+
+/-- IR-side analog of `NativePreservableStraightStmt`: a statement whose IR
+execution terminates in `.continue _` (does not return / stop / revert /
+otherwise terminate the function body).
+
+Genuinely weaker than strict-equality on storage and events. Many
+`NativePreservableStraightStmt` constructors (sstore, log0..log4, tstore,
+mstore, etc.) DO mutate storage/events in IR semantics; the bridge to the
+native side handles that via state projection on the harness side, not via
+per-stmt identity here. The constructors of `NativePreservableStraightStmt`
+this predicate is NOT satisfied by are the explicit terminators
+(`expr_stop`, `expr_return`, `expr_revert`); those are excluded from the
+prefix shapes consumed by D1/D2 in any case. -/
+def IRStmtPreservesObs (stmt : YulStmt) : Prop :=
+  ∀ fuel state, ∃ state',
+    execIRStmt (fuel + 1) state stmt = .continue state'
+
+/-- A2: IR-side induction for a falling-through prefix of statements that
+each terminate in `.continue _`. Fuel `stmts.length + fuel + 1` is enough to
+walk the whole list, ending in `.continue _`. -/
+theorem execIRStmts_continue_of_nativePreservableStraightStmts_falling_through
+    (stmts : List YulStmt)
+    (hStmts : ∀ stmt, stmt ∈ stmts → IRStmtPreservesObs stmt)
+    (fuel : Nat) (state : IRState) :
+    ∃ state',
+      execIRStmts (stmts.length + fuel + 1) state stmts = .continue state' := by
+  induction stmts generalizing state fuel with
+  | nil =>
+      refine ⟨state, ?_⟩
+      simp [execIRStmts]
+  | cons s rest ih =>
+      have hHead : IRStmtPreservesObs s := hStmts s (by simp)
+      have hRest : ∀ stmt, stmt ∈ rest → IRStmtPreservesObs stmt := by
+        intro stmt hMem
+        exact hStmts stmt (by simp [hMem])
+      obtain ⟨s', hHeadEq⟩ := hHead (rest.length + fuel) state
+      obtain ⟨s'', hRecEq⟩ := ih hRest fuel s'
+      refine ⟨s'', ?_⟩
+      have hLen :
+          (s :: rest).length + fuel + 1 = (rest.length + fuel + 1) + 1 := by
+        simp only [List.length_cons]; omega
+      rw [hLen]
+      simp only [execIRStmts, hHeadEq, hRecEq]
+
+/-- A1: IR-side induction for a prefix of statements that each terminate in
+`.continue _`, followed by a trailing `.leave`. Fuel `stmts.length + fuel + 2`
+is enough to walk the prefix and the `.leave` terminator. -/
+theorem execIRStmts_continue_of_nativePreservableStraightStmts_pre_leave
+    (stmts : List YulStmt)
+    (hStmts : ∀ stmt, stmt ∈ stmts → IRStmtPreservesObs stmt)
+    (fuel : Nat) (state : IRState) :
+    ∃ state',
+      execIRStmts (stmts.length + fuel + 2) state (stmts ++ [.leave]) =
+        .continue state' := by
+  induction stmts generalizing state fuel with
+  | nil =>
+      refine ⟨state, ?_⟩
+      simp only [List.nil_append, List.length_nil, Nat.zero_add,
+        execIRStmts, execIRStmt]
+  | cons s rest ih =>
+      have hHead : IRStmtPreservesObs s := hStmts s (by simp)
+      have hRest : ∀ stmt, stmt ∈ rest → IRStmtPreservesObs stmt :=
+        fun stmt hMem => hStmts stmt (by simp [hMem])
+      obtain ⟨s', hHeadEq⟩ := hHead (rest.length + fuel + 1) state
+      obtain ⟨s'', hRecEq⟩ := ih hRest fuel s'
+      refine ⟨s'', ?_⟩
+      have hLen :
+          (s :: rest).length + fuel + 2 = (rest.length + fuel + 2) + 1 := by
+        simp only [List.length_cons]; omega
+      rw [hLen]
+      simp only [List.cons_append, execIRStmts, hHeadEq, hRecEq]
+
+/-! ## State-threaded list predicate for use with `IRStmtPreservesObsAt`
+
+The state-quantified `IRStmtPreservesObs` is only satisfied by truly-atomic
+constructors (`comment`, `leave`, `funcDef`). To bridge from
+`NativePreservableStraightStmt`'s general constructors (where evaluability
+depends on the runtime state), we use a state-relative formulation that
+packages the next state directly with the continuation witness, then thread
+state through the prefix list. The packaged predicate avoids the
+fuel-irrelevance question entirely because each step commits to a specific
+result state from `execIRStmt 1`. -/
+
+/-- Recursive state-threaded predicate. For an empty list this is trivially
+true. For a `stmt :: rest`, there must exist a next state `state'` such that
+`execIRStmt (n + 1) state stmt = .continue state'` for ALL `n` (fuel
+independence), and the rest of the list must satisfy the same property
+starting from `state'`.
+
+The `∀ n` form is satisfied by all atomic preservable constructors in IR
+(comment / leave / funcDef are constants in fuel; let_ / assign / sstore /
+etc. all match on `Nat.succ fuel` and produce the same result regardless
+of `fuel`'s value). Each cross-cast `IRStmtPreservesObsAt_of_*` packages
+its result in this strict form. -/
+def StmtsContinueFrom (state : IRState) :
+    List YulStmt → Prop
+  | [] => True
+  | stmt :: rest =>
+      ∃ state', (∀ n, execIRStmt (n + 1) state stmt = .continue state') ∧
+                StmtsContinueFrom state' rest
+
+/-- A1 (state-threaded): for a `stmts ++ [.leave]` prefix where the prefix
+satisfies `StmtsContinueFrom`, IR execution at sufficient fuel ends in
+`.continue` for some final state. -/
+theorem execIRStmts_continue_of_StmtsContinueFrom_pre_leave
+    (stmts : List YulStmt) (state : IRState)
+    (hAll : StmtsContinueFrom state stmts)
+    (fuel : Nat) :
+    ∃ state',
+      execIRStmts (stmts.length + fuel + 2) state (stmts ++ [.leave]) =
+        .continue state' := by
+  induction stmts generalizing state fuel with
+  | nil =>
+      refine ⟨state, ?_⟩
+      show execIRStmts (0 + fuel + 2) state ([] ++ [YulStmt.leave])
+          = .continue state
+      simp only [List.nil_append, Nat.zero_add]
+      show execIRStmts (fuel + 1 + 1) state [YulStmt.leave] = .continue state
+      simp only [execIRStmts, execIRStmt]
+  | cons s rest ih =>
+      obtain ⟨s', hHeadAll, hRest⟩ := hAll
+      obtain ⟨s'', hRecEq⟩ := ih (state := s') hRest (fuel := fuel)
+      refine ⟨s'', ?_⟩
+      have hLen :
+          (s :: rest).length + fuel + 2 = (rest.length + fuel + 2) + 1 := by
+        simp only [List.length_cons]; omega
+      show execIRStmts ((s :: rest).length + fuel + 2) state
+            ((s :: rest) ++ [YulStmt.leave]) = .continue s''
+      rw [hLen]
+      show execIRStmts (rest.length + fuel + 2 + 1) state
+            ((s :: rest) ++ [YulStmt.leave]) = .continue s''
+      simp only [List.cons_append, execIRStmts, hHeadAll, hRecEq]
+
+/-- A2 (state-threaded): for a falling-through prefix satisfying
+`StmtsContinueFrom`, IR execution at sufficient fuel ends in `.continue`. -/
+theorem execIRStmts_continue_of_StmtsContinueFrom_falling_through
+    (stmts : List YulStmt) (state : IRState)
+    (hAll : StmtsContinueFrom state stmts)
+    (fuel : Nat) :
+    ∃ state',
+      execIRStmts (stmts.length + fuel + 1) state stmts = .continue state' := by
+  induction stmts generalizing state fuel with
+  | nil =>
+      refine ⟨state, ?_⟩
+      simp [execIRStmts]
+  | cons s rest ih =>
+      obtain ⟨s', hHeadAll, hRest⟩ := hAll
+      obtain ⟨s'', hRecEq⟩ := ih (state := s') hRest (fuel := fuel)
+      refine ⟨s'', ?_⟩
+      have hLen :
+          (s :: rest).length + fuel + 1 = (rest.length + fuel + 1) + 1 := by
+        simp only [List.length_cons]; omega
+      rw [hLen]
+      simp only [execIRStmts, hHeadAll, hRecEq]
+
+/-! ## Composition helpers for `StmtsContinueFrom`
+
+Trivial introduction lemmas that match the shape of `IRStmtPreservesObsAt`
+(which is `∃ state', ∀ fuel, …`). The cross-cast lemmas produce exactly
+this shape, so building a `StmtsContinueFrom` witness for a prefix amounts
+to chaining `cons` constructors with the head's `IRStmtPreservesObsAt`
+witness destructured. -/
+
+@[simp] theorem StmtsContinueFrom_nil (state : IRState) :
+    StmtsContinueFrom state ([] : List YulStmt) := trivial
+
+/-- Cons-shape introduction: combine a head witness with a tail witness. -/
+theorem StmtsContinueFrom.cons_of_witness
+    {state state' : IRState} {stmt : YulStmt} {rest : List YulStmt}
+    (hStep : ∀ n, execIRStmt (n + 1) state stmt = .continue state')
+    (hRest : StmtsContinueFrom state' rest) :
+    StmtsContinueFrom state (stmt :: rest) :=
+  ⟨state', hStep, hRest⟩
+
+/-- Cons-shape introduction from an `IRStmtPreservesObsAt` witness. The
+witness packages the next state as part of its existential, so we destructure
+and rebuild — but `cases` on the predicate exposes the same `state'` shape
+expected by `StmtsContinueFrom`. -/
+theorem StmtsContinueFrom.cons_of_IRStmtPreservesObsAt
+    {state : IRState} {stmt : YulStmt} {rest : List YulStmt}
+    (hHead : IRStmtPreservesObsAt state stmt)
+    (hRest : ∀ state',
+              (∀ n, execIRStmt (n + 1) state stmt = .continue state') →
+              StmtsContinueFrom state' rest) :
+    StmtsContinueFrom state (stmt :: rest) := by
+  obtain ⟨state', hStep⟩ := hHead
+  exact ⟨state', hStep, hRest state' hStep⟩
+
 /-! ## IR Function Execution -/
 
 /-- Apply transaction context fields to an IR state, leaving storage and
@@ -1099,6 +1676,33 @@ noncomputable def execIRFunction (fn : IRFunction) (args : List Nat) (initialSta
       finalStorage := initialState.storage
       finalMappings := Compiler.Proofs.storageAsMappings initialState.storage
       events := initialState.events }
+
+-- A3 — option (b): The plan describes A3 as "for `fn.returnVars = []`, the
+-- function-return extraction over `.continue state'` is a no-op (`=
+-- execIRStmts fuel state stmts` modulo projection)". The current `IRFunction`
+-- has no `returnVars` field (it has a single `ret : IRType`), and the
+-- `.continue s` arm of `execIRFunction` projects the result the same way
+-- regardless of `ret`. So the lemma below states the projection equation
+-- unconditionally — exactly the "modulo projection" claim — and the plan's
+-- `returnVars = []` precondition is vacuous against the current IR.
+/-- A3: When `execIRStmts (sizeOf fn.body + 1) ... fn.body` ends in
+`.continue s'`, the full `execIRFunction` result is the canonical projection
+of `s'`. -/
+theorem execIRFunction_continue_extract_eq
+    (fn : IRFunction) (args : List Nat) (initialState : IRState)
+    (s' : IRState)
+    (hStmts :
+      execIRStmts (sizeOf fn.body + 1)
+        (fn.params.zip args |>.foldl
+          (fun s (p, v) => s.setVar p.name v) initialState)
+        fn.body = .continue s') :
+    execIRFunction fn args initialState =
+      { success := true
+        returnValue := s'.returnValue
+        finalStorage := s'.storage
+        finalMappings := Compiler.Proofs.storageAsMappings s'.storage
+        events := s'.events } := by
+  simp only [execIRFunction, hStmts]
 
 /-- Execute an IR function against a contract-aware helper table using an explicit
 extra helper budget on top of the usual body fuel. This leaves the existing

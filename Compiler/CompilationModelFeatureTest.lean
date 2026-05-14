@@ -2536,6 +2536,14 @@ private def adtAliasPayloadMemoizesExprSpec : CompilationModel := {
     { name := "choice", ty := FieldType.adt "Choice" 1, «slot» := some 10, aliasSlots := [100] }
   ]
   «constructor» := none
+  externals := [
+    { name := "echo"
+      params := [ParamType.uint256]
+      returnType := some ParamType.uint256
+      returns := [ParamType.uint256]
+      axiomNames := []
+    }
+  ]
   functions := [
     { name := "store"
       params := [{ name := "input", ty := ParamType.uint256 }]

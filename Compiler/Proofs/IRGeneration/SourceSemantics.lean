@@ -1379,6 +1379,24 @@ private theorem evalExpr_arrayElementDynamicWord
     (wordOffset : Nat) :
     evalExpr fields state (.arrayElementDynamicWord name index wordOffset) = none := rfl
 
+private theorem evalExpr_arrayElementDynamicMemberLength
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (index : Expr)
+    (wordOffset : Nat) :
+    evalExpr fields state (.arrayElementDynamicMemberLength name index wordOffset) = none := rfl
+
+private theorem evalExpr_arrayElementDynamicMemberElement
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (index : Expr)
+    (wordOffset : Nat)
+    (innerIndex : Expr) :
+    evalExpr fields state
+        (.arrayElementDynamicMemberElement name index wordOffset innerIndex) = none := rfl
+
 private theorem evalExpr_mappingWord
     (fields : List Field)
     (state : RuntimeState)
@@ -2716,6 +2734,8 @@ mutual
     | .paramDynamicHeadWord _ _
     | .arrayLength _ | .arrayElement _ _
     | .arrayElementWord _ _ _ _ | .arrayElementDynamicWord _ _ _
+    | .arrayElementDynamicMemberLength _ _ _
+    | .arrayElementDynamicMemberElement _ _ _ _
     | .extcodesize _ | .returndataSize | .returndataOptionalBoolAt _
     | .keccak256 _ _
     | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
@@ -3729,6 +3749,10 @@ mutual
         simp [evalExprWithHelpers, evalExpr_arrayElementWord]
     | arrayElementDynamicWord _ b _ =>
         simp [evalExprWithHelpers, evalExpr_arrayElementDynamicWord]
+    | arrayElementDynamicMemberLength _ b _ =>
+        simp [evalExprWithHelpers, evalExpr_arrayElementDynamicMemberLength]
+    | arrayElementDynamicMemberElement _ a _ b =>
+        simp [evalExprWithHelpers, evalExpr_arrayElementDynamicMemberElement]
     | mappingWord _ b _ | mappingPackedWord _ b _ _ | structMember _ b _ =>
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         have hb :=
