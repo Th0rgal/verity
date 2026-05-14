@@ -19371,6 +19371,55 @@ private theorem NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAw
       bodyStart bodyEnd userBodyStart hLowerRuntime hFind hCase hBodyLower
       hUserBodyLower pre suffix hCases
 
+/-- One-shot constructor for the leave-aware revived exec bridge for the
+`[.leave]` body shape. Composes the existing exec-only `of_leave_body` leaf
+(`NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_leave_body`)
+with the `_revived` Preserves bridge `of_leave_body` (shipped in `6cf2a453`). -/
+private theorem NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_leave_body
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (hLeave :
+      ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+        fn.body = [.leave]) :
+    NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware irContract tx
+      state observableSlots :=
+  NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_exec_only_and_revivedPreserves
+    irContract tx state observableSlots
+    (NativeGeneratedSelectorHitUserBodyExecOnlyBridgeAtFuelRevived.of_selected_user_body_exec_only
+      irContract tx state observableSlots
+      (NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_leave_body
+        irContract tx state observableSlots hLeave))
+    (NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_leave_body
+      irContract tx hLeave)
+
+/-- One-shot constructor for the leave-aware revived exec bridge for the
+`[.block [.leave]]` body shape. Composes the existing exec-only
+`of_block_leave` leaf with the `_revived` Preserves bridge `of_block_leave`. -/
+private theorem NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_block_leave
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (hBlockLeave :
+      ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+        fn.body = [.block [.leave]]) :
+    NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware irContract tx
+      state observableSlots :=
+  NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_exec_only_and_revivedPreserves
+    irContract tx state observableSlots
+    (NativeGeneratedSelectorHitUserBodyExecOnlyBridgeAtFuelRevived.of_selected_user_body_exec_only
+      irContract tx state observableSlots
+      (NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_leave
+        irContract tx state observableSlots hBlockLeave))
+    (NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_block_leave
+      irContract tx hBlockLeave)
+
 /-- Selected user bodies of shape `[.block []]` lower to `[.Block []]`, which
 preserves the generated matched flag via `NativeStmtPreservesWord_empty_block`. -/
 private theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_block_empty
