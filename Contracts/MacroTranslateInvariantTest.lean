@@ -509,7 +509,9 @@ private def expectedExternalSignatures : List (String × List String) :=
       "commitmentCountOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
       "ciphertextCountOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
       "proofPA0Of(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
-      "proofPC1OfTxn(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[]))"])
+      "proofPC1OfTxn(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[]))",
+      "proofPC1OfAlias(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
+      "nullifierCountOfAlias(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)"])
   , ("UnlinkPoolShapeCheckSmoke", ["nullifierCountOf((uint256,uint256[],uint256[],uint256)[],uint256)",
       "commitmentCountOf((uint256,uint256[],uint256[],uint256)[],uint256)",
       "nullifierAt((uint256,uint256[],uint256[],uint256)[],uint256,uint256)",
@@ -654,7 +656,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("ArrayElementDynamicMemberLengthSmoke", ["0xfbb81f5b"])
   , ("ArrayElementDynamicMemberElementSmoke", ["0x1ffe901b"])
   , ("FixedArrayStructSmoke", ["0xe6f8cf0c", "0xf7910f7f", "0x82db9141", "0x82cb906c",
-      "0xaa7bf00c", "0xd1469472"])
+      "0xaa7bf00c", "0xd1469472", "0x8ba58006", "0x7f010d4a"])
   , ("UnlinkPoolShapeCheckSmoke", ["0x4b6e2141", "0xdb1ca006", "0x41620c25", "0x76524b94",
       "0xfc01c1ec", "0xe4a609b8", "0x2e759c7f"])
   , ("StructMappingSmoke", ["0x468c900e", "0xe7933b6a", "0x8d22ea2a", "0xf4536007", "0xcb01943e",
