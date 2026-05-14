@@ -4859,6 +4859,8 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_leave
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_empty_block
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_block_leave
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_block_empty_then_leave
+  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_block_empty_then_block_leave
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_comment
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let_of_write_not_mem
@@ -5600,4 +5602,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5314 theorems/lemmas (3564 public, 1750 private, 0 sorry'd)
+-- Total: 5316 theorems/lemmas (3566 public, 1750 private, 0 sorry'd)

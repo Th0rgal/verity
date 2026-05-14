@@ -14524,6 +14524,37 @@ theorem NativeStmtPreservesWord_revived_block_leave
     (NativeBlockPreservesWord_revived_singleton name value .Leave codeOverride
       (NativeStmtPreservesWord_revived_leave name value codeOverride))
 
+/-- `_revived` block preservation for the body shape `[.Block [], .Leave]` —
+the lowered form of an IR `[.block [], .leave]` body (F2's body shape). Used
+by the future label-prefix lift `ExecBridgeAtFuelRevivedLeaveAware.of_leave_body_with_label_prefix`. -/
+theorem NativeBlockPreservesWord_revived_block_empty_then_leave
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeBlockPreservesWord_revived name value [.Block [], .Leave]
+      codeOverride :=
+  NativeBlockPreservesWord_revived_cons name value (.Block []) [.Leave]
+    codeOverride
+    (NativeStmtPreservesWord_revived_empty_block name value codeOverride)
+    (NativeBlockPreservesWord_revived_singleton name value .Leave codeOverride
+      (NativeStmtPreservesWord_revived_leave name value codeOverride))
+
+/-- `_revived` block preservation for the body shape `[.Block [], .Block [.Leave]]`
+— the lowered form of an IR `[.block [], .block [.leave]]` body (F4's body
+shape). Used by the future label-prefix lift for the block-leave case. -/
+theorem NativeBlockPreservesWord_revived_block_empty_then_block_leave
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeBlockPreservesWord_revived name value
+      [.Block [], .Block [.Leave]] codeOverride :=
+  NativeBlockPreservesWord_revived_cons name value (.Block [])
+    [.Block [.Leave]] codeOverride
+    (NativeStmtPreservesWord_revived_empty_block name value codeOverride)
+    (NativeBlockPreservesWord_revived_singleton name value (.Block [.Leave])
+      codeOverride
+      (NativeStmtPreservesWord_revived_block_leave name value codeOverride))
+
 theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_comment
     (name : EvmYul.Identifier)
     (expected : EvmYul.Literal)
