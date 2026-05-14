@@ -310,12 +310,23 @@ def compileStmt (fields : List Field) (events : List EventDef := [])
       let lenIdent := YulExpr.ident s!"{name}_length"
       let dataOffset := YulExpr.ident s!"{name}_data_offset"
       let byteLen := YulExpr.call "mul" [lenIdent, YulExpr.lit 32]
-      pure ([
-        YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit 32]),
-        YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, lenIdent]),
-      ] ++ dynamicCopyData dynamicSource (YulExpr.lit 64) dataOffset byteLen ++ [
-        YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.call "add" [YulExpr.lit 64, byteLen]])
-      ])
+      if isInternal then
+        match internalRetNames with
+        | offsetRet :: lengthRet :: _ =>
+            pure [
+              YulStmt.assign offsetRet dataOffset,
+              YulStmt.assign lengthRet lenIdent,
+              YulStmt.leave
+            ]
+        | _ =>
+            throw s!"Compilation error: internal array return target is missing offset/length registers"
+      else
+        pure ([
+          YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit 32]),
+          YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, lenIdent]),
+        ] ++ dynamicCopyData dynamicSource (YulExpr.lit 64) dataOffset byteLen ++ [
+          YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.call "add" [YulExpr.lit 64, byteLen]])
+        ])
   | Stmt.returnBytes name => do
       let lenIdent := YulExpr.ident s!"{name}_length"
       let dataOffset := YulExpr.ident s!"{name}_data_offset"

@@ -18,8 +18,13 @@ def pickFreshInternalRetName (usedNames : List String) (idx : Nat) : String :=
 
 /-- Generate fresh internal return variable names for an internal function. -/
 def freshInternalRetNames (returns : List ParamType) (usedNames : List String) : List String :=
-  let (_, namesRev) := returns.zipIdx.foldl
-    (fun (acc : List String × List String) (_retTy, idx) =>
+  let retIndices :=
+    returns.zipIdx.flatMap fun (retTy, idx) =>
+      match retTy with
+      | ParamType.array _ => [idx, idx]
+      | _ => [idx]
+  let (_, namesRev) := retIndices.foldl
+    (fun (acc : List String × List String) idx =>
       let (used, names) := acc
       let fresh := pickFreshInternalRetName used idx
       (fresh :: used, fresh :: names))

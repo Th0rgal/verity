@@ -2638,6 +2638,32 @@ private def addressArrayReturnSpec : CompilationModel := {
   ]
 }
 
+private def internalAddressArrayReturnSpec : CompilationModel := {
+  name := "InternalAddressArrayReturn"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "echoArray"
+      params := [{ name := "recipients", ty := ParamType.array ParamType.address }]
+      returnType := none
+      returns := [ParamType.array ParamType.address]
+      body := [Stmt.returnArray "recipients"]
+      isInternal := true
+    },
+    { name := "countEchoed"
+      params := [{ name := "recipients", ty := ParamType.array ParamType.address }]
+      returnType := none
+      body := [
+        Stmt.internalCallAssign
+          ["echoed_data_offset", "echoed_length"]
+          "echoArray"
+          [Expr.param "recipients_data_offset", Expr.param "recipients_length"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
 private def addressStorageWordReturnSpec : CompilationModel := {
   name := "AddressStorageWordReturn"
   fields := []
@@ -4208,6 +4234,25 @@ set_option maxRecDepth 4096 in
     | .ok _ => true
     | .error _ => false
   expectTrue "address[] params can round-trip through returnArray" addressArrayReturnCompiled
+  let internalAddressArrayReturnContract ←
+    expectCompile
+      "internal address[] helper return lowers to offset/length Yul returns"
+      internalAddressArrayReturnSpec
+  let internalAddressArrayReturnShape :=
+    match internalAddressArrayReturnContract.internalFunctions.find? (fun stmt =>
+        match stmt with
+        | Compiler.Yul.YulStmt.funcDef name _ _ _ => name == "internal_echoArray"
+        | _ => false) with
+    | some (Compiler.Yul.YulStmt.funcDef "internal_echoArray"
+        ["recipients_data_offset", "recipients_length"]
+        [retOffset, retLength]
+        [Compiler.Yul.YulStmt.assign assignedOffset (Compiler.Yul.YulExpr.ident "recipients_data_offset"),
+         Compiler.Yul.YulStmt.assign assignedLength (Compiler.Yul.YulExpr.ident "recipients_length"),
+         Compiler.Yul.YulStmt.leave]) =>
+        retOffset == assignedOffset && retLength == assignedLength && retOffset != retLength
+    | _ => false
+  expectTrue "internal address[] helper return binds data offset and length"
+    internalAddressArrayReturnShape
   let addressStorageWordReturnCompiled :=
     match Compiler.CompilationModel.compile addressStorageWordReturnSpec
         (selectorsFor addressStorageWordReturnSpec) with

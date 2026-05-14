@@ -138,19 +138,16 @@ def validateReturnShapesInStmt (fnName : String) (params : List Param)
       else
         pure ()
   | Stmt.returnArray name =>
-      if isInternal then
-        throw s!"Compilation error: internal function '{fnName}' cannot use Stmt.returnArray; only static returns via Stmt.return/Stmt.returnValues are supported ({issue625Ref})."
-      else
-        match findParamType params name with
-        | some ty =>
-            if !isWordArrayParam ty then
-              throw s!"Compilation error: function '{fnName}' uses Stmt.returnArray with parameter '{name}' of type {repr ty}; only arrays with single-word static elements are currently supported"
-            else if expectedReturns == [ty] then
-              pure ()
-            else
-              throw s!"Compilation error: function '{fnName}' uses Stmt.returnArray to return parameter '{name}' of type {repr ty}, but declared returns are {repr expectedReturns}"
-        | none =>
-            throw s!"Compilation error: function '{fnName}' returnArray references unknown parameter '{name}'"
+      match findParamType params name with
+      | some ty =>
+          if !isWordArrayParam ty then
+            throw s!"Compilation error: function '{fnName}' uses Stmt.returnArray with parameter '{name}' of type {repr ty}; only arrays with single-word static elements are currently supported"
+          else if expectedReturns == [ty] then
+            pure ()
+          else
+            throw s!"Compilation error: function '{fnName}' uses Stmt.returnArray to return parameter '{name}' of type {repr ty}, but declared returns are {repr expectedReturns}"
+      | none =>
+          throw s!"Compilation error: function '{fnName}' returnArray references unknown parameter '{name}'"
   | Stmt.returnBytes name =>
       if isInternal then
         throw s!"Compilation error: internal function '{fnName}' cannot use Stmt.returnBytes; only static returns via Stmt.return/Stmt.returnValues are supported ({issue625Ref})."
