@@ -19683,6 +19683,32 @@ private theorem NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAw
     (NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_block_leave
       irContract tx hBlockLeave)
 
+/-- F2 one-shot LeaveAware ExecBridge for body `[.block [], .leave]` (label-prefix
+variant of `of_leave_body`). Composes the F2 ExecOnly leaf
+(`of_leave_body_with_label_prefix`, shipped in `bf9cffdf`) with the F2
+`_revived` Preserves bridge (`of_leave_body_with_label_prefix`, shipped in
+`43c3a773`). -/
+private theorem NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_leave_body_with_label_prefix
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (hLabelLeave :
+      ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+        fn.body = [.block [], .leave]) :
+    NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware irContract tx
+      state observableSlots :=
+  NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_exec_only_and_revivedPreserves
+    irContract tx state observableSlots
+    (NativeGeneratedSelectorHitUserBodyExecOnlyBridgeAtFuelRevived.of_selected_user_body_exec_only
+      irContract tx state observableSlots
+      (NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_leave_body_with_label_prefix
+        irContract tx state observableSlots hLabelLeave))
+    (NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_leave_body_with_label_prefix
+      irContract tx hLabelLeave)
+
 /-- Selected user bodies of shape `[.block []]` lower to `[.Block []]`, which
 preserves the generated matched flag via `NativeStmtPreservesWord_empty_block`. -/
 private theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_block_empty
@@ -22634,14 +22660,11 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_leave_body_with_label
       ∀ selector, selector ∈ selectors →
         selector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
-    (_hLabelLeave :
+    (hLabelLeave :
       ∀ fn,
         irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
           some fn →
         fn.body = [.block [], .leave])
-    (hExecBridge :
-      NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware irContract tx
-        state observableSlots)
     (hCont : LeaveAwareCallDispatcherContinuation irContract tx state observableSlots) :
     NativeGeneratedSelectorHitSuccessBridge irContract tx state
       observableSlots := by
@@ -22649,7 +22672,10 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_leave_body_with_label
   exact
     nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFuel_revivedLeaveAware_and_continuation
       spec selectors hSupported irContract tx state observableSlots hcompile
-      hSelectorRange hSelectorsRange hNoWrap hExecBridge hCont
+      hSelectorRange hSelectorsRange hNoWrap
+      (NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_leave_body_with_label_prefix
+        irContract tx state observableSlots hLabelLeave)
+      hCont
       nativeContract fn hLowerRuntime hFind hguards hArgs
 
 /-- F4 (label-prefix variant of E4): Selected user bodies of shape
@@ -22712,9 +22738,6 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_nativePreservableStra
         irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
             some fn →
         fn.body = .block [] :: preStmts ++ [.leave])
-    (hExecBridge :
-      NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware irContract tx
-        state observableSlots)
     (hCont : LeaveAwareCallDispatcherContinuation irContract tx state observableSlots) :
     NativeGeneratedSelectorHitSuccessBridge irContract tx state
       observableSlots :=
@@ -22722,7 +22745,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_nativePreservableStra
     spec selectors hSupported irContract tx state observableSlots hcompile
     hSelectorRange hSelectorsRange hNoWrap
     (fun fn hFind => by rw [hBody fn hFind, hOnlyEmpty]; rfl)
-    hExecBridge hCont
+    hCont
 
 /-- E2 (S7 component): Selected user bodies of shape `[.leave]` supply the
 named selector-hit success bridge through the `_revived` Leave-aware chain.
