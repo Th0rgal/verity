@@ -4623,6 +4623,49 @@ private def expectExprList
       xs.mapM (translatePureExprWithTypes fields constDecls immutableDecls params locals)
   | _ => throwErrorAt stx "expected list literal [..]"
 
+private def translateEmitArgExpr
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (stx : Term) : CommandElabM Term := do
+  if let some (name, _) := localMemoryArray? locals stx then
+    `(Compiler.CompilationModel.Expr.memoryArrayLength $(strTerm name))
+  else if let some (paramName, index, _fieldTy, _elemTy, wordOffset) :=
+      localArrayElementDynamicMemberProjection? locals stx then
+    let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+    `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+        $(strTerm paramName)
+        $indexExpr
+        $(natTerm wordOffset))
+  else if let some (paramName, index, _fieldTy, _elemTy, wordOffset) :=
+      arrayElementDynamicMemberProjection? params stx then
+    let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+    `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+        $(strTerm paramName)
+        $indexExpr
+        $(natTerm wordOffset))
+  else if let some (paramName, _fieldTy, wordOffset) :=
+      paramDynamicMemberProjection? params stx then
+    `(Compiler.CompilationModel.Expr.paramDynamicMemberLength
+        $(strTerm paramName)
+        $(natTerm wordOffset))
+  else
+    translatePureExprWithTypes fields constDecls immutableDecls params locals stx
+
+private def expectEmitExprList
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (stx : Term) : CommandElabM (Array Term) := do
+  match stripParens stx with
+  | `(term| [ $[$xs],* ]) =>
+      xs.mapM (translateEmitArgExpr fields constDecls immutableDecls params locals)
+  | _ => throwErrorAt stx "expected list literal [..]"
+
 private def translateBindSource
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -5730,7 +5773,7 @@ private def translateEffectStmt
       `(Compiler.CompilationModel.Stmt.returnStorageWords $(strTerm (← expectStringOrIdent name)))
   | `(term| emit $eventName:term $args:term) =>
       let evName := ← expectStringOrIdent eventName
-      let argExprs ← expectExprList fields constDecls immutableDecls params locals args
+      let argExprs ← expectEmitExprList fields constDecls immutableDecls params locals args
       `(Compiler.CompilationModel.Stmt.emit $(strTerm evName) [ $[$argExprs],* ])
   | `(term| rawLog $topics:term $dataOffset:term $dataSize:term) =>
       let topicExprs ← expectExprList fields constDecls immutableDecls params locals topics

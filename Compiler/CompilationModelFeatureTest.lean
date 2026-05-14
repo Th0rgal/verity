@@ -2554,6 +2554,50 @@ private def stringEventMismatchSpec : CompilationModel := {
   ]
 }
 
+private def memoryArrayEventSourceSpec : CompilationModel := {
+  name := "MemoryArrayEventSource"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "log"
+      params := []
+      returnType := none
+      body := [
+        Stmt.letVar "values_length" (Expr.literal 2),
+        Stmt.letVar "values_data_offset" (Expr.literal 128),
+        Stmt.emit "Amounts" [Expr.memoryArrayLength "values"],
+        Stmt.stop
+      ]
+    }
+  ]
+  events := [
+    { name := "Amounts"
+      params := [{ name := "values", ty := ParamType.array ParamType.uint256, kind := EventParamKind.unindexed }]
+    }
+  ]
+}
+
+private def projectedArrayEventSourceSpec : CompilationModel := {
+  name := "ProjectedArrayEventSource"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "log"
+      params := [{ name := "payload", ty := ParamType.tuple [ParamType.array ParamType.uint256] }]
+      returnType := none
+      body := [
+        Stmt.emit "Amounts" [Expr.paramDynamicMemberLength "payload" 0],
+        Stmt.stop
+      ]
+    }
+  ]
+  events := [
+    { name := "Amounts"
+      params := [{ name := "values", ty := ParamType.array ParamType.uint256, kind := EventParamKind.unindexed }]
+    }
+  ]
+}
+
 private def eventEncodingRegressionSpec : CompilationModel := {
   name := "EventEncodingRegression"
   fields := []
@@ -4275,6 +4319,20 @@ set_option maxRecDepth 4096 in
     "string events reject bytes parameters"
     stringEventMismatchSpec
     "event 'MessageLogged' param 'message' expects"
+  let memoryArrayEventsCompile :=
+    match Compiler.CompilationModel.compile memoryArrayEventSourceSpec
+        (selectorsFor memoryArrayEventSourceSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "memory array event sources compile for unindexed uint256[] params"
+    memoryArrayEventsCompile
+  let projectedArrayEventsCompile :=
+    match Compiler.CompilationModel.compile projectedArrayEventSourceSpec
+        (selectorsFor projectedArrayEventSourceSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "projected dynamic array event sources compile for unindexed uint256[] params"
+    projectedArrayEventsCompile
   let stringArrayEventsCompile :=
     match Compiler.CompilationModel.compile Contracts.StringArrayEventSmoke.spec
         (selectorsFor Contracts.StringArrayEventSmoke.spec) with

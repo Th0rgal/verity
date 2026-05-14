@@ -27,6 +27,24 @@ def validateDirectParamCustomErrorArg
   | _ =>
       throw s!"Compilation error: function '{fnName}' custom error '{errorName}' parameter of type {repr expectedTy} currently requires direct parameter reference ({issue586Ref})."
 
+def validateEventDynamicArrayArg
+    (fnName eventName paramName : String) (params : List Param)
+    (expectedTy : ParamType) (arg : Expr) : Except String Unit := do
+  match arg with
+  | Expr.param name =>
+      match findParamType params name with
+      | some ty =>
+          if ty != expectedTy then
+            throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{paramName}' expects {repr expectedTy}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
+      | none =>
+          throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+  | Expr.memoryArrayLength _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.arrayElementDynamicMemberLength _ _ _ =>
+      pure ()
+  | _ =>
+      throw s!"Compilation error: function '{fnName}' dynamic array event param '{paramName}' in event '{eventName}' currently requires a direct or projected dynamic array reference ({issue586Ref})."
+
 mutual
 def validateCustomErrorArgShapesInStmt (fnName : String) (params : List Param)
     (errors : List ErrorDef) : Stmt → Except String Unit
@@ -110,16 +128,7 @@ partial def validateEventArgShapesInStmt (fnName : String) (params : List Param)
                   | _ =>
                       throw s!"Compilation error: function '{fnName}' unindexed dynamic array event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
               else if indexedDynamicArrayElemSupported elemTy then
-                match arg with
-                | Expr.param name =>
-                    match findParamType params name with
-                    | some ty =>
-                        if ty != eventParam.ty then
-                          throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{eventParam.name}' expects {repr eventParam.ty}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
-                    | none =>
-                        throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
-                | _ =>
-                    throw s!"Compilation error: function '{fnName}' unindexed dynamic array event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+                validateEventDynamicArrayArg fnName eventName eventParam.name params eventParam.ty arg
               else if eventIsDynamicType elemTy then
                 match arg with
                 | Expr.param name =>
@@ -183,16 +192,19 @@ partial def validateEventArgShapesInStmt (fnName : String) (params : List Param)
                   | _ =>
                       throw s!"Compilation error: function '{fnName}' indexed dynamic array event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
               | _ =>
-                  match arg with
-                  | Expr.param name =>
-                      match findParamType params name with
-                      | some ty =>
-                          if ty != eventParam.ty then
-                            throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{eventParam.name}' expects {repr eventParam.ty}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
-                      | none =>
-                          throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
-                  | _ =>
-                      throw s!"Compilation error: function '{fnName}' indexed dynamic array event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+                  if indexedDynamicArrayElemSupported elemTy then
+                    validateEventDynamicArrayArg fnName eventName eventParam.name params eventParam.ty arg
+                  else
+                    match arg with
+                    | Expr.param name =>
+                        match findParamType params name with
+                        | some ty =>
+                            if ty != eventParam.ty then
+                              throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{eventParam.name}' expects {repr eventParam.ty}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
+                        | none =>
+                            throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+                    | _ =>
+                        throw s!"Compilation error: function '{fnName}' indexed dynamic array event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
           | ParamType.fixedArray _ _ | ParamType.tuple _ =>
               match arg with
               | Expr.param name =>

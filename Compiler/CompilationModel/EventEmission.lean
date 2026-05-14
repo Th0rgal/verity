@@ -49,6 +49,36 @@ def eventLogArgs
   [YulExpr.ident "__evt_ptr", dataSizeExpr, YulExpr.ident "__evt_topic0"] ++
     indexedTopicParts.map (·.2)
 
+structure EventDynamicArraySource where
+  lengthExpr : YulExpr
+  dataOffsetExpr : YulExpr
+  source : DynamicDataSource
+
+def eventDynamicArraySource?
+    (fields : List Field) (dynamicSource : DynamicDataSource) :
+    Expr → Except String (Option EventDynamicArraySource)
+  | Expr.param name =>
+      pure (some
+        { lengthExpr := YulExpr.ident s!"{name}_length"
+          dataOffsetExpr := indexedDynamicBaseOffsetExpr dynamicSource name
+          source := dynamicSource })
+  | Expr.memoryArrayLength name =>
+      pure (some
+        { lengthExpr := YulExpr.ident s!"{name}_length"
+          dataOffsetExpr := YulExpr.ident s!"{name}_data_offset"
+          source := .memory })
+  | e@(Expr.paramDynamicMemberLength name wordOffset) => do
+      let dataOffsetExpr ← compileExpr fields dynamicSource
+        (Expr.paramDynamicMemberDataOffset name wordOffset)
+      let lengthExpr ← compileExpr fields dynamicSource e
+      pure (some { lengthExpr, dataOffsetExpr, source := dynamicSource })
+  | e@(Expr.arrayElementDynamicMemberLength name index wordOffset) => do
+      let dataOffsetExpr ← compileExpr fields dynamicSource
+        (Expr.arrayElementDynamicMemberDataOffset name index wordOffset)
+      let lengthExpr ← compileExpr fields dynamicSource e
+      pure (some { lengthExpr, dataOffsetExpr, source := dynamicSource })
+  | _ => pure none
+
 def eventParamScalarCompileSupported (ty : ParamType) : Bool :=
   match ty with
   | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => true
@@ -289,8 +319,8 @@ def compileEmit (fields : List Field) (events : List EventDef)
                   | _ =>
                       throw s!"Compilation error: unindexed dynamic array event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
               else if indexedDynamicArrayElemSupported elemTy then
-                match srcExpr with
-                | Expr.param name =>
+                match ← eventDynamicArraySource? fields dynamicSource srcExpr with
+                | some source =>
                     let lenName := s!"__evt_arg{argIdx}_len"
                     let dstName := s!"__evt_arg{argIdx}_dst"
                     let elemWordSize := eventHeadWordSize elemTy
@@ -301,7 +331,7 @@ def compileEmit (fields : List Field) (events : List EventDef)
                     let loopIndexName := s!"__evt_arg{argIdx}_i"
                     let leafStores :=
                       (staticCompositeLeafTypeOffsets 0 elemTy).map fun (leafOffset, leafTy) =>
-                        let loadExpr := dynamicWordLoad dynamicSource (YulExpr.call "add" [
+                        let loadExpr := dynamicWordLoad source.source (YulExpr.call "add" [
                           YulExpr.ident elemBaseName,
                           YulExpr.lit leafOffset
                         ])
@@ -311,7 +341,7 @@ def compileEmit (fields : List Field) (events : List EventDef)
                         ])
                     pure ([
                       YulStmt.expr (YulExpr.call "mstore" [curHeadPtr, YulExpr.ident "__evt_data_tail"]),
-                      YulStmt.let_ lenName (YulExpr.ident s!"{name}_length"),
+                      YulStmt.let_ lenName source.lengthExpr,
                       YulStmt.let_ dstName (YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.ident "__evt_data_tail"]),
                       YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident dstName, YulExpr.ident lenName]),
                       YulStmt.let_ byteLenName (YulExpr.call "mul" [YulExpr.ident lenName, YulExpr.lit elemWordSize]),
@@ -321,7 +351,7 @@ def compileEmit (fields : List Field) (events : List EventDef)
                         [YulStmt.assign loopIndexName (YulExpr.call "add" [YulExpr.ident loopIndexName, YulExpr.lit 1])]
                         ([
                           YulStmt.let_ elemBaseName (YulExpr.call "add" [
-                            YulExpr.ident s!"{name}_data_offset",
+                            source.dataOffsetExpr,
                             YulExpr.call "mul" [YulExpr.ident loopIndexName, YulExpr.lit elemWordSize]
                           ]),
                           YulStmt.let_ elemOutBaseName (YulExpr.call "add" [
@@ -345,8 +375,8 @@ def compileEmit (fields : List Field) (events : List EventDef)
                         YulExpr.call "add" [YulExpr.lit 32, YulExpr.ident paddedName]
                       ])
                     ])
-                | _ =>
-                    throw s!"Compilation error: unindexed dynamic array event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+                | none =>
+                    throw s!"Compilation error: unindexed dynamic array event param '{p.name}' in event '{eventName}' currently requires a direct or projected dynamic array reference ({issue586Ref})."
               else if eventIsDynamicType elemTy then
                 match srcExpr with
                 | Expr.param name =>
@@ -482,8 +512,8 @@ def compileEmit (fields : List Field) (events : List EventDef)
                 throw s!"Compilation error: indexed dynamic array event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
         | _ =>
             if indexedDynamicArrayElemSupported elemTy then
-              match srcExpr with
-              | Expr.param name =>
+              match ← eventDynamicArraySource? fields dynamicSource srcExpr with
+              | some source =>
                   let topicName := s!"__evt_topic{idx + 1}"
                   let byteLenName := s!"__evt_arg{idx}_byte_len"
                   let elemWordSize := eventHeadWordSize elemTy
@@ -492,7 +522,7 @@ def compileEmit (fields : List Field) (events : List EventDef)
                   let loopIndexName := s!"__evt_arg{idx}_i"
                   let leafStores :=
                     (staticCompositeLeafTypeOffsets 0 elemTy).map fun (leafOffset, leafTy) =>
-                      let loadExpr := dynamicWordLoad dynamicSource (YulExpr.call "add" [
+                      let loadExpr := dynamicWordLoad source.source (YulExpr.call "add" [
                         YulExpr.ident elemBaseName,
                         YulExpr.lit leafOffset
                       ])
@@ -505,16 +535,16 @@ def compileEmit (fields : List Field) (events : List EventDef)
                       ])
                   let hashStmts := [
                     YulStmt.let_ byteLenName (YulExpr.call "mul" [
-                      YulExpr.ident s!"{name}_length",
+                      source.lengthExpr,
                       YulExpr.lit elemWordSize
                     ]),
                     YulStmt.for_
                       [YulStmt.let_ loopIndexName (YulExpr.lit 0)]
-                      (YulExpr.call "lt" [YulExpr.ident loopIndexName, YulExpr.ident s!"{name}_length"])
+                      (YulExpr.call "lt" [YulExpr.ident loopIndexName, source.lengthExpr])
                       [YulStmt.assign loopIndexName (YulExpr.call "add" [YulExpr.ident loopIndexName, YulExpr.lit 1])]
                       ([
                         YulStmt.let_ elemBaseName (YulExpr.call "add" [
-                          YulExpr.ident s!"{name}_data_offset",
+                          source.dataOffsetExpr,
                           YulExpr.call "mul" [YulExpr.ident loopIndexName, YulExpr.lit elemWordSize]
                         ]),
                         YulStmt.let_ elemOutBaseName (YulExpr.call "add" [
@@ -528,8 +558,8 @@ def compileEmit (fields : List Field) (events : List EventDef)
                     ])
                   ]
                   pure (hashStmts, YulExpr.ident topicName)
-              | _ =>
-                  throw s!"Compilation error: indexed dynamic array event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+              | none =>
+                  throw s!"Compilation error: indexed dynamic array event param '{p.name}' in event '{eventName}' currently requires a direct or projected dynamic array reference ({issue586Ref})."
             else if eventIsDynamicType elemTy then
               match srcExpr with
               | Expr.param name =>
