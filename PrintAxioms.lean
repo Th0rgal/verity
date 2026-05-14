@@ -4542,6 +4542,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_ok_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_lt_calldatasize_ok_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.eval_lt_calldatasize_lit_preserves_reviveJump_of_ok_at_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_callvalue_preserves_reviveJump_of_ok_at_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_sload_ok_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerExprNative_mstore_lit_sload_lit_ok_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerExprNative_mstore_lit_lit_ok_fuel
@@ -5625,4 +5626,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5339 theorems/lemmas (3573 public, 1766 private, 0 sorry'd)
+-- Total: 5340 theorems/lemmas (3574 public, 1766 private, 0 sorry'd)

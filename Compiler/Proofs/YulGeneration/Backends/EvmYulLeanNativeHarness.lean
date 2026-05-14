@@ -6645,6 +6645,28 @@ theorem eval_lt_calldatasize_lit_preserves_reviveJump_of_ok_at_fuel
   obtain ⟨hStateEq, _⟩ := Prod.mk.inj (Except.ok.inj hEval)
   rw [hStateEq]
 
+/-- At fuel `n + 5` with Ok input state, the dispatcher's `callvalue()` guard
+eval returns the same Ok state, so `final.reviveJump = state.reviveJump`.
+Direct corollary of `eval_lowerExprNative_callvalue_ok_fuel`. Used to discharge
+the `hCallvalueReviveJump` premise of
+`NativeBlockPreservesWord_revived_switchCaseBody_nonpayable_of_user_body` when
+the caller can establish Ok input form (the dispatcher's actual case at the
+selected-body entry). -/
+theorem eval_callvalue_preserves_reviveJump_of_ok_at_fuel
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (n : Nat) :
+    ∀ final v,
+      EvmYul.Yul.eval (n + 5)
+          (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+          codeOverride (.Ok shared store) = .ok (final, v) →
+        final.reviveJump = (EvmYul.Yul.State.Ok shared store).reviveJump := by
+  intro final v hEval
+  rw [eval_lowerExprNative_callvalue_ok_fuel] at hEval
+  obtain ⟨hStateEq, _⟩ := Prod.mk.inj (Except.ok.inj hEval)
+  rw [hStateEq]
+
 /-- Native evaluation of the lowered `sload(lit slot)` Yul expression. At any
     fuel `≥ fuel + 6`, the eval reduces to the closed-form pair returned by
     EVMYulLean's `SLOAD` primitive: the new `SharedState` carries the
