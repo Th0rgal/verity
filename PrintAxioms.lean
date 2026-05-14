@@ -1198,6 +1198,7 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.NativeExprPreservesWord_lowerExprNative_lt_calldatasize_lit_any  -- private
   -- Compiler.Proofs.EndToEnd.NativeBlockPreservesWord_switchCaseBody_payable_of_user_body  -- private
   -- Compiler.Proofs.EndToEnd.NativeBlockPreservesWord_switchCaseBody_nonpayable_of_user_body  -- private
+  -- Compiler.Proofs.EndToEnd.NativeBlockPreservesWord_revived_switchCaseBody_payable_of_user_body  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitBodyPreservesMatched_of_user_body_preserves  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitBodyPreservesMatched_mappingFree_payable  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitBodyPreservesMatched_mappingFree_nonpayable  -- private
@@ -5622,4 +5623,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5336 theorems/lemmas (3572 public, 1764 private, 0 sorry'd)
+-- Total: 5337 theorems/lemmas (3572 public, 1765 private, 0 sorry'd)

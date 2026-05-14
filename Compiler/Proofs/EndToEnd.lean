@@ -18898,6 +18898,81 @@ private theorem NativeBlockPreservesWord_switchCaseBody_nonpayable_of_user_body
             (NativeBlockPreservesWord_nativeRevertZeroZero _ _ _)
       · exact hUserPreserves
 
+/-- `_revived` mirror of `NativeBlockPreservesWord_switchCaseBody_payable_of_user_body`.
+Takes the cond-reviveJump premise as hypothesis until a discharge lemma exists
+for the dispatcher's specific `lt(calldatasize, k)` condition over all input
+state forms (see memory `yul-state-lookup-bracket-vs-lookup` for why). -/
+private theorem NativeBlockPreservesWord_revived_switchCaseBody_payable_of_user_body
+    (fn : IRFunction)
+    (nativeContract : EvmYul.Yul.Ast.YulContract)
+    (reservedNames : List String)
+    (switchStart : Nat)
+    (body' guardBody bodyNative : List EvmYul.Yul.Ast.Stmt)
+    (bodyStart bodyEnd : Nat)
+    (hPayable : fn.payable = true)
+    (hBodyLower :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        reservedNames bodyStart
+        (Compiler.Proofs.YulGeneration.Backends.Native.switchCaseBody fn) =
+          .ok (body', bodyEnd))
+    (hBodyShape :
+      body' =
+        EvmYul.Yul.Ast.Stmt.Block [] ::
+        EvmYul.Yul.Ast.Stmt.If
+          (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+            (Compiler.Yul.YulExpr.call "lt"
+              [Compiler.Yul.YulExpr.call "calldatasize" [],
+               Compiler.Yul.YulExpr.lit (4 + fn.params.length * 32)]))
+          guardBody ::
+        bodyNative)
+    (hCondReviveJump :
+      ∀ fuel state final v,
+        EvmYul.Yul.eval fuel
+            (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+              (Compiler.Yul.YulExpr.call "lt"
+                [Compiler.Yul.YulExpr.call "calldatasize" [],
+                 Compiler.Yul.YulExpr.lit (4 + fn.params.length * 32)]))
+            (some nativeContract) state = .ok (final, v) →
+          final.reviveJump = state.reviveJump)
+    (hUserPreserves :
+      Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived
+        (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart))
+        (EvmYul.UInt256.ofNat 1) bodyNative (some nativeContract)) :
+    Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived
+        (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart))
+      (EvmYul.UInt256.ofNat 1) body' (some nativeContract) := by
+  rcases
+    Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_revert_eq
+      reservedNames bodyStart fn body' bodyEnd hPayable hBodyLower with
+    ⟨bodyNative', userBodyStart', hShape, hUserBodyLower'⟩
+  have hShapeEq : guardBody = [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt] ∧
+      bodyNative = bodyNative' := by
+    rw [hShape] at hBodyShape
+    simp at hBodyShape
+    exact ⟨hBodyShape.1.symm, hBodyShape.2.symm⟩
+  rcases hShapeEq with ⟨hGuardBody, hBodyNativeEq⟩
+  subst guardBody
+  subst bodyNative'
+  rw [hShape]
+  refine
+    Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_cons
+      _ _ (.Block []) _ _ ?_ ?_
+  · exact
+      Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_block
+        _ _ [] _ (Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_nil _ _ _)
+  · refine
+      Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_cons
+        _ _ _ _ _ ?_ ?_
+    · exact
+        Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_if_of_cond_preserves_reviveJump
+          _ _ _ _ _ hCondReviveJump
+          (Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_nativeRevertZeroZero _ _ _)
+    · exact hUserPreserves
+
 /-- User-body matched-flag preservation implies preservation for the whole
 generated selected case body. -/
 private theorem nativeGeneratedSelectorHitBodyPreservesMatched_of_user_body_preserves
