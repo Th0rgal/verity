@@ -19396,6 +19396,86 @@ private theorem NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAw
     (NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_leave_body
       irContract tx hLeave)
 
+/-- Pre-packaged type of the dispatcher continuation that
+`nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFuel_revivedLeaveAware_and_continuation`
+expects at its `hCont` parameter — the leave-aware version that takes
+`NativeBlockPreservesWord_revived` at the matched-flag position.
+
+E2/E4/E6 SuccessBridge chains take this as a hypothesis (TODO: build a
+parallel `_revived`-aware dispatcher continuation provider mirroring
+`nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_forall_of_compile_ok_supported`
+so callers can discharge it automatically). -/
+private def LeaveAwareCallDispatcherContinuation
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat) : Prop :=
+  ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
+    (reservedNames : List String) (n0 : Nat)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
+    (bodyStart bodyEnd userBodyStart : Nat),
+    Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+        (Compiler.emitYul irContract).runtimeCode = .ok nativeContract →
+    irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+        some fn →
+    cases'.find? (fun entry => entry.1 == tx.functionSelector) =
+        some (tx.functionSelector, body') →
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        reservedNames bodyStart
+        (Compiler.Proofs.YulGeneration.Backends.Native.switchCaseBody fn) =
+          .ok (body', bodyEnd) →
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        reservedNames userBodyStart fn.body =
+          .ok (bodyNative, bodyEnd) →
+    ∀ (final : EvmYul.Yul.State) (nativeYul : YulResult),
+      (∀ pre suffix,
+        cases' = pre ++ (tx.functionSelector, body') :: suffix →
+        EvmYul.Yul.exec
+          (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
+            suffix.length + 10)
+          (.Block bodyNative)
+          (some nativeContract)
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            nativeContract
+            (YulTransaction.ofIR tx)
+            state.storage
+            (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+              (Compiler.runtimeCode irContract) observableSlots)
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames n0)
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
+          .ok final) →
+      (∀ pre suffix,
+        cases' = pre ++ (tx.functionSelector, body') :: suffix →
+        Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived
+          (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames n0))
+          (EvmYul.UInt256.ofNat 1) bodyNative
+          (some nativeContract)) →
+      Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+        (YulTransaction.ofIR tx) state.storage state.events
+        (.ok
+          (((final.reviveJump.overwrite?
+            (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+              nativeContract
+              (YulTransaction.ofIR tx) state.storage
+              (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                (Compiler.runtimeCode irContract) observableSlots))).setStore
+            (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+              nativeContract
+              (YulTransaction.ofIR tx) state.storage
+              (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                (Compiler.runtimeCode irContract) observableSlots))), [])) =
+        nativeYul →
+      nativeResultsMatchOn observableSlots
+        (interpretIR irContract tx state) (.ok nativeYul) →
+      nativeResultsMatchOn observableSlots
+        (interpretIR irContract tx state)
+        (nativeGeneratedCallDispatcherResultOf irContract tx state
+          observableSlots nativeContract)
+
 /-- One-shot constructor for the leave-aware revived exec bridge for the
 `[.block [.leave]]` body shape. Composes the existing exec-only
 `of_block_leave` leaf with the `_revived` Preserves bridge `of_block_leave`. -/
@@ -22317,6 +22397,129 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_bridgedStraightStmts_
       irContract tx state observableSlots preStmts hBridged hOnlyEmpty hBody hReturnVars)
     (NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_bridgedStraightStmts_falling_through
       irContract tx preStmts hBridged hOnlyEmpty hBody)
+
+/-- E2 (S7 component): Selected user bodies of shape `[.leave]` supply the
+named selector-hit success bridge through the `_revived` Leave-aware chain.
+
+Composes `ExecBridgeAtFuelRevivedLeaveAware.of_leave_body` (which packages
+the exec-only Revived `of_leave_body` with the real `_revived.of_leave_body`
+Preserves bridge) with the `revivedLeaveAware_and_continuation` consumer.
+
+Takes `LeaveAwareCallDispatcherContinuation` as a hypothesis — until a
+parallel `_revived`-aware dispatcher continuation provider lands (mirror of
+`nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_forall_of_compile_ok_supported`),
+the caller must supply this directly. The hypothesis encodes the
+"after-body" dispatcher logic with `_revived` Preserves at the matched-flag
+position. -/
+private theorem NativeGeneratedSelectorHitSuccessBridge.of_leave_body
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (hSupported : SupportedSpec spec selectors)
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (hcompile : CompilationModel.compile spec selectors = Except.ok irContract)
+    (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
+    (hSelectorsRange :
+      ∀ selector, selector ∈ selectors →
+        selector < Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hLeave :
+      ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+        fn.body = [.leave])
+    (hCont : LeaveAwareCallDispatcherContinuation irContract tx state observableSlots) :
+    NativeGeneratedSelectorHitSuccessBridge irContract tx state
+      observableSlots := by
+  intro nativeContract fn hLowerRuntime hFind hguards hArgs
+  exact
+    nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFuel_revivedLeaveAware_and_continuation
+      spec selectors hSupported irContract tx state observableSlots hcompile
+      hSelectorRange hSelectorsRange hNoWrap
+      (NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_leave_body
+        irContract tx state observableSlots hLeave)
+      hCont
+      nativeContract fn hLowerRuntime hFind hguards hArgs
+
+/-- E4 (S7 component): Selected user bodies of shape `[.block [.leave]]`
+supply the named selector-hit success bridge through the `_revived`
+Leave-aware chain. Parallels E2 but with the block-wrapped Leave shape.
+
+Composes `ExecBridgeAtFuelRevivedLeaveAware.of_block_leave` with the
+`revivedLeaveAware_and_continuation` consumer, taking
+`LeaveAwareCallDispatcherContinuation` as a hypothesis (same as E2). -/
+private theorem NativeGeneratedSelectorHitSuccessBridge.of_block_leave
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (hSupported : SupportedSpec spec selectors)
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (hcompile : CompilationModel.compile spec selectors = Except.ok irContract)
+    (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
+    (hSelectorsRange :
+      ∀ selector, selector ∈ selectors →
+        selector < Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hBlockLeave :
+      ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+        fn.body = [.block [.leave]])
+    (hCont : LeaveAwareCallDispatcherContinuation irContract tx state observableSlots) :
+    NativeGeneratedSelectorHitSuccessBridge irContract tx state
+      observableSlots := by
+  intro nativeContract fn hLowerRuntime hFind hguards hArgs
+  exact
+    nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFuel_revivedLeaveAware_and_continuation
+      spec selectors hSupported irContract tx state observableSlots hcompile
+      hSelectorRange hSelectorsRange hNoWrap
+      (NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_block_leave
+        irContract tx state observableSlots hBlockLeave)
+      hCont
+      nativeContract fn hLowerRuntime hFind hguards hArgs
+
+/-- E6 (S7 component, degenerate): Selected user bodies of shape
+`preStmts ++ [.leave]` with `NativePreservableStraightStmts preStmts` and
+`preStmts = []` (degenerate empty case) supply the named selector-hit
+success bridge.
+
+CURRENTLY LIMITED: only handles `preStmts = []`, where body reduces to
+`[.leave]` and dispatches to E2 (`of_leave_body`). The general case requires
+per-stmt preservation lemmas via the per-`NativePreservableStraightStmt`
+observation framework.
+
+Takes `LeaveAwareCallDispatcherContinuation` as a hypothesis (same as E2/E4). -/
+private theorem NativeGeneratedSelectorHitSuccessBridge.of_nativePreservableStraightStmts_leave
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (hSupported : SupportedSpec spec selectors)
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (hcompile : CompilationModel.compile spec selectors = Except.ok irContract)
+    (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
+    (hSelectorsRange :
+      ∀ selector, selector ∈ selectors →
+        selector < Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (preStmts : List Compiler.Yul.YulStmt)
+    (_hPreservable :
+      Compiler.Proofs.YulGeneration.Backends.Native.NativePreservableStraightStmts preStmts)
+    (hOnlyEmpty : preStmts = [])
+    (hBody : ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+            some fn →
+        fn.body = preStmts ++ [.leave])
+    (hCont : LeaveAwareCallDispatcherContinuation irContract tx state observableSlots) :
+    NativeGeneratedSelectorHitSuccessBridge irContract tx state
+      observableSlots :=
+  NativeGeneratedSelectorHitSuccessBridge.of_leave_body
+    spec selectors hSupported irContract tx state observableSlots hcompile
+    hSelectorRange hSelectorsRange hNoWrap
+    (fun fn hFind => by rw [hBody fn hFind, hOnlyEmpty, List.nil_append])
+    hCont
 
 /-- Generated `callDispatcher` result theorem from `SupportedSpec + compile`,
 modulo the exact-fuel lowered-user-body proof stated against
