@@ -1461,10 +1461,20 @@ private def lookupVarExpr (params : Array ParamDecl) (locals : Array String) (na
   else
     throwError s!"unknown variable '{name}'"
 
-private abbrev TypedLocal := String × ValueType
+private inductive LocalSource where
+  | value
+  | arrayElement (paramName : String) (index : Term) (elemTy : ValueType)
+
+private structure TypedLocal where
+  name : String
+  ty : ValueType
+  source : LocalSource := .value
+
+private def mkTypedLocal (name : String) (ty : ValueType) : TypedLocal :=
+  { name, ty }
 
 private def typedLocalNames (locals : Array TypedLocal) : Array String :=
-  locals.map Prod.fst
+  locals.map (·.name)
 
 private def matchesBareName (actual bare : String) : Bool :=
   actual == bare || actual.endsWith s!".{bare}"
@@ -1644,7 +1654,7 @@ private def preferSignedNumericLiteralPeer
 
 private def lookupTypedLocalType? (locals : Array TypedLocal) (name : String) : Option ValueType :=
   locals.findSome? fun localTy =>
-    if localTy.1 == name then some localTy.2 else none
+    if localTy.name == name then some localTy.ty else none
 
 private def tupleParamElemType? (params : Array ParamDecl) (name : String) : Option ValueType :=
   match name.splitOn "_" with
@@ -1887,6 +1897,62 @@ private def arrayElementDynamicTupleArg?
         none
   | _ => none
 
+private def arrayElementAliasSource?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × Term × ValueType) := do
+  match stripParens stx with
+  | `(term| arrayElement $name:term $index:term) =>
+      let paramName ←
+        match stripParens name with
+        | `(term| $id:ident) => some (toString id.getId)
+        | _ => none
+      let param ← params.find? (fun p => p.name == paramName)
+      let elemTy ← match param.ty with
+        | .array elemTy => some elemTy
+        | _ => none
+      if valueTypeUsesDynamicData elemTy then
+        some (paramName, index, elemTy)
+      else
+        none
+  | _ => none
+
+private def localArrayElementAlias?
+    (locals : Array TypedLocal)
+    (stx : Term) : Option (String × Term × ValueType) := do
+  let name ←
+    match stripParens stx with
+    | `(term| $id:ident) => some (toString id.getId)
+    | _ => none
+  let localDecl ← locals.find? (fun localDecl => localDecl.name == name)
+  match localDecl.source with
+  | .arrayElement paramName index elemTy => some (paramName, index, elemTy)
+  | .value => none
+
+private def localArrayElementStructProjectionResolved?
+    (locals : Array TypedLocal)
+    (stx : Term) : Option (String × Term × ValueType × ValueType × Nat) := do
+  let (root, path) ← structProjectionPath? stx
+  let (paramName, index, elemTy) ← localArrayElementAlias? locals root
+  let (fieldTy, wordOffset) ← structFieldHeadOffset? elemTy path
+  some (paramName, index, fieldTy, elemTy, wordOffset)
+
+private def localArrayElementStructProjection?
+    (locals : Array TypedLocal)
+    (stx : Term) : Option (String × Term × ValueType × ValueType × Nat) := do
+  let resolved@(_, _, fieldTy, _, _) ← localArrayElementStructProjectionResolved? locals stx
+  if isSingleWordStaticValueType fieldTy then
+    some resolved
+  else
+    none
+
+private def localArrayElementDynamicMemberProjection?
+    (locals : Array TypedLocal)
+    (stx : Term) : Option (String × Term × ValueType × ValueType × Nat) := do
+  let resolved@(_, _, fieldTy, _, _) ← localArrayElementStructProjectionResolved? locals stx
+  match fieldTy with
+  | .array _ | .bytes | .string => some resolved
+  | _ => none
+
 private def abiHeadWordTarget?
     (params : Array ParamDecl)
     (stx : Term) : Option (String × Option Term × ValueType) := do
@@ -2117,7 +2183,7 @@ private unsafe def qualifiedTupleBindTypedLocals
     if let some name := name? then
       requireSupportedLocalBindingType stx s!"local binding '{name}'" ty
   pure <| (names.zip valueTys).filterMap fun (name?, ty) =>
-    name?.map (fun name => (name, ty))
+    name?.map (fun name => mkTypedLocal name ty)
 
 private unsafe def qualifiedSingleBindType
     (stx : Syntax)
@@ -2381,7 +2447,7 @@ private partial def inferPureExprType
   let stx := stripParens stx
   let inferContextAccessorOrLocal (name : String) : CommandElabM ValueType := do
     match locals.findSome? (fun localDecl =>
-        if matchesBareName localDecl.fst name then some localDecl.snd else none)
+        if matchesBareName localDecl.name name then some localDecl.ty else none)
         <|> params.findSome? (fun p =>
           if matchesBareName p.name name then some p.ty else none) with
     | some ty => pure ty
@@ -2390,8 +2456,16 @@ private partial def inferPureExprType
     requireWordLikeType index "arrayElement index" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
     pure fieldTy
   else
+  if let some (_, index, fieldTy, _, _) := localArrayElementStructProjection? locals stx then
+    requireWordLikeType index "arrayElement alias index" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
+    pure fieldTy
+  else
   if let some (_, index, fieldTy, _, _) := arrayElementDynamicMemberProjection? params stx then
     requireWordLikeType index "arrayElement index" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
+    pure fieldTy
+  else
+  if let some (_, index, fieldTy, _, _) := localArrayElementDynamicMemberProjection? locals stx then
+    requireWordLikeType index "arrayElement alias index" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
     pure fieldTy
   else
   if let some (_, fieldTy, _) := paramDynamicHeadProjection? params stx then
@@ -2414,8 +2488,13 @@ private partial def inferPureExprType
       | none => throwErrorAt stx s!"constructorArg index {idx.raw.reprint.getD ""} is out of bounds"
   | `(term| abiHeadWord $target:term $wordOffset:num) => do
       let offset ← natFromSyntax wordOffset
-      let some (_, index?, ty) := abiHeadWordTarget? params target
-        | throwErrorAt target "abiHeadWord requires a direct parameter or `arrayElement <param> <index>` target"
+      let (index?, ty) ←
+        match abiHeadWordTarget? params target with
+        | some (_, index?, ty) => pure (index?, ty)
+        | none =>
+            match localArrayElementAlias? locals target with
+            | some (_, index, ty) => pure (some index, ty)
+            | none => throwErrorAt target "abiHeadWord requires a direct parameter, dynamic local alias, or `arrayElement <param> <index>` target"
       if let some index := index? then
         requireWordLikeType index "arrayElement index"
           (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
@@ -2583,6 +2662,8 @@ private partial def inferPureExprType
       -- element type. Lowers through `Expr.arrayElementDynamicMemberLength`.
       if let some _ := arrayElementDynamicMemberProjection? params name then
         pure .uint256
+      else if let some _ := localArrayElementDynamicMemberProjection? locals name then
+        pure .uint256
       else if let some _ := paramDynamicMemberProjection? params name then
         pure .uint256
       else
@@ -2603,6 +2684,15 @@ private partial def inferPureExprType
               throwErrorAt name s!"arrayElement on a dynamic member of a struct-array element currently supports only Array<wordLike> members, got Array {renderValueType elemTy}"
         | _ =>
             throwErrorAt name s!"arrayElement on a struct-array element projection requires an Array-typed dynamic member, got {renderValueType fieldTy}"
+      else if let some (_, _, fieldTy, _, _) := localArrayElementDynamicMemberProjection? locals name then
+        match fieldTy with
+        | .array elemTy =>
+            if isSingleWordStaticValueType elemTy then
+              pure elemTy
+            else
+              throwErrorAt name s!"arrayElement on a dynamic member of an aliased struct-array element currently supports only Array<wordLike> members, got Array {renderValueType elemTy}"
+        | _ =>
+            throwErrorAt name s!"arrayElement on an aliased struct-array element projection requires an Array-typed dynamic member, got {renderValueType fieldTy}"
       else if let some (_, fieldTy, _) := paramDynamicMemberProjection? params name then
         match fieldTy with
         | .array elemTy =>
@@ -2654,6 +2744,13 @@ private partial def inferPureExprType
                     throwErrorAt x s!"externalCall '{extName}' dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
               | _ =>
                   throwErrorAt x s!"externalCall '{extName}' dynamic-member argument requires an Array-typed member, got {renderValueType fieldTy}"
+            else if let some (_, _, fieldTy, _elemTy, _) := localArrayElementDynamicMemberProjection? locals x then
+              match fieldTy with
+              | .array elemTy =>
+                  unless externalCallDynamicArgSupported (.array elemTy) do
+                    throwErrorAt x s!"externalCall '{extName}' dynamic-member alias argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+              | _ =>
+                  throwErrorAt x s!"externalCall '{extName}' dynamic-member alias argument requires an Array-typed member, got {renderValueType fieldTy}"
             else if let some (_, fieldTy, _) := paramDynamicMemberProjection? params x then
               match fieldTy with
               | .array elemTy =>
@@ -2883,6 +2980,13 @@ private partial def inferBindSourceType
                     throwErrorAt x s!"tryExternalCall '{extName}' dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
               | _ =>
                   throwErrorAt x s!"tryExternalCall '{extName}' dynamic-member argument requires an Array-typed member, got {renderValueType fieldTy}"
+            else if let some (_, _, fieldTy, _elemTy, _) := localArrayElementDynamicMemberProjection? locals x then
+              match fieldTy with
+              | .array elemTy =>
+                  unless externalCallDynamicArgSupported (.array elemTy) do
+                    throwErrorAt x s!"tryExternalCall '{extName}' dynamic-member alias argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+              | _ =>
+                  throwErrorAt x s!"tryExternalCall '{extName}' dynamic-member alias argument requires an Array-typed member, got {renderValueType fieldTy}"
             else
               requireWordOrDirectArrayType x s!"tryExternalCall '{extName}' argument"
                 (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
@@ -2983,7 +3087,8 @@ private partial def inferTupleSourceTypes?
           -- never destructures into a tuple — fall through to the scalar
           -- return path. The compound projection's name isn't a direct param
           -- ref so `requireDirectParamRef` would throw if invoked here.
-          if (arrayElementDynamicMemberProjection? params name).isSome then
+          if (arrayElementDynamicMemberProjection? params name).isSome ||
+              (localArrayElementDynamicMemberProjection? locals name).isSome then
             pure none
           else
             match directParamNameWithType? params name with
@@ -3353,6 +3458,24 @@ partial def translatePureExprWithTypes
         $(natTerm elementWords)
         $(natTerm wordOffset))
   else
+  if let some (paramName, index, _fieldTy, elemTy, wordOffset) := localArrayElementStructProjection? locals stx then
+    let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants
+    if valueTypeUsesDynamicData elemTy then
+      `(Compiler.CompilationModel.Expr.arrayElementDynamicWord
+        $(strTerm paramName)
+        $indexExpr
+        $(natTerm wordOffset))
+    else
+      let elementWords ←
+        match staticAbiWordCount? elemTy with
+        | some n => pure n
+        | none => throwErrorAt stx "arrayElement alias struct projection requires a static or dynamic ABI-decodable element"
+      `(Compiler.CompilationModel.Expr.arrayElementWord
+        $(strTerm paramName)
+        $indexExpr
+        $(natTerm elementWords)
+        $(natTerm wordOffset))
+  else
   -- Direct dynamic-tuple parameter leaf projection (verity#1832): read a
   -- single-word static field at a fixed head offset from a dynamically
   -- encoded struct parameter.
@@ -3377,8 +3500,13 @@ partial def translatePureExprWithTypes
       `(Compiler.CompilationModel.Expr.constructorArg $idx)
   | `(term| abiHeadWord $target:term $wordOffset:num) => do
       let offset ← natFromSyntax wordOffset
-      let some (paramName, index?, ty) := abiHeadWordTarget? params target
-        | throwErrorAt target "abiHeadWord requires a direct parameter or `arrayElement <param> <index>` target"
+      let (paramName, index?, ty) ←
+        match abiHeadWordTarget? params target with
+        | some resolved => pure resolved
+        | none =>
+            match localArrayElementAlias? locals target with
+            | some (paramName, index, ty) => pure (paramName, some index, ty)
+            | none => throwErrorAt target "abiHeadWord requires a direct parameter, dynamic local alias, or `arrayElement <param> <index>` target"
       match index? with
       | some index =>
           let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants
@@ -3620,6 +3748,13 @@ partial def translatePureExprWithTypes
             $(strTerm paramName)
             $indexExpr
             $(natTerm wordOffset))
+      else if let some (paramName, index, _fieldTy, _elemTy, wordOffset) :=
+          localArrayElementDynamicMemberProjection? locals name then
+        let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants
+        `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+            $(strTerm paramName)
+            $indexExpr
+            $(natTerm wordOffset))
       else if let some (paramName, _fieldTy, wordOffset) :=
           paramDynamicMemberProjection? params name then
         `(Compiler.CompilationModel.Expr.paramDynamicMemberLength
@@ -3632,6 +3767,15 @@ partial def translatePureExprWithTypes
       -- lowers through `Expr.arrayElementDynamicMemberElement`.
       if let some (paramName, outerIndex, _fieldTy, _elemTy, wordOffset) :=
           arrayElementDynamicMemberProjection? params name then
+        let outerIndexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals outerIndex visitingConstants
+        let innerIndexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants
+        `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberElement
+            $(strTerm paramName)
+            $outerIndexExpr
+            $(natTerm wordOffset)
+            $innerIndexExpr)
+      else if let some (paramName, outerIndex, _fieldTy, _elemTy, wordOffset) :=
+          localArrayElementDynamicMemberProjection? locals name then
         let outerIndexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals outerIndex visitingConstants
         let innerIndexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants
         `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberElement
@@ -3740,7 +3884,7 @@ partial def translatePureExpr
     (stx : Term)
     (visitingConstants : List String := []) : CommandElabM Term :=
   translatePureExprWithTypes fields constDecls immutableDecls params
-    (locals.map (fun name => (name, .uint256))) stx visitingConstants
+    (locals.map (fun name => mkTypedLocal name .uint256)) stx visitingConstants
 
 private def validateWordLikeExprListLiteral
     (fields : Array StorageFieldDecl)
@@ -3836,7 +3980,8 @@ private def arrayElementTupleElemExprs?
   match stripParens rhs with
   | `(term| arrayElement $name:term $index:term) =>
       -- verity#1849, G2: compound projections never destructure into a tuple.
-      if (arrayElementDynamicMemberProjection? params name).isSome then
+      if (arrayElementDynamicMemberProjection? params name).isSome ||
+          (localArrayElementDynamicMemberProjection? locals name).isSome then
         return none
       match directParamNameWithType? params name with
       | none => return none
@@ -3885,7 +4030,8 @@ private def arrayElementTupleDestructureStmts?
   match stripParens rhs with
   | `(term| arrayElement $name:term $index:term) =>
       -- verity#1849, G2: compound projections never destructure into a tuple.
-      if (arrayElementDynamicMemberProjection? params name).isSome then
+      if (arrayElementDynamicMemberProjection? params name).isSome ||
+          (localArrayElementDynamicMemberProjection? locals name).isSome then
         return none
       match directParamNameWithType? params name with
       | none => return none
@@ -3954,7 +4100,7 @@ private def arrayElementTupleDestructureStmts?
             name?.map (fun name => (name, valueExpr))
           let boundStmts ← boundPairs.mapM fun (name, valueExpr) =>
             `(Compiler.CompilationModel.Stmt.letVar $(strTerm name) $valueExpr)
-          pure (some (#[indexStmt] ++ boundStmts, (indexName, .uint256)))
+          pure (some (#[indexStmt] ++ boundStmts, mkTypedLocal indexName .uint256))
       | _ => pure none
   | _ => pure none
 
@@ -3971,7 +4117,8 @@ private def arrayElementTupleReturnStmts?
       -- verity#1849, G2: compound projections (`(arrayElement <p> <i>).<dynField>`)
       -- never destructure into a tuple return — bail out without throwing on
       -- the non-ident name. The scalar return path will pick this up.
-      if (arrayElementDynamicMemberProjection? params name).isSome then
+      if (arrayElementDynamicMemberProjection? params name).isSome ||
+          (localArrayElementDynamicMemberProjection? locals name).isSome then
         return none
       match directParamNameWithType? params name with
       | none => return none
@@ -4011,7 +4158,7 @@ private def arrayElementTupleReturnStmts?
             offset := offset + elemWords
           let returnStmt ←
             `(Compiler.CompilationModel.Stmt.returnValues [ $[$valueExprs],* ])
-          pure (some (#[indexStmt, returnStmt], (indexName, .uint256)))
+          pure (some (#[indexStmt, returnStmt], mkTypedLocal indexName .uint256))
       | _ => pure none
   | _ => pure none
 
@@ -4122,6 +4269,21 @@ private def translateInternalHelperCallArgs
                     $(natTerm wordOffset)))
               | _ =>
                   throwErrorAt arg s!"helper call '{fn.name}' Array parameter '{fnParam.name}' requires an Array-typed projected member, got {renderValueType fieldTy}"
+            else if let some (paramName, index, fieldTy, _elemTy, wordOffset) :=
+                localArrayElementDynamicMemberProjection? locals arg then
+              match fieldTy with
+              | .array _ =>
+                  let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+                  out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberDataOffset
+                    $(strTerm paramName)
+                    $indexExpr
+                    $(natTerm wordOffset)))
+                  out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+                    $(strTerm paramName)
+                    $indexExpr
+                    $(natTerm wordOffset)))
+              | _ =>
+                  throwErrorAt arg s!"helper call '{fn.name}' Array parameter '{fnParam.name}' requires an Array-typed projected alias member, got {renderValueType fieldTy}"
             else if let some (paramName, fieldTy, wordOffset) :=
                 paramDynamicMemberProjection? params arg then
               match fieldTy with
@@ -4192,6 +4354,24 @@ private def translateLinkedExternalCallArgs
                 throwErrorAt arg s!"linked external dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
           | _ =>
               throwErrorAt arg s!"linked external dynamic-member argument requires an Array-typed member, got {renderValueType fieldTy}"
+        else if let some (paramName, index, fieldTy, _elemTy, wordOffset) :=
+            localArrayElementDynamicMemberProjection? locals arg then
+          match fieldTy with
+          | .array elemTy =>
+              if externalCallDynamicArgSupported (.array elemTy) then
+                let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+                out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberDataOffset
+                  $(strTerm paramName)
+                  $indexExpr
+                  $(natTerm wordOffset)))
+                out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+                  $(strTerm paramName)
+                  $indexExpr
+                  $(natTerm wordOffset)))
+              else
+                throwErrorAt arg s!"linked external dynamic-member alias argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+          | _ =>
+              throwErrorAt arg s!"linked external dynamic-member alias argument requires an Array-typed member, got {renderValueType fieldTy}"
         else if let some (paramName, fieldTy, wordOffset) :=
             paramDynamicMemberProjection? params arg then
           match fieldTy with
@@ -4730,7 +4910,7 @@ private partial def validateDoElemExprTypes
                     if let some name := name? then
                       requireSupportedLocalBindingType patDecl s!"local binding '{name}'" ty
                   let typedNames := (names.zip valueTys).filterMap fun (name?, ty) =>
-                    name?.map (fun name => (name, ty))
+                    name?.map (fun name => mkTypedLocal name ty)
                   pure (some (locals ++ typedNames))
               | none => pure none
       | none => pure none
@@ -4752,7 +4932,7 @@ private partial def validateDoElemExprTypes
                     if let some name := name? then
                       requireSupportedLocalBindingType patDecl s!"local binding '{name}'" ty
                   let typedNames := (names.zip valueTys).filterMap fun (name?, ty) =>
-                    name?.map (fun name => (name, ty))
+                    name?.map (fun name => mkTypedLocal name ty)
                   pure (some (locals ++ typedNames))
               | none => pure none
       | none => pure none
@@ -4764,15 +4944,24 @@ private partial def validateDoElemExprTypes
       | `(doElem| let mut $name:ident := $rhs:term) =>
           let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
           requireSupportedLocalBindingType name s!"local binding '{toString name.getId}'" ty
-          pure <| locals.push (toString name.getId, ty)
+          pure <| locals.push (mkTypedLocal (toString name.getId) ty)
       | `(doElem| let $name:ident := $rhs:term) =>
-          let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
-          requireSupportedLocalBindingType name s!"local binding '{toString name.getId}'" ty
-          pure <| locals.push (toString name.getId, ty)
+          match arrayElementAliasSource? params rhs with
+          | some (paramName, index, elemTy) =>
+              requireWordLikeType index "arrayElement alias index"
+                (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index)
+              pure <| locals.push
+                { name := toString name.getId
+                  ty := elemTy
+                  source := .arrayElement paramName index elemTy }
+          | none =>
+              let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
+              requireSupportedLocalBindingType name s!"local binding '{toString name.getId}'" ty
+              pure <| locals.push (mkTypedLocal (toString name.getId) ty)
       | `(doElem| let $name:ident ← $rhs:term) =>
           let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls functions params locals rhs
           requireSupportedLocalBindingType name s!"local binding '{toString name.getId}'" ty
-          pure <| locals.push (toString name.getId, ty)
+          pure <| locals.push (mkTypedLocal (toString name.getId) ty)
       | `(doElem| $name:ident := $rhs:term) =>
           let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
           pure locals
@@ -4795,7 +4984,7 @@ private partial def validateDoElemExprTypes
           | `(term| do $[$inner:doElem]*) =>
               let _ ← validateDoElemsExprTypes
                 ownerName fields constDecls immutableDecls externalDecls errorDecls functions params
-                (locals.push (← expectStringOrIdent name, .uint256))
+                (locals.push (mkTypedLocal (← expectStringOrIdent name) .uint256))
                 inner
               pure locals
           | _ => throwErrorAt body "forEach body must be a do block"
@@ -5505,7 +5694,7 @@ private partial def translateDoElem
                   let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                   match valueTys with
                   | some tys =>
-                      let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                      let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => mkTypedLocal name ty)
                       pure (some (stmts, locals ++ typedPairs, mutableLocals))
                   | none => throwErrorAt rhs "unable to infer tuple local types"
               | none =>
@@ -5514,7 +5703,7 @@ private partial def translateDoElem
                       let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                       match valueTys with
                       | some tys =>
-                          let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                          let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => mkTypedLocal name ty)
                           pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
                       | none =>
                           match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals rhs with
@@ -5525,7 +5714,7 @@ private partial def translateDoElem
                   | none =>
                       match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
                       | some (stmt, tys) =>
-                          let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                          let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => mkTypedLocal name ty)
                           pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
                       | none => throwErrorAt rhs "tuple destructuring currently requires a tuple literal, tuple-typed parameter, structMembers/structMembers2 source, internal helper call, or tryExternalCall"
           | _ =>
@@ -5534,7 +5723,7 @@ private partial def translateDoElem
                   let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                   match valueTys with
                   | some tys =>
-                      let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                      let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => mkTypedLocal name ty)
                       pure (some (stmts, locals.push syntheticLocal ++ typedPairs, mutableLocals))
                   | none => throwErrorAt rhs "unable to infer tuple local types"
               | none =>
@@ -5549,7 +5738,7 @@ private partial def translateDoElem
                       let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                       match valueTys with
                       | some tys =>
-                          let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                          let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => mkTypedLocal name ty)
                           pure (some (stmts, locals ++ typedPairs, mutableLocals))
                       | none => throwErrorAt rhs "unable to infer tuple local types"
                   | none =>
@@ -5558,7 +5747,7 @@ private partial def translateDoElem
                           let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                           match valueTys with
                           | some tys =>
-                              let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                              let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => mkTypedLocal name ty)
                               pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
                           | none =>
                               match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals rhs with
@@ -5569,7 +5758,7 @@ private partial def translateDoElem
                       | none =>
                           match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
                           | some (stmt, tys) =>
-                              let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                              let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => mkTypedLocal name ty)
                               pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
                           | none =>
                               let valueExprs ← tupleValueExprs fields constDecls immutableDecls params locals rhs
@@ -5582,7 +5771,7 @@ private partial def translateDoElem
                               let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
                               match valueTys with
                               | some tys =>
-                                  let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                                  let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => mkTypedLocal name ty)
                                   pure (some (stmts, locals ++ typedPairs, mutableLocals))
                               | none => throwErrorAt rhs "unable to infer tuple local types"
       | none => pure none
@@ -5597,7 +5786,7 @@ private partial def translateDoElem
               let valueTys ← inferTupleSourceTypes? fields constDecls immutableDecls externalDecls functions params locals rhs
               match valueTys with
               | some tys =>
-                  let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                  let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => mkTypedLocal name ty)
                   pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
               | none =>
                   match ← resolveQualifiedFunctionApp? fields constDecls immutableDecls externalDecls params locals rhs with
@@ -5608,7 +5797,7 @@ private partial def translateDoElem
           | none =>
               match (← tryExternalCallBindStmt? fields constDecls immutableDecls externalDecls params locals rhs names) with
               | some (stmt, tys) =>
-                  let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => (name, ty))
+                  let typedPairs := (names.zip tys).filterMap fun (name?, ty) => name?.map (fun name => mkTypedLocal name ty)
                   pure (some (#[(stmt)], locals ++ typedPairs, mutableLocals))
               | none => throwErrorAt rhs "tuple bind sources must be internal helper calls or tryExternalCall"
       | none => pure none
@@ -5625,18 +5814,30 @@ private partial def translateDoElem
           let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
-              locals.push (varName, ty),
+              locals.push (mkTypedLocal varName ty),
               mutableLocals.push varName)
       | `(doElem| let $name:ident := $rhs:term) =>
           let varName := toString name.getId
           if localNames.contains varName then
             throwErrorAt name s!"duplicate local variable '{varName}'"
-          let rhsExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals rhs
-          let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
-          pure
-            (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
-              locals.push (varName, ty),
-              mutableLocals)
+          match arrayElementAliasSource? params rhs with
+          | some (paramName, index, elemTy) =>
+              requireWordLikeType index "arrayElement alias index"
+                (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index)
+              pure
+                (#[],
+                  locals.push
+                    { name := varName
+                      ty := elemTy
+                      source := .arrayElement paramName index elemTy },
+                  mutableLocals)
+          | none =>
+              let rhsExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals rhs
+              let ty ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
+              pure
+                (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
+                  locals.push (mkTypedLocal varName ty),
+                  mutableLocals)
       | `(doElem| let $name:ident ← $rhs:term) =>
           let varName := toString name.getId
           if localNames.contains varName then
@@ -5650,7 +5851,7 @@ private partial def translateDoElem
                 (#[(← `(Compiler.CompilationModel.Stmt.ecm
                         $moduleTerm
                         [ $[$argExprs],* ]))],
-                  locals.push (varName, .uint256),
+                  locals.push (mkTypedLocal varName .uint256),
                   mutableLocals)
           | `(term| ecrecover $hash:term $v:term $r:term $s:term) =>
               let hashExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals hash
@@ -5661,7 +5862,7 @@ private partial def translateDoElem
                 (#[(← `(Compiler.CompilationModel.Stmt.ecm
                         (Compiler.Modules.Precompiles.ecrecoverModule $(strTerm varName))
                         [$hashExpr, $vExpr, $rExpr, $sExpr]))],
-                  locals.push (varName, .address),
+                  locals.push (mkTypedLocal varName .address),
                   mutableLocals)
           | `(term| tryExternalCall $extName:term $args:term) =>
               -- Zero-return tryExternalCall: `let success ← tryExternalCall "fn" [args]`
@@ -5674,22 +5875,22 @@ private partial def translateDoElem
                         []
                         $(strTerm targetFn)
                         [ $[$argExprs],* ]))],
-                  locals.push (varName, .bool),
+                  locals.push (mkTypedLocal varName .bool),
                   mutableLocals)
           | _ =>
               let safeBind? ← translateSafeRequireBind fields constDecls immutableDecls params locals varName rhs
               match safeBind? with
-              | some safeStmts => pure (safeStmts, locals.push (varName, .uint256), mutableLocals)
+              | some safeStmts => pure (safeStmts, locals.push (mkTypedLocal varName .uint256), mutableLocals)
               | none =>
                   match (← translateERC20BindStmt? fields constDecls immutableDecls functions params locals varName rhs) with
               | some stmt =>
-                  pure (#[(stmt)], locals.push (varName, .uint256), mutableLocals)
+                  pure (#[(stmt)], locals.push (mkTypedLocal varName .uint256), mutableLocals)
               | none =>
                       let rhsExpr ← translateBindSource fields constDecls immutableDecls externalDecls functions params locals rhs
                       let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls functions params locals rhs
                       pure
                         (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
-                          locals.push (varName, ty),
+                          locals.push (mkTypedLocal varName ty),
                           mutableLocals)
       | `(doElem| $name:ident := $rhs:term) =>
           let varName := toString name.getId
@@ -5752,7 +5953,7 @@ private partial def translateDoElem
           let bodyStmts ←
             match stripParens body with
             | `(term| do $[$inner:doElem]*) =>
-                pure (← (translateDoElems fields constDecls immutableDecls externalDecls functions params (locals.push (loopVar, .uint256)) mutableLocals inner)).1
+                pure (← (translateDoElems fields constDecls immutableDecls externalDecls functions params (locals.push (mkTypedLocal loopVar .uint256)) mutableLocals inner)).1
             | _ => throwErrorAt body "forEach body must be a do block"
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.forEach
