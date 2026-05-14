@@ -1511,6 +1511,7 @@ private def lookupVarExpr (params : Array ParamDecl) (locals : Array String) (na
 private inductive LocalSource where
   | value
   | arrayElement (paramName : String) (index : Term) (elemTy : ValueType)
+  | memoryArray
 
 private structure TypedLocal where
   name : String
@@ -1519,6 +1520,12 @@ private structure TypedLocal where
 
 private def mkTypedLocal (name : String) (ty : ValueType) : TypedLocal :=
   { name, ty }
+
+private def memoryArrayDataOffsetName (name : String) : String :=
+  s!"{name}_data_offset"
+
+private def memoryArrayLengthName (name : String) : String :=
+  s!"{name}_length"
 
 private def typedLocalNames (locals : Array TypedLocal) : Array String :=
   locals.map (·.name)
@@ -1974,6 +1981,19 @@ private def localArrayElementAlias?
   match localDecl.source with
   | .arrayElement paramName index elemTy => some (paramName, index, elemTy)
   | .value => none
+  | .memoryArray => none
+
+private def localMemoryArray?
+    (locals : Array TypedLocal)
+    (stx : Term) : Option (String × ValueType) := do
+  let name ←
+    match stripParens stx with
+    | `(term| $id:ident) => some (toString id.getId)
+    | _ => none
+  let localDecl ← locals.find? (fun localDecl => localDecl.name == name)
+  match localDecl.source, localDecl.ty with
+  | .memoryArray, .array elemTy => some (name, elemTy)
+  | _, _ => none
 
 private def localArrayElementStructProjectionResolved?
     (locals : Array TypedLocal)
@@ -2711,6 +2731,8 @@ private partial def inferPureExprType
         pure .uint256
       else if let some _ := localArrayElementDynamicMemberProjection? locals name then
         pure .uint256
+      else if let some _ := localMemoryArray? locals name then
+        pure .uint256
       else if let some _ := paramDynamicMemberProjection? params name then
         pure .uint256
       else
@@ -2749,6 +2771,11 @@ private partial def inferPureExprType
               throwErrorAt name s!"arrayElement on a dynamic member of a struct parameter currently supports only Array<wordLike> members, got Array {renderValueType elemTy}"
         | _ =>
             throwErrorAt name s!"arrayElement on a struct parameter projection requires an Array-typed dynamic member, got {renderValueType fieldTy}"
+      else if let some (_, elemTy) := localMemoryArray? locals name then
+        if isSingleWordStaticValueType elemTy then
+          pure elemTy
+        else
+          throwErrorAt name s!"arrayElement on a memory array local currently supports only Array<wordLike> values, got Array {renderValueType elemTy}"
       else
         let sourceTy ← requireDirectParamRef name "arrayElement" params
         match sourceTy with
@@ -3209,6 +3236,32 @@ private partial def resolveLocalFunctionApp?
     | _ =>
         throwErrorAt stx
           s!"ambiguous overload resolution for '{fnName}'"
+
+private partial def localInternalArrayReturnBind?
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
+    (functions : Array FunctionDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (rhs : Term) : CommandElabM (Option (FunctionDecl × Array Term × ValueType)) := do
+  match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals rhs with
+  | some (fn, argTerms) =>
+      unless fn.name != "fallback" &&
+          fn.name != "receive" &&
+          fn.params.all (fun param => supportsInternalHelperParamType param.ty) do
+        throwErrorAt rhs
+          s!"helper call '{fn.name}' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs"
+      match fn.returnTy with
+      | .array elemTy =>
+          if isSingleWordStaticValueType elemTy then
+            pure (some (fn, argTerms, elemTy))
+          else
+            throwErrorAt rhs
+              s!"local binding from helper '{fn.name}' returning Array currently supports only static ABI-word elements, got Array {renderValueType elemTy}"
+      | _ => pure none
+  | none => pure none
 
 private partial def resolveQualifiedFunctionApp?
     (fields : Array StorageFieldDecl)
@@ -3807,6 +3860,8 @@ partial def translatePureExprWithTypes
         `(Compiler.CompilationModel.Expr.paramDynamicMemberLength
             $(strTerm paramName)
             $(natTerm wordOffset))
+      else if let some (name, _) := localMemoryArray? locals name then
+        `(Compiler.CompilationModel.Expr.memoryArrayLength $(strTerm name))
       else
         `(Compiler.CompilationModel.Expr.arrayLength $(strTerm (← expectStringOrIdent name)))
   | `(term| arrayElement $name:term $index:term) =>
@@ -3837,6 +3892,10 @@ partial def translatePureExprWithTypes
             $(strTerm paramName)
             $(natTerm wordOffset)
             $innerIndexExpr)
+      else if let some (name, _) := localMemoryArray? locals name then
+        `(Compiler.CompilationModel.Expr.memoryArrayElement
+            $(strTerm name)
+            $(← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants))
       else
         `(Compiler.CompilationModel.Expr.arrayElement
             $(strTerm (← expectStringOrIdent name))
@@ -4298,10 +4357,13 @@ private def translateInternalHelperCallArgs
     | .array _ =>
         match directParamNameWithType? params arg with
         | some (name, _) =>
-            out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_data_offset")))
-            out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_length")))
+            out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm (memoryArrayDataOffsetName name))))
+            out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm (memoryArrayLengthName name))))
         | none =>
-            if let some (paramName, index, fieldTy, _elemTy, wordOffset) :=
+            if let some (name, _) := localMemoryArray? locals arg then
+              out := out.push (← `(Compiler.CompilationModel.Expr.localVar $(strTerm (memoryArrayDataOffsetName name))))
+              out := out.push (← `(Compiler.CompilationModel.Expr.localVar $(strTerm (memoryArrayLengthName name))))
+            else if let some (paramName, index, fieldTy, _elemTy, wordOffset) :=
                 arrayElementDynamicMemberProjection? params arg then
               match fieldTy with
               | .array _ =>
@@ -5006,9 +5068,16 @@ private partial def validateDoElemExprTypes
               requireSupportedLocalBindingType name s!"local binding '{toString name.getId}'" ty
               pure <| locals.push (mkTypedLocal (toString name.getId) ty)
       | `(doElem| let $name:ident ← $rhs:term) =>
-          let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls functions params locals rhs
-          requireSupportedLocalBindingType name s!"local binding '{toString name.getId}'" ty
-          pure <| locals.push (mkTypedLocal (toString name.getId) ty)
+          match ← localInternalArrayReturnBind? fields constDecls immutableDecls externalDecls functions params locals rhs with
+          | some (_, _, elemTy) =>
+              pure <| locals.push
+                { name := toString name.getId
+                  ty := .array elemTy
+                  source := .memoryArray }
+          | none =>
+              let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls functions params locals rhs
+              requireSupportedLocalBindingType name s!"local binding '{toString name.getId}'" ty
+              pure <| locals.push (mkTypedLocal (toString name.getId) ty)
       | `(doElem| $name:ident := $rhs:term) =>
           let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals rhs
           pure locals
@@ -5925,20 +5994,39 @@ private partial def translateDoElem
                   locals.push (mkTypedLocal varName .bool),
                   mutableLocals)
           | _ =>
-              let safeBind? ← translateSafeRequireBind fields constDecls immutableDecls params locals varName rhs
-              match safeBind? with
-              | some safeStmts => pure (safeStmts, locals.push (mkTypedLocal varName .uint256), mutableLocals)
+              match ← localInternalArrayReturnBind? fields constDecls immutableDecls externalDecls functions params locals rhs with
+              | some (fn, argTerms, elemTy) =>
+                  let argExprs ← translateInternalHelperCallArgs
+                    fields constDecls immutableDecls params locals fn argTerms
+                  let resultNameTerms := #[
+                    strTerm (memoryArrayDataOffsetName varName),
+                    strTerm (memoryArrayLengthName varName)
+                  ]
+                  pure
+                    (#[(← `(Compiler.CompilationModel.Stmt.internalCallAssign
+                            [ $[$resultNameTerms],* ]
+                            $(strTerm (internalHelperSpecNameFor fn))
+                            [ $[$argExprs],* ]))],
+                      locals.push
+                        { name := varName
+                          ty := .array elemTy
+                          source := .memoryArray },
+                      mutableLocals)
               | none =>
-                  match (← translateERC20BindStmt? fields constDecls immutableDecls functions params locals varName rhs) with
-              | some stmt =>
-                  pure (#[(stmt)], locals.push (mkTypedLocal varName .uint256), mutableLocals)
-              | none =>
-                      let rhsExpr ← translateBindSource fields constDecls immutableDecls externalDecls functions params locals rhs
-                      let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls functions params locals rhs
-                      pure
-                        (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
-                          locals.push (mkTypedLocal varName ty),
-                          mutableLocals)
+                  let safeBind? ← translateSafeRequireBind fields constDecls immutableDecls params locals varName rhs
+                  match safeBind? with
+                  | some safeStmts => pure (safeStmts, locals.push (mkTypedLocal varName .uint256), mutableLocals)
+                  | none =>
+                      match (← translateERC20BindStmt? fields constDecls immutableDecls functions params locals varName rhs) with
+                      | some stmt =>
+                          pure (#[(stmt)], locals.push (mkTypedLocal varName .uint256), mutableLocals)
+                      | none =>
+                          let rhsExpr ← translateBindSource fields constDecls immutableDecls externalDecls functions params locals rhs
+                          let ty ← inferBindSourceType fields constDecls immutableDecls externalDecls functions params locals rhs
+                          pure
+                            (#[(← `(Compiler.CompilationModel.Stmt.letVar $(strTerm varName) $rhsExpr))],
+                              locals.push (mkTypedLocal varName ty),
+                              mutableLocals)
       | `(doElem| $name:ident := $rhs:term) =>
           let varName := toString name.getId
           if !localNames.contains varName then
