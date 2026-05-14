@@ -66,6 +66,7 @@ partial def exprContainsCallLike (expr : Expr) : Bool :=
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
@@ -174,6 +175,7 @@ def exprContainsUnsafeLogicalCallLike (expr : Expr) : Bool :=
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>

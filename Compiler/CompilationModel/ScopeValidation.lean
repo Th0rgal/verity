@@ -256,6 +256,21 @@ def validateScopedExprIdentifiers
           throw s!"Compilation error: {context} Expr.paramDynamicHeadWord '{name}' requires a tuple parameter, got {repr ty}"
       | none =>
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.paramDynamicHeadWord"
+  | Expr.paramDynamicStaticComposite name wordOffset => do
+      match findParamType params name with
+      | some ty@(ParamType.tuple _) =>
+          if isDynamicParamType ty then
+            let expectedWords := paramLocalHeadWords ty
+            if wordOffset < expectedWords then
+              pure ()
+            else
+              throw s!"Compilation error: {context} Expr.paramDynamicStaticComposite '{name}' wordOffset {wordOffset} is outside head width {expectedWords} for {repr ty}"
+          else
+            throw s!"Compilation error: {context} Expr.paramDynamicStaticComposite '{name}' requires a dynamically-encoded tuple parameter, got {repr ty}"
+      | some ty =>
+          throw s!"Compilation error: {context} Expr.paramDynamicStaticComposite '{name}' requires a tuple parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.paramDynamicStaticComposite"
   | Expr.paramDynamicMemberLength name wordOffset
   | Expr.paramDynamicMemberDataOffset name wordOffset => do
       match findParamType params name with

@@ -345,6 +345,11 @@ def compileExpr (fields : List Field)
         YulExpr.lit wordOffset,
         innerIndexExpr
       ])
+  | Expr.paramDynamicStaticComposite name wordOffset =>
+      pure (YulExpr.call "add" [
+        YulExpr.ident s!"{name}_data_offset",
+        YulExpr.lit (wordOffset * 32)
+      ])
   | Expr.arrayElementDynamicMemberLength name index wordOffset => do
       let indexExpr ← compileExpr fields dynamicSource index
       let helperName := match dynamicSource with

@@ -380,6 +380,10 @@ inductive Expr
   /-- Element access into an `Array<wordLike>` dynamic member inside a
       directly-passed dynamic tuple parameter. -/
   | paramDynamicMemberElement (name : String) (wordOffset : Nat) (innerIndex : Expr)
+  /-- Base pointer for a static composite member inside a directly-passed
+      dynamic tuple parameter. Event lowering uses this as the start of the
+      projected tuple's ABI words and then encodes each static leaf. -/
+  | paramDynamicStaticComposite (name : String) (wordOffset : Nat)
   /-- Length of a dynamic member inside a struct-array element.  Given a
       struct-array parameter `name` indexed at `index`, dereferences the
       head pointer at `wordOffset` (relative to the element's head

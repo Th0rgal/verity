@@ -190,6 +190,7 @@ def exprUsesArrayElementKind (includePlain includeWord : Bool) : Expr → Bool
   | Expr.memoryArrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
@@ -365,6 +366,7 @@ def exprUsesArrayElement : Expr → Bool
   | Expr.memoryArrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
@@ -509,7 +511,8 @@ def contractUsesArrayElementWord (spec : CompilationModel) : Bool :=
 -- `SupportedSpec.lean` can simp/unfold each case.
 mutual
 def exprUsesParamDynamicHeadWord : Expr → Bool
-  | Expr.paramDynamicHeadWord _ _ => true
+  | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _ => true
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _ => true
   | Expr.paramDynamicMemberElement _ _ innerIndex =>
@@ -703,6 +706,7 @@ def exprUsesMulDiv512 : Expr → Bool
   | Expr.memoryArrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _
@@ -863,6 +867,7 @@ def exprUsesStorageArrayElement : Expr → Bool
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
@@ -1023,6 +1028,7 @@ def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>

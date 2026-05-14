@@ -1985,10 +1985,20 @@ open Verity.EVM.Uint256
 verity_contract MacroEventTrace where
   storage
 
+  struct Note where
+    npk : Uint256,
+    token : Address,
+    amount : Uint256
+
+  struct Transaction where
+    withdrawal : Note,
+    ciphertexts : Array Uint256
+
   event_defs
     event Transfer(@indexed amount : Uint256, total : Uint256)
     event Amounts(total : Uint256, values : Array Uint256)
     event MemoryAmounts(values : Array Uint256)
+    event NoteLogged(note : Note)
 
   function emitNamed (amount : Uint256, bonus : Uint256) : Unit := do
     emit "Transfer" [amount, add amount bonus]
@@ -1999,6 +2009,9 @@ verity_contract MacroEventTrace where
   function emitMemoryArray (len : Uint256) : Unit := do
     let values ← allocArray len
     emit "MemoryAmounts" [values]
+
+  function emitNote (txn : Transaction) : Unit := do
+    emit "NoteLogged" [txn.withdrawal]
 
   function emitDynamicLog
       (topic0 : Uint256, topic1 : Uint256, dataOffset : Uint256, dataSize : Uint256) : Unit := do
@@ -2039,6 +2052,15 @@ def emitMemoryArrayModelUsesMemoryArrayLength : Bool :=
     | _ => false)
 
 example : emitMemoryArrayModelUsesMemoryArrayLength = true := by native_decide
+
+def emitNoteModelUsesProjectedStaticComposite : Bool :=
+  match MacroEventTrace.emitNote_modelBody with
+  | [Stmt.emit "NoteLogged" [Expr.paramDynamicStaticComposite "txn" 0],
+      Stmt.stop] =>
+      true
+  | _ => false
+
+example : emitNoteModelUsesProjectedStaticComposite = true := by native_decide
 
 def emitDynamicLogModelUsesStmtRawLog : Bool :=
   match MacroEventTrace.emitDynamicLog_modelBody with
@@ -2668,6 +2690,37 @@ private def projectedArrayEventSourceSpec : CompilationModel := {
   events := [
     { name := "Amounts"
       params := [{ name := "values", ty := ParamType.array ParamType.uint256, kind := EventParamKind.unindexed }]
+    }
+  ]
+}
+
+private def projectedStaticCompositeEventSourceSpec : CompilationModel := {
+  name := "ProjectedStaticCompositeEventSource"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "log"
+      params := [
+        { name := "payload",
+          ty := ParamType.tuple [
+            ParamType.tuple [ParamType.uint256, ParamType.address, ParamType.uint256],
+            ParamType.array ParamType.uint256
+          ] }
+      ]
+      returnType := none
+      body := [
+        Stmt.emit "NoteLogged" [Expr.paramDynamicStaticComposite "payload" 0],
+        Stmt.stop
+      ]
+    }
+  ]
+  events := [
+    { name := "NoteLogged"
+      params := [
+        { name := "note",
+          ty := ParamType.tuple [ParamType.uint256, ParamType.address, ParamType.uint256],
+          kind := EventParamKind.unindexed }
+      ]
     }
   ]
 }
@@ -4407,6 +4460,13 @@ set_option maxRecDepth 4096 in
     | .error _ => false
   expectTrue "projected dynamic array event sources compile for unindexed uint256[] params"
     projectedArrayEventsCompile
+  let projectedStaticCompositeEventsCompile :=
+    match Compiler.CompilationModel.compile projectedStaticCompositeEventSourceSpec
+        (selectorsFor projectedStaticCompositeEventSourceSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "projected static composite event sources compile for unindexed tuple params"
+    projectedStaticCompositeEventsCompile
   let stringArrayEventsCompile :=
     match Compiler.CompilationModel.compile Contracts.StringArrayEventSmoke.spec
         (selectorsFor Contracts.StringArrayEventSmoke.spec) with

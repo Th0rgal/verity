@@ -46,6 +46,7 @@ def exprBoundNames : Expr → List String
   | .arrayElementDynamicMemberElement name index _ innerIndex =>
       name :: (exprBoundNames index ++ exprBoundNames innerIndex)
   | .paramDynamicHeadWord name _ => [name]
+  | .paramDynamicStaticComposite name _ => [name]
   | .paramDynamicMemberLength name _
   | .paramDynamicMemberDataOffset name _ => [name]
   | .paramDynamicMemberElement name _ innerIndex =>

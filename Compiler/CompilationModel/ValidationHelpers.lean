@@ -79,6 +79,7 @@ def collectExprNames : Expr → List String
   | Expr.internalCall name args => name :: collectExprListNames args
   | Expr.arrayLength name | Expr.memoryArrayLength name => [name]
   | Expr.paramDynamicHeadWord name _ => [name]
+  | Expr.paramDynamicStaticComposite name _ => [name]
   | Expr.paramDynamicMemberLength name _
   | Expr.paramDynamicMemberDataOffset name _ => [name]
   | Expr.paramDynamicMemberElement name _ innerIndex => name :: collectExprNames innerIndex

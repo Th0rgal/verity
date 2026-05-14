@@ -279,6 +279,7 @@ def exprReadsStateOrEnv : Expr → Bool
   | Expr.internalCall _ _ => true
   | Expr.arrayLength _ | Expr.memoryArrayLength _ => false
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _ => false
   | Expr.paramDynamicMemberElement _ _ innerIndex => exprReadsStateOrEnv innerIndex
@@ -382,6 +383,7 @@ def exprWritesState : Expr → Bool
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.memoryArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
@@ -557,6 +559,7 @@ def exprHasUntrackableWrites : Expr → Bool
   | Expr.memoryArrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _
@@ -710,6 +713,7 @@ def exprContainsExternalCall : Expr → Bool
   | Expr.memoryArrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
@@ -786,6 +790,7 @@ def exprMayContainExternalCall : Expr → Bool
   | Expr.memoryArrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
@@ -1255,6 +1260,7 @@ def exprContainsAdtConstruct : Expr → Bool
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>

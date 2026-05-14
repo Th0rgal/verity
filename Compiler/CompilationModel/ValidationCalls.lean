@@ -249,6 +249,7 @@ def validateInternalCallShapesInExpr
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _
@@ -519,6 +520,7 @@ def validateExternalCallTargetsInExpr
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _

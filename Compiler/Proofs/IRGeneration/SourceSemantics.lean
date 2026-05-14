@@ -583,6 +583,7 @@ def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
   | .paramDynamicMemberLength _ _ => none
   | .paramDynamicMemberDataOffset _ _ => none
   | .paramDynamicMemberElement _ _ _ => none
+  | .paramDynamicStaticComposite _ _ => none
   | .literal n => some (wordNormalize n)
   | .param name => some (lookupValue state.bindings name)
     | .storage fieldName =>
@@ -1055,6 +1056,13 @@ private theorem evalExpr_paramDynamicHeadWord
     (name : String)
     (wordOffset : Nat) :
     evalExpr fields state (.paramDynamicHeadWord name wordOffset) = none := rfl
+
+private theorem evalExpr_paramDynamicStaticComposite
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (wordOffset : Nat) :
+    evalExpr fields state (.paramDynamicStaticComposite name wordOffset) = none := rfl
 
 private theorem evalExpr_paramDynamicMemberLength
     (fields : List Field)
@@ -2790,7 +2798,8 @@ mutual
     -- the 200 000-heartbeat ceiling whenever a new `Expr` constructor
     -- lands (verity#1842).
     | .mulDiv512Down _ _ _ | .mulDiv512Up _ _ _
-    | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+    | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+    | .paramDynamicMemberLength _ _
     | .paramDynamicMemberDataOffset _ _ | .paramDynamicMemberElement _ _ _
     | .arrayLength _ | .memoryArrayLength _
     | .arrayElement _ _ | .memoryArrayElement _ _
@@ -3865,6 +3874,8 @@ mutual
         simp [evalExprWithHelpers, evalExpr_mulDiv512Down, evalExpr_mulDiv512Up]
     | paramDynamicHeadWord _ _ =>
         simp [evalExprWithHelpers, evalExpr_paramDynamicHeadWord]
+    | paramDynamicStaticComposite _ _ =>
+        simp [evalExprWithHelpers, evalExpr_paramDynamicStaticComposite]
     | paramDynamicMemberLength _ _ | paramDynamicMemberDataOffset _ _ =>
         simp [evalExprWithHelpers, evalExpr_paramDynamicMemberLength,
           evalExpr_paramDynamicMemberDataOffset]

@@ -598,7 +598,8 @@ def exprTouchesUnsupportedConstructorRawCalldataSurface : Expr → Bool
   -- `paramDynamicHeadWord` reads the head section of an ABI-decoded
   -- parameter; like `param _` it does not touch raw calldata, so the
   -- constructor-arg precondition is unaffected.
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _ => false
   | .mappingChain _ keys | .internalCall _ keys | .externalCall _ keys =>
       exprListTouchesUnsupportedConstructorRawCalldataSurface keys
@@ -740,7 +741,8 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .arrayElementDynamicMemberLength _ _ _
   | .arrayElementDynamicMemberDataOffset _ _ _
   | .arrayElementDynamicMemberElement _ _ _ _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _ | .paramDynamicMemberElement _ _ _
   | .mulDiv512Down _ _ _ | .mulDiv512Up _ _ _
   | .storageArrayLength _ | .storageArrayElement _ _
@@ -787,7 +789,8 @@ def exprTouchesUnsupportedStateSurface : Expr → Bool
   | .arrayElementDynamicDataOffset _ _
   | .arrayElementDynamicMemberDataOffset _ _ _
   | .arrayElementDynamicMemberElement _ _ _ _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _ | .paramDynamicMemberElement _ _ _
   | .dynamicBytesEq _ _ => false
   | .mload a | .tload a | .calldataload a => exprTouchesUnsupportedStateSurface a
@@ -805,7 +808,8 @@ def exprTouchesUnsupportedCallSurface : Expr → Bool
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
   | .memoryArrayLength _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _
   | .storageArrayLength _ => false
   | .paramDynamicMemberElement _ _ b =>
@@ -857,7 +861,8 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
   | .memoryArrayLength _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _
   | .storageArrayLength _ | .externalCall _ _ => false
   | .paramDynamicMemberElement _ _ b =>
@@ -918,7 +923,8 @@ def exprTouchesInternalHelperSurface : Expr → Bool
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
   | .memoryArrayLength _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _
   | .storageArrayLength _ | .externalCall _ _ => false
   | .paramDynamicMemberElement _ _ b =>
@@ -974,7 +980,8 @@ def exprTouchesUnsupportedForeignSurface : Expr → Bool
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
   | .memoryArrayLength _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _
   | .storageArrayLength _ | .internalCall _ _ => false
   | .paramDynamicMemberElement _ _ b =>
@@ -1028,7 +1035,8 @@ def exprTouchesUnsupportedLowLevelSurface : Expr → Bool
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
   | .memoryArrayLength _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _
   | .storageArrayLength _ | .internalCall _ _ | .externalCall _ _ => false
   | .paramDynamicMemberElement _ _ b =>
@@ -1114,7 +1122,8 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .arrayElementDynamicMemberLength _ _ _
   | .arrayElementDynamicMemberDataOffset _ _ _
   | .arrayElementDynamicMemberElement _ _ _ _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _ | .paramDynamicMemberElement _ _ _
   | .mulDiv512Down _ _ _ | .mulDiv512Up _ _ _
   | .storageArrayLength _ | .storageArrayElement _ _
@@ -1780,7 +1789,8 @@ mutual
     | .blockTimestamp | .blockNumber | .blobbasefee
     | .calldatasize | .returndataSize
     | .localVar _ | .arrayLength _ | .memoryArrayLength _ | .storageArrayLength _
-    | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+    | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+    | .paramDynamicMemberLength _ _
     | .paramDynamicMemberDataOffset _ _
     | .dynamicBytesEq _ _
     | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ =>
@@ -3238,7 +3248,8 @@ mutual
     | blockTimestamp | blockNumber | localVar _ | storage _ | storageAddr _
     | constructorArg _ | blobbasefee | calldatasize | returndataSize
     | arrayLength _ | memoryArrayLength _ | storageArrayLength _ | dynamicBytesEq _ _
-    | paramDynamicHeadWord _ _ | paramDynamicMemberLength _ _
+    | paramDynamicHeadWord _ _ | paramDynamicStaticComposite _ _
+    | paramDynamicMemberLength _ _
     | paramDynamicMemberDataOffset _ _
     | externalCall _ _ =>
         simp [exprTouchesInternalHelperSurface]
@@ -3638,7 +3649,8 @@ private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
   | literal _ | param _ | caller | contractAddress
   | chainid | msgValue | selfBalance | blockTimestamp | blockNumber
   | localVar _ | storage _ | storageAddr _
-  | paramDynamicHeadWord _ _ | paramDynamicMemberLength _ _
+  | paramDynamicHeadWord _ _ | paramDynamicStaticComposite _ _
+  | paramDynamicMemberLength _ _
   | paramDynamicMemberDataOffset _ _
   | constructorArg _ | blobbasefee | calldatasize | returndataSize =>
       simp [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
@@ -3859,7 +3871,8 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
       simp [exprTouchesUnsupportedCoreSurface] at hcore
   | storage _ | storageAddr _ =>
       cases hstate
-  | paramDynamicHeadWord _ _ | paramDynamicMemberLength _ _
+  | paramDynamicHeadWord _ _ | paramDynamicStaticComposite _ _
+  | paramDynamicMemberLength _ _
   | paramDynamicMemberDataOffset _ _ | paramDynamicMemberElement _ _ _ =>
       cases hcore
   | constructorArg _
@@ -4254,7 +4267,8 @@ theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
   | arrayElementDynamicMemberLength _ _ _
   | arrayElementDynamicMemberDataOffset _ _ _
   | arrayElementDynamicMemberElement _ _ _ _
-  | paramDynamicHeadWord _ _ | paramDynamicMemberLength _ _
+  | paramDynamicHeadWord _ _ | paramDynamicStaticComposite _ _
+  | paramDynamicMemberLength _ _
   | paramDynamicMemberDataOffset _ _ | paramDynamicMemberElement _ _ _
   | storageArrayElement _ _
   | mappingChain _ _ =>

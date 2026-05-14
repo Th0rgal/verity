@@ -151,8 +151,11 @@ partial def validateEventArgShapesInStmt (fnName : String) (params : List Param)
                           throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{eventParam.name}' expects {repr eventParam.ty}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
                     | none =>
                         throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+                | Expr.paramDynamicStaticComposite _ _ =>
+                    if eventIsDynamicType eventParam.ty then
+                      throw s!"Compilation error: function '{fnName}' unindexed dynamic composite event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
                 | _ =>
-                    throw s!"Compilation error: function '{fnName}' unindexed composite event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+                    throw s!"Compilation error: function '{fnName}' unindexed composite event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference or projected static composite source ({issue586Ref})."
           | ParamType.bytes | ParamType.string =>
               match arg with
               | Expr.param name =>
@@ -214,8 +217,11 @@ partial def validateEventArgShapesInStmt (fnName : String) (params : List Param)
                         throw s!"Compilation error: function '{fnName}' event '{eventName}' param '{eventParam.name}' expects {repr eventParam.ty}, got parameter '{name}' of type {repr ty} ({issue586Ref})."
                   | none =>
                       throw s!"Compilation error: function '{fnName}' event '{eventName}' references unknown parameter '{name}' ({issue586Ref})."
+              | Expr.paramDynamicStaticComposite _ _ =>
+                  if eventIsDynamicType eventParam.ty then
+                    throw s!"Compilation error: function '{fnName}' indexed dynamic composite event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
               | _ =>
-                  throw s!"Compilation error: function '{fnName}' indexed composite event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+                  throw s!"Compilation error: function '{fnName}' indexed composite event param '{eventParam.name}' in event '{eventName}' currently requires direct parameter reference or projected static composite source ({issue586Ref})."
           | _ => pure ()
   | Stmt.ite _ thenBranch elseBranch => do
       thenBranch.forM (validateEventArgShapesInStmt fnName params events)

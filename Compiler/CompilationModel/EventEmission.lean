@@ -134,6 +134,31 @@ def compileAdtEventWordStores (eventName : String) (paramName : String)
   | _ =>
       throw s!"Compilation error: ADT event param '{paramName}' in event '{eventName}' currently requires direct ADT parameter reference so payload fields can be encoded ({issue586Ref})."
 
+def compileStaticCompositeEventWordStores
+    (dynamicSource : DynamicDataSource) (eventName paramName : String)
+    (ty : ParamType) (srcExpr : Expr) (argExpr basePtr : YulExpr) :
+    Except String (List YulStmt) :=
+  match srcExpr with
+  | Expr.param name =>
+      let leaves := staticCompositeLeaves name ty
+      pure <| leaves.zipIdx.map fun ((leafTy, leafExpr), wordIdx) =>
+        YulStmt.expr (YulExpr.call "mstore" [
+          YulExpr.call "add" [basePtr, YulExpr.lit (wordIdx * 32)],
+          normalizeEventWord leafTy leafExpr
+        ])
+  | Expr.paramDynamicStaticComposite _ _ =>
+      pure <| (staticCompositeLeafTypeOffsets 0 ty).map fun (leafOffset, leafTy) =>
+        let loadExpr := dynamicWordLoad dynamicSource (YulExpr.call "add" [
+          argExpr,
+          YulExpr.lit leafOffset
+        ])
+        YulStmt.expr (YulExpr.call "mstore" [
+          YulExpr.call "add" [basePtr, YulExpr.lit leafOffset],
+          normalizeEventWord leafTy loadExpr
+        ])
+  | _ =>
+      throw s!"Compilation error: static composite event param '{paramName}' in event '{eventName}' currently requires direct parameter reference or projected static composite source ({issue586Ref})."
+
 def compileScalarEmitFromCompiledArgs
     (eventDef : EventDef) (args : List Expr) (compiledArgs : List YulExpr) :
     List YulStmt :=
@@ -411,17 +436,7 @@ def compileEmit (fields : List Field) (events : List EventDef)
                 | _ =>
                     throw s!"Compilation error: unindexed dynamic composite event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
               else
-                match srcExpr with
-                | Expr.param name =>
-                    let leaves := staticCompositeLeaves name p.ty
-                    let stores := leaves.zipIdx.map fun ((leafTy, leafExpr), wordIdx) =>
-                      YulStmt.expr (YulExpr.call "mstore" [
-                        YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit (headOffset + wordIdx * 32)],
-                        normalizeEventWord leafTy leafExpr
-                      ])
-                    pure stores
-                | _ =>
-                    throw s!"Compilation error: unindexed static composite event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+                compileStaticCompositeEventWordStores dynamicSource eventName p.name p.ty srcExpr argExpr curHeadPtr
           | ParamType.adt _ maxFields =>
               compileAdtEventWordStores eventName p.name srcExpr argExpr curHeadPtr maxFields
           | _ =>
@@ -590,21 +605,13 @@ def compileEmit (fields : List Field) (events : List EventDef)
           | _ =>
               throw s!"Compilation error: indexed dynamic composite event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
         else
-          match srcExpr with
-          | Expr.param name =>
-              let topicName := s!"__evt_topic{idx + 1}"
-              let leaves := staticCompositeLeaves name p.ty
-              let stores := leaves.zipIdx.map fun ((leafTy, leafExpr), wordIdx) =>
-                YulStmt.expr (YulExpr.call "mstore" [
-                  YulExpr.call "add" [YulExpr.ident "__evt_ptr", YulExpr.lit (wordIdx * 32)],
-                  normalizeEventWord leafTy leafExpr
-                ])
-              pure (stores ++ [YulStmt.let_ topicName (YulExpr.call "keccak256" [
-                YulExpr.ident "__evt_ptr",
-                YulExpr.lit (eventHeadWordSize p.ty)
-              ])], YulExpr.ident topicName)
-          | _ =>
-              throw s!"Compilation error: indexed static composite event param '{p.name}' in event '{eventName}' currently requires direct parameter reference ({issue586Ref})."
+          let topicName := s!"__evt_topic{idx + 1}"
+          let stores ← compileStaticCompositeEventWordStores dynamicSource eventName p.name p.ty
+            srcExpr argExpr (YulExpr.ident "__evt_ptr")
+          pure (stores ++ [YulStmt.let_ topicName (YulExpr.call "keccak256" [
+            YulExpr.ident "__evt_ptr",
+            YulExpr.lit (eventHeadWordSize p.ty)
+          ])], YulExpr.ident topicName)
     | ParamType.adt _ maxFields =>
         let topicName := s!"__evt_topic{idx + 1}"
         let stores ← compileAdtEventWordStores eventName p.name srcExpr argExpr

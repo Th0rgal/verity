@@ -1932,6 +1932,33 @@ private def paramDynamicMemberProjection?
     | .array _ | .bytes | .string => some (root, fieldTy, wordOffset)
     | _ => none
 
+private def paramDynamicStaticCompositeProjection?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × ValueType × Nat) := do
+  let (root, path) ←
+    match (stripParens stx).raw with
+    | .ident _ raw _ _ =>
+        let parts := raw.toString.splitOn "."
+        let rec findParamPath : List String → Option (String × List String)
+          | [] | [_] => none
+          | rootName :: fieldName :: rest =>
+              if params.any (fun p => p.name == rootName) then
+                some (rootName, fieldName :: rest)
+              else
+                findParamPath (fieldName :: rest)
+        findParamPath parts
+    | _ =>
+        let (rootStx, path) ← structProjectionPath? stx
+        match stripParens rootStx with
+        | `(term| $id:ident) => some (toString id.getId, path)
+        | _ => none
+  let param ← params.find? (fun p => p.name == root)
+  let (fieldTy, wordOffset) ← structFieldHeadOffset? param.ty path
+  if !valueTypeUsesDynamicData fieldTy && !isSingleWordStaticValueType fieldTy then
+    some (root, fieldTy, wordOffset)
+  else
+    none
+
 private def arrayElementDynamicTupleArg?
     (params : Array ParamDecl)
     (stx : Term) : Option (String × Term × ValueType) := do
@@ -4651,6 +4678,11 @@ private def translateEmitArgExpr
     `(Compiler.CompilationModel.Expr.paramDynamicMemberLength
         $(strTerm paramName)
         $(natTerm wordOffset))
+  else if let some (paramName, _fieldTy, wordOffset) :=
+      paramDynamicStaticCompositeProjection? params stx then
+    `(Compiler.CompilationModel.Expr.paramDynamicStaticComposite
+        $(strTerm paramName)
+        $(natTerm wordOffset))
   else
     translatePureExprWithTypes fields constDecls immutableDecls params locals stx
 
@@ -4665,6 +4697,19 @@ private def expectEmitExprList
   | `(term| [ $[$xs],* ]) =>
       xs.mapM (translateEmitArgExpr fields constDecls immutableDecls params locals)
   | _ => throwErrorAt stx "expected list literal [..]"
+
+private def inferEmitArgExprType
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (stx : Term) : CommandElabM ValueType := do
+  if let some (_, fieldTy, _) := paramDynamicStaticCompositeProjection? params stx then
+    pure fieldTy
+  else
+    inferPureExprType fields constDecls immutableDecls externalDecls params locals stx
 
 private def translateBindSource
     (fields : Array StorageFieldDecl)
@@ -5282,11 +5327,18 @@ private partial def validateEffectStmtExprTypes
       | _ => throwErrorAt topics "expected list literal [..]"
       let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals dataOffset
       let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals dataSize
-  | `(term| returnValues $values:term) | `(term| emit $_eventName:term $values:term) => do
+  | `(term| returnValues $values:term) => do
       match stripParens values with
       | `(term| [ $[$xs],* ]) =>
           for x in xs do
             let _ ← inferPureExprType fields constDecls immutableDecls externalDecls params locals x
+      | _ => throwErrorAt values "expected list literal [..]"
+      pure ()
+  | `(term| emit $_eventName:term $values:term) => do
+      match stripParens values with
+      | `(term| [ $[$xs],* ]) =>
+          for x in xs do
+            let _ ← inferEmitArgExprType fields constDecls immutableDecls externalDecls params locals x
       | _ => throwErrorAt values "expected list literal [..]"
       pure ()
   | `(term| ecmDo $_module:term $args:term) => do
@@ -7002,6 +7054,11 @@ def mkStructDefCommandPublic (decl : StructDecl) : CommandElabM Cmd := do
   `(command| structure $structId where
       $[$fieldIds:ident : $fieldTys:term]*
       deriving Repr, Inhabited)
+
+def mkStructEventArgInstanceCommandPublic (decl : StructDecl) : CommandElabM Cmd := do
+  let structId := decl.ident
+  `(command| instance : CoeTC $structId _root_.Contracts.EventArg where
+      coe _ := _root_.Contracts.EventArg.word (0 : _root_.Verity.Uint256))
 
 /-- Generate a `def storageNamespace : Nat := <keccak-value>` command for
     the current contract.  Uses the resolved namespace value from

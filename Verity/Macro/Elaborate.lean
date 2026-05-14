@@ -28,6 +28,7 @@ def elabVerityContract : CommandElab := fun stx => do
 
     for structDecl in structDecls do
       elabCommand (← mkStructDefCommandPublic structDecl)
+      elabCommand (← mkStructEventArgInstanceCommandPublic structDecl)
 
     for field in fields do
       elabCommand (← mkStorageDefCommandPublic field)
