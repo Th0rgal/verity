@@ -22396,6 +22396,41 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_bridgedStraightStmts_
     (NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_bridgedStraightStmts_falling_through
       irContract tx preStmts hBridged hOnlyEmpty hBody)
 
+/-- F7 (label-prefix variant of E7): Selected user bodies of shape
+`.block [] :: preStmts` with all statements in the `BridgedStraightStmts`
+fragment supply the named selector-hit success bridge.
+
+CURRENTLY LIMITED: degenerate `preStmts = []` only — body reduces to
+`[.block []]` and delegates to E3 (`of_block_empty`). The general case
+requires the per-`BridgedStraightStmt` observation framework + a
+label-prefix lift via `exec_block_noop_block_head_eq`. -/
+private theorem NativeGeneratedSelectorHitSuccessBridge.of_bridgedStraightStmts_falling_through_with_label_prefix
+    (spec : CompilationModel.CompilationModel) (selectors : List Nat)
+    (hSupported : SupportedSpec spec selectors)
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (state : IRState)
+    (observableSlots : List Nat)
+    (hcompile : CompilationModel.compile spec selectors = Except.ok irContract)
+    (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
+    (hSelectorsRange :
+      ∀ selector, selector ∈ selectors →
+        selector < Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (preStmts : List Compiler.Yul.YulStmt)
+    (_hBridged : Compiler.Proofs.YulGeneration.Backends.BridgedStraightStmts preStmts)
+    (hOnlyEmpty : preStmts = [])
+    (hBody : ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+            some fn →
+        fn.body = .block [] :: preStmts) :
+    NativeGeneratedSelectorHitSuccessBridge irContract tx state
+      observableSlots :=
+  NativeGeneratedSelectorHitSuccessBridge.of_block_empty
+    spec selectors hSupported irContract tx state observableSlots hcompile
+    hSelectorRange hSelectorsRange hNoWrap
+    (fun fn hFind => by rw [hBody fn hFind, hOnlyEmpty])
+
 /-- E2 (S7 component): Selected user bodies of shape `[.leave]` supply the
 named selector-hit success bridge through the `_revived` Leave-aware chain.
 
