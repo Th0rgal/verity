@@ -574,6 +574,8 @@ private def ceilDivVal (lhs rhs : Verity.Core.Uint256) : Nat :=
   if lhs == 0 then 0 else ((lhs - 1) / rhs + 1).val
 
 def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
+  | .memoryArrayLength _ => none
+  | .memoryArrayElement _ _ => none
   | .arrayElementDynamicDataOffset _ _ => none
   | .arrayElementDynamicMemberLength _ _ _ => none
   | .arrayElementDynamicMemberDataOffset _ _ _ => none
@@ -973,6 +975,12 @@ private theorem evalExpr_arrayLength
     (state : RuntimeState)
     (name : String) :
     evalExpr fields state (.arrayLength name) = none := rfl
+
+private theorem evalExpr_memoryArrayLength
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String) :
+    evalExpr fields state (.memoryArrayLength name) = none := rfl
 
 private theorem evalExpr_dynamicBytesEq
     (fields : List Field)
@@ -1391,6 +1399,13 @@ private theorem evalExpr_arrayElement
     (name : String)
     (index : Expr) :
     evalExpr fields state (.arrayElement name index) = none := rfl
+
+private theorem evalExpr_memoryArrayElement
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (index : Expr) :
+    evalExpr fields state (.memoryArrayElement name index) = none := rfl
 
 private theorem evalExpr_arrayElementWord
     (fields : List Field)
@@ -2777,7 +2792,8 @@ mutual
     | .mulDiv512Down _ _ _ | .mulDiv512Up _ _ _
     | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
     | .paramDynamicMemberDataOffset _ _ | .paramDynamicMemberElement _ _ _
-    | .arrayLength _ | .arrayElement _ _
+    | .arrayLength _ | .memoryArrayLength _
+    | .arrayElement _ _ | .memoryArrayElement _ _
     | .arrayElementWord _ _ _ _ | .arrayElementDynamicWord _ _ _
     | .arrayElementDynamicDataOffset _ _
     | .arrayElementDynamicMemberLength _ _ _
@@ -3699,6 +3715,8 @@ mutual
           evalExpr_returndataSize]
     | arrayLength _ =>
         simpa [evalExprWithHelpers, evalExpr_arrayLength]
+    | memoryArrayLength _ =>
+        simpa [evalExprWithHelpers, evalExpr_memoryArrayLength]
     | dynamicBytesEq _ _ =>
         simpa [evalExprWithHelpers, evalExpr_dynamicBytesEq]
     | externalCall _ _ =>
@@ -3794,6 +3812,8 @@ mutual
         simpa [evalExprWithHelpers, evalExpr_mapping, evalExpr_mappingUint, hb]
     | arrayElement _ b =>
         simp [evalExprWithHelpers, evalExpr_arrayElement]
+    | memoryArrayElement _ b =>
+        simp [evalExprWithHelpers, evalExpr_memoryArrayElement]
     | arrayElementWord _ b _ _ =>
         simp [evalExprWithHelpers, evalExpr_arrayElementWord]
     | arrayElementDynamicWord _ b _ =>
