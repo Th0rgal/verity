@@ -16,7 +16,7 @@ namespace Compiler.Modules.Hashing
 
 open Compiler.Yul
 open Compiler.ECM
-open Compiler.CompilationModel (Stmt Expr)
+open Compiler.CompilationModel (Stmt Expr freeMemoryPointer)
 
 private def packedWordTempName (idx : Nat) : String :=
   s!"__packed_word_{idx}"
@@ -94,6 +94,73 @@ def abiEncodePackedWords (resultVar : String) (words : List Expr) : Stmt :=
     the call site. -/
 def abiEncodePacked (resultVar : String) (words : List Expr) : Stmt :=
   abiEncodePackedWords resultVar words
+
+/-- Keccak-256 over Solidity `abi.encode(array)` for a direct dynamic-array
+    parameter whose elements have a fixed static word width.
+
+    The module references `{arrayParam}_length` and `{arrayParam}_data_offset`
+    emitted by the calldata/internal dynamic-array lowering.  It encodes the
+    single dynamic-array argument as:
+
+      head offset (32), array length, contiguous static element words
+
+    This covers arrays such as `uint256[]`, `address[]`, and arrays of static
+    tuples/structs when the caller supplies the element word width. -/
+def abiEncodeStaticArrayModule
+    (resultVar arrayParam : String) (elementWords : Nat) : ExternalCallModule where
+  name := "abiEncodeStaticArray"
+  numArgs := 0
+  resultVars := [resultVar]
+  writesState := false
+  readsState := false
+  axioms := ["keccak256_memory_slice_matches_evm", "abi_standard_dynamic_array_static_element_layout"]
+  compile := fun ctx args => do
+    if !args.isEmpty then
+      throw s!"abiEncodeStaticArray expects 0 expression argument(s), got {args.length}"
+    if arrayParam.isEmpty then
+      throw "abiEncodeStaticArray requires a non-empty array parameter name"
+    if elementWords == 0 then
+      throw "abiEncodeStaticArray requires elementWords > 0"
+    let ptrName := s!"__{resultVar}_abi_array_ptr"
+    let dataBytesName := s!"__{resultVar}_abi_array_data_bytes"
+    let totalBytesName := s!"__{resultVar}_abi_array_total_bytes"
+    let paddedTotalName := s!"__{resultVar}_abi_array_padded_total"
+    let ptr := YulExpr.ident ptrName
+    let dataBytes := YulExpr.ident dataBytesName
+    let totalBytes := YulExpr.ident totalBytesName
+    pure [
+      YulStmt.block ([
+        YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]),
+        YulStmt.expr (YulExpr.call "mstore" [ptr, YulExpr.lit 32]),
+        YulStmt.expr (YulExpr.call "mstore" [
+          YulExpr.call "add" [ptr, YulExpr.lit 32],
+          YulExpr.ident s!"{arrayParam}_length"
+        ]),
+        YulStmt.let_ dataBytesName (YulExpr.call "mul" [
+          YulExpr.ident s!"{arrayParam}_length",
+          YulExpr.lit (elementWords * 32)
+        ])
+      ] ++ ECM.dynamicCopyData ctx
+        (YulExpr.call "add" [ptr, YulExpr.lit 64])
+        (YulExpr.ident s!"{arrayParam}_data_offset")
+        dataBytes ++ [
+        YulStmt.let_ totalBytesName (YulExpr.call "add" [YulExpr.lit 64, dataBytes]),
+        YulStmt.let_ paddedTotalName (YulExpr.call "and" [
+          YulExpr.call "add" [totalBytes, YulExpr.lit 31],
+          YulExpr.call "not" [YulExpr.lit 31]
+        ]),
+        YulStmt.expr (YulExpr.call "mstore" [
+          YulExpr.lit freeMemoryPointer,
+          YulExpr.call "add" [ptr, YulExpr.ident paddedTotalName]
+        ]),
+        YulStmt.let_ resultVar (YulExpr.call "keccak256" [ptr, totalBytes])
+      ])
+    ]
+
+/-- Convenience constructor for `keccak256(abi.encode(array))` over static-width
+    dynamic-array parameters. -/
+def abiEncodeStaticArray (resultVar arrayParam : String) (elementWords : Nat) : Stmt :=
+  .ecm (abiEncodeStaticArrayModule resultVar arrayParam elementWords) []
 
 /-- Keccak-256 over packed static byte-width segments.
     Each argument is encoded as exactly the matching byte width from `widths`,

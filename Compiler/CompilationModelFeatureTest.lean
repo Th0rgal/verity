@@ -2536,14 +2536,6 @@ private def adtAliasPayloadMemoizesExprSpec : CompilationModel := {
     { name := "choice", ty := FieldType.adt "Choice" 1, «slot» := some 10, aliasSlots := [100] }
   ]
   «constructor» := none
-  externals := [
-    { name := "echo"
-      params := [ParamType.uint256]
-      returnType := some ParamType.uint256
-      returns := [ParamType.uint256]
-      axiomNames := []
-    }
-  ]
   functions := [
     { name := "store"
       params := [{ name := "input", ty := ParamType.uint256 }]
@@ -3086,6 +3078,27 @@ private def sha256PackedWordsSmokeSpec : CompilationModel := {
   ]
 }
 
+private def abiEncodeStaticArraySmokeSpec : CompilationModel := {
+  name := "AbiEncodeStaticArraySmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "hash"
+      params := [
+        { name := "items", ty := ParamType.array (ParamType.tuple [
+          ParamType.uint256, ParamType.fixedArray ParamType.uint256 3
+        ]) }
+      ]
+      returnType := none
+      returns := [ParamType.bytes32]
+      body := [
+        Compiler.Modules.Hashing.abiEncodeStaticArray "digest" "items" 4,
+        Stmt.returnValues [Expr.localVar "digest"]
+      ]
+    }
+  ]
+}
+
 private def abiEncodePackedStaticSegmentsSmokeSpec : CompilationModel := {
   name := "AbiEncodePackedStaticSegmentsSmoke"
   fields := []
@@ -3158,6 +3171,39 @@ private def abiEncodePackedWordsBadAritySpec : CompilationModel := {
       body := [
         Stmt.ecm (Compiler.Modules.Hashing.abiEncodePackedWordsModule "digest" 2)
           [Expr.param "a"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def abiEncodeStaticArrayBadAritySpec : CompilationModel := {
+  name := "AbiEncodeStaticArrayBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "items", ty := ParamType.array ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.ecm (Compiler.Modules.Hashing.abiEncodeStaticArrayModule "digest" "items" 1)
+          [Expr.param "items"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def abiEncodeStaticArrayBadWidthSpec : CompilationModel := {
+  name := "AbiEncodeStaticArrayBadWidth"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "items", ty := ParamType.array ParamType.uint256 }]
+      returnType := none
+      body := [
+        Compiler.Modules.Hashing.abiEncodeStaticArray "digest" "items" 0,
         Stmt.stop
       ]
     }
@@ -4365,6 +4411,32 @@ set_option maxRecDepth 4096 in
       contains abiEncodePackedWordsYul "mstore(64, __packed_word_2)")
   expectTrue "abiEncodePackedWords hashes the exact packed byte length"
     (contains abiEncodePackedWordsYul "let digest := keccak256(0, 96)")
+  let abiEncodeStaticArrayYul ←
+    expectCompileToYul "abiEncodeStaticArray smoke spec" abiEncodeStaticArraySmokeSpec
+  expectTrue "abiEncodeStaticArray writes the single dynamic argument head and length"
+    (contains abiEncodeStaticArrayYul "mstore(__digest_abi_array_ptr, 32)" &&
+      contains abiEncodeStaticArrayYul "mstore(add(__digest_abi_array_ptr, 32), items_length)")
+  expectTrue "abiEncodeStaticArray copies the fixed-width element payload"
+    (contains abiEncodeStaticArrayYul
+      "let __digest_abi_array_data_bytes := mul(items_length, 128)" &&
+      contains abiEncodeStaticArrayYul
+      "calldatacopy(add(__digest_abi_array_ptr, 64), items_data_offset, __digest_abi_array_data_bytes)")
+  expectTrue "abiEncodeStaticArray hashes the ABI-encoded dynamic array byte length"
+    (contains abiEncodeStaticArrayYul
+      "let digest := keccak256(__digest_abi_array_ptr, __digest_abi_array_total_bytes)")
+  expectCompileErrorContains
+    "abiEncodeStaticArray ECM rejects invalid argument counts"
+    abiEncodeStaticArrayBadAritySpec
+    "uses ECM 'abiEncodeStaticArray' with 1 arguments but it expects 0"
+  expectCompileErrorContains
+    "abiEncodeStaticArray rejects zero-width elements"
+    abiEncodeStaticArrayBadWidthSpec
+    "abiEncodeStaticArray requires elementWords > 0"
+  let abiEncodeStaticArrayTrustReport := emitTrustReportJson [abiEncodeStaticArraySmokeSpec]
+  expectTrue "abiEncodeStaticArray trust report surfaces array layout and keccak assumptions"
+    (contains abiEncodeStaticArrayTrustReport "\"module\":\"abiEncodeStaticArray\"" &&
+      contains abiEncodeStaticArrayTrustReport "\"assumption\":\"abi_standard_dynamic_array_static_element_layout\"" &&
+      contains abiEncodeStaticArrayTrustReport "\"assumption\":\"keccak256_memory_slice_matches_evm\"")
   let sha256PackedWordsYul ←
     expectCompileToYul "sha256PackedWords smoke spec" sha256PackedWordsSmokeSpec
   expectTrue "sha256PackedWords evaluates source words before clobbering scratch memory"
