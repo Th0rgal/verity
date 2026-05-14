@@ -1163,7 +1163,9 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_leave_body_with_label_prefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_nativePreservableStraightStmts_leave  -- private
   -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_block_leave_body_markedPrefix  -- private
+  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_label_prefix_block_leave_body_markedPrefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_leave  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_leave_with_label_prefix  -- private
   -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_block_empty_body_markedPrefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_empty  -- private
   -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_singleton_comment_body_markedPrefix  -- private
@@ -1216,6 +1218,7 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_leave_body  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_block_leave  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_leave_body_with_label_prefix  -- private
+  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_block_leave_with_label_prefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_block_empty  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_singleton_comment  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_bridgedStraightStmts_falling_through  -- private
@@ -4559,6 +4562,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_leave_ok_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_block_leave_ok_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_label_prefix_leave_ok_add_ten
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_label_prefix_block_leave_ok_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_block_nil_ok_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_stop_halt_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_noop_block_head_eq
@@ -5610,4 +5614,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5324 theorems/lemmas (3569 public, 1755 private, 0 sorry'd)
+-- Total: 5328 theorems/lemmas (3570 public, 1758 private, 0 sorry'd)

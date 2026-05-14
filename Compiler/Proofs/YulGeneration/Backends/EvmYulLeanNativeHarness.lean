@@ -7393,6 +7393,29 @@ theorem exec_block_label_prefix_leave_ok_add_ten
   rw [hFuel]
   simp [EvmYul.Yul.exec]
 
+/-- Executing the native lowering of a source `[.block [], .block [.leave]]`
+user body (F4's body shape).
+
+`[.block [], .block [.leave]]` lowers to `[.Block [], .Block [.Leave]]`;
+wrapped in the outer dispatcher block this becomes
+`.Block [.Block [], .Block [.Leave]]`. The leading `.Block []` is a no-op, the
+inner `.Block [.Leave]` sets the leave flag, and the final state is
+`state.setLeave`. -/
+theorem exec_block_label_prefix_block_leave_ok_add_ten
+    (fuel suffixLen : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.exec (fuel + suffixLen + 10)
+        (.Block [.Block [], .Block [.Leave]]) codeOverride state =
+      .ok (state.setLeave) := by
+  have hFuel :
+      fuel + suffixLen + 10 =
+        Nat.succ (Nat.succ (Nat.succ (Nat.succ (Nat.succ (Nat.succ
+          (fuel + suffixLen + 4)))))) := by
+    omega
+  rw [hFuel]
+  simp [EvmYul.Yul.exec]
+
 /-- Executing the native lowering of a source `.block []` user body.
 
 `[.block []]` lowers to `[.Block []]`; wrapped in the outer dispatcher block
