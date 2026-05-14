@@ -16842,8 +16842,14 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_em
         hBody
 
 /-- S6: Selected user bodies of shape `preStmts` (no terminator) with all
-statements in the `BridgedStraightStmts` fragment and `fn.returnVars = []`
-execute as a native falling-through and project to the same observable result.
+statements in the `BridgedStraightStmts` fragment execute as a native
+falling-through and project to the same observable result.
+
+The plan specifies a `fn.returnVars = []` hypothesis, but the current
+`Compiler.IRFunction` has a single `ret : IRType` field (no `returnVars`); the
+return-variable shape constraint is therefore expressed implicitly by the
+absence of `.leave` in `preStmts` (i.e., the body falls through to function
+return without an early-exit value).
 
 CURRENTLY LIMITED: this version only handles `preStmts = []` (degenerate empty
 case). The general case requires the per-`BridgedStraightStmt`
@@ -16861,11 +16867,7 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_br
     (hBody : ∀ fn,
         irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
             some fn →
-        fn.body = preStmts)
-    (_hReturnVars : ∀ fn,
-        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
-            some fn →
-        fn.returnVars = []) :
+        fn.body = preStmts) :
     NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived irContract tx
       state observableSlots := by
   apply NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_empty_body
@@ -22383,18 +22385,14 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_bridgedStraightStmts_
     (hBody : ∀ fn,
         irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
             some fn →
-        fn.body = preStmts)
-    (hReturnVars : ∀ fn,
-        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
-            some fn →
-        fn.returnVars = []) :
+        fn.body = preStmts) :
     NativeGeneratedSelectorHitSuccessBridge irContract tx state
       observableSlots :=
   NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_preserves
     spec selectors hSupported irContract tx state observableSlots hcompile
     hSelectorRange hSelectorsRange hNoWrap
     (NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_bridgedStraightStmts_falling_through
-      irContract tx state observableSlots preStmts hBridged hOnlyEmpty hBody hReturnVars)
+      irContract tx state observableSlots preStmts hBridged hOnlyEmpty hBody)
     (NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_bridgedStraightStmts_falling_through
       irContract tx preStmts hBridged hOnlyEmpty hBody)
 
@@ -23312,14 +23310,6 @@ theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported
     ⟨nativeContract, _hLower, hMatch⟩
   exact ⟨nativeContract, hMatch⟩
 
-/-- Source-level native compiler correctness for the generated native runtime.
-
-This is the public composition surface over the generated native dispatcher
-stack: `SupportedSpec + compile` discharges the lowered native runtime witness
-internally, rewrites the projected `EvmYul.Yul.callDispatcher` result to the
-canonical `interpretIRRuntimeNative` target, discharges selector miss and
-generated selector-hit guard failures internally, and composes the remaining
-selected-body halt execution bridge with the source-to-IR compiler theorem. -/
 /-- Strictly more general variant of
 `compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher`
 that accepts the unified `NativeGeneratedSelectedUserBodyResultBridgeAtFuel`
