@@ -375,6 +375,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ExternalCallMultiReturn.spec
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
+  , Contracts.Smoke.GenericECMMultiResultSmoke.spec
   , Contracts.Smoke.GenericECMWriteSmoke.spec
   , Contracts.Smoke.CallWithValueSmoke.spec
   , Contracts.Smoke.BubblingValueCallECMSmoke.spec
@@ -541,6 +542,7 @@ private def expectedExternalSignatures : List (String × List String) :=
       "approveTokens(address,address,uint256)", "snapshotBalance(address,address)",
       "snapshotAllowance(address,address,address)", "snapshotSupply(address)"])
   , ("GenericECMReadSmoke", ["snapshotQuote(address,address)"])
+  , ("GenericECMMultiResultSmoke", ["addPoints(uint256,uint256,uint256,uint256)"])
   , ("GenericECMWriteSmoke", ["runEffect(uint256,uint256)"])
   , ("CallWithValueSmoke", ["execute(address,uint256,uint256,uint256)", "executeBytes(address,uint256,bytes)"])
   , ("BubblingValueCallECMSmoke", ["forwardNoOutput(address,uint256,uint256,uint256)"])
@@ -672,6 +674,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("ERC20HelperSmoke", ["0xa6c29ca3", "0x6aa209a6", "0x912d6e28", "0x48476c71", "0xdac24aaf",
       "0x7247c4a5"])
   , ("GenericECMReadSmoke", ["0x78f2e50f"])
+  , ("GenericECMMultiResultSmoke", ["0xac9b48fe"])
   , ("GenericECMWriteSmoke", ["0xc1192eb1"])
   , ("CallWithValueSmoke", ["0xde3a04ad", "0xb1d30765"])
   , ("BubblingValueCallECMSmoke", ["0x7ba1ade4"])

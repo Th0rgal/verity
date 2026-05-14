@@ -23,6 +23,12 @@ macro_rules
           let _ := $_module
           let _ := $_args
           pure ())
+  | `(doElem| ecmBind [ $[$names:ident],* ] $_module:term $_args:term) =>
+      `(doElem| do
+          let _ := $_module
+          let _ := $_args
+          $[let $names := (0 : Uint256)]*
+          pure ())
   | `(doElem| unsafe $_reason:str do $body:doSeq) =>
       `(doElem| do $body)
   | `(doElem| tryCatch $attempt:term (fun $name:ident => do $[$elems:doElem]*)) => do

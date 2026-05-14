@@ -72,6 +72,7 @@ macro_rules
 syntax "revert " ident "(" sepBy(term, ",") ")" : doElem
 syntax "revertError " ident "(" sepBy(term, ",") ")" : doElem
 syntax "requireError " term:max ppSpace ident "(" sepBy(term, ",") ")" : doElem
+syntax "ecmBind " term:max ppSpace term:max ppSpace term:max : doElem
 syntax (priority := high) "unsafe " str " do " doSeq : doElem
 syntax "constructor " "(" sepBy(verityParam, ",") ")" (ppSpace verityLocalObligations)? " := " term : verityConstructor
 syntax "constructor " "(" sepBy(verityParam, ",") ")" " payable" (ppSpace verityLocalObligations)? " := " term : verityConstructor

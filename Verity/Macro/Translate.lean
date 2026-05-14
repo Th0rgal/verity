@@ -4111,6 +4111,14 @@ private def validateSingleResultEcmModuleTerm
     throwErrorAt moduleTerm
       s!"ecmCall must elaborate to an ECM module binding exactly ['{boundVarName}'], but '{mod.name}' binds {repr mod.resultVars}"
 
+private def validateResultEcmModuleTerm
+    (moduleTerm : Term)
+    (boundVarNames : Array String) : CommandElabM Unit := do
+  let mod ← unsafe evalExternalCallModuleTerm moduleTerm
+  if mod.resultVars != boundVarNames.toList then
+    throwErrorAt moduleTerm
+      s!"ecmBind must elaborate to an ECM module binding exactly {repr boundVarNames.toList}, but '{mod.name}' binds {repr mod.resultVars}"
+
 private def arrayElementTupleElemExprs?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -5238,6 +5246,13 @@ private partial def validateDoElemExprTypes
       | `(doElem| unsafe $_reason:str do $body:doSeq) =>
           validateDoSeqExprTypes ownerName fields constDecls immutableDecls externalDecls errorDecls functions params locals body
           pure locals
+      | `(doElem| ecmBind $names:term $module:term $args:term) =>
+          let resultVars ← expectStringList names
+          ensureFreshLocalNames (typedLocalNames locals) (resultVars.map some) names
+          validateWordLikeExprListLiteral fields constDecls immutableDecls externalDecls params locals
+            args "ECM argument"
+          validateResultEcmModuleTerm module resultVars
+          pure <| locals ++ resultVars.map (fun name => mkTypedLocal name .uint256)
       | `(doElem| $stmt:term) =>
           validateEffectStmtExprTypes fields constDecls immutableDecls externalDecls functions params locals stmt
           pure locals
@@ -6305,6 +6320,18 @@ private partial def translateDoElem
                     $(Lean.Quote.quote reasonStr)
                     [ $[$bodyStmts],* ]))],
               locals,
+              mutableLocals)
+      | `(doElem| ecmBind $names:term $module:term $args:term) =>
+          let resultVars ← expectStringList names
+          ensureFreshLocalNames localNames (resultVars.map some) names
+          validateResultEcmModuleTerm module resultVars
+          let argExprs ← expectExprList fields constDecls immutableDecls params locals args
+          let typedLocals := resultVars.map (fun name => mkTypedLocal name .uint256)
+          pure
+            (#[(← `(Compiler.CompilationModel.Stmt.ecm
+                    $module
+                    [ $[$argExprs],* ]))],
+              locals ++ typedLocals,
               mutableLocals)
       | `(doElem| $stmt:term) =>
           pure (#[(← translateEffectStmt fields constDecls immutableDecls externalDecls functions params locals stmt)], locals, mutableLocals)
