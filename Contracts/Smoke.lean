@@ -1355,12 +1355,9 @@ verity_contract MultiReturnHelperSmoke where
     let (head, tail) ← summarize seed
     return (add head tail)
 
-/--
-error: `total` cannot be mutated, only variables declared using `let mut` can be mutated. If you did not intend to mutate but define `total`, consider using `let total` instead
--/
-#guard_msgs in
-verity_contract ForEachMutableLocalMacroRejected where
+verity_contract ForEachMutableLocalSmoke where
   storage
+    seen : Uint256 := slot 0
 
   function sumValues (values : Array Uint256) : Uint256 := do
     let mut total := 0
@@ -1368,6 +1365,42 @@ verity_contract ForEachMutableLocalMacroRejected where
       let value := arrayElement values i
       total := add total value)
     return total
+
+  function allow_post_interaction_writes sumOnCatch (values : Array Uint256)
+    local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
+    : Uint256 := do
+    tryCatch (call 0 0 1 0 0 0 0) (do
+      forEach "i" (arrayLength values) (do
+        let value := arrayElement values i
+        setStorage seen value))
+    let current ← getStorage seen
+    return current
+
+  function sumUnsafe (values : Array Uint256) : Uint256 := do
+    let mut total := 0
+    unsafe "test: nested forEach binder in executable unsafe block" do
+      forEach "i" (arrayLength values) (do
+        let value := arrayElement values i
+        total := add total value)
+    return total
+
+example :
+    ForEachMutableLocalSmoke.sumValues_modelBody =
+      [ Compiler.CompilationModel.Stmt.letVar "total"
+          (Compiler.CompilationModel.Expr.literal 0)
+      , Compiler.CompilationModel.Stmt.forEach "i"
+          (Compiler.CompilationModel.Expr.arrayLength "values")
+          [ Compiler.CompilationModel.Stmt.letVar "value"
+              (Compiler.CompilationModel.Expr.arrayElement "values"
+                (Compiler.CompilationModel.Expr.localVar "i"))
+          , Compiler.CompilationModel.Stmt.assignVar "total"
+              (Compiler.CompilationModel.Expr.add
+                (Compiler.CompilationModel.Expr.localVar "total")
+                (Compiler.CompilationModel.Expr.localVar "value"))
+          ]
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.localVar "total")
+      ] := rfl
 
 /--
 error: helper call 'consumePayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
@@ -1966,6 +1999,7 @@ end SpecGenSmoke
 #check_contract PackedStorageWriteSmoke
 #check_contract DirectHelperCallSmoke
 #check_contract MultiReturnHelperSmoke
+#check_contract ForEachMutableLocalSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke

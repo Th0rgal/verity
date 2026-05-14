@@ -143,6 +143,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.BlockTimestampSmoke.spec
   , Contracts.Smoke.SelfBalanceSmoke.spec
   , Contracts.Smoke.MathlibReservedBinderEscape.spec
+  , Contracts.Smoke.ForEachMutableLocalSmoke.spec
   , Contracts.Smoke.ArrayElementDynamicMemberLengthSmoke.spec
   , Contracts.Smoke.ArrayElementDynamicMemberElementSmoke.spec
   , Contracts.Smoke.UnlinkPoolShapeCheckSmoke.spec

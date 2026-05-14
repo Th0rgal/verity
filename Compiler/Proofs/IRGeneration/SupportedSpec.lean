@@ -801,11 +801,10 @@ def exprTouchesUnsupportedCallSurface : Expr → Bool
       exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
   | .arrayElementDynamicWord _ b _
-  | .arrayElementDynamicMemberLength _ b _
   | .storageArrayElement _ b =>
       exprTouchesUnsupportedCallSurface b
-  | .arrayElementDynamicMemberElement _ a _ b =>
-      exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
+  | .arrayElementDynamicMemberLength _ _ _
+  | .arrayElementDynamicMemberElement _ _ _ _ => true
   | .mappingChain _ _ => true
   | .bitNot a | .logicalNot a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
   | .structMember _ a _ => exprTouchesUnsupportedCallSurface a
@@ -848,11 +847,10 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
   | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
   | .arrayElementDynamicWord _ b _
-  | .arrayElementDynamicMemberLength _ b _
   | .storageArrayElement _ b =>
       exprTouchesUnsupportedHelperSurface b
-  | .arrayElementDynamicMemberElement _ a _ b =>
-      exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
+  | .arrayElementDynamicMemberLength _ _ _
+  | .arrayElementDynamicMemberElement _ _ _ _ => true
   | .mappingChain _ _ => true
   | .bitNot a | .logicalNot a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
   | .structMember _ a _ => exprTouchesUnsupportedHelperSurface a
@@ -3225,18 +3223,14 @@ mutual
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface]
     | mapping _ b | mappingUint _ b | arrayElement _ b | arrayElementWord _ b _ _
     | arrayElementDynamicWord _ b _
-    | arrayElementDynamicMemberLength _ b _
     | storageArrayElement _ b
     | mappingWord _ b _ | mappingPackedWord _ b _ _ | structMember _ b _ =>
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         simp [exprTouchesInternalHelperSurface,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface]
-    | arrayElementDynamicMemberElement _ a _ b =>
-        simp only [exprTouchesUnsupportedHelperSurface] at hsurface
-        have ⟨ha, hb⟩ := Bool.or_eq_false_iff.mp hsurface
-        simp [exprTouchesInternalHelperSurface,
-          exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed ha,
-          exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hb]
+    | arrayElementDynamicMemberLength _ _ _
+    | arrayElementDynamicMemberElement _ _ _ _ =>
+        simp [exprTouchesUnsupportedHelperSurface] at hsurface
     | mapping2 _ a b | mapping2Word _ a b _ | structMember2 _ a b _ =>
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         have ⟨ha, hb⟩ := Bool.or_eq_false_iff.mp hsurface
@@ -3621,17 +3615,16 @@ private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
       simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
       exact exprTouchesUnsupportedCallSurface_eq_featureOr b
-  | arrayElementDynamicWord _ b _
-  | arrayElementDynamicMemberLength _ b _ =>
+  | arrayElementDynamicWord _ b _ =>
       simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
       exact exprTouchesUnsupportedCallSurface_eq_featureOr b
-  | arrayElementDynamicMemberElement _ a _ b =>
-      simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
+  | arrayElementDynamicMemberLength _ _ _ =>
+      simp [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
-      rw [exprTouchesUnsupportedCallSurface_eq_featureOr a,
-          exprTouchesUnsupportedCallSurface_eq_featureOr b]
-      simp [Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+  | arrayElementDynamicMemberElement _ a _ b =>
+      simp [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
+        exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
   | mappingWord _ a _ | mappingPackedWord _ a _ _
   | structMember _ a _ =>
       simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,

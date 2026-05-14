@@ -5503,6 +5503,62 @@ private def injectTupleParamAliases (params : Array ParamDecl) (body : Term) : C
     | _ => pure ()
   pure wrappedBody
 
+mutual
+private partial def rewriteForEachExecutableDoSeq
+    (doSeq : DoSeq) : CommandElabM DoSeq := do
+  match doSeq with
+  | `(doSeq| $[$elems:doElem]*) =>
+      let elems ← rewriteForEachExecutableDoElems elems
+      `(doSeq| $[$elems:doElem]*)
+  | _ => throwErrorAt doSeq "unsupported branch body; expected do-sequence"
+
+private partial def rewriteForEachExecutableDoElems
+    (elems : Array (TSyntax `doElem)) : CommandElabM (Array (TSyntax `doElem)) := do
+  let mut rewritten : Array (TSyntax `doElem) := #[]
+  for elem in elems do
+    rewritten := rewritten ++ (← rewriteForEachExecutableDoElem elem)
+  pure rewritten
+
+private partial def rewriteForEachExecutableDoElem
+    (elem : TSyntax `doElem) : CommandElabM (Array (TSyntax `doElem)) := do
+  match elem with
+  | `(doElem| forEach $name:term $_count:term $body:term) =>
+      let loopIdent := mkIdent (Name.mkSimple (← expectStringOrIdent name))
+      match stripParens body with
+      | `(term| do $[$inner:doElem]*) =>
+          let inner ← rewriteForEachExecutableDoElems inner
+          pure <| #[← `(doElem| let $loopIdent : Uint256 := 0)] ++ inner
+      | _ => throwErrorAt body "forEach body must be a do block"
+  | `(doElem| if $cond:term then $thenBranch:doSeq else $elseBranch:doSeq) =>
+      let thenBranch ← rewriteForEachExecutableDoSeq thenBranch
+      let elseBranch ← rewriteForEachExecutableDoSeq elseBranch
+      pure #[← `(doElem| if $cond then $thenBranch else $elseBranch)]
+  | `(doElem| tryCatch $attempt:term $handler:term) =>
+      let tryCatchFn := Lean.mkIdentFrom attempt `_root_.Contracts.tryCatchWord
+      match stripParens handler with
+      | `(term| fun $name:ident => do $[$catchElems:doElem]*) =>
+          let catchElems ← rewriteForEachExecutableDoElems catchElems
+          pure #[← `(doElem| $tryCatchFn:ident $attempt (fun $name => do $[$catchElems:doElem]*))]
+      | `(term| do $[$catchElems:doElem]*) =>
+          let catchElems ← rewriteForEachExecutableDoElems catchElems
+          pure #[← `(doElem| $tryCatchFn:ident $attempt (fun _ => do $[$catchElems:doElem]*))]
+      | _ =>
+          throwErrorAt handler
+            "tryCatch handler must be `fun _ => do ...` or a direct `do ...` block"
+  | `(doElem| unsafe $_reason:str do $body:doSeq) =>
+      let body ← rewriteForEachExecutableDoSeq body
+      pure #[← `(doElem| do $body)]
+  | other =>
+      pure #[other]
+end
+
+private def rewriteForEachExecutableBody (body : Term) : CommandElabM Term := do
+  match body with
+  | `(term| do $[$elems:doElem]*) =>
+      let elems ← rewriteForEachExecutableDoElems elems
+      `(do $[$elems:doElem]*)
+  | _ => pure body
+
 private def mkContractFnValue (params : Array ParamDecl) (body : Term) : CommandElabM Term := do
   let mut value ← injectTupleParamAliases params body
   for param in params.reverse do
@@ -6327,7 +6383,8 @@ def mkFunctionCommandsPublic
   let fnDecl := { fn with body := fnRoleGuardedBody }
   let fnGuardedBody ← mkInitGuardedBody fields fnDecl
   let fnBody ← mkImmutableBoundBody fields immutableDecls fn fnGuardedBody
-  let fnValue ← mkContractFnValue fn.params fnBody
+  let fnExecutableBody ← rewriteForEachExecutableBody fnBody
+  let fnValue ← mkContractFnValue fn.params fnExecutableBody
   let modelBodyName ← mkSuffixedIdent fn.ident "_modelBody"
   let modelName ← mkSuffixedIdent fn.ident "_model"
   let stmtTerms ← translateBodyToStmtTerms fields constDecls immutableDecls externalDecls functions fn

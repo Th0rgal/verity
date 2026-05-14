@@ -574,6 +574,8 @@ private def ceilDivVal (lhs rhs : Verity.Core.Uint256) : Nat :=
   if lhs == 0 then 0 else ((lhs - 1) / rhs + 1).val
 
 def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
+  | .arrayElementDynamicMemberLength _ _ _ => none
+  | .arrayElementDynamicMemberElement _ _ _ _ => none
   | .literal n => some (wordNormalize n)
   | .param name => some (lookupValue state.bindings name)
     | .storage fieldName =>
@@ -2443,6 +2445,8 @@ mutual
       (fields : List Field)
       (fuel : Nat)
       (state : RuntimeState) : Expr → Option Nat
+    | .arrayElementDynamicMemberLength _ _ _ => none
+    | .arrayElementDynamicMemberElement _ _ _ _ => none
     | .literal n => some (wordNormalize n)
     | .param name => some (lookupValue state.bindings name)
       | .storage fieldName =>
@@ -3599,6 +3603,7 @@ theorem SupportedSpecHelperProofs.functionSummariesSound
       (hSupported.supportedFunctionOfSelectorDispatched hfn).body.calls.helpers :=
   (SupportedSpecHelperProofs.functionProofs hSupported hProofs fn hfn).summariesSound
 
+set_option maxHeartbeats 800000 in
 mutual
   private theorem exprList_all_helperSurfaceClosed
       {exprs : List Expr}
@@ -3621,6 +3626,7 @@ mutual
       (expr : Expr)
       (hsurface : exprTouchesUnsupportedHelperSurface expr = false) :
       evalExprWithHelpers spec fields fuel state expr = evalExpr fields state expr := by
+    set_option maxHeartbeats 800000 in
     cases expr with
     | internalCall _ _ =>
         simp [exprTouchesUnsupportedHelperSurface] at hsurface

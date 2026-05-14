@@ -6,7 +6,8 @@ open Verity hiding pure bind
 
 -- Direct translation of the shape-validation phase of UnlinkPool.transfer
 -- (https://github.com/unlink-xyz/monorepo `protocol/contracts/src/UnlinkPool.sol`).
--- This smoke is the concrete acceptance target for verity#1849 G1+G2 — it
+-- This smoke is the concrete acceptance target for verity#1849 G1+G2 plus
+-- the `forEach` body-binder lift needed by the production transfer loop. It
 -- exercises every macro lift those gaps require, in the exact shape the
 -- production audit code uses.
 --
@@ -33,8 +34,7 @@ open Verity hiding pure bind
 --   loop's inner indexing shape — `txn.nullifierHashes[k]`, which is the
 --   canonical G2 use site.
 --
--- * `cmp_eq` is the EDSL boolean comparison; revert-shape uses the standard
---   `requireError <cond> <ErrorName> ()` form.
+-- * Revert-shape uses the standard `requireError <cond> <ErrorName> ()` form.
 verity_contract UnlinkPoolShapeCheckSmoke where
   storage
 
@@ -81,17 +81,14 @@ verity_contract UnlinkPoolShapeCheckSmoke where
     requireError ((arrayLength (arrayElement txs idx).newCommitments) == expectedOutputCount)
       PoolInvalidOutputShape ()
 
-  -- NOTE: the full `forEach` loop over `txs` calling `validateInputShape` /
-  -- `validateOutputShape` per element (mirroring `UnlinkPool.transfer`'s
-  -- outer for loop) currently hits the known `forEach` macro-source
-  -- limitation: the loop binder isn't visible to executable-Lean
-  -- references inside the body (see `ForEachMutableLocalMacroRejected`
-  -- in this file's sibling tests, and the P1 "`forEach`
-  -- mutable-local verification/docs" item in `docs/ROADMAP.md`). The
-  -- single-tx shape-check helpers above already exercise the canonical
-  -- G1 + G2 sites from the production audit code; wrapping them in the
-  -- outer loop is the follow-up once the `forEach` body-elaboration
-  -- limitation is lifted.
+  -- Mirrors the outer transfer loop shape: the `forEach` binder is visible to
+  -- executable-Lean references in the body and to the IR translator.
+  function validateBatch (txs : Array Transaction, expectedInputCount : Uint256, expectedOutputCount : Uint256) : Unit := do
+    forEach "i" (arrayLength txs) (do
+      requireError ((arrayLength (arrayElement txs i).nullifierHashes) == expectedInputCount)
+        PoolInvalidInputShape ()
+      requireError ((arrayLength (arrayElement txs i).newCommitments) == expectedOutputCount)
+        PoolInvalidOutputShape ())
 
 example :
     UnlinkPoolShapeCheckSmoke.nullifierCountOf_modelBody =
@@ -119,6 +116,32 @@ example :
             (Compiler.CompilationModel.Expr.param "idx")
             1
             (Compiler.CompilationModel.Expr.param "k"))
+      ] := rfl
+
+example :
+    UnlinkPoolShapeCheckSmoke.validateBatch_modelBody =
+      [ Compiler.CompilationModel.Stmt.forEach "i"
+          (Compiler.CompilationModel.Expr.arrayLength "txs")
+          [ Compiler.CompilationModel.Stmt.requireError
+              (Compiler.CompilationModel.Expr.eq
+                (Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+                  "txs"
+                  (Compiler.CompilationModel.Expr.localVar "i")
+                  1)
+                (Compiler.CompilationModel.Expr.param "expectedInputCount"))
+              "PoolInvalidInputShape"
+              []
+          , Compiler.CompilationModel.Stmt.requireError
+              (Compiler.CompilationModel.Expr.eq
+                (Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+                  "txs"
+                  (Compiler.CompilationModel.Expr.localVar "i")
+                  2)
+                (Compiler.CompilationModel.Expr.param "expectedOutputCount"))
+              "PoolInvalidOutputShape"
+              []
+          ]
+      , Compiler.CompilationModel.Stmt.stop
       ] := rfl
 
 end Contracts.Smoke
