@@ -1655,6 +1655,19 @@ verity_contract MacroDynamicArray where
   function echoAmounts (amounts : Array Uint256) : Array Uint256 := do
     returnArray amounts
 
+  function echoedAmountCount (amounts : Array Uint256) : Uint256 := do
+    let echoed ← echoAmounts amounts
+    return (arrayLength echoed)
+
+  function firstEchoedAmount (amounts : Array Uint256) : Uint256 := do
+    let echoed ← echoAmounts amounts
+    return (arrayElement echoed 0)
+
+  function forwardedEchoedAmount (amounts : Array Uint256) : Uint256 := do
+    let echoed ← echoAmounts amounts
+    let forwarded ← echoAmounts echoed
+    return (arrayElement forwarded 0)
+
   function echoRecipients (recipients : Array Address) : Array Address := do
     returnArray recipients
 
@@ -1686,6 +1699,38 @@ def echoAmountsModelUsesReturnArray : Bool :=
   | _ => false
 
 example : echoAmountsModelUsesReturnArray = true := by native_decide
+
+def echoedAmountCountUsesMemoryArrayLength : Bool :=
+  match MacroDynamicArray.echoedAmountCount_modelBody with
+  | [Stmt.internalCallAssign ["echoed_data_offset", "echoed_length"] "internal_echoAmounts"
+        [Expr.param "amounts_data_offset", Expr.param "amounts_length"],
+      Stmt.return (Expr.memoryArrayLength "echoed")] =>
+      true
+  | _ => false
+
+example : echoedAmountCountUsesMemoryArrayLength = true := by native_decide
+
+def firstEchoedAmountUsesMemoryArrayElement : Bool :=
+  match MacroDynamicArray.firstEchoedAmount_modelBody with
+  | [Stmt.internalCallAssign ["echoed_data_offset", "echoed_length"] "internal_echoAmounts"
+        [Expr.param "amounts_data_offset", Expr.param "amounts_length"],
+      Stmt.return (Expr.memoryArrayElement "echoed" (Expr.literal 0))] =>
+      true
+  | _ => false
+
+example : firstEchoedAmountUsesMemoryArrayElement = true := by native_decide
+
+def forwardedEchoedAmountPassesMemoryArray : Bool :=
+  match MacroDynamicArray.forwardedEchoedAmount_modelBody with
+  | [Stmt.internalCallAssign ["echoed_data_offset", "echoed_length"] "internal_echoAmounts"
+        [Expr.param "amounts_data_offset", Expr.param "amounts_length"],
+      Stmt.internalCallAssign ["forwarded_data_offset", "forwarded_length"] "internal_echoAmounts"
+        [Expr.localVar "echoed_data_offset", Expr.localVar "echoed_length"],
+      Stmt.return (Expr.memoryArrayElement "forwarded" (Expr.literal 0))] =>
+      true
+  | _ => false
+
+example : forwardedEchoedAmountPassesMemoryArray = true := by native_decide
 
 def echoRecipientsModelUsesReturnArray : Bool :=
   match MacroDynamicArray.echoRecipients_modelBody with
