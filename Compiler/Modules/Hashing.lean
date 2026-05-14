@@ -98,9 +98,9 @@ def abiEncodePacked (resultVar : String) (words : List Expr) : Stmt :=
 /-- Keccak-256 over Solidity `abi.encode(array)` for a direct dynamic-array
     parameter whose elements have a fixed static word width.
 
-    The module references `{arrayParam}_length` and `{arrayParam}_data_offset`
-    emitted by the calldata/internal dynamic-array lowering.  It encodes the
-    single dynamic-array argument as:
+    The module takes the array length as its single expression argument and
+    references `{arrayParam}_data_offset` emitted by the calldata/internal
+    dynamic-array lowering. It encodes the single dynamic-array argument as:
 
       head offset (32), array length, contiguous static element words
 
@@ -109,14 +109,16 @@ def abiEncodePacked (resultVar : String) (words : List Expr) : Stmt :=
 def abiEncodeStaticArrayModule
     (resultVar arrayParam : String) (elementWords : Nat) : ExternalCallModule where
   name := "abiEncodeStaticArray"
-  numArgs := 0
+  numArgs := 1
   resultVars := [resultVar]
   writesState := false
   readsState := false
   axioms := ["keccak256_memory_slice_matches_evm", "abi_standard_dynamic_array_static_element_layout"]
   compile := fun ctx args => do
-    if !args.isEmpty then
-      throw s!"abiEncodeStaticArray expects 0 expression argument(s), got {args.length}"
+    let arrayLengthExpr ←
+      match args with
+      | [arrayLengthExpr] => pure arrayLengthExpr
+      | _ => throw s!"abiEncodeStaticArray expects 1 expression argument, got {args.length}"
     if arrayParam.isEmpty then
       throw "abiEncodeStaticArray requires a non-empty array parameter name"
     if elementWords == 0 then
@@ -134,10 +136,10 @@ def abiEncodeStaticArrayModule
         YulStmt.expr (YulExpr.call "mstore" [ptr, YulExpr.lit 32]),
         YulStmt.expr (YulExpr.call "mstore" [
           YulExpr.call "add" [ptr, YulExpr.lit 32],
-          YulExpr.ident s!"{arrayParam}_length"
+          arrayLengthExpr
         ]),
         YulStmt.let_ dataBytesName (YulExpr.call "mul" [
-          YulExpr.ident s!"{arrayParam}_length",
+          arrayLengthExpr,
           YulExpr.lit (elementWords * 32)
         ])
       ] ++ ECM.dynamicCopyData ctx
@@ -159,8 +161,9 @@ def abiEncodeStaticArrayModule
 
 /-- Convenience constructor for `keccak256(abi.encode(array))` over static-width
     dynamic-array parameters. -/
-def abiEncodeStaticArray (resultVar arrayParam : String) (elementWords : Nat) : Stmt :=
-  .ecm (abiEncodeStaticArrayModule resultVar arrayParam elementWords) []
+def abiEncodeStaticArray
+    (resultVar arrayParam : String) (elementWords : Nat) (arrayLength : Expr) : Stmt :=
+  .ecm (abiEncodeStaticArrayModule resultVar arrayParam elementWords) [arrayLength]
 
 /-- Keccak-256 over packed static byte-width segments.
     Each argument is encoded as exactly the matching byte width from `widths`,

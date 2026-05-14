@@ -3092,7 +3092,8 @@ private def abiEncodeStaticArraySmokeSpec : CompilationModel := {
       returnType := none
       returns := [ParamType.bytes32]
       body := [
-        Compiler.Modules.Hashing.abiEncodeStaticArray "digest" "items" 4,
+        Compiler.Modules.Hashing.abiEncodeStaticArray
+          "digest" "items" 4 (Expr.arrayLength "items"),
         Stmt.returnValues [Expr.localVar "digest"]
       ]
     }
@@ -3187,7 +3188,7 @@ private def abiEncodeStaticArrayBadAritySpec : CompilationModel := {
       returnType := none
       body := [
         Stmt.ecm (Compiler.Modules.Hashing.abiEncodeStaticArrayModule "digest" "items" 1)
-          [Expr.param "items"],
+          [Expr.arrayLength "items", Expr.literal 0],
         Stmt.stop
       ]
     }
@@ -3203,7 +3204,8 @@ private def abiEncodeStaticArrayBadWidthSpec : CompilationModel := {
       params := [{ name := "items", ty := ParamType.array ParamType.uint256 }]
       returnType := none
       body := [
-        Compiler.Modules.Hashing.abiEncodeStaticArray "digest" "items" 0,
+        Compiler.Modules.Hashing.abiEncodeStaticArray
+          "digest" "items" 0 (Expr.arrayLength "items"),
         Stmt.stop
       ]
     }
@@ -4427,7 +4429,7 @@ set_option maxRecDepth 4096 in
   expectCompileErrorContains
     "abiEncodeStaticArray ECM rejects invalid argument counts"
     abiEncodeStaticArrayBadAritySpec
-    "uses ECM 'abiEncodeStaticArray' with 1 arguments but it expects 0"
+    "uses ECM 'abiEncodeStaticArray' with 2 arguments but it expects 1"
   expectCompileErrorContains
     "abiEncodeStaticArray rejects zero-width elements"
     abiEncodeStaticArrayBadWidthSpec
