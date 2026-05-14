@@ -1634,6 +1634,71 @@ verity_contract TryExternalCallSmoke where
     else
       setStorage callSucceeded 0
 
+verity_contract LinkedExternalDynamicArgSmoke where
+  storage
+  linked_externals
+    external hashArray(Array Uint256) -> (Uint256)
+    external hashArray_try(Array Uint256) -> (Bool, Uint256)
+    external notifyArray(Array Uint256)
+    external hashBytes(Bytes) -> (Uint256)
+
+  function hashLeaves (leaves : Array Uint256) : Uint256 := do
+    return externalCall "hashArray" [leaves]
+
+  function sendLeaves (leaves : Array Uint256) : Unit := do
+    externalCallBind [] "notifyArray" [leaves]
+
+  function tryHash (leaves : Array Uint256) : Uint256 := do
+    let (_success, h) ← tryExternalCall "hashArray" [leaves]
+    return h
+
+  function hashPayload (payload : Bytes) : Uint256 := do
+    return externalCall "hashBytes" [payload]
+
+example :
+    LinkedExternalDynamicArgSmoke.hashLeaves_modelBody =
+      [ Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.externalCall
+            "hashArray"
+            [ Compiler.CompilationModel.Expr.param "leaves_data_offset"
+            , Compiler.CompilationModel.Expr.param "leaves_length"
+            ])
+      ] := rfl
+
+example :
+    LinkedExternalDynamicArgSmoke.sendLeaves_modelBody =
+      [ Compiler.CompilationModel.Stmt.externalCallBind
+          []
+          "notifyArray"
+          [ Compiler.CompilationModel.Expr.param "leaves_data_offset"
+          , Compiler.CompilationModel.Expr.param "leaves_length"
+          ]
+      , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+example :
+    LinkedExternalDynamicArgSmoke.tryHash_modelBody =
+      [ Compiler.CompilationModel.Stmt.tryExternalCallBind
+          "_success"
+          ["h"]
+          "hashArray"
+          [ Compiler.CompilationModel.Expr.param "leaves_data_offset"
+          , Compiler.CompilationModel.Expr.param "leaves_length"
+          ]
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.localVar "h")
+      ] := rfl
+
+example :
+    LinkedExternalDynamicArgSmoke.hashPayload_modelBody =
+      [ Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.externalCall
+            "hashBytes"
+            [ Compiler.CompilationModel.Expr.param "payload_data_offset"
+            , Compiler.CompilationModel.Expr.param "payload_length"
+            ])
+      ] := rfl
+
 verity_contract ERC20HelperSmoke where
   storage
     lastBalance : Uint256 := slot 0
@@ -1773,13 +1838,13 @@ verity_contract ERC20HelperShadowWriteRejected where
     safeTransfer token toAddr amount
 
 /--
- error: linked external 'describe' uses unsupported parameter type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool
+ error: linked external 'describe' uses unsupported return type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool
 -/
 #guard_msgs in
 verity_contract ExternalCallUnsupportedType where
   storage
   linked_externals
-    external describe(String) -> (Uint256)
+    external describe(Uint256) -> (String)
 
   function noop () : Unit := do
     pure ()
@@ -2045,6 +2110,7 @@ end SpecGenSmoke
 #check_contract StructMappingSmoke
 #check_contract ExternalCallSmoke
 #check_contract TryExternalCallSmoke
+#check_contract LinkedExternalDynamicArgSmoke
 #check_contract ExternalCallMultiReturn
 #check_contract Contracts.Vault
 

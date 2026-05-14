@@ -1083,6 +1083,12 @@ private def externalExecutableWordType? : ValueType → Bool
   | .newtype _ baseType => externalExecutableWordType? baseType
   | _ => false
 
+private def externalExecutableParamType? : ValueType → Bool
+  | .array elemTy => externalExecutableWordType? elemTy
+  | .bytes | .string => true
+  | .newtype _ baseType => externalExecutableParamType? baseType
+  | ty => externalExecutableWordType? ty
+
 private def validateExternalExecutableType
     (extIdent : Ident)
     (extName : String)
@@ -1091,6 +1097,14 @@ private def validateExternalExecutableType
   if !externalExecutableWordType? ty then
     throwErrorAt extIdent
       s!"linked external '{extName}' uses unsupported {role} type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool"
+
+private def validateExternalExecutableParamType
+    (extIdent : Ident)
+    (extName : String)
+    (ty : ValueType) : CommandElabM Unit := do
+  if !externalExecutableParamType? ty then
+    throwErrorAt extIdent
+      s!"linked external '{extName}' uses unsupported parameter type; executable externalCall currently supports word-like values plus direct Array<word-like>, Bytes, and String calldata parameters"
 
 private def tupleElemsFromTerm? (stx : Term) : Option (Array Term) :=
   tupleElemsFromSyntax? (stripParens stx).raw |>.map (·.map (fun syn => ⟨syn⟩))
@@ -1468,6 +1482,12 @@ private def isSingleWordStaticValueType : ValueType → Bool
   | .bool => true
   | .newtype _ baseType => isSingleWordStaticValueType baseType
   | ty => isWordLikeValueType ty
+
+private def externalCallDynamicArgSupported (ty : ValueType) : Bool :=
+  match ty with
+  | .array elemTy => isSingleWordStaticValueType elemTy
+  | .bytes | .string => true
+  | _ => false
 
 private partial def staticAbiWordCount? : ValueType → Option Nat
   | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool => some 1
@@ -2802,7 +2822,7 @@ private partial def inferTupleSourceTypes?
           match stripParens args with
           | `(term| [ $[$xs],* ]) =>
               for x in xs do
-                requireWordLikeType x s!"tryExternalCall '{extName}' argument"
+                requireWordOrDirectArrayType x s!"tryExternalCall '{extName}' argument"
                   (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
           | _ => throwErrorAt args "expected list literal [..]"
           match externalDecls.find? (fun ext => ext.name == extName) with
@@ -3452,7 +3472,19 @@ partial def translatePureExprWithTypes
       let extName := ← expectStringOrIdent name
       let argsExprs ←
         match stripParens args with
-        | `(term| [ $[$xs],* ]) => xs.mapM (fun x => translatePureExprWithTypes fields constDecls immutableDecls params locals x visitingConstants)
+        | `(term| [ $[$xs],* ]) => do
+            let mut out : Array Term := #[]
+            for arg in xs do
+              match directParamNameWithType? params arg with
+              | some (name, ty) =>
+                  if externalCallDynamicArgSupported ty then
+                    out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_data_offset")))
+                    out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_length")))
+                  else
+                    out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg visitingConstants)
+              | none =>
+                  out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg visitingConstants)
+            pure out
         | _ => throwErrorAt args "expected list literal [..]"
       `(Compiler.CompilationModel.Expr.externalCall $(strTerm extName) [ $[$argsExprs],* ])
   | `(term| structMember $field:term $key:term $member:term) =>
@@ -3863,6 +3895,26 @@ private def translateInternalHelperCallArgs
         out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
   pure out
 
+private def translateLinkedExternalCallArgs
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (argTerms : Array Term) : CommandElabM (Array Term) := do
+  let mut out : Array Term := #[]
+  for arg in argTerms do
+    match directParamNameWithType? params arg with
+    | some (name, ty) =>
+        if externalCallDynamicArgSupported ty then
+          out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_data_offset")))
+          out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_length")))
+        else
+          out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+    | none =>
+        out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+  pure out
+
 private def tupleInternalCallAssignStmt?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -3928,7 +3980,7 @@ private def tryExternalCallBindStmt?
       let extName := ← expectStringOrIdent name
       let argExprs ← match stripParens args with
         | `(term| [ $[$xs],* ]) =>
-            xs.mapM (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+            translateLinkedExternalCallArgs fields constDecls immutableDecls params locals xs
         | _ => throwErrorAt args "expected list literal [..]"
       -- names[0] is the success flag, names[1..] are result vars
       let initialUsedNames := (params.toList.map (fun p => p.name)) ++ (typedLocalNames locals).toList ++ (names.filterMap id).toList
@@ -5043,7 +5095,11 @@ private def translateEffectStmt
       let resultNames := ← expectStringList names
       let resultNameTerms := resultNames.map strTerm
       let targetFn := ← expectStringOrIdent fnName
-      let argExprs ← expectExprList fields constDecls immutableDecls params locals args
+      let argExprs ←
+        match stripParens args with
+        | `(term| [ $[$xs],* ]) =>
+            translateLinkedExternalCallArgs fields constDecls immutableDecls params locals xs
+        | _ => throwErrorAt args "expected list literal [..]"
       `(Compiler.CompilationModel.Stmt.externalCallBind
           [ $[$resultNameTerms],* ]
           $(strTerm targetFn)
@@ -6334,7 +6390,7 @@ def validateExternalDeclsPublic
     -- only supports single-return, but tryExternalCall supports any return count.
     -- (#1727, Axis 1 Step 5f)
     for paramTy in ext.params do
-      validateExternalExecutableType ext.ident ext.name paramTy "parameter"
+      validateExternalExecutableParamType ext.ident ext.name paramTy
     for returnTy in ext.returnTys do
       validateExternalExecutableType ext.ident ext.name returnTy "return"
     seenNames := seenNames.push ext.name

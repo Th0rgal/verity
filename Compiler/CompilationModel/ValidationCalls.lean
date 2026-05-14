@@ -102,6 +102,14 @@ def internalCallYulArgCountForParam : ParamType → Nat
 def internalCallYulArgCount (params : List Param) : Nat :=
   params.foldl (fun acc param => acc + internalCallYulArgCountForParam param.ty) 0
 
+def linkedExternalCallYulArgCountForParam : ParamType → Nat
+  | ParamType.array elemTy => if isSingleWordStaticParamType elemTy then 2 else 1
+  | ParamType.bytes | ParamType.string => 2
+  | _ => 1
+
+def linkedExternalCallYulArgCount (params : List ParamType) : Nat :=
+  params.foldl (fun acc paramTy => acc + linkedExternalCallYulArgCountForParam paramTy) 0
+
 def findInternalFunctionByName (functions : List FunctionSpec)
     (callerName calleeName : String) : Except String FunctionSpec := do
   let candidates := functions.filter (fun fn => fn.isInternal && fn.name == calleeName)
@@ -379,8 +387,9 @@ def validateExternalCallTargetsInExpr
         | none =>
             throw s!"Compilation error: {context} references unknown external call target '{name}' ({issue732Ref}). Declare it in spec.externals."
         | some ext =>
-            if args.length != ext.params.length then
-              throw s!"Compilation error: {context} calls external '{name}' with {args.length} args, but spec.externals declares {ext.params.length} ({issue184Ref})."
+            let expectedArgs := linkedExternalCallYulArgCount ext.params
+            if args.length != expectedArgs then
+              throw s!"Compilation error: {context} calls external '{name}' with {args.length} Yul arg(s), expected {expectedArgs} ({issue184Ref})."
             let returns ← externalFunctionReturns ext
             if returns.length != 1 then
               throw s!"Compilation error: {context} uses Expr.externalCall '{name}' but spec.externals declares {returns.length} return values; Expr.externalCall requires exactly 1 ({issue184Ref})."
@@ -565,8 +574,9 @@ def validateExternalCallTargetsInStmt
       | none =>
           throw s!"Compilation error: {context} uses Stmt.externalCallBind with unknown external function '{externalName}'."
       | some ext => do
-          if args.length != ext.params.length then
-            throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} args, expected {ext.params.length}."
+          let expectedArgs := linkedExternalCallYulArgCount ext.params
+          if args.length != expectedArgs then
+            throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} Yul arg(s), expected {expectedArgs}."
           let returns ← externalFunctionReturns ext
           if returns.length != resultVars.length then
             throw s!"Compilation error: {context} binds {resultVars.length} values from external function '{externalName}', but it returns {returns.length}."
@@ -584,8 +594,9 @@ def validateExternalCallTargetsInStmt
       | none =>
           throw s!"Compilation error: {context} uses Stmt.tryExternalCallBind with unknown external function '{externalName}'."
       | some ext => do
-          if args.length != ext.params.length then
-            throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} args, expected {ext.params.length}."
+          let expectedArgs := linkedExternalCallYulArgCount ext.params
+          if args.length != expectedArgs then
+            throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} Yul arg(s), expected {expectedArgs}."
           let returns ← externalFunctionReturns ext
           if returns.length != resultVars.length then
             throw s!"Compilation error: {context} binds {resultVars.length} values from external function '{externalName}', but it returns {returns.length}."

@@ -254,6 +254,10 @@ instance : ExternalArg Address where
   toWord value := value.toNat
 instance : ExternalArg Bool where
   toWord value := if value then 1 else 0
+instance [ExternalArg α] : ExternalArg (Array α) where
+  toWord values := values.size
+instance : ExternalArg ByteArray where
+  toWord bytes := bytes.size
 instance : ExternalResult Uint256 where
   fromWord value := value
 instance : ExternalResult Int256 where
@@ -270,6 +274,8 @@ def externalCallWords {α : Type} [ExternalResult α] (name : String) (args : Li
   ExternalResult.fromWord (externalCallStubWord name args)
 def tryExternalCallWords {α : Type} [Inhabited α] (_name : String) (_args : List Uint256) : Contract (Bool × α) :=
   pure (false, (Inhabited.default : α))
+def externalCallBind {α : Type} [ExternalArg α] (_names : List String) (_name : String) (_args : List α) : Contract Unit :=
+  pure ()
 private def erc20ReadStubWord (name : String) (args : List Uint256) : Uint256 :=
   externalCallStubWord name args
 macro_rules
