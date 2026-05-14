@@ -9,6 +9,7 @@ import Contracts.ProxyUpgradeabilityLayoutIncompatibleSmoke
 import Contracts.Smoke
 import Contracts.Smoke.ArrayElementDynamicMemberElementSmoke
 import Contracts.Smoke.ArrayElementDynamicMemberLengthSmoke
+import Contracts.Smoke.FixedArrayStructSmoke
 import Contracts.Smoke.UnlinkPoolShapeCheckSmoke
 import Contracts.Smoke.MathlibReservedBinderEscape
 import Contracts.Smoke.PackedHashECMSmoke
@@ -122,6 +123,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.LeanDefHelperSmoke.spec
   , Contracts.Smoke.DirectHelperCallSmoke.spec
   , Contracts.Smoke.MultiReturnHelperSmoke.spec
+  , Contracts.Smoke.ArrayHelperCallSmoke.spec
   , Contracts.Smoke.InitializerSmoke.spec
   , Contracts.Smoke.ConstantSmoke.spec
   , Contracts.Smoke.ImmutableSmoke.spec
@@ -143,12 +145,18 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.BlockTimestampSmoke.spec
   , Contracts.Smoke.SelfBalanceSmoke.spec
   , Contracts.Smoke.MathlibReservedBinderEscape.spec
+  , Contracts.Smoke.ForEachMutableLocalSmoke.spec
   , Contracts.Smoke.ArrayElementDynamicMemberLengthSmoke.spec
   , Contracts.Smoke.ArrayElementDynamicMemberElementSmoke.spec
+  , Contracts.Smoke.FixedArrayStructSmoke.spec
   , Contracts.Smoke.UnlinkPoolShapeCheckSmoke.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
   , Contracts.Smoke.TryExternalCallSmoke.spec
+  , Contracts.Smoke.LinkedExternalDynamicArgSmoke.spec
+  , Contracts.Smoke.LinkedExternalProjectedArrayArgSmoke.spec
+  , Contracts.Smoke.NestedStructArrayProjectionSmoke.spec
+  , Contracts.Smoke.DynamicStructElementHelperArgSmoke.spec
   , Contracts.Smoke.ExternalCallMultiReturn.spec
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec

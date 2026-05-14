@@ -1102,7 +1102,7 @@ verity_contract NamedStructTupleProjectionRejected where
     return pair_0
 
 /--
-error: non-leaf struct parameter projection is not supported; project a scalar or static single-word leaf field instead (#1832)
+error: local binding 'notes' currently cannot bind dynamic values (Verity.Macro.ValueType.array (Verity.Macro.ValueType.uint256)) to local variables on the compilation-model path; use the parameter directly
 -/
 #guard_msgs in
 verity_contract NamedStructDynamicProjectionRejected where
@@ -1355,12 +1355,43 @@ verity_contract MultiReturnHelperSmoke where
     let (head, tail) ← summarize seed
     return (add head tail)
 
-/--
-error: `total` cannot be mutated, only variables declared using `let mut` can be mutated. If you did not intend to mutate but define `total`, consider using `let total` instead
--/
-#guard_msgs in
-verity_contract ForEachMutableLocalMacroRejected where
+verity_contract ArrayHelperCallSmoke where
   storage
+    ok : Uint256 := slot 0
+
+  function first (xs : Array Uint256) : Uint256 := do
+    return arrayElement xs 0
+
+  function allow_post_interaction_writes useFirst (xs : Array Uint256) : Unit := do
+    let x ← first xs
+    setStorage ok x
+
+example :
+    ArrayHelperCallSmoke.first_modelBody =
+      [ Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.arrayElement
+            "xs"
+            (Compiler.CompilationModel.Expr.literal 0))
+      ] := rfl
+
+example :
+    ArrayHelperCallSmoke.useFirst_modelBody =
+      [ Compiler.CompilationModel.Stmt.letVar
+          "x"
+          (Compiler.CompilationModel.Expr.internalCall
+            "internal_first"
+            [ Compiler.CompilationModel.Expr.param "xs_data_offset"
+            , Compiler.CompilationModel.Expr.param "xs_length"
+            ])
+      , Compiler.CompilationModel.Stmt.setStorage
+          "ok"
+          (Compiler.CompilationModel.Expr.localVar "x")
+      , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+verity_contract ForEachMutableLocalSmoke where
+  storage
+    seen : Uint256 := slot 0
 
   function sumValues (values : Array Uint256) : Uint256 := do
     let mut total := 0
@@ -1368,6 +1399,42 @@ verity_contract ForEachMutableLocalMacroRejected where
       let value := arrayElement values i
       total := add total value)
     return total
+
+  function allow_post_interaction_writes sumOnCatch (values : Array Uint256)
+    local_obligations [manual_low_level_refinement := assumed "Low-level call success/failure boundary still requires a manual refinement argument."]
+    : Uint256 := do
+    tryCatch (call 0 0 1 0 0 0 0) (do
+      forEach "i" (arrayLength values) (do
+        let value := arrayElement values i
+        setStorage seen value))
+    let current ← getStorage seen
+    return current
+
+  function sumUnsafe (values : Array Uint256) : Uint256 := do
+    let mut total := 0
+    unsafe "test: nested forEach binder in executable unsafe block" do
+      forEach "i" (arrayLength values) (do
+        let value := arrayElement values i
+        total := add total value)
+    return total
+
+example :
+    ForEachMutableLocalSmoke.sumValues_modelBody =
+      [ Compiler.CompilationModel.Stmt.letVar "total"
+          (Compiler.CompilationModel.Expr.literal 0)
+      , Compiler.CompilationModel.Stmt.forEach "i"
+          (Compiler.CompilationModel.Expr.arrayLength "values")
+          [ Compiler.CompilationModel.Stmt.letVar "value"
+              (Compiler.CompilationModel.Expr.arrayElement "values"
+                (Compiler.CompilationModel.Expr.localVar "i"))
+          , Compiler.CompilationModel.Stmt.assignVar "total"
+              (Compiler.CompilationModel.Expr.add
+                (Compiler.CompilationModel.Expr.localVar "total")
+                (Compiler.CompilationModel.Expr.localVar "value"))
+          ]
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.localVar "total")
+      ] := rfl
 
 /--
 error: helper call 'consumePayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
@@ -1567,6 +1634,238 @@ verity_contract TryExternalCallSmoke where
     else
       setStorage callSucceeded 0
 
+verity_contract LinkedExternalDynamicArgSmoke where
+  storage
+  linked_externals
+    external hashArray(Array Uint256) -> (Uint256)
+    external hashArray_try(Array Uint256) -> (Bool, Uint256)
+    external notifyArray(Array Uint256)
+    external hashBytes(Bytes) -> (Uint256)
+
+  function hashLeaves (leaves : Array Uint256) : Uint256 := do
+    return externalCall "hashArray" [leaves]
+
+  function sendLeaves (leaves : Array Uint256) : Unit := do
+    externalCallBind [] "notifyArray" [leaves]
+
+  function tryHash (leaves : Array Uint256) : Uint256 := do
+    let (_success, h) ← tryExternalCall "hashArray" [leaves]
+    return h
+
+  function hashPayload (payload : Bytes) : Uint256 := do
+    return externalCall "hashBytes" [payload]
+
+example :
+    LinkedExternalDynamicArgSmoke.hashLeaves_modelBody =
+      [ Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.externalCall
+            "hashArray"
+            [ Compiler.CompilationModel.Expr.param "leaves_data_offset"
+            , Compiler.CompilationModel.Expr.param "leaves_length"
+            ])
+      ] := rfl
+
+example :
+    LinkedExternalDynamicArgSmoke.sendLeaves_modelBody =
+      [ Compiler.CompilationModel.Stmt.externalCallBind
+          []
+          "notifyArray"
+          [ Compiler.CompilationModel.Expr.param "leaves_data_offset"
+          , Compiler.CompilationModel.Expr.param "leaves_length"
+          ]
+      , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+example :
+    LinkedExternalDynamicArgSmoke.tryHash_modelBody =
+      [ Compiler.CompilationModel.Stmt.tryExternalCallBind
+          "_success"
+          ["h"]
+          "hashArray"
+          [ Compiler.CompilationModel.Expr.param "leaves_data_offset"
+          , Compiler.CompilationModel.Expr.param "leaves_length"
+          ]
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.localVar "h")
+      ] := rfl
+
+verity_contract LinkedExternalProjectedArrayArgSmoke where
+  storage
+
+  struct Transaction where
+    merkleRoot : Uint256,
+    nullifierHashes : Array Uint256,
+    newCommitments : Array Uint256
+
+  linked_externals
+    external hashArray(Array Uint256) -> (Uint256)
+    external hashArray_try(Array Uint256) -> (Bool, Uint256)
+
+  function tryHashNullifiers (txs : Array Transaction, idx : Uint256) : Uint256 := do
+    let (_success, h) ← tryExternalCall "hashArray" [(arrayElement txs idx).nullifierHashes]
+    return h
+
+example :
+    LinkedExternalProjectedArrayArgSmoke.tryHashNullifiers_modelBody =
+      [ Compiler.CompilationModel.Stmt.tryExternalCallBind
+          "_success"
+          ["h"]
+          "hashArray"
+          [ Compiler.CompilationModel.Expr.arrayElementDynamicMemberDataOffset
+              "txs"
+              (Compiler.CompilationModel.Expr.param "idx")
+              1
+          , Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+              "txs"
+              (Compiler.CompilationModel.Expr.param "idx")
+              1
+          ]
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.localVar "h")
+      ] := rfl
+
+verity_contract NestedStructArrayProjectionSmoke where
+  storage
+
+  struct Proof where
+    pA : FixedArray Uint256 2,
+    pB : FixedArray (FixedArray Uint256 2) 2,
+    pC : FixedArray Uint256 2
+
+  struct Note where
+    npk : Uint256,
+    token : Address,
+    amount : Uint256
+
+  struct WithdrawalTransaction where
+    proof : Proof,
+    circuitId : Uint256,
+    merkleRoot : Uint256,
+    nullifierHashes : Array Uint256,
+    newCommitments : Array Uint256,
+    contextHash : Uint256,
+    withdrawal : Note,
+    ciphertexts : Array Uint256
+
+  function withdrawalAmount (txs : Array WithdrawalTransaction, idx : Uint256) : Uint256 := do
+    return (arrayElement txs idx).withdrawal.amount
+
+  function consumeNullifiers (nullifiers : Array Uint256) : Unit := do
+    let _len := arrayLength nullifiers
+    pure ()
+
+  function withdrawalAmountViaHelper (txs : Array WithdrawalTransaction, idx : Uint256) : Uint256 := do
+    let amount ← withdrawalAmount txs idx
+    return amount
+
+  function consumeNullifiersViaHelper (txs : Array WithdrawalTransaction, idx : Uint256) : Unit := do
+    consumeNullifiers (arrayElement txs idx).nullifierHashes
+
+example :
+    NestedStructArrayProjectionSmoke.withdrawalAmount_modelBody =
+      [ Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.arrayElementDynamicWord
+            "txs"
+            (Compiler.CompilationModel.Expr.param "idx")
+            15)
+      ] := rfl
+
+example :
+    NestedStructArrayProjectionSmoke.withdrawalAmountViaHelper_modelBody =
+      [ Compiler.CompilationModel.Stmt.letVar
+          "amount"
+          (Compiler.CompilationModel.Expr.internalCall
+            "internal_withdrawalAmount"
+            [ Compiler.CompilationModel.Expr.param "txs_data_offset"
+            , Compiler.CompilationModel.Expr.param "txs_length"
+            , Compiler.CompilationModel.Expr.param "idx"
+            ])
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.localVar "amount")
+      ] := rfl
+
+example :
+    NestedStructArrayProjectionSmoke.consumeNullifiersViaHelper_modelBody =
+      [ Compiler.CompilationModel.Stmt.internalCall
+          "internal_consumeNullifiers"
+          [ Compiler.CompilationModel.Expr.arrayElementDynamicMemberDataOffset
+              "txs"
+              (Compiler.CompilationModel.Expr.param "idx")
+              10
+          , Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+              "txs"
+              (Compiler.CompilationModel.Expr.param "idx")
+              10
+          ]
+      , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+verity_contract DynamicStructElementHelperArgSmoke where
+  storage
+
+  struct Transaction where
+    id : Uint256,
+    values : Array Uint256
+
+  function consumeValues (values : Array Uint256) : Uint256 := do
+    return arrayLength values
+
+  function inspect (txn : Transaction) : Uint256 := do
+    let first := arrayElement txn.values 0
+    let count ← consumeValues txn.values
+    return add txn.id (add first count)
+
+  function inspectAt (txs : Array Transaction, idx : Uint256) : Uint256 := do
+    let total ← inspect (arrayElement txs idx)
+    return total
+
+example :
+    DynamicStructElementHelperArgSmoke.inspect_modelBody =
+      [ Compiler.CompilationModel.Stmt.letVar
+          "first"
+          (Compiler.CompilationModel.Expr.paramDynamicMemberElement
+            "txn"
+            1
+            (Compiler.CompilationModel.Expr.literal 0))
+      , Compiler.CompilationModel.Stmt.letVar
+          "count"
+          (Compiler.CompilationModel.Expr.internalCall
+            "internal_consumeValues"
+            [ Compiler.CompilationModel.Expr.paramDynamicMemberDataOffset "txn" 1
+            , Compiler.CompilationModel.Expr.paramDynamicMemberLength "txn" 1
+            ])
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.add
+            (Compiler.CompilationModel.Expr.paramDynamicHeadWord "txn" 0)
+            (Compiler.CompilationModel.Expr.add
+              (Compiler.CompilationModel.Expr.localVar "first")
+              (Compiler.CompilationModel.Expr.localVar "count")))
+      ] := rfl
+
+example :
+    DynamicStructElementHelperArgSmoke.inspectAt_modelBody =
+      [ Compiler.CompilationModel.Stmt.letVar
+          "total"
+          (Compiler.CompilationModel.Expr.internalCall
+            "internal_inspect"
+            [ Compiler.CompilationModel.Expr.arrayElementDynamicDataOffset
+                "txs"
+                (Compiler.CompilationModel.Expr.param "idx")
+            ])
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.localVar "total")
+      ] := rfl
+
+example :
+    LinkedExternalDynamicArgSmoke.hashPayload_modelBody =
+      [ Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.externalCall
+            "hashBytes"
+            [ Compiler.CompilationModel.Expr.param "payload_data_offset"
+            , Compiler.CompilationModel.Expr.param "payload_length"
+            ])
+      ] := rfl
+
 verity_contract ERC20HelperSmoke where
   storage
     lastBalance : Uint256 := slot 0
@@ -1706,13 +2005,13 @@ verity_contract ERC20HelperShadowWriteRejected where
     safeTransfer token toAddr amount
 
 /--
- error: linked external 'describe' uses unsupported parameter type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool
+ error: linked external 'describe' uses unsupported return type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool
 -/
 #guard_msgs in
 verity_contract ExternalCallUnsupportedType where
   storage
   linked_externals
-    external describe(String) -> (Uint256)
+    external describe(Uint256) -> (String)
 
   function noop () : Unit := do
     pure ()
@@ -1966,6 +2265,8 @@ end SpecGenSmoke
 #check_contract PackedStorageWriteSmoke
 #check_contract DirectHelperCallSmoke
 #check_contract MultiReturnHelperSmoke
+#check_contract ArrayHelperCallSmoke
+#check_contract ForEachMutableLocalSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke
 #check_contract ZeroAddressShadowSmoke
@@ -1976,6 +2277,9 @@ end SpecGenSmoke
 #check_contract StructMappingSmoke
 #check_contract ExternalCallSmoke
 #check_contract TryExternalCallSmoke
+#check_contract LinkedExternalDynamicArgSmoke
+#check_contract LinkedExternalProjectedArrayArgSmoke
+#check_contract NestedStructArrayProjectionSmoke
 #check_contract ExternalCallMultiReturn
 #check_contract Contracts.Vault
 

@@ -26,13 +26,25 @@ def freshInternalRetNames (returns : List ParamType) (usedNames : List String) :
     (usedNames, [])
   namesRev.reverse
 
+def internalFunctionYulParamNames (params : List Param) : List String :=
+  params.flatMap fun param =>
+    match param.ty with
+    | ParamType.array _ =>
+        [s!"{param.name}_data_offset", s!"{param.name}_length"]
+    | ParamType.tuple _ =>
+        if isDynamicParamType param.ty then
+          [s!"{param.name}_data_offset"]
+        else
+          [param.name]
+    | _ => [param.name]
+
 -- Compile internal function to a Yul function definition (#181)
 def compileInternalFunction (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
     (adtTypes : List AdtTypeDef := []) (spec : FunctionSpec) :
     Except String YulStmt := do
   validateFunctionSpec spec
   let returns ← functionReturns spec
-  let paramNames := spec.params.map (·.name)
+  let paramNames := internalFunctionYulParamNames spec.params
   let usedNames := paramNames ++ collectStmtListBindNames spec.body
   let retNames := freshInternalRetNames returns usedNames
   let bodyStmts ← compileStmtList fields events errors .calldata retNames true
@@ -47,10 +59,10 @@ theorem compileInternalFunction_ok_components
       validateFunctionSpec spec = Except.ok () ∧
       functionReturns spec = Except.ok returns ∧
       compileStmtList fields events errors .calldata retNames true
-        (spec.params.map (·.name) ++ retNames) [] spec.body = Except.ok bodyStmts ∧
+        (internalFunctionYulParamNames spec.params ++ retNames) [] spec.body = Except.ok bodyStmts ∧
       stmt = YulStmt.funcDef
         (internalFunctionYulName spec.name)
-        (spec.params.map (·.name))
+        (internalFunctionYulParamNames spec.params)
         retNames
         bodyStmts := by
   unfold compileInternalFunction at hcompile
@@ -67,11 +79,11 @@ theorem compileInternalFunction_ok_components
       cases hbody :
           compileStmtList fields events errors .calldata
             (freshInternalRetNames returns
-              (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
+              (internalFunctionYulParamNames spec.params ++ collectStmtListBindNames spec.body))
             true
-            (spec.params.map (·.name) ++
+            (internalFunctionYulParamNames spec.params ++
               freshInternalRetNames returns
-                (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
+                (internalFunctionYulParamNames spec.params ++ collectStmtListBindNames spec.body))
             []
             spec.body
       · rw [hbody] at hcompile
@@ -82,7 +94,7 @@ theorem compileInternalFunction_ok_components
         refine
           ⟨returns,
             freshInternalRetNames returns
-              (spec.params.map (·.name) ++ collectStmtListBindNames spec.body),
+              (internalFunctionYulParamNames spec.params ++ collectStmtListBindNames spec.body),
             bodyStmts,
             ?_⟩
         exact ⟨by simp, by simp,
@@ -97,29 +109,29 @@ theorem compileInternalFunction_some_ok_of_components
     (hretNames :
       retNames =
         freshInternalRetNames returns
-          (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
+          (internalFunctionYulParamNames spec.params ++ collectStmtListBindNames spec.body))
     (hbody :
       compileStmtList fields events errors .calldata retNames true
-        (spec.params.map (·.name) ++ retNames) [] spec.body = Except.ok bodyStmts) :
+        (internalFunctionYulParamNames spec.params ++ retNames) [] spec.body = Except.ok bodyStmts) :
     compileInternalFunction fields events errors [] spec =
       Except.ok
         (YulStmt.funcDef
           (internalFunctionYulName spec.name)
-          (spec.params.map (·.name))
+          (internalFunctionYulParamNames spec.params)
           retNames
           bodyStmts) := by
   have hbody' :
       compileStmtList fields events errors .calldata
         (freshInternalRetNames returns
-          (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
+          (internalFunctionYulParamNames spec.params ++ collectStmtListBindNames spec.body))
         true
-        (spec.params.map (·.name) ++
+        (internalFunctionYulParamNames spec.params ++
           freshInternalRetNames returns
-            (spec.params.map (·.name) ++ collectStmtListBindNames spec.body))
+            (internalFunctionYulParamNames spec.params ++ collectStmtListBindNames spec.body))
         []
         spec.body = Except.ok bodyStmts := by
     simpa [hretNames] using hbody
-  let paramNames := spec.params.map (·.name)
+  let paramNames := internalFunctionYulParamNames spec.params
   let compiledName := internalFunctionYulName spec.name
   have hmap :
       (YulStmt.funcDef
@@ -228,9 +240,9 @@ private def validateCompileInputsBeforeFieldWriteConflict
       throw s!"Compilation error: slotAliasRanges[{idxA}]={a.sourceStart}..{a.sourceEnd} and slotAliasRanges[{idxB}]={b.sourceStart}..{b.sourceEnd} overlap in source slots in {spec.name} ({issue623Ref}). Ensure slotAliasRanges source intervals are disjoint."
   | none =>
       pure ()
-  match firstInternalDynamicParam spec.functions with
+  match firstUnsupportedInternalDynamicParam spec.functions with
   | some (fnName, paramName, ty) =>
-      throw s!"Compilation error: internal function '{fnName}' parameter '{paramName}' has dynamic type {repr ty}, which is currently unsupported ({issue753Ref}). Internal dynamic ABI lowering is not implemented yet."
+      throw s!"Compilation error: internal function '{fnName}' parameter '{paramName}' has unsupported dynamic type {repr ty} ({issue753Ref}). Internal dynamic ABI lowering currently supports only dynamic arrays with single-word static elements."
   | none =>
       pure ()
   match firstDuplicateFunctionParamName spec.functions with
@@ -420,12 +432,16 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
       , checkedArrayElementWordMemoryHelper
       , checkedArrayElementDynamicWordCalldataHelper
       , checkedArrayElementDynamicWordMemoryHelper
+      , checkedArrayElementDynamicDataOffsetCalldataHelper
+      , checkedArrayElementDynamicDataOffsetMemoryHelper
       -- verity#1849 G1: dynamic-member length helpers share the
       -- `arrayElementWord` gate because they read the same struct-array
       -- elements and have negligible code size; conservative emission is
       -- correct and avoids a separate predicate.
       , checkedArrayElementDynamicMemberLengthCalldataHelper
       , checkedArrayElementDynamicMemberLengthMemoryHelper
+      , checkedArrayElementDynamicMemberDataOffsetCalldataHelper
+      , checkedArrayElementDynamicMemberDataOffsetMemoryHelper
       -- verity#1849 G2: dynamic-member element helpers gated the same way.
       , checkedArrayElementDynamicMemberElementCalldataHelper
       , checkedArrayElementDynamicMemberElementMemoryHelper
@@ -435,6 +451,12 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
     (if paramDynamicHeadWordHelpersRequired then
       [ checkedParamDynamicHeadWordCalldataHelper
       , checkedParamDynamicHeadWordMemoryHelper
+      , checkedParamDynamicMemberLengthCalldataHelper
+      , checkedParamDynamicMemberLengthMemoryHelper
+      , checkedParamDynamicMemberDataOffsetCalldataHelper
+      , checkedParamDynamicMemberDataOffsetMemoryHelper
+      , checkedParamDynamicMemberElementCalldataHelper
+      , checkedParamDynamicMemberElementMemoryHelper
       ]
     else
       []) ++

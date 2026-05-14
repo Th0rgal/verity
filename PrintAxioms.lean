@@ -1156,16 +1156,10 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_halt_exec_atFuel  -- private
   -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_empty_body_markedPrefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_empty_body  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_bridgedStraightStmts_falling_through  -- private
   -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_leave_body_markedPrefix  -- private
-  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_label_prefix_leave_body_markedPrefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_leave_body  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_leave_body_with_label_prefix  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_nativePreservableStraightStmts_leave  -- private
   -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_block_leave_body_markedPrefix  -- private
-  -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_label_prefix_block_leave_body_markedPrefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_leave  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_leave_with_label_prefix  -- private
   -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_block_empty_body_markedPrefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_block_empty  -- private
   -- Compiler.Proofs.EndToEnd.nativeResultsMatchOn_execIRFunction_singleton_comment_body_markedPrefix  -- private
@@ -1205,23 +1199,8 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitBodyPreservesMatched_mapping_of_switchFresh  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived.of_exec_only_and_preserves  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_empty_body  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_empty_body  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_leave_body  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_block_empty  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_block_leave  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_leave_body_with_label_prefix  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_block_leave_with_label_prefix  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_singleton_comment  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_bridgedStraightStmts_falling_through  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_nativePreservableStraightStmts_leave  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_exec_only_and_revivedPreserves  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_leave_body  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_block_leave  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_leave_body_with_label_prefix  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_block_leave_with_label_prefix  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_block_empty  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_singleton_comment  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_bridgedStraightStmts_falling_through  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived.of_empty_body  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_empty_body  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitUserBodyBridgeAtFuelRevived.of_execIRFunction  -- private
@@ -1242,7 +1221,6 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_success_bridge_threshold  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_body_halt_bridge_atFuel  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFuel_revived_and_continuation  -- private
-  -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFuel_revivedLeaveAware_and_continuation  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFuel_revived  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_user_body_exec_bridge_atFuel_revived_and_continuation  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_user_body_exec_bridge_atFuel_revived  -- private
@@ -1253,14 +1231,6 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_empty_body  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_block_empty  -- private
   -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_singleton_comment  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_bridgedStraightStmts_falling_through  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_bridgedStraightStmts_falling_through_with_label_prefix  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_leave_body_with_label_prefix  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_block_leave_with_label_prefix  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_nativePreservableStraightStmts_leave_with_label_prefix  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_leave_body  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_block_leave  -- private
-  -- Compiler.Proofs.EndToEnd.NativeGeneratedSelectorHitSuccessBridge.of_nativePreservableStraightStmts_leave  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_user_body_exec_bridge_success_only_atFuel_revived_and_continuation  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_user_body_exec_bridge_success_only_atFuel_revived  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_empty_selected_body  -- private
@@ -1275,7 +1245,6 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selected_user_body_result_threshold  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_stop_body  -- private
   Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported
-  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher_via_result  -- private
   Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_compile_ok_supported_generated_callDispatcher
   -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_body_bridge_and_continuation  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_with_selector_hit_user_body_bridge_and_continuation  -- private
@@ -2785,6 +2754,9 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDiv512Down  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDiv512Up  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicHeadWord  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicMemberLength  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicMemberDataOffset  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicMemberElement  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_call  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_staticcall  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_delegatecall  -- private
@@ -2822,7 +2794,9 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElement  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementWord  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicWord  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicDataOffset  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicMemberLength  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicMemberDataOffset  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicMemberElement  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingWord  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingPackedWord  -- private
@@ -4561,8 +4535,6 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_nil_ok_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_leave_ok_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_block_leave_ok_add_ten
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_label_prefix_leave_ok_add_ten
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_label_prefix_block_leave_ok_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_block_nil_ok_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_stop_halt_add_ten
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_noop_block_head_eq
@@ -4828,7 +4800,6 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_eval_preserves_and_nativeStmtsWriteNames_not_mem
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_cond_preserves
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_if_of_cond_preserves_and_nativeStmtsWriteNames_not_mem
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_if_of_cond_preserves_reviveJump
   Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchBranchFold_ok_preserves_word
   Compiler.Proofs.YulGeneration.Backends.Native.execSwitchCases_ok_branch_preserves_word
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_switch_of_eval_preserves
@@ -4870,12 +4841,6 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_leave
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_empty_block
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_revived_block_leave
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_block_empty_then_leave
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_of_never_ok
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_never_ok
-  -- Compiler.Proofs.YulGeneration.Backends.Native.exec_block_nativeRevertZeroZero_low_fuel_ne_ok  -- private
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_nativeRevertZeroZero
-  Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_block_empty_then_block_leave
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_comment
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let
   Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_let_of_write_not_mem
@@ -5617,4 +5582,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5331 theorems/lemmas (3572 public, 1759 private, 0 sorry'd)
+-- Total: 5296 theorems/lemmas (3564 public, 1732 private, 0 sorry'd)

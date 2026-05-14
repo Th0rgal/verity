@@ -574,6 +574,13 @@ private def ceilDivVal (lhs rhs : Verity.Core.Uint256) : Nat :=
   if lhs == 0 then 0 else ((lhs - 1) / rhs + 1).val
 
 def evalExpr (fields : List Field) (state : RuntimeState) : Expr → Option Nat
+  | .arrayElementDynamicDataOffset _ _ => none
+  | .arrayElementDynamicMemberLength _ _ _ => none
+  | .arrayElementDynamicMemberDataOffset _ _ _ => none
+  | .arrayElementDynamicMemberElement _ _ _ _ => none
+  | .paramDynamicMemberLength _ _ => none
+  | .paramDynamicMemberDataOffset _ _ => none
+  | .paramDynamicMemberElement _ _ _ => none
   | .literal n => some (wordNormalize n)
   | .param name => some (lookupValue state.bindings name)
     | .storage fieldName =>
@@ -1041,6 +1048,28 @@ private theorem evalExpr_paramDynamicHeadWord
     (wordOffset : Nat) :
     evalExpr fields state (.paramDynamicHeadWord name wordOffset) = none := rfl
 
+private theorem evalExpr_paramDynamicMemberLength
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (wordOffset : Nat) :
+    evalExpr fields state (.paramDynamicMemberLength name wordOffset) = none := rfl
+
+private theorem evalExpr_paramDynamicMemberDataOffset
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (wordOffset : Nat) :
+    evalExpr fields state (.paramDynamicMemberDataOffset name wordOffset) = none := rfl
+
+private theorem evalExpr_paramDynamicMemberElement
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (wordOffset : Nat)
+    (innerIndex : Expr) :
+    evalExpr fields state (.paramDynamicMemberElement name wordOffset innerIndex) = none := rfl
+
 private theorem evalExpr_call
     (fields : List Field)
     (state : RuntimeState)
@@ -1379,6 +1408,13 @@ private theorem evalExpr_arrayElementDynamicWord
     (wordOffset : Nat) :
     evalExpr fields state (.arrayElementDynamicWord name index wordOffset) = none := rfl
 
+private theorem evalExpr_arrayElementDynamicDataOffset
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (index : Expr) :
+    evalExpr fields state (.arrayElementDynamicDataOffset name index) = none := rfl
+
 private theorem evalExpr_arrayElementDynamicMemberLength
     (fields : List Field)
     (state : RuntimeState)
@@ -1386,6 +1422,14 @@ private theorem evalExpr_arrayElementDynamicMemberLength
     (index : Expr)
     (wordOffset : Nat) :
     evalExpr fields state (.arrayElementDynamicMemberLength name index wordOffset) = none := rfl
+
+private theorem evalExpr_arrayElementDynamicMemberDataOffset
+    (fields : List Field)
+    (state : RuntimeState)
+    (name : String)
+    (index : Expr)
+    (wordOffset : Nat) :
+    evalExpr fields state (.arrayElementDynamicMemberDataOffset name index wordOffset) = none := rfl
 
 private theorem evalExpr_arrayElementDynamicMemberElement
     (fields : List Field)
@@ -2731,10 +2775,13 @@ mutual
     -- the 200 000-heartbeat ceiling whenever a new `Expr` constructor
     -- lands (verity#1842).
     | .mulDiv512Down _ _ _ | .mulDiv512Up _ _ _
-    | .paramDynamicHeadWord _ _
+    | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+    | .paramDynamicMemberDataOffset _ _ | .paramDynamicMemberElement _ _ _
     | .arrayLength _ | .arrayElement _ _
     | .arrayElementWord _ _ _ _ | .arrayElementDynamicWord _ _ _
+    | .arrayElementDynamicDataOffset _ _
     | .arrayElementDynamicMemberLength _ _ _
+    | .arrayElementDynamicMemberDataOffset _ _ _
     | .arrayElementDynamicMemberElement _ _ _ _
     | .extcodesize _ | .returndataSize | .returndataOptionalBoolAt _
     | .keccak256 _ _
@@ -3599,6 +3646,7 @@ theorem SupportedSpecHelperProofs.functionSummariesSound
       (hSupported.supportedFunctionOfSelectorDispatched hfn).body.calls.helpers :=
   (SupportedSpecHelperProofs.functionProofs hSupported hProofs fn hfn).summariesSound
 
+set_option maxHeartbeats 800000 in
 mutual
   private theorem exprList_all_helperSurfaceClosed
       {exprs : List Expr}
@@ -3621,6 +3669,7 @@ mutual
       (expr : Expr)
       (hsurface : exprTouchesUnsupportedHelperSurface expr = false) :
       evalExprWithHelpers spec fields fuel state expr = evalExpr fields state expr := by
+    set_option maxHeartbeats 800000 in
     cases expr with
     | internalCall _ _ =>
         simp [exprTouchesUnsupportedHelperSurface] at hsurface
@@ -3749,8 +3798,12 @@ mutual
         simp [evalExprWithHelpers, evalExpr_arrayElementWord]
     | arrayElementDynamicWord _ b _ =>
         simp [evalExprWithHelpers, evalExpr_arrayElementDynamicWord]
+    | arrayElementDynamicDataOffset _ b =>
+        simp [evalExprWithHelpers, evalExpr_arrayElementDynamicDataOffset]
     | arrayElementDynamicMemberLength _ b _ =>
         simp [evalExprWithHelpers, evalExpr_arrayElementDynamicMemberLength]
+    | arrayElementDynamicMemberDataOffset _ b _ =>
+        simp [evalExprWithHelpers, evalExpr_arrayElementDynamicMemberDataOffset]
     | arrayElementDynamicMemberElement _ a _ b =>
         simp [evalExprWithHelpers, evalExpr_arrayElementDynamicMemberElement]
     | mappingWord _ b _ | mappingPackedWord _ b _ _ | structMember _ b _ =>
@@ -3792,6 +3845,14 @@ mutual
         simp [evalExprWithHelpers, evalExpr_mulDiv512Down, evalExpr_mulDiv512Up]
     | paramDynamicHeadWord _ _ =>
         simp [evalExprWithHelpers, evalExpr_paramDynamicHeadWord]
+    | paramDynamicMemberLength _ _ | paramDynamicMemberDataOffset _ _ =>
+        simp [evalExprWithHelpers, evalExpr_paramDynamicMemberLength,
+          evalExpr_paramDynamicMemberDataOffset]
+    | paramDynamicMemberElement _ _ b =>
+        simp only [exprTouchesUnsupportedHelperSurface] at hsurface
+        have hb :=
+          evalExprWithHelpers_eq_evalExpr_of_helperSurfaceClosed spec fields fuel state b hsurface
+        simpa [evalExprWithHelpers, evalExpr_paramDynamicMemberElement, hb]
     | ite cond thenVal elseVal =>
         simp only [exprTouchesUnsupportedHelperSurface, Bool.or_eq_false_iff] at hsurface
         have hcond :=

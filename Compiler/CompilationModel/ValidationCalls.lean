@@ -30,6 +30,8 @@ def reservedExternalNames
       , checkedArrayElementWordMemoryHelperName
       , checkedArrayElementDynamicWordCalldataHelperName
       , checkedArrayElementDynamicWordMemoryHelperName
+      , checkedArrayElementDynamicDataOffsetCalldataHelperName
+      , checkedArrayElementDynamicDataOffsetMemoryHelperName
       ]
     else
       []
@@ -37,6 +39,12 @@ def reservedExternalNames
     if paramDynamicHeadWordHelpersRequired then
       [ checkedParamDynamicHeadWordCalldataHelperName
       , checkedParamDynamicHeadWordMemoryHelperName
+      , checkedParamDynamicMemberLengthCalldataHelperName
+      , checkedParamDynamicMemberLengthMemoryHelperName
+      , checkedParamDynamicMemberDataOffsetCalldataHelperName
+      , checkedParamDynamicMemberDataOffsetMemoryHelperName
+      , checkedParamDynamicMemberElementCalldataHelperName
+      , checkedParamDynamicMemberElementMemoryHelperName
       ]
     else
       []
@@ -78,7 +86,12 @@ def firstReservedExternalCollision
         storageArrayHelpersRequired
         dynamicBytesEqHelpersRequired).contains name)
 
-def firstInternalDynamicParam
+def internalDynamicParamSupported : ParamType → Bool
+  | ParamType.array _ => true
+  | ty@(ParamType.tuple _) => isDynamicParamType ty
+  | _ => false
+
+def firstUnsupportedInternalDynamicParam
     (fns : List FunctionSpec) : Option (String × String × ParamType) :=
   let rec goFns : List FunctionSpec → Option (String × String × ParamType)
     | [] => none
@@ -86,10 +99,25 @@ def firstInternalDynamicParam
         if !fn.isInternal then
           goFns rest
         else
-          match fn.params.find? (fun p => isDynamicParamType p.ty) with
+          match fn.params.find? (fun p => isDynamicParamType p.ty && !internalDynamicParamSupported p.ty) with
           | some p => some (fn.name, p.name, p.ty)
           | none => goFns rest
   goFns fns
+
+def internalCallYulArgCountForParam : ParamType → Nat
+  | ParamType.array _ => 2
+  | _ => 1
+
+def internalCallYulArgCount (params : List Param) : Nat :=
+  params.foldl (fun acc param => acc + internalCallYulArgCountForParam param.ty) 0
+
+def linkedExternalCallYulArgCountForParam : ParamType → Nat
+  | ParamType.array elemTy => if isSingleWordStaticParamType elemTy then 2 else 1
+  | ParamType.bytes | ParamType.string => 2
+  | _ => 1
+
+def linkedExternalCallYulArgCount (params : List ParamType) : Nat :=
+  params.foldl (fun acc paramTy => acc + linkedExternalCallYulArgCountForParam paramTy) 0
 
 def findInternalFunctionByName (functions : List FunctionSpec)
     (callerName calleeName : String) : Except String FunctionSpec := do
@@ -107,8 +135,9 @@ def validateInternalCallShapesInExpr
   | Expr.internalCall calleeName args => do
       validateInternalCallShapesInExprList functions callerName args
       let callee ← findInternalFunctionByName functions callerName calleeName
-      if args.length != callee.params.length then
-        throw s!"Compilation error: function '{callerName}' calls internal function '{calleeName}' with {args.length} args, expected {callee.params.length} ({issue625Ref})."
+      let expectedArgs := internalCallYulArgCount callee.params
+      if args.length != expectedArgs then
+        throw s!"Compilation error: function '{callerName}' calls internal function '{calleeName}' with {args.length} Yul arg(s), expected {expectedArgs} ({issue625Ref})."
       let returns ← functionReturns callee
       if returns.length != 1 then
         throw s!"Compilation error: function '{callerName}' uses Expr.internalCall '{calleeName}' but callee returns {returns.length} values; use Stmt.internalCallAssign for multi-return calls ({issue625Ref})."
@@ -165,10 +194,14 @@ def validateInternalCallShapesInExpr
   | Expr.arrayElement _ index
   | Expr.arrayElementWord _ index _ _
   | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicDataOffset _ index
+  | Expr.arrayElementDynamicMemberDataOffset _ index _
   | Expr.arrayElementDynamicMemberLength _ index _ =>
       validateInternalCallShapesInExpr functions callerName index
   | Expr.arrayElementDynamicMemberElement _ index _ innerIndex => do
       validateInternalCallShapesInExpr functions callerName index
+      validateInternalCallShapesInExpr functions callerName innerIndex
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
       validateInternalCallShapesInExpr functions callerName innerIndex
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b |
@@ -208,6 +241,8 @@ def validateInternalCallShapesInExpr
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       pure ()
@@ -287,8 +322,9 @@ def validateInternalCallShapesInStmt
   | Stmt.internalCall calleeName args => do
       validateInternalCallShapesInExprList functions callerName args
       let callee ← findInternalFunctionByName functions callerName calleeName
-      if args.length != callee.params.length then
-        throw s!"Compilation error: function '{callerName}' calls internal function '{calleeName}' with {args.length} args, expected {callee.params.length} ({issue625Ref})."
+      let expectedArgs := internalCallYulArgCount callee.params
+      if args.length != expectedArgs then
+        throw s!"Compilation error: function '{callerName}' calls internal function '{calleeName}' with {args.length} Yul arg(s), expected {expectedArgs} ({issue625Ref})."
       let returns ← functionReturns callee
       if !returns.isEmpty then
         throw s!"Compilation error: function '{callerName}' uses Stmt.internalCall '{calleeName}' but callee returns {returns.length} values; use Expr.internalCall for single-return or Stmt.internalCallAssign for multi-return calls ({issue625Ref})."
@@ -309,8 +345,9 @@ def validateInternalCallShapesInStmt
           pure ()
       validateInternalCallShapesInExprList functions callerName args
       let callee ← findInternalFunctionByName functions callerName calleeName
-      if args.length != callee.params.length then
-        throw s!"Compilation error: function '{callerName}' calls internal function '{calleeName}' with {args.length} args, expected {callee.params.length} ({issue625Ref})."
+      let expectedArgs := internalCallYulArgCount callee.params
+      if args.length != expectedArgs then
+        throw s!"Compilation error: function '{callerName}' calls internal function '{calleeName}' with {args.length} Yul arg(s), expected {expectedArgs} ({issue625Ref})."
       let returns ← functionReturns callee
       if returns.length != names.length then
         throw s!"Compilation error: function '{callerName}' binds {names.length} values from internal function '{calleeName}', but callee returns {returns.length} ({issue625Ref})."
@@ -365,8 +402,9 @@ def validateExternalCallTargetsInExpr
         | none =>
             throw s!"Compilation error: {context} references unknown external call target '{name}' ({issue732Ref}). Declare it in spec.externals."
         | some ext =>
-            if args.length != ext.params.length then
-              throw s!"Compilation error: {context} calls external '{name}' with {args.length} args, but spec.externals declares {ext.params.length} ({issue184Ref})."
+            let expectedArgs := linkedExternalCallYulArgCount ext.params
+            if args.length != expectedArgs then
+              throw s!"Compilation error: {context} calls external '{name}' with {args.length} Yul arg(s), expected {expectedArgs} ({issue184Ref})."
             let returns ← externalFunctionReturns ext
             if returns.length != 1 then
               throw s!"Compilation error: {context} uses Expr.externalCall '{name}' but spec.externals declares {returns.length} return values; Expr.externalCall requires exactly 1 ({issue184Ref})."
@@ -426,10 +464,14 @@ def validateExternalCallTargetsInExpr
   | Expr.arrayElement _ index
   | Expr.arrayElementWord _ index _ _
   | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicDataOffset _ index
+  | Expr.arrayElementDynamicMemberDataOffset _ index _
   | Expr.arrayElementDynamicMemberLength _ index _ =>
       validateExternalCallTargetsInExpr externals context index
   | Expr.arrayElementDynamicMemberElement _ index _ innerIndex => do
       validateExternalCallTargetsInExpr externals context index
+      validateExternalCallTargetsInExpr externals context innerIndex
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
       validateExternalCallTargetsInExpr externals context innerIndex
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b |
@@ -467,6 +509,8 @@ def validateExternalCallTargetsInExpr
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       pure ()
@@ -551,8 +595,9 @@ def validateExternalCallTargetsInStmt
       | none =>
           throw s!"Compilation error: {context} uses Stmt.externalCallBind with unknown external function '{externalName}'."
       | some ext => do
-          if args.length != ext.params.length then
-            throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} args, expected {ext.params.length}."
+          let expectedArgs := linkedExternalCallYulArgCount ext.params
+          if args.length != expectedArgs then
+            throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} Yul arg(s), expected {expectedArgs}."
           let returns ← externalFunctionReturns ext
           if returns.length != resultVars.length then
             throw s!"Compilation error: {context} binds {resultVars.length} values from external function '{externalName}', but it returns {returns.length}."
@@ -570,8 +615,9 @@ def validateExternalCallTargetsInStmt
       | none =>
           throw s!"Compilation error: {context} uses Stmt.tryExternalCallBind with unknown external function '{externalName}'."
       | some ext => do
-          if args.length != ext.params.length then
-            throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} args, expected {ext.params.length}."
+          let expectedArgs := linkedExternalCallYulArgCount ext.params
+          if args.length != expectedArgs then
+            throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} Yul arg(s), expected {expectedArgs}."
           let returns ← externalFunctionReturns ext
           if returns.length != resultVars.length then
             throw s!"Compilation error: {context} binds {resultVars.length} values from external function '{externalName}', but it returns {returns.length}."

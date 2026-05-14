@@ -28,6 +28,7 @@ inductive ValueType where
   | string
   | bytes
   | array (elemTy : ValueType)
+  | fixedArray (elemTy : ValueType) (size : Nat)
   | tuple (elemTys : List ValueType)
   | unit
   | newtype (name : String) (baseType : ValueType)  -- Semantic newtype; erased to baseType (#1727 Steps 3b/3c)
@@ -182,6 +183,7 @@ private partial def valueTypeSignatureComponent : ValueType → String
   | .bytes => "scalar_bytes"
   | .unit => "scalar_unit"
   | .array ty => "array_" ++ valueTypeSignatureComponent ty
+  | .fixedArray ty size => "fixed_array_" ++ toString size ++ "_" ++ valueTypeSignatureComponent ty
   | .tuple tys => "tuple" ++ toString tys.length ++ "_" ++ String.intercalate "__" (tys.map valueTypeSignatureComponent)
   | .newtype name baseType => "newtype_" ++ name ++ "_" ++ valueTypeSignatureComponent baseType
   | .struct name fields =>
@@ -195,6 +197,7 @@ private def functionSignatureKey (fn : FunctionDecl) : String :=
 private partial def valueTypeAbiSignatureComponent : ValueType → String
   | .newtype _ baseType => valueTypeAbiSignatureComponent baseType
   | .array ty => "array_" ++ valueTypeAbiSignatureComponent ty
+  | .fixedArray ty size => "fixed_array_" ++ toString size ++ "_" ++ valueTypeAbiSignatureComponent ty
   | .tuple tys => "tuple" ++ toString tys.length ++ "_" ++ String.intercalate "__" (tys.map valueTypeAbiSignatureComponent)
   | .struct _ fields =>
       "tuple" ++ toString fields.length ++ "_" ++ String.intercalate "__" (fields.map (fun field => valueTypeAbiSignatureComponent field.snd))
@@ -360,6 +363,13 @@ private partial def valueTypeFromSyntax
       | .unit => throwErrorAt ty "unsupported type '{ty}'; Array Unit is not allowed"
       | .array _ => throwErrorAt ty "unsupported type '{ty}'; nested arrays are not supported"
       | _ => pure (.array elem)
+  | `(term| FixedArray $elemTy:term $size:num) =>
+      let elem ← valueTypeFromSyntax newtypes structDecls adtDecls elemTy
+      let n ← natFromSyntax size
+      match elem with
+      | .unit => throwErrorAt ty "unsupported type '{ty}'; FixedArray Unit is not allowed"
+      | .array _ => throwErrorAt ty "unsupported type '{ty}'; FixedArray of dynamic Array is not supported"
+      | _ => pure (.fixedArray elem n)
   | `(term| Tuple [ $[$elemTys:term],* ]) =>
       let elems ← elemTys.mapM (valueTypeFromSyntax newtypes structDecls adtDecls)
       if elems.size < 2 then
@@ -380,9 +390,9 @@ private partial def valueTypeFromSyntax
           | some decl =>
               let maxFields := decl.variants.foldl (fun acc v => max acc v.fields.size) 0
               pure (.adt decl.name maxFields)
-          | none => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, a user-defined struct, or a user-defined type from the `types` or `inductive` section"
+          | none => throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, FixedArray <type> <size>, Tuple [...], Unit, a user-defined struct, or a user-defined type from the `types` or `inductive` section"
   | _ =>
-      throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, Tuple [...], Unit, a user-defined struct, or a user-defined type from the `types` or `inductive` section"
+      throwErrorAt ty "unsupported type '{ty}'; expected Uint256, Int256, Uint8, Address, Bytes32, Bool, String, Bytes, Array <type>, FixedArray <type> <size>, Tuple [...], Unit, a user-defined struct, or a user-defined type from the `types` or `inductive` section"
 
 private def storageTypeFromSyntax (newtypes : Array NewtypeDecl) (structDecls : Array StructDecl := #[]) (adtDecls : Array AdtDecl := #[]) (ty : Term) : CommandElabM StorageType := do
   let keyTypeFromSyntax (stx : Term) : CommandElabM MappingKeyType := do
@@ -489,6 +499,7 @@ private def modelFieldTypeTerm (ty : StorageType) : CommandElabM Term :=
   | .scalar .string => throwError "storage fields cannot be String; use Uint256 encoding"
   | .scalar .bytes => throwError "storage fields cannot be Bytes; use Uint256 encoding"
   | .scalar (.array _) => throwError "storage fields cannot be Array; use mapping encodings"
+  | .scalar (.fixedArray _ _) => throwError "storage fields cannot be FixedArray; use mapping encodings"
   | .scalar (.tuple _) => throwError "storage fields cannot be Tuple; use mapping encodings"
   | .scalar (.struct _ _) =>
       throwError
@@ -539,6 +550,8 @@ private partial def modelParamTypeTerm (ty : ValueType) : CommandElabM Term :=
   | .bytes => `(Compiler.CompilationModel.ParamType.bytes)
   | .array elemTy => do
       `(Compiler.CompilationModel.ParamType.array $(← modelParamTypeTerm elemTy))
+  | .fixedArray elemTy size => do
+      `(Compiler.CompilationModel.ParamType.fixedArray $(← modelParamTypeTerm elemTy) $(natTerm size))
   | .tuple elemTys => do
       let elemTerms ← elemTys.mapM modelParamTypeTerm
       `(Compiler.CompilationModel.ParamType.tuple [ $[$elemTerms.toArray],* ])
@@ -564,6 +577,7 @@ private def modelReturnTypeTerm (ty : ValueType) : CommandElabM Term :=
   | .string => `(none)
   | .bytes => `(none)
   | .array _ => `(none)
+  | .fixedArray _ _ => `(none)
   | .tuple _ => `(none)
   | .struct _ _ => `(none)
   | .newtype _ baseType => modelReturnTypeTerm baseType
@@ -582,6 +596,8 @@ private partial def modelReturnsTerm (ty : ValueType) : CommandElabM Term :=
   | .bytes => `([Compiler.CompilationModel.ParamType.bytes])
   | .array elemTy => do
       `([Compiler.CompilationModel.ParamType.array $(← modelParamTypeTerm elemTy)])
+  | .fixedArray elemTy size => do
+      `([Compiler.CompilationModel.ParamType.fixedArray $(← modelParamTypeTerm elemTy) $(natTerm size)])
   | .tuple elemTys => do
       let elemTerms ← elemTys.mapM modelParamTypeTerm
       `([ $[$elemTerms.toArray],* ])
@@ -606,6 +622,9 @@ private partial def valueTypeFromModelParamType? : Compiler.CompilationModel.Par
   | .array elemTy => do
       let elem ← valueTypeFromModelParamType? elemTy
       some (.array elem)
+  | .fixedArray elemTy size => do
+      let elem ← valueTypeFromModelParamType? elemTy
+      some (.fixedArray elem size)
   | .tuple elemTys => do
       let elems ← elemTys.mapM valueTypeFromModelParamType?
       some (.tuple elems)
@@ -613,7 +632,6 @@ private partial def valueTypeFromModelParamType? : Compiler.CompilationModel.Par
       let base ← valueTypeFromModelParamType? baseType
       some (.newtype name base)
   | .adt name maxFields => some (.adt name maxFields)
-  | .fixedArray _ _ => none
 
 private unsafe def evalQualifiedFunctionSpec
     (fnName : Name) : CommandElabM Compiler.CompilationModel.FunctionSpec := do
@@ -661,6 +679,8 @@ private partial def contractValueTypeTerm (ty : ValueType) : CommandElabM Term :
   | .string => `(String)
   | .bytes => `(ByteArray)
   | .array elemTy => do
+      `(Array $(← contractValueTypeTerm elemTy))
+  | .fixedArray elemTy _size => do
       `(Array $(← contractValueTypeTerm elemTy))
   | .tuple elemTys => mkTupleContractType elemTys
   | .unit => `(Unit)
@@ -1066,6 +1086,7 @@ private partial def containsAdtValueType : ValueType → Bool
   | .adt _ _ => true
   | .newtype _ baseType => containsAdtValueType baseType
   | .array elemTy => containsAdtValueType elemTy
+  | .fixedArray elemTy _ => containsAdtValueType elemTy
   | .tuple elemTys => elemTys.any containsAdtValueType
   | .struct _ fields => fields.any (fun field => containsAdtValueType field.snd)
   | _ => false
@@ -1083,6 +1104,12 @@ private def externalExecutableWordType? : ValueType → Bool
   | .newtype _ baseType => externalExecutableWordType? baseType
   | _ => false
 
+private def externalExecutableParamType? : ValueType → Bool
+  | .array elemTy => externalExecutableWordType? elemTy
+  | .bytes | .string => true
+  | .newtype _ baseType => externalExecutableParamType? baseType
+  | ty => externalExecutableWordType? ty
+
 private def validateExternalExecutableType
     (extIdent : Ident)
     (extName : String)
@@ -1091,6 +1118,14 @@ private def validateExternalExecutableType
   if !externalExecutableWordType? ty then
     throwErrorAt extIdent
       s!"linked external '{extName}' uses unsupported {role} type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool"
+
+private def validateExternalExecutableParamType
+    (extIdent : Ident)
+    (extName : String)
+    (ty : ValueType) : CommandElabM Unit := do
+  if !externalExecutableParamType? ty then
+    throwErrorAt extIdent
+      s!"linked external '{extName}' uses unsupported parameter type; executable externalCall currently supports word-like values plus direct Array<word-like>, Bytes, and String calldata parameters"
 
 private def tupleElemsFromTerm? (stx : Term) : Option (Array Term) :=
   tupleElemsFromSyntax? (stripParens stx).raw |>.map (·.map (fun syn => ⟨syn⟩))
@@ -1469,8 +1504,17 @@ private def isSingleWordStaticValueType : ValueType → Bool
   | .newtype _ baseType => isSingleWordStaticValueType baseType
   | ty => isWordLikeValueType ty
 
+private def externalCallDynamicArgSupported (ty : ValueType) : Bool :=
+  match ty with
+  | .array elemTy => isSingleWordStaticValueType elemTy
+  | .bytes | .string => true
+  | _ => false
+
 private partial def staticAbiWordCount? : ValueType → Option Nat
   | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool => some 1
+  | .fixedArray elemTy size => do
+      let elemWords ← staticAbiWordCount? elemTy
+      some (size * elemWords)
   | .tuple elemTys =>
       elemTys.foldl
         (fun acc ty =>
@@ -1491,6 +1535,10 @@ private partial def staticAbiWordCount? : ValueType → Option Nat
 private partial def abiLocalHeadWordCount? : ValueType → Option Nat
   | .uint256 | .int256 | .uint8 | .address | .bytes32 | .bool
   | .string | .bytes | .array _ => some 1
+  | .fixedArray elemTy size => do
+      match staticAbiWordCount? elemTy with
+      | some elemWords => some (size * elemWords)
+      | none => some size
   | .tuple elemTys =>
       elemTys.foldl
         (fun acc ty =>
@@ -1510,6 +1558,7 @@ private partial def abiLocalHeadWordCount? : ValueType → Option Nat
 
 private partial def valueTypeUsesDynamicData : ValueType → Bool
   | .string | .bytes | .array _ => true
+  | .fixedArray elemTy _ => valueTypeUsesDynamicData elemTy
   | .tuple elemTys => elemTys.any valueTypeUsesDynamicData
   | .struct _ fields => fields.any (fun field => valueTypeUsesDynamicData field.snd)
   | .newtype _ baseType => valueTypeUsesDynamicData baseType
@@ -1519,6 +1568,11 @@ private partial def valueTypeUsesDynamicData : ValueType → Bool
 private partial def abiParentHeadWordCount? (ty : ValueType) : Option Nat :=
   match ty with
   | .string | .bytes | .array _ => some 1
+  | .fixedArray elemTy size =>
+      if valueTypeUsesDynamicData (.fixedArray elemTy size) then
+        some 1
+      else
+        abiLocalHeadWordCount? (.fixedArray elemTy size)
   | .tuple _ | .struct _ _ =>
       if valueTypeUsesDynamicData ty then
         some 1
@@ -1615,10 +1669,10 @@ private partial def structProjectionPath? (stx : Term) : Option (Term × List St
           some (mkIdent (Name.mkSimple root), field :: rest)
       | _ => none
   | `(term| $base:term.$field:ident) =>
-      let fieldName := toString field.getId
+      let fieldPath := (toString field.getId).splitOn "."
       match structProjectionPath? base with
-      | some (root, path) => some (root, path ++ [fieldName])
-      | none => some (base, [fieldName])
+      | some (root, path) => some (root, path ++ fieldPath)
+      | none => some (base, fieldPath)
   | _ => none
 
 private partial def structFieldPath?
@@ -1784,6 +1838,54 @@ private def paramDynamicHeadProjection?
       some (root, fieldTy, wordOffset)
     else
       none
+
+private def paramDynamicMemberProjection?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × ValueType × Nat) := do
+  let (root, path) ←
+    match (stripParens stx).raw with
+    | .ident _ raw _ _ =>
+        let parts := raw.toString.splitOn "."
+        let rec findParamPath : List String → Option (String × List String)
+          | [] | [_] => none
+          | rootName :: fieldName :: rest =>
+              if params.any (fun p => p.name == rootName) then
+                some (rootName, fieldName :: rest)
+              else
+                findParamPath (fieldName :: rest)
+        findParamPath parts
+    | _ =>
+        let (rootStx, path) ← structProjectionPath? stx
+        match stripParens rootStx with
+        | `(term| $id:ident) => some (toString id.getId, path)
+        | _ => none
+  let param ← params.find? (fun p => p.name == root)
+  if !valueTypeUsesDynamicData param.ty then
+    none
+  else
+    let (fieldTy, wordOffset) ← structFieldHeadOffset? param.ty path
+    match fieldTy with
+    | .array _ | .bytes | .string => some (root, fieldTy, wordOffset)
+    | _ => none
+
+private def arrayElementDynamicTupleArg?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × Term × ValueType) := do
+  match stripParens stx with
+  | `(term| arrayElement $name:term $index:term) =>
+      let paramName ←
+        match stripParens name with
+        | `(term| $id:ident) => some (toString id.getId)
+        | _ => none
+      let param ← params.find? (fun p => p.name == paramName)
+      let elemTy ← match param.ty with
+        | .array elemTy => some elemTy
+        | _ => none
+      if valueTypeUsesDynamicData elemTy then
+        some (paramName, index, elemTy)
+      else
+        none
+  | _ => none
 
 private def isParamStructNonLeafProjection (params : Array ParamDecl) (stx : Term) : Bool :=
   match paramStructProjectionResolved? params stx with
@@ -2078,14 +2180,22 @@ private def internalHelperSpecName
 private partial def hasDynamicInternalHelperType (ty : ValueType) : Bool :=
   match ty with
   | .string | .bytes | .array _ => true
+  | .fixedArray elemTy _ => hasDynamicInternalHelperType elemTy
   | .tuple elemTys => elemTys.any hasDynamicInternalHelperType
   | .struct _ fields => fields.any (fun field => hasDynamicInternalHelperType field.snd)
   | _ => false
 
+private def supportsInternalHelperParamType (ty : ValueType) : Bool :=
+  match ty with
+  | .array _ => true
+  | .struct _ _ => true
+  | .tuple _ => true
+  | _ => !hasDynamicInternalHelperType ty
+
 private def supportsInternalHelperSpec (fn : FunctionDecl) : Bool :=
   fn.name != "fallback" &&
     fn.name != "receive" &&
-    fn.params.all (fun param => !hasDynamicInternalHelperType param.ty) &&
+    fn.params.all (fun param => supportsInternalHelperParamType param.ty) &&
     !hasDynamicInternalHelperType fn.returnTy
 
 private def ensureSupportsInternalHelperSpec
@@ -2258,7 +2368,14 @@ private partial def inferPureExprType
     requireWordLikeType index "arrayElement index" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
     pure fieldTy
   else
+  if let some (_, index, fieldTy, _, _) := arrayElementDynamicMemberProjection? params stx then
+    requireWordLikeType index "arrayElement index" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
+    pure fieldTy
+  else
   if let some (_, fieldTy, _) := paramDynamicHeadProjection? params stx then
+    pure fieldTy
+  else
+  if let some (_, fieldTy, _) := paramDynamicMemberProjection? params stx then
     pure fieldTy
   else
   if isParamStructNonLeafProjection params stx then
@@ -2425,6 +2542,8 @@ private partial def inferPureExprType
       -- element type. Lowers through `Expr.arrayElementDynamicMemberLength`.
       if let some _ := arrayElementDynamicMemberProjection? params name then
         pure .uint256
+      else if let some _ := paramDynamicMemberProjection? params name then
+        pure .uint256
       else
         match lookupNamedValueType? constDecls immutableDecls params locals (← expectStringOrIdent name) with
         | some (.array _) => pure .uint256
@@ -2443,9 +2562,29 @@ private partial def inferPureExprType
               throwErrorAt name s!"arrayElement on a dynamic member of a struct-array element currently supports only Array<wordLike> members, got Array {renderValueType elemTy}"
         | _ =>
             throwErrorAt name s!"arrayElement on a struct-array element projection requires an Array-typed dynamic member, got {renderValueType fieldTy}"
+      else if let some (_, fieldTy, _) := paramDynamicMemberProjection? params name then
+        match fieldTy with
+        | .array elemTy =>
+            if isSingleWordStaticValueType elemTy then
+              pure elemTy
+            else
+              throwErrorAt name s!"arrayElement on a dynamic member of a struct parameter currently supports only Array<wordLike> members, got Array {renderValueType elemTy}"
+        | _ =>
+            throwErrorAt name s!"arrayElement on a struct parameter projection requires an Array-typed dynamic member, got {renderValueType fieldTy}"
       else
         let sourceTy ← requireDirectParamRef name "arrayElement" params
-        requireSupportedArrayElementSourceType name "arrayElement" sourceTy
+        match sourceTy with
+        | .array elemTy =>
+            match elemTy with
+            | .struct _ _ | .tuple _ =>
+              if valueTypeUsesDynamicData elemTy then
+                pure elemTy
+              else
+                requireSupportedArrayElementSourceType name "arrayElement" sourceTy
+            | _ =>
+              requireSupportedArrayElementSourceType name "arrayElement" sourceTy
+        | _ =>
+            requireSupportedArrayElementSourceType name "arrayElement" sourceTy
   | `(term| mulDivDown $a $b $c) | `(term| mulDivUp $a $b $c) => do
       for arg in [a, b, c] do
         requireWordLikeType arg "mulDiv" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg visitingConstants)
@@ -2467,7 +2606,22 @@ private partial def inferPureExprType
           for x in xs do
             -- verity#1849, G3: accept `Array <wordLike>` / `bytes` / `string`
             -- direct param refs alongside word-like args.
-            requireWordOrDirectArrayType x s!"externalCall '{extName}' argument" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x visitingConstants)
+            if let some (_, _, fieldTy, _elemTy, _) := arrayElementDynamicMemberProjection? params x then
+              match fieldTy with
+              | .array elemTy =>
+                  unless externalCallDynamicArgSupported (.array elemTy) do
+                    throwErrorAt x s!"externalCall '{extName}' dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+              | _ =>
+                  throwErrorAt x s!"externalCall '{extName}' dynamic-member argument requires an Array-typed member, got {renderValueType fieldTy}"
+            else if let some (_, fieldTy, _) := paramDynamicMemberProjection? params x then
+              match fieldTy with
+              | .array elemTy =>
+                  unless externalCallDynamicArgSupported (.array elemTy) do
+                    throwErrorAt x s!"externalCall '{extName}' dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+              | _ =>
+                  throwErrorAt x s!"externalCall '{extName}' dynamic-member argument requires an Array-typed member, got {renderValueType fieldTy}"
+            else
+              requireWordOrDirectArrayType x s!"externalCall '{extName}' argument" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x visitingConstants)
       | _ => throwErrorAt args "expected list literal [..]"
       match externalDecls.find? (fun ext => ext.name == extName) with
       | some ext =>
@@ -2681,8 +2835,16 @@ private partial def inferBindSourceType
           for x in xs do
             -- verity#1849, G3: accept `Array <wordLike>` / `bytes` / `string`
             -- direct param refs alongside word-like args.
-            requireWordOrDirectArrayType x s!"tryExternalCall '{extName}' argument"
-              (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
+            if let some (_, _, fieldTy, _elemTy, _) := arrayElementDynamicMemberProjection? params x then
+              match fieldTy with
+              | .array elemTy =>
+                  unless externalCallDynamicArgSupported (.array elemTy) do
+                    throwErrorAt x s!"tryExternalCall '{extName}' dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+              | _ =>
+                  throwErrorAt x s!"tryExternalCall '{extName}' dynamic-member argument requires an Array-typed member, got {renderValueType fieldTy}"
+            else
+              requireWordOrDirectArrayType x s!"tryExternalCall '{extName}' argument"
+                (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
       | _ => throwErrorAt args "expected list literal [..]"
       match externalDecls.find? (fun ext => ext.name == extName) with
       | some ext =>
@@ -2797,7 +2959,7 @@ private partial def inferTupleSourceTypes?
           match stripParens args with
           | `(term| [ $[$xs],* ]) =>
               for x in xs do
-                requireWordLikeType x s!"tryExternalCall '{extName}' argument"
+                requireWordOrDirectArrayType x s!"tryExternalCall '{extName}' argument"
                   (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
           | _ => throwErrorAt args "expected list literal [..]"
           match externalDecls.find? (fun ext => ext.name == extName) with
@@ -3158,6 +3320,9 @@ partial def translatePureExprWithTypes
       $(strTerm paramName)
       $(natTerm wordOffset))
   else
+  if (paramDynamicMemberProjection? params stx).isSome then
+    throwErrorAt stx "dynamic struct parameter member cannot be used as a scalar expression; pass it to a helper/external expecting an Array or use arrayLength/arrayElement"
+  else
   if isParamStructNonLeafProjection params stx then
     throwStructNonLeafProjectionError stx
   else
@@ -3386,6 +3551,11 @@ partial def translatePureExprWithTypes
             $(strTerm paramName)
             $indexExpr
             $(natTerm wordOffset))
+      else if let some (paramName, _fieldTy, wordOffset) :=
+          paramDynamicMemberProjection? params name then
+        `(Compiler.CompilationModel.Expr.paramDynamicMemberLength
+            $(strTerm paramName)
+            $(natTerm wordOffset))
       else
         `(Compiler.CompilationModel.Expr.arrayLength $(strTerm (← expectStringOrIdent name)))
   | `(term| arrayElement $name:term $index:term) =>
@@ -3398,6 +3568,13 @@ partial def translatePureExprWithTypes
         `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberElement
             $(strTerm paramName)
             $outerIndexExpr
+            $(natTerm wordOffset)
+            $innerIndexExpr)
+      else if let some (paramName, _fieldTy, wordOffset) :=
+          paramDynamicMemberProjection? params name then
+        let innerIndexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants
+        `(Compiler.CompilationModel.Expr.paramDynamicMemberElement
+            $(strTerm paramName)
             $(natTerm wordOffset)
             $innerIndexExpr)
       else
@@ -3447,7 +3624,19 @@ partial def translatePureExprWithTypes
       let extName := ← expectStringOrIdent name
       let argsExprs ←
         match stripParens args with
-        | `(term| [ $[$xs],* ]) => xs.mapM (fun x => translatePureExprWithTypes fields constDecls immutableDecls params locals x visitingConstants)
+        | `(term| [ $[$xs],* ]) => do
+            let mut out : Array Term := #[]
+            for arg in xs do
+              match directParamNameWithType? params arg with
+              | some (name, ty) =>
+                  if externalCallDynamicArgSupported ty then
+                    out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_data_offset")))
+                    out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_length")))
+                  else
+                    out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg visitingConstants)
+              | none =>
+                  out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg visitingConstants)
+            pure out
         | _ => throwErrorAt args "expected list literal [..]"
       `(Compiler.CompilationModel.Expr.externalCall $(strTerm extName) [ $[$argsExprs],* ])
   | `(term| structMember $field:term $key:term $member:term) =>
@@ -3830,6 +4019,129 @@ private def tupleReturnValueExprs?
       | _ =>
           pure none
 
+private def translateInternalHelperCallArgs
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (fn : FunctionDecl)
+    (argTerms : Array Term) : CommandElabM (Array Term) := do
+  let mut out : Array Term := #[]
+  for idx in [:argTerms.size] do
+    let some arg := argTerms[idx]? | pure ()
+    let some fnParam := fn.params[idx]? | pure ()
+    match fnParam.ty with
+    | .array _ =>
+        match directParamNameWithType? params arg with
+        | some (name, _) =>
+            out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_data_offset")))
+            out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_length")))
+        | none =>
+            if let some (paramName, index, fieldTy, _elemTy, wordOffset) :=
+                arrayElementDynamicMemberProjection? params arg then
+              match fieldTy with
+              | .array _ =>
+                  let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+                  out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberDataOffset
+                    $(strTerm paramName)
+                    $indexExpr
+                    $(natTerm wordOffset)))
+                  out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+                    $(strTerm paramName)
+                    $indexExpr
+                    $(natTerm wordOffset)))
+              | _ =>
+                  throwErrorAt arg s!"helper call '{fn.name}' Array parameter '{fnParam.name}' requires an Array-typed projected member, got {renderValueType fieldTy}"
+            else if let some (paramName, fieldTy, wordOffset) :=
+                paramDynamicMemberProjection? params arg then
+              match fieldTy with
+              | .array _ =>
+                  out := out.push (← `(Compiler.CompilationModel.Expr.paramDynamicMemberDataOffset
+                    $(strTerm paramName)
+                    $(natTerm wordOffset)))
+                  out := out.push (← `(Compiler.CompilationModel.Expr.paramDynamicMemberLength
+                    $(strTerm paramName)
+                    $(natTerm wordOffset)))
+              | _ =>
+                  throwErrorAt arg s!"helper call '{fn.name}' Array parameter '{fnParam.name}' requires an Array-typed projected member, got {renderValueType fieldTy}"
+            else
+              throwErrorAt arg
+                s!"helper call '{fn.name}' Array parameter '{fnParam.name}' currently requires a direct Array parameter reference or projected struct-array member"
+    | _ =>
+        if valueTypeUsesDynamicData fnParam.ty then
+          match directParamNameWithType? params arg with
+          | some (name, ty) =>
+              if valueTypeUsesDynamicData ty then
+                out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_data_offset")))
+              else
+                out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+          | none =>
+              if let some (paramName, index, _elemTy) := arrayElementDynamicTupleArg? params arg then
+                let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+                out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicDataOffset
+                  $(strTerm paramName)
+                  $indexExpr))
+              else
+                out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+        else
+          out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+  pure out
+
+private def translateLinkedExternalCallArgs
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (argTerms : Array Term) : CommandElabM (Array Term) := do
+  let mut out : Array Term := #[]
+  for arg in argTerms do
+    match directParamNameWithType? params arg with
+    | some (name, ty) =>
+        if externalCallDynamicArgSupported ty then
+          out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_data_offset")))
+          out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_length")))
+        else
+          out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+    | none =>
+        if let some (paramName, index, fieldTy, _elemTy, wordOffset) :=
+            arrayElementDynamicMemberProjection? params arg then
+          match fieldTy with
+          | .array elemTy =>
+              if externalCallDynamicArgSupported (.array elemTy) then
+                let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+                out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberDataOffset
+                  $(strTerm paramName)
+                  $indexExpr
+                  $(natTerm wordOffset)))
+                out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+                  $(strTerm paramName)
+                  $indexExpr
+                  $(natTerm wordOffset)))
+              else
+                throwErrorAt arg s!"linked external dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+          | _ =>
+              throwErrorAt arg s!"linked external dynamic-member argument requires an Array-typed member, got {renderValueType fieldTy}"
+        else if let some (paramName, fieldTy, wordOffset) :=
+            paramDynamicMemberProjection? params arg then
+          match fieldTy with
+          | .array elemTy =>
+              if externalCallDynamicArgSupported (.array elemTy) then
+                out := out.push (← `(Compiler.CompilationModel.Expr.paramDynamicMemberDataOffset
+                  $(strTerm paramName)
+                  $(natTerm wordOffset)))
+                out := out.push (← `(Compiler.CompilationModel.Expr.paramDynamicMemberLength
+                  $(strTerm paramName)
+                  $(natTerm wordOffset)))
+              else
+                throwErrorAt arg s!"linked external dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+          | _ =>
+              throwErrorAt arg s!"linked external dynamic-member argument requires an Array-typed member, got {renderValueType fieldTy}"
+        else
+          out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+  pure out
+
 private def tupleInternalCallAssignStmt?
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -3855,8 +4167,8 @@ private def tupleInternalCallAssignStmt?
   match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals rhs with
   | some (fn, argTerms) =>
       ensureSupportsInternalHelperSpec rhs fn
-      let argExprs ← argTerms.mapM
-        (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+      let argExprs ← translateInternalHelperCallArgs
+        fields constDecls immutableDecls params locals fn argTerms
       pure (some (← `(Compiler.CompilationModel.Stmt.internalCallAssign
         [ $[$resultNameTerms],* ]
         $(strTerm (internalHelperSpecNameFor fn))
@@ -3895,7 +4207,7 @@ private def tryExternalCallBindStmt?
       let extName := ← expectStringOrIdent name
       let argExprs ← match stripParens args with
         | `(term| [ $[$xs],* ]) =>
-            xs.mapM (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+            translateLinkedExternalCallArgs fields constDecls immutableDecls params locals xs
         | _ => throwErrorAt args "expected list literal [..]"
       -- names[0] is the success flag, names[1..] are result vars
       let initialUsedNames := (params.toList.map (fun p => p.name)) ++ (typedLocalNames locals).toList ++ (names.filterMap id).toList
@@ -4146,8 +4458,8 @@ private def translateBindSource
       match ← resolveLocalFunctionApp? fields constDecls immutableDecls externalDecls functions params locals rhs with
       | some (fn, argTerms) =>
           ensureSupportsInternalHelperSpec rhs fn
-          let argExprs ← argTerms.mapM
-            (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+          let argExprs ← translateInternalHelperCallArgs
+            fields constDecls immutableDecls params locals fn argTerms
           `(Compiler.CompilationModel.Expr.internalCall
               $(strTerm (internalHelperSpecNameFor fn))
               [ $[$argExprs],* ])
@@ -5010,7 +5322,11 @@ private def translateEffectStmt
       let resultNames := ← expectStringList names
       let resultNameTerms := resultNames.map strTerm
       let targetFn := ← expectStringOrIdent fnName
-      let argExprs ← expectExprList fields constDecls immutableDecls params locals args
+      let argExprs ←
+        match stripParens args with
+        | `(term| [ $[$xs],* ]) =>
+            translateLinkedExternalCallArgs fields constDecls immutableDecls params locals xs
+        | _ => throwErrorAt args "expected list literal [..]"
       `(Compiler.CompilationModel.Stmt.externalCallBind
           [ $[$resultNameTerms],* ]
           $(strTerm targetFn)
@@ -5041,8 +5357,8 @@ private def translateEffectStmt
           if fn.returnTy != .unit then
             throwErrorAt stx
               s!"helper call '{fn.name}' returns {renderValueType fn.returnTy}; use `let ... ← {fn.name} ...` or tuple destructuring"
-          let argExprs ← argTerms.mapM
-            (translatePureExprWithTypes fields constDecls immutableDecls params locals)
+          let argExprs ← translateInternalHelperCallArgs
+            fields constDecls immutableDecls params locals fn argTerms
           `(Compiler.CompilationModel.Stmt.internalCall
               $(strTerm (internalHelperSpecNameFor fn))
               [ $[$argExprs],* ])
@@ -5503,6 +5819,62 @@ private def injectTupleParamAliases (params : Array ParamDecl) (body : Term) : C
     | _ => pure ()
   pure wrappedBody
 
+mutual
+private partial def rewriteForEachExecutableDoSeq
+    (doSeq : DoSeq) : CommandElabM DoSeq := do
+  match doSeq with
+  | `(doSeq| $[$elems:doElem]*) =>
+      let elems ← rewriteForEachExecutableDoElems elems
+      `(doSeq| $[$elems:doElem]*)
+  | _ => throwErrorAt doSeq "unsupported branch body; expected do-sequence"
+
+private partial def rewriteForEachExecutableDoElems
+    (elems : Array (TSyntax `doElem)) : CommandElabM (Array (TSyntax `doElem)) := do
+  let mut rewritten : Array (TSyntax `doElem) := #[]
+  for elem in elems do
+    rewritten := rewritten ++ (← rewriteForEachExecutableDoElem elem)
+  pure rewritten
+
+private partial def rewriteForEachExecutableDoElem
+    (elem : TSyntax `doElem) : CommandElabM (Array (TSyntax `doElem)) := do
+  match elem with
+  | `(doElem| forEach $name:term $_count:term $body:term) =>
+      let loopIdent := mkIdent (Name.mkSimple (← expectStringOrIdent name))
+      match stripParens body with
+      | `(term| do $[$inner:doElem]*) =>
+          let inner ← rewriteForEachExecutableDoElems inner
+          pure <| #[← `(doElem| let $loopIdent : Uint256 := 0)] ++ inner
+      | _ => throwErrorAt body "forEach body must be a do block"
+  | `(doElem| if $cond:term then $thenBranch:doSeq else $elseBranch:doSeq) =>
+      let thenBranch ← rewriteForEachExecutableDoSeq thenBranch
+      let elseBranch ← rewriteForEachExecutableDoSeq elseBranch
+      pure #[← `(doElem| if $cond then $thenBranch else $elseBranch)]
+  | `(doElem| tryCatch $attempt:term $handler:term) =>
+      let tryCatchFn := Lean.mkIdentFrom attempt `_root_.Contracts.tryCatchWord
+      match stripParens handler with
+      | `(term| fun $name:ident => do $[$catchElems:doElem]*) =>
+          let catchElems ← rewriteForEachExecutableDoElems catchElems
+          pure #[← `(doElem| $tryCatchFn:ident $attempt (fun $name => do $[$catchElems:doElem]*))]
+      | `(term| do $[$catchElems:doElem]*) =>
+          let catchElems ← rewriteForEachExecutableDoElems catchElems
+          pure #[← `(doElem| $tryCatchFn:ident $attempt (fun _ => do $[$catchElems:doElem]*))]
+      | _ =>
+          throwErrorAt handler
+            "tryCatch handler must be `fun _ => do ...` or a direct `do ...` block"
+  | `(doElem| unsafe $_reason:str do $body:doSeq) =>
+      let body ← rewriteForEachExecutableDoSeq body
+      pure #[← `(doElem| do $body)]
+  | other =>
+      pure #[other]
+end
+
+private def rewriteForEachExecutableBody (body : Term) : CommandElabM Term := do
+  match body with
+  | `(term| do $[$elems:doElem]*) =>
+      let elems ← rewriteForEachExecutableDoElems elems
+      `(do $[$elems:doElem]*)
+  | _ => pure body
+
 private def mkContractFnValue (params : Array ParamDecl) (body : Term) : CommandElabM Term := do
   let mut value ← injectTupleParamAliases params body
   for param in params.reverse do
@@ -5532,6 +5904,7 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
     | .scalar .string => throwError "storage field cannot be String; use Uint256 encoding"
     | .scalar .bytes => throwError "storage field cannot be Bytes; use Uint256 encoding"
     | .scalar (.array _) => throwError "storage field cannot be Array; use mapping encodings"
+    | .scalar (.fixedArray _ _) => throwError "storage field cannot be FixedArray; use mapping encodings"
     | .scalar (.tuple _) => throwError "storage field cannot be Tuple; use mapping encodings"
     | .scalar (.struct _ _) => throwError "storage field cannot be named struct; use mapping encodings"
     | .scalar .unit => throwError "storage field cannot be Unit"
@@ -6245,7 +6618,7 @@ def validateExternalDeclsPublic
     -- only supports single-return, but tryExternalCall supports any return count.
     -- (#1727, Axis 1 Step 5f)
     for paramTy in ext.params do
-      validateExternalExecutableType ext.ident ext.name paramTy "parameter"
+      validateExternalExecutableParamType ext.ident ext.name paramTy
     for returnTy in ext.returnTys do
       validateExternalExecutableType ext.ident ext.name returnTy "return"
     seenNames := seenNames.push ext.name
@@ -6327,7 +6700,8 @@ def mkFunctionCommandsPublic
   let fnDecl := { fn with body := fnRoleGuardedBody }
   let fnGuardedBody ← mkInitGuardedBody fields fnDecl
   let fnBody ← mkImmutableBoundBody fields immutableDecls fn fnGuardedBody
-  let fnValue ← mkContractFnValue fn.params fnBody
+  let fnExecutableBody ← rewriteForEachExecutableBody fnBody
+  let fnValue ← mkContractFnValue fn.params fnExecutableBody
   let modelBodyName ← mkSuffixedIdent fn.ident "_modelBody"
   let modelName ← mkSuffixedIdent fn.ident "_model"
   let stmtTerms ← translateBodyToStmtTerms fields constDecls immutableDecls externalDecls functions fn

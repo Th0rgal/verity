@@ -5039,8 +5039,8 @@ These theorems decompose the output of compilation functions to extract the
 exact IR structure, bridging compilation model data to `findInternalFunction?`. -/
 
 /-- The output of a successful `compileInternalFunction` is always a `funcDef`
-with Yul name `internalFunctionYulName spec.name` and parameter names
-`spec.params.map (·.name)`. -/
+with Yul name `internalFunctionYulName spec.name` and the expanded internal
+Yul parameter names for `spec.params`. -/
 theorem compileInternalFunction_output_shape
     {fields : List CompilationModel.Field}
     {events : List CompilationModel.EventDef}
@@ -5051,7 +5051,7 @@ theorem compileInternalFunction_output_shape
     ∃ retNames bodyStmts,
       stmt = YulStmt.funcDef
         (CompilationModel.internalFunctionYulName spec.name)
-        (spec.params.map (·.name))
+        (CompilationModel.internalFunctionYulParamNames spec.params)
         retNames bodyStmts := by
   simp only [CompilationModel.compileInternalFunction, bind, Except.bind] at hok
   -- Split on each fallible sub-computation; error cases are contradictory.
@@ -5112,12 +5112,12 @@ theorem findInternalFunction?_exact_of_compileInternalFunction_mem_unique
     ∃ retNames bodyStmts,
       findInternalFunction? contract (CompilationModel.internalFunctionYulName spec.name) =
         some { name := CompilationModel.internalFunctionYulName spec.name,
-               params := spec.params.map (·.name),
+               params := CompilationModel.internalFunctionYulParamNames spec.params,
                rets := retNames,
                body := bodyStmts } ∧
       compiledStmt = YulStmt.funcDef
         (CompilationModel.internalFunctionYulName spec.name)
-        (spec.params.map (·.name))
+        (CompilationModel.internalFunctionYulParamNames spec.params)
         retNames bodyStmts := by
   obtain ⟨retNames, bodyStmts, hshape⟩ := compileInternalFunction_output_shape hok
   refine ⟨retNames, bodyStmts, ?_, hshape⟩

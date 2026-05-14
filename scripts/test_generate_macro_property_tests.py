@@ -344,7 +344,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn("_singletonBoolArray", rendered)
         self.assertIn('abi.encodeWithSignature("consume(bool[])", _singletonBoolArray(true))', rendered)
 
-    def test_render_dynamic_element_array_still_fails_closed(self) -> None:
+    def test_render_dynamic_element_array_uses_abi_decode_fallback(self) -> None:
         contract = gen.ContractDecl(
             name="ArrayBytesConsumer",
             constructor=None,
@@ -354,8 +354,9 @@ class RenderTests(unittest.TestCase):
             ),
             storage_slots={},
         )
-        with self.assertRaisesRegex(ValueError, "unsupported Lean array element type"):
-            gen.render_contract_test(contract)
+        rendered = gen.render_contract_test(contract)
+        self.assertIn('abi.encodeWithSignature("consume(bytes[])"', rendered)
+        self.assertIn("abi.decode(abi.encode(uint256(0)), (bytes[]))", rendered)
 
     def test_render_dynamic_return_shape_assertion(self) -> None:
         contract = gen.ContractDecl(

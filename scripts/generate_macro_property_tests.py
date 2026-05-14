@@ -669,10 +669,7 @@ def _example_value(lean_ty: str) -> str:
             return "_singletonBoolArray(true)"
         if elem == "Bytes32":
             return "_singletonBytes32Array(bytes32(uint256(0xBEEF)))"
-        raise ValueError(
-            "unsupported Lean array element type for generated example value: "
-            f"{elem!r}"
-        )
+        return f"abi.decode(abi.encode(uint256(0)), ({_sol_type(ty)}))"
     if ty.startswith("Tuple [") and ty.endswith("]"):
         inner = ty[len("Tuple [") : -1]
         elems = _parse_tuple_elements(inner)

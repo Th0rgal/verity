@@ -9,6 +9,7 @@ import Contracts
 import Contracts.Smoke
 import Contracts.Smoke.ArrayElementDynamicMemberElementSmoke
 import Contracts.Smoke.ArrayElementDynamicMemberLengthSmoke
+import Contracts.Smoke.FixedArrayStructSmoke
 import Contracts.Smoke.UnlinkPoolShapeCheckSmoke
 import Contracts.Smoke.MathlibReservedBinderEscape
 import Contracts.Smoke.PackedHashECMSmoke
@@ -334,6 +335,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.LeanDefHelperSmoke.spec
   , Contracts.Smoke.DirectHelperCallSmoke.spec
   , Contracts.Smoke.MultiReturnHelperSmoke.spec
+  , Contracts.Smoke.ArrayHelperCallSmoke.spec
   , Contracts.Smoke.InitializerSmoke.spec
   , Contracts.Smoke.ConstantSmoke.spec
   , Contracts.Smoke.ImmutableSmoke.spec
@@ -358,12 +360,18 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.BlockTimestampSmoke.spec
   , Contracts.Smoke.SelfBalanceSmoke.spec
   , Contracts.Smoke.MathlibReservedBinderEscape.spec
+  , Contracts.Smoke.ForEachMutableLocalSmoke.spec
   , Contracts.Smoke.ArrayElementDynamicMemberLengthSmoke.spec
   , Contracts.Smoke.ArrayElementDynamicMemberElementSmoke.spec
+  , Contracts.Smoke.FixedArrayStructSmoke.spec
   , Contracts.Smoke.UnlinkPoolShapeCheckSmoke.spec
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
   , Contracts.Smoke.TryExternalCallSmoke.spec
+  , Contracts.Smoke.LinkedExternalDynamicArgSmoke.spec
+  , Contracts.Smoke.LinkedExternalProjectedArrayArgSmoke.spec
+  , Contracts.Smoke.NestedStructArrayProjectionSmoke.spec
+  , Contracts.Smoke.DynamicStructElementHelperArgSmoke.spec
   , Contracts.Smoke.ExternalCallMultiReturn.spec
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
@@ -458,6 +466,7 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("DirectHelperCallSmoke", ["addToTotal(uint256)", "readTotalPlus(uint256)", "pairWithTotal(uint256)",
       "runHelpers(uint256,uint256,uint256)", "snapshot()"])
   , ("MultiReturnHelperSmoke", ["summarize(uint256)", "useSummary(uint256)"])
+  , ("ArrayHelperCallSmoke", ["first(uint256[])", "useFirst(uint256[])"])
   , ("InitializerSmoke", ["initOwner(address)", "upgradeToV2()"])
   , ("ConstantSmoke", ["feeOn(uint256)", "treasuryAddr()"])
   , ("ImmutableSmoke", ["supplyCap()", "treasuryAddr()", "shadowed(uint256)"])
@@ -492,19 +501,37 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("BlockTimestampSmoke", ["nowish()", "timestampPlus(uint256)", "blobFeePlus(uint256)"])
   , ("SelfBalanceSmoke", ["currentBalance()", "balancePlus(uint256)"])
   , ("MathlibReservedBinderEscape", ["transferLike(address,uint256)", "transferLikeFrom(address,address,uint256)"])
+  , ("ForEachMutableLocalSmoke", ["sumValues(uint256[])", "sumOnCatch(uint256[])", "sumUnsafe(uint256[])"])
   , ("ArrayElementDynamicMemberLengthSmoke", ["proofLength((uint256[],address,uint256)[],uint256)"])
   , ("ArrayElementDynamicMemberElementSmoke", ["proofAt((uint256[],address,uint256)[],uint256,uint256)"])
+  , ("FixedArrayStructSmoke", ["rootOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
+      "nullifierCountOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
+      "commitmentCountOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
+      "ciphertextCountOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)"])
   , ("UnlinkPoolShapeCheckSmoke", ["nullifierCountOf((uint256,uint256[],uint256[],uint256)[],uint256)",
       "commitmentCountOf((uint256,uint256[],uint256[],uint256)[],uint256)",
       "nullifierAt((uint256,uint256[],uint256[],uint256)[],uint256,uint256)",
       "commitmentAt((uint256,uint256[],uint256[],uint256)[],uint256,uint256)",
       "validateInputShape((uint256,uint256[],uint256[],uint256)[],uint256,uint256)",
-      "validateOutputShape((uint256,uint256[],uint256[],uint256)[],uint256,uint256)"])
+      "validateOutputShape((uint256,uint256[],uint256[],uint256)[],uint256,uint256)",
+      "validateBatch((uint256,uint256[],uint256[],uint256)[],uint256,uint256)"])
   , ("StructMappingSmoke", ["setPosition(address,uint256,uint256,address)", "totalPositionShares(address)",
       "delegateOf(address)", "setApproval(address,address,uint256,uint256)", "approvalOf(address,address)",
       "approvalNonce(address,address)"])
   , ("ExternalCallSmoke", ["storeEcho(uint256)", "getEchoedValue()"])
   , ("TryExternalCallSmoke", ["tryEcho(uint256)"])
+  , ("LinkedExternalDynamicArgSmoke", ["hashLeaves(uint256[])", "sendLeaves(uint256[])",
+      "tryHash(uint256[])", "hashPayload(bytes)"])
+  , ("LinkedExternalProjectedArrayArgSmoke",
+      ["tryHashNullifiers((uint256,uint256[],uint256[])[],uint256)"])
+  , ("NestedStructArrayProjectionSmoke",
+      ["withdrawalAmount(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,address,uint256),uint256[])[],uint256)",
+       "consumeNullifiers(uint256[])",
+       "withdrawalAmountViaHelper(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,address,uint256),uint256[])[],uint256)",
+       "consumeNullifiersViaHelper(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,address,uint256),uint256[])[],uint256)"])
+  , ("DynamicStructElementHelperArgSmoke",
+      ["consumeValues(uint256[])", "inspect((uint256,uint256[]))",
+       "inspectAt((uint256,uint256[])[],uint256)"])
   , ("ExternalCallMultiReturn", ["callFanout(uint256)", "noop()"])
   , ("ERC20HelperSmoke", ["pushTokens(address,address,uint256)", "pullTokens(address,address,address,uint256)",
       "approveTokens(address,address,uint256)", "snapshotBalance(address,address)",
@@ -594,6 +621,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("LeanDefHelperSmoke", ["0x42dbad08", "0x9ca603a4"])
   , ("DirectHelperCallSmoke", ["0x623f577a", "0xe9696d56", "0xe176587e", "0xa392867e", "0x9711715a"])
   , ("MultiReturnHelperSmoke", ["0x9c9c9cd5", "0xbe1e29cd"])
+  , ("ArrayHelperCallSmoke", ["0x665cb27f", "0x3a11b9c7"])
   , ("InitializerSmoke", ["0x0d009297", "0xcc01053e"])
   , ("ConstantSmoke", ["0x9c421eb5", "0x30d9a62a"])
   , ("ImmutableSmoke", ["0x8f770ad0", "0x30d9a62a", "0x655b96ec"])
@@ -620,14 +648,21 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("BlockTimestampSmoke", ["0xa676760e", "0x8c041599", "0x7150df5e"])
   , ("SelfBalanceSmoke", ["0xce845d1d", "0x13b0662c"])
   , ("MathlibReservedBinderEscape", ["0x4fee5360", "0x4d1b4491"])
+  , ("ForEachMutableLocalSmoke", ["0x60bc84bc", "0x566ab477", "0x463324b5"])
   , ("ArrayElementDynamicMemberLengthSmoke", ["0xfbb81f5b"])
   , ("ArrayElementDynamicMemberElementSmoke", ["0x1ffe901b"])
+  , ("FixedArrayStructSmoke", ["0xe6f8cf0c", "0xf7910f7f", "0x82db9141", "0x82cb906c"])
   , ("UnlinkPoolShapeCheckSmoke", ["0x4b6e2141", "0xdb1ca006", "0x41620c25", "0x76524b94",
-      "0xfc01c1ec", "0xe4a609b8"])
+      "0xfc01c1ec", "0xe4a609b8", "0x2e759c7f"])
   , ("StructMappingSmoke", ["0x468c900e", "0xe7933b6a", "0x8d22ea2a", "0xf4536007", "0xcb01943e",
       "0x6c241120"])
   , ("ExternalCallSmoke", ["0x32fdff86", "0x21209dbd"])
   , ("TryExternalCallSmoke", ["0xaf842e53"])
+  , ("LinkedExternalDynamicArgSmoke", ["0xf1b3ebc7", "0x3f87a475", "0x35ea2663",
+      "0xc58b0a4d"])
+  , ("LinkedExternalProjectedArrayArgSmoke", ["0x2bda60e2"])
+  , ("NestedStructArrayProjectionSmoke", ["0x714fb4de", "0x14750c34", "0x8999bcc3", "0x5d157fb5"])
+  , ("DynamicStructElementHelperArgSmoke", ["0x3464e97c", "0x291f8f0b", "0xef6057fa"])
   , ("ExternalCallMultiReturn", ["0x70fce9a3", "0x5dfc2e4a"])
   , ("ERC20HelperSmoke", ["0xa6c29ca3", "0x6aa209a6", "0x912d6e28", "0x48476c71", "0xdac24aaf",
       "0x7247c4a5"])
@@ -983,6 +1018,17 @@ private def checkMultiReturnHelperSmoke : IO Unit := do
         helperName == "internal_summarize"
     | _ => false)
 
+private def checkArrayHelperCallSmoke : IO Unit := do
+  expectTrue
+    "ArrayHelperCallSmoke: dynamic Array helper arg expands to offset/length Yul args"
+    (match Contracts.Smoke.ArrayHelperCallSmoke.useFirst_modelBody with
+    | [Stmt.letVar "x"
+          (Expr.internalCall "internal_first"
+            [Expr.param "xs_data_offset", Expr.param "xs_length"]),
+        Stmt.setStorage "ok" (Expr.localVar "x"),
+        Stmt.stop] => true
+    | _ => false)
+
 private def checkNamedStructParamSmoke : IO Unit := do
   expectTrue
     "NamedStructParamSmoke: nested struct leaf projection uses recursive tuple binding"
@@ -1176,6 +1222,7 @@ private def checkSpec (spec : CompilationModel) : IO Unit := do
   checkSpecialEntrypointSmoke
   checkDirectHelperCallSmoke
   checkMultiReturnHelperSmoke
+  checkArrayHelperCallSmoke
   checkNamedStructParamSmoke
   checkCurveCutArraySmoke
   checkDynamicStructArraySmoke
