@@ -228,7 +228,28 @@ def returnArray {α : Type} (values : Array α) : Contract (Array α) := pure va
 def returnValues (_values : List Uint256) : Contract Unit := pure ()
 def returnBytes {α : Type} (value : α) : Contract α := pure value
 def returnStorageWords {α : Type} (_slots : Array α) : Contract (Array Uint256) := pure #[]
-def emit (name : String) (args : List Uint256) : Contract Unit := emitEvent name args
+
+inductive EventArg where
+  | word (value : Uint256)
+  | dynamicArray (length : Uint256)
+deriving Repr, DecidableEq
+
+namespace EventArg
+
+def toWord : EventArg → Uint256
+  | .word value => value
+  | .dynamicArray length => length
+
+end EventArg
+
+instance : Coe Uint256 EventArg where
+  coe value := EventArg.word value
+
+instance (α : Type) : CoeTC (Array α) EventArg where
+  coe values := EventArg.dynamicArray values.size
+
+def emit (name : String) (args : List EventArg) : Contract Unit :=
+  emitEvent name (args.map EventArg.toWord)
 def setPackedStorage {α : Type} (rootSlot : StorageSlot α) (wordOffset : Nat)
     (word : Uint256) : Contract Unit := fun state =>
   let targetSlot := (rootSlot.slot + wordOffset) % Compiler.Constants.evmModulus

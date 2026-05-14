@@ -1987,9 +1987,18 @@ verity_contract MacroEventTrace where
 
   event_defs
     event Transfer(@indexed amount : Uint256, total : Uint256)
+    event Amounts(total : Uint256, values : Array Uint256)
+    event MemoryAmounts(values : Array Uint256)
 
   function emitNamed (amount : Uint256, bonus : Uint256) : Unit := do
     emit "Transfer" [amount, add amount bonus]
+
+  function emitArray (total : Uint256, values : Array Uint256) : Unit := do
+    emit "Amounts" [total, values]
+
+  function emitMemoryArray (len : Uint256) : Unit := do
+    let values ← allocArray len
+    emit "MemoryAmounts" [values]
 
   function emitDynamicLog
       (topic0 : Uint256, topic1 : Uint256, dataOffset : Uint256, dataSize : Uint256) : Unit := do
@@ -2004,6 +2013,33 @@ def emitNamedModelUsesStmtEmit : Bool :=
 
 example : emitNamedModelUsesStmtEmit = true := by native_decide
 
+def emitArrayModelUsesDynamicArrayParam : Bool :=
+  match MacroEventTrace.emitArray_modelBody with
+  | [Stmt.emit "Amounts" [Expr.param "total", Expr.param "values"],
+      Stmt.stop] =>
+      true
+  | _ => false
+
+example : emitArrayModelUsesDynamicArrayParam = true := by native_decide
+
+def emitMemoryArrayModelUsesMemoryArrayLength : Bool :=
+  let body := MacroEventTrace.emitMemoryArray_modelBody
+  body.any (fun stmt =>
+    match stmt with
+    | Stmt.letVar "values_length" (Expr.param "len") => true
+    | _ => false) &&
+  body.any (fun stmt =>
+    match stmt with
+    | Stmt.letVar "values_data_offset"
+        (Expr.add (Expr.mload (Expr.literal 64)) (Expr.literal 32)) => true
+    | _ => false) &&
+  body.any (fun stmt =>
+    match stmt with
+    | Stmt.emit "MemoryAmounts" [Expr.memoryArrayLength "values"] => true
+    | _ => false)
+
+example : emitMemoryArrayModelUsesMemoryArrayLength = true := by native_decide
+
 def emitDynamicLogModelUsesStmtRawLog : Bool :=
   match MacroEventTrace.emitDynamicLog_modelBody with
   | [Stmt.rawLog
@@ -2017,13 +2053,29 @@ def emitDynamicLogModelUsesStmtRawLog : Bool :=
 example : emitDynamicLogModelUsesStmtRawLog = true := by native_decide
 
 def eventTraceSpecCarriesEventMetadata : Bool :=
-  match MacroEventTrace.spec.events with
-  | [{ name := "Transfer",
-       params := [
-        { name := "amount", ty := ParamType.uint256, kind := EventParamKind.indexed },
-        { name := "total", ty := ParamType.uint256, kind := EventParamKind.unindexed }
-       ] }] => true
-  | _ => false
+  MacroEventTrace.spec.events.any (fun ev =>
+    match ev with
+    | { name := "Transfer",
+        params := [
+          { name := "amount", ty := ParamType.uint256, kind := EventParamKind.indexed },
+          { name := "total", ty := ParamType.uint256, kind := EventParamKind.unindexed }
+        ] } => true
+    | _ => false) &&
+  MacroEventTrace.spec.events.any (fun ev =>
+    match ev with
+    | { name := "Amounts",
+        params := [
+          { name := "total", ty := ParamType.uint256, kind := EventParamKind.unindexed },
+          { name := "values", ty := ParamType.array ParamType.uint256, kind := EventParamKind.unindexed }
+        ] } => true
+    | _ => false) &&
+  MacroEventTrace.spec.events.any (fun ev =>
+    match ev with
+    | { name := "MemoryAmounts",
+        params := [
+          { name := "values", ty := ParamType.array ParamType.uint256, kind := EventParamKind.unindexed }
+        ] } => true
+    | _ => false)
 
 example : eventTraceSpecCarriesEventMetadata = true := by native_decide
 
@@ -2037,6 +2089,28 @@ def emitNamedExecutableAppendsNamedEvent : Bool :=
   | .revert _ _ => false
 
 example : emitNamedExecutableAppendsNamedEvent = true := by native_decide
+
+def emitArrayExecutableAppendsArrayLengthPlaceholder : Bool :=
+  match MacroEventTrace.emitArray 7 #[11, 13] Verity.defaultState with
+  | .success () state =>
+      match state.events with
+      | [{ name := "Amounts", args := [7, 2], indexedArgs := [] }] =>
+          state.sender == Verity.defaultState.sender
+      | _ => false
+  | .revert _ _ => false
+
+example : emitArrayExecutableAppendsArrayLengthPlaceholder = true := by native_decide
+
+def emitMemoryArrayExecutableAppendsArrayLengthPlaceholder : Bool :=
+  match MacroEventTrace.emitMemoryArray 3 Verity.defaultState with
+  | .success () state =>
+      match state.events with
+      | [{ name := "MemoryAmounts", args := [3], indexedArgs := [] }] =>
+          state.sender == Verity.defaultState.sender
+      | _ => false
+  | .revert _ _ => false
+
+example : emitMemoryArrayExecutableAppendsArrayLengthPlaceholder = true := by native_decide
 
 def emitDynamicLogExecutableAppendsLowLevelTrace : Bool :=
   match MacroEventTrace.emitDynamicLog 3 4 64 96 Verity.defaultState with
