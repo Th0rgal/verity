@@ -19265,6 +19265,74 @@ private theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.o
             reservedNames n0))
         (EvmYul.UInt256.ofNat 1) (some nativeContract))
 
+/-- `[.block [], .leave]` selected user bodies preserve the generated matched
+flag in the revived form. Body lowers to `[.Block [], .Leave]`; discharged via
+the composed `NativeBlockPreservesWord_revived_block_empty_then_leave`.
+
+This is the Preserves bridge for F2's body shape (label-prefix variant of E2).
+A real non-degenerate Leave-ending preservation. -/
+private theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_leave_body_with_label_prefix
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (hLabelLeave :
+      ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+        fn.body = [.block [], .leave]) :
+    NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived irContract tx := by
+  intro nativeContract fn reservedNames n0 cases' body' bodyNative bodyStart
+    bodyEnd userBodyStart _hLowerRuntime hFind _hCase _hBodyLower
+    hUserBodyLower _pre _suffix _hCases
+  have hBody : fn.body = [.block [], .leave] := hLabelLeave fn hFind
+  rw [hBody] at hUserBodyLower
+  simp [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons,
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil,
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_block,
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_leave,
+    Bind.bind, Except.bind, Pure.pure, Except.pure, List.append_nil]
+    at hUserBodyLower
+  rcases hUserBodyLower with ⟨rfl, _rfl⟩
+  exact
+    Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_block_empty_then_leave
+      (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames n0))
+      (EvmYul.UInt256.ofNat 1) (some nativeContract)
+
+/-- `[.block [], .block [.leave]]` selected user bodies preserve the generated
+matched flag in the revived form. Body lowers to `[.Block [], .Block [.Leave]]`;
+discharged via the composed
+`NativeBlockPreservesWord_revived_block_empty_then_block_leave`.
+
+This is the Preserves bridge for F4's body shape (label-prefix variant of E4). -/
+private theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_block_leave_with_label_prefix
+    (irContract : IRContract)
+    (tx : IRTransaction)
+    (hLabelBlockLeave :
+      ∀ fn,
+        irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+          some fn →
+        fn.body = [.block [], .block [.leave]]) :
+    NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived irContract tx := by
+  intro nativeContract fn reservedNames n0 cases' body' bodyNative bodyStart
+    bodyEnd userBodyStart _hLowerRuntime hFind _hCase _hBodyLower
+    hUserBodyLower _pre _suffix _hCases
+  have hBody : fn.body = [.block [], .block [.leave]] := hLabelBlockLeave fn hFind
+  rw [hBody] at hUserBodyLower
+  simp [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons,
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil,
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_block,
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_leave,
+    Bind.bind, Except.bind, Pure.pure, Except.pure, List.append_nil]
+    at hUserBodyLower
+  rcases hUserBodyLower with ⟨rfl, _rfl⟩
+  exact
+    Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_revived_block_empty_then_block_leave
+      (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames n0))
+      (EvmYul.UInt256.ofNat 1) (some nativeContract)
+
 /-- `[.comment text]` selected user bodies preserve the generated matched flag
 in the revived form. Lowering is identical to `of_block_empty`. -/
 private theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_singleton_comment
