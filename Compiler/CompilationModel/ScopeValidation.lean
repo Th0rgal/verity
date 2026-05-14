@@ -169,6 +169,18 @@ def validateScopedExprIdentifiers
       | none =>
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayElementDynamicWord"
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
+  | Expr.arrayElementDynamicDataOffset name index => do
+      match findParamType params name with
+      | some ty@(ParamType.array elemTy) =>
+          if isDynamicParamType elemTy then
+            pure ()
+          else
+            throw s!"Compilation error: {context} Expr.arrayElementDynamicDataOffset '{name}' requires an array parameter with dynamic ABI elements, got {repr ty}"
+      | some ty =>
+          throw s!"Compilation error: {context} Expr.arrayElementDynamicDataOffset '{name}' requires array parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayElementDynamicDataOffset"
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
   | Expr.arrayElementDynamicMemberLength name index wordOffset => do
       match findParamType params name with
       | some ty@(ParamType.array elemTy) =>
@@ -233,6 +245,38 @@ def validateScopedExprIdentifiers
           throw s!"Compilation error: {context} Expr.paramDynamicHeadWord '{name}' requires a tuple parameter, got {repr ty}"
       | none =>
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.paramDynamicHeadWord"
+  | Expr.paramDynamicMemberLength name wordOffset
+  | Expr.paramDynamicMemberDataOffset name wordOffset => do
+      match findParamType params name with
+      | some ty@(ParamType.tuple _) =>
+          if isDynamicParamType ty then
+            let expectedWords := paramLocalHeadWords ty
+            if wordOffset < expectedWords then
+              pure ()
+            else
+              throw s!"Compilation error: {context} dynamic member projection '{name}' wordOffset {wordOffset} is outside head width {expectedWords} for {repr ty}"
+          else
+            throw s!"Compilation error: {context} dynamic member projection '{name}' requires a dynamically-encoded tuple parameter, got {repr ty}"
+      | some ty =>
+          throw s!"Compilation error: {context} dynamic member projection '{name}' requires a tuple parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: {context} references unknown parameter '{name}' in dynamic member projection"
+  | Expr.paramDynamicMemberElement name wordOffset innerIndex => do
+      match findParamType params name with
+      | some ty@(ParamType.tuple _) =>
+          if isDynamicParamType ty then
+            let expectedWords := paramLocalHeadWords ty
+            if wordOffset < expectedWords then
+              pure ()
+            else
+              throw s!"Compilation error: {context} Expr.paramDynamicMemberElement '{name}' wordOffset {wordOffset} is outside head width {expectedWords} for {repr ty}"
+          else
+            throw s!"Compilation error: {context} Expr.paramDynamicMemberElement '{name}' requires a dynamically-encoded tuple parameter, got {repr ty}"
+      | some ty =>
+          throw s!"Compilation error: {context} Expr.paramDynamicMemberElement '{name}' requires a tuple parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.paramDynamicMemberElement"
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount innerIndex
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
   | Expr.structMember _ key _ =>
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount key

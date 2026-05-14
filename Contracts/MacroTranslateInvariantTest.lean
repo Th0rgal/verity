@@ -371,6 +371,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.LinkedExternalDynamicArgSmoke.spec
   , Contracts.Smoke.LinkedExternalProjectedArrayArgSmoke.spec
   , Contracts.Smoke.NestedStructArrayProjectionSmoke.spec
+  , Contracts.Smoke.DynamicStructElementHelperArgSmoke.spec
   , Contracts.Smoke.ExternalCallMultiReturn.spec
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
@@ -525,7 +526,12 @@ private def expectedExternalSignatures : List (String × List String) :=
       ["tryHashNullifiers((uint256,uint256[],uint256[])[],uint256)"])
   , ("NestedStructArrayProjectionSmoke",
       ["withdrawalAmount(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,address,uint256),uint256[])[],uint256)",
-       "withdrawalAmountViaHelper(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,address,uint256),uint256[])[],uint256)"])
+       "consumeNullifiers(uint256[])",
+       "withdrawalAmountViaHelper(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,address,uint256),uint256[])[],uint256)",
+       "consumeNullifiersViaHelper(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,address,uint256),uint256[])[],uint256)"])
+  , ("DynamicStructElementHelperArgSmoke",
+      ["consumeValues(uint256[])", "inspect((uint256,uint256[]))",
+       "inspectAt((uint256,uint256[])[],uint256)"])
   , ("ExternalCallMultiReturn", ["callFanout(uint256)", "noop()"])
   , ("ERC20HelperSmoke", ["pushTokens(address,address,uint256)", "pullTokens(address,address,address,uint256)",
       "approveTokens(address,address,uint256)", "snapshotBalance(address,address)",
@@ -655,7 +661,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("LinkedExternalDynamicArgSmoke", ["0xf1b3ebc7", "0x3f87a475", "0x35ea2663",
       "0xc58b0a4d"])
   , ("LinkedExternalProjectedArrayArgSmoke", ["0x2bda60e2"])
-  , ("NestedStructArrayProjectionSmoke", ["0x714fb4de", "0x8999bcc3"])
+  , ("NestedStructArrayProjectionSmoke", ["0x714fb4de", "0x14750c34", "0x8999bcc3", "0x5d157fb5"])
+  , ("DynamicStructElementHelperArgSmoke", ["0x3464e97c", "0x291f8f0b", "0xef6057fa"])
   , ("ExternalCallMultiReturn", ["0x70fce9a3", "0x5dfc2e4a"])
   , ("ERC20HelperSmoke", ["0xa6c29ca3", "0x6aa209a6", "0x912d6e28", "0x48476c71", "0xdac24aaf",
       "0x7247c4a5"])

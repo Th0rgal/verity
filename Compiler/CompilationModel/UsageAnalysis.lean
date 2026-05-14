@@ -101,6 +101,9 @@ def exprUsesArrayElementKind (includePlain includeWord : Bool) : Expr → Bool
   | Expr.arrayElementDynamicWord _ index _ =>
       let nested := exprUsesArrayElementKind includePlain includeWord index
       if nested then true else includeWord
+  | Expr.arrayElementDynamicDataOffset _ index =>
+      let nested := exprUsesArrayElementKind includePlain includeWord index
+      if nested then true else includeWord
   | Expr.arrayElementDynamicMemberDataOffset _ index _ =>
       let nested := exprUsesArrayElementKind includePlain includeWord index
       if nested then true else includeWord
@@ -186,8 +189,12 @@ def exprUsesArrayElementKind (includePlain includeWord : Bool) : Expr → Bool
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
       false
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprUsesArrayElementKind includePlain includeWord innerIndex
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -304,6 +311,7 @@ attribute [simp] exprUsesArrayElementKind exprListUsesArrayElementKind
 mutual
 def exprUsesArrayElement : Expr → Bool
   | Expr.arrayElement _ _ | Expr.arrayElementWord _ _ _ _ | Expr.arrayElementDynamicWord _ _ _
+  | Expr.arrayElementDynamicDataOffset _ _
   | Expr.arrayElementDynamicMemberDataOffset _ _ _
   | Expr.arrayElementDynamicMemberLength _ _ _
   | Expr.arrayElementDynamicMemberElement _ _ _ _ =>
@@ -354,8 +362,12 @@ def exprUsesArrayElement : Expr → Bool
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
       false
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprUsesArrayElement innerIndex
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -495,10 +507,15 @@ def contractUsesArrayElementWord (spec : CompilationModel) : Bool :=
 mutual
 def exprUsesParamDynamicHeadWord : Expr → Bool
   | Expr.paramDynamicHeadWord _ _ => true
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _ => true
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprUsesParamDynamicHeadWord innerIndex
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
   | Expr.mappingUint _ key | Expr.structMember _ key _
   | Expr.storageArrayElement _ key | Expr.arrayElement _ key
   | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _
+  | Expr.arrayElementDynamicDataOffset _ key
   | Expr.arrayElementDynamicMemberDataOffset _ key _
   | Expr.arrayElementDynamicMemberLength _ key _ =>
       exprUsesParamDynamicHeadWord key
@@ -639,6 +656,7 @@ def exprUsesMulDiv512 : Expr → Bool
   | Expr.mappingUint _ key | Expr.structMember _ key _
   | Expr.storageArrayElement _ key | Expr.arrayElement _ key
   | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _
+  | Expr.arrayElementDynamicDataOffset _ key
   | Expr.arrayElementDynamicMemberDataOffset _ key _
   | Expr.arrayElementDynamicMemberLength _ key _ =>
       exprUsesMulDiv512 key
@@ -680,9 +698,13 @@ def exprUsesMulDiv512 : Expr → Bool
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       false
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprUsesMulDiv512 innerIndex
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -835,9 +857,14 @@ def exprUsesStorageArrayElement : Expr → Bool
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
       false
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprUsesStorageArrayElement innerIndex
   | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicDataOffset _ index
   | Expr.arrayElementDynamicMemberDataOffset _ index _
   | Expr.arrayElementDynamicMemberLength _ index _ =>
       exprUsesStorageArrayElement index
@@ -961,6 +988,7 @@ def exprUsesDynamicBytesEq : Expr → Bool
       exprListUsesDynamicBytesEq args
   | Expr.storageArrayElement _ index | Expr.arrayElement _ index
   | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicDataOffset _ index
   | Expr.arrayElementDynamicMemberDataOffset _ index _
   | Expr.arrayElementDynamicMemberLength _ index _ => exprUsesDynamicBytesEq index
   | Expr.arrayElementDynamicMemberElement _ index _ innerIndex =>
@@ -987,8 +1015,12 @@ def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
       false
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprUsesDynamicBytesEq innerIndex
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
 

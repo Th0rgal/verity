@@ -24,11 +24,14 @@ partial def exprContainsCallLike (expr : Expr) : Bool :=
   | Expr.arrayElement _ index
   | Expr.arrayElementWord _ index _ _
   | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicDataOffset _ index
   | Expr.arrayElementDynamicMemberDataOffset _ index _
   | Expr.arrayElementDynamicMemberLength _ index _ =>
       exprContainsCallLike index
   | Expr.arrayElementDynamicMemberElement _ index _ innerIndex =>
       exprContainsCallLike index || exprContainsCallLike innerIndex
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprContainsCallLike innerIndex
   | Expr.dynamicBytesEq _ _ =>
       false
   | Expr.mload offset | Expr.tload offset | Expr.calldataload offset | Expr.extcodesize offset |
@@ -61,6 +64,8 @@ partial def exprContainsCallLike (expr : Expr) : Bool :=
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
       false
 partial def exprListContainsCallLike : List Expr → Bool
@@ -127,12 +132,15 @@ def exprContainsUnsafeLogicalCallLike (expr : Expr) : Bool :=
       exprContainsUnsafeLogicalCallLike key1 || exprContainsUnsafeLogicalCallLike key2
   | Expr.storageArrayElement _ index | Expr.arrayElement _ index
   | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicDataOffset _ index
   | Expr.arrayElementDynamicMemberDataOffset _ index _
   | Expr.arrayElementDynamicMemberLength _ index _
   | Expr.returndataOptionalBoolAt index =>
       exprContainsUnsafeLogicalCallLike index
   | Expr.arrayElementDynamicMemberElement _ index _ innerIndex =>
       exprContainsUnsafeLogicalCallLike index || exprContainsUnsafeLogicalCallLike innerIndex
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprContainsUnsafeLogicalCallLike innerIndex
   | Expr.dynamicBytesEq _ _ =>
       false
   | Expr.extcodesize addr =>
@@ -163,6 +171,8 @@ def exprContainsUnsafeLogicalCallLike (expr : Expr) : Bool :=
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
       false
 termination_by sizeOf expr

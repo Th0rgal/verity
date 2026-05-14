@@ -1839,6 +1839,54 @@ private def paramDynamicHeadProjection?
     else
       none
 
+private def paramDynamicMemberProjection?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × ValueType × Nat) := do
+  let (root, path) ←
+    match (stripParens stx).raw with
+    | .ident _ raw _ _ =>
+        let parts := raw.toString.splitOn "."
+        let rec findParamPath : List String → Option (String × List String)
+          | [] | [_] => none
+          | rootName :: fieldName :: rest =>
+              if params.any (fun p => p.name == rootName) then
+                some (rootName, fieldName :: rest)
+              else
+                findParamPath (fieldName :: rest)
+        findParamPath parts
+    | _ =>
+        let (rootStx, path) ← structProjectionPath? stx
+        match stripParens rootStx with
+        | `(term| $id:ident) => some (toString id.getId, path)
+        | _ => none
+  let param ← params.find? (fun p => p.name == root)
+  if !valueTypeUsesDynamicData param.ty then
+    none
+  else
+    let (fieldTy, wordOffset) ← structFieldHeadOffset? param.ty path
+    match fieldTy with
+    | .array _ | .bytes | .string => some (root, fieldTy, wordOffset)
+    | _ => none
+
+private def arrayElementDynamicTupleArg?
+    (params : Array ParamDecl)
+    (stx : Term) : Option (String × Term × ValueType) := do
+  match stripParens stx with
+  | `(term| arrayElement $name:term $index:term) =>
+      let paramName ←
+        match stripParens name with
+        | `(term| $id:ident) => some (toString id.getId)
+        | _ => none
+      let param ← params.find? (fun p => p.name == paramName)
+      let elemTy ← match param.ty with
+        | .array elemTy => some elemTy
+        | _ => none
+      if valueTypeUsesDynamicData elemTy then
+        some (paramName, index, elemTy)
+      else
+        none
+  | _ => none
+
 private def isParamStructNonLeafProjection (params : Array ParamDecl) (stx : Term) : Bool :=
   match paramStructProjectionResolved? params stx with
   | some (_, fieldTy, _) => !isSingleWordStaticValueType fieldTy
@@ -2140,6 +2188,8 @@ private partial def hasDynamicInternalHelperType (ty : ValueType) : Bool :=
 private def supportsInternalHelperParamType (ty : ValueType) : Bool :=
   match ty with
   | .array _ => true
+  | .struct _ _ => true
+  | .tuple _ => true
   | _ => !hasDynamicInternalHelperType ty
 
 private def supportsInternalHelperSpec (fn : FunctionDecl) : Bool :=
@@ -2325,6 +2375,9 @@ private partial def inferPureExprType
   if let some (_, fieldTy, _) := paramDynamicHeadProjection? params stx then
     pure fieldTy
   else
+  if let some (_, fieldTy, _) := paramDynamicMemberProjection? params stx then
+    pure fieldTy
+  else
   if isParamStructNonLeafProjection params stx then
     throwStructNonLeafProjectionError stx
   else
@@ -2489,6 +2542,8 @@ private partial def inferPureExprType
       -- element type. Lowers through `Expr.arrayElementDynamicMemberLength`.
       if let some _ := arrayElementDynamicMemberProjection? params name then
         pure .uint256
+      else if let some _ := paramDynamicMemberProjection? params name then
+        pure .uint256
       else
         match lookupNamedValueType? constDecls immutableDecls params locals (← expectStringOrIdent name) with
         | some (.array _) => pure .uint256
@@ -2507,9 +2562,29 @@ private partial def inferPureExprType
               throwErrorAt name s!"arrayElement on a dynamic member of a struct-array element currently supports only Array<wordLike> members, got Array {renderValueType elemTy}"
         | _ =>
             throwErrorAt name s!"arrayElement on a struct-array element projection requires an Array-typed dynamic member, got {renderValueType fieldTy}"
+      else if let some (_, fieldTy, _) := paramDynamicMemberProjection? params name then
+        match fieldTy with
+        | .array elemTy =>
+            if isSingleWordStaticValueType elemTy then
+              pure elemTy
+            else
+              throwErrorAt name s!"arrayElement on a dynamic member of a struct parameter currently supports only Array<wordLike> members, got Array {renderValueType elemTy}"
+        | _ =>
+            throwErrorAt name s!"arrayElement on a struct parameter projection requires an Array-typed dynamic member, got {renderValueType fieldTy}"
       else
         let sourceTy ← requireDirectParamRef name "arrayElement" params
-        requireSupportedArrayElementSourceType name "arrayElement" sourceTy
+        match sourceTy with
+        | .array elemTy =>
+            match elemTy with
+            | .struct _ _ | .tuple _ =>
+              if valueTypeUsesDynamicData elemTy then
+                pure elemTy
+              else
+                requireSupportedArrayElementSourceType name "arrayElement" sourceTy
+            | _ =>
+              requireSupportedArrayElementSourceType name "arrayElement" sourceTy
+        | _ =>
+            requireSupportedArrayElementSourceType name "arrayElement" sourceTy
   | `(term| mulDivDown $a $b $c) | `(term| mulDivUp $a $b $c) => do
       for arg in [a, b, c] do
         requireWordLikeType arg "mulDiv" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals arg visitingConstants)
@@ -2532,6 +2607,13 @@ private partial def inferPureExprType
             -- verity#1849, G3: accept `Array <wordLike>` / `bytes` / `string`
             -- direct param refs alongside word-like args.
             if let some (_, _, fieldTy, _elemTy, _) := arrayElementDynamicMemberProjection? params x then
+              match fieldTy with
+              | .array elemTy =>
+                  unless externalCallDynamicArgSupported (.array elemTy) do
+                    throwErrorAt x s!"externalCall '{extName}' dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+              | _ =>
+                  throwErrorAt x s!"externalCall '{extName}' dynamic-member argument requires an Array-typed member, got {renderValueType fieldTy}"
+            else if let some (_, fieldTy, _) := paramDynamicMemberProjection? params x then
               match fieldTy with
               | .array elemTy =>
                   unless externalCallDynamicArgSupported (.array elemTy) do
@@ -3238,6 +3320,9 @@ partial def translatePureExprWithTypes
       $(strTerm paramName)
       $(natTerm wordOffset))
   else
+  if (paramDynamicMemberProjection? params stx).isSome then
+    throwErrorAt stx "dynamic struct parameter member cannot be used as a scalar expression; pass it to a helper/external expecting an Array or use arrayLength/arrayElement"
+  else
   if isParamStructNonLeafProjection params stx then
     throwStructNonLeafProjectionError stx
   else
@@ -3466,6 +3551,11 @@ partial def translatePureExprWithTypes
             $(strTerm paramName)
             $indexExpr
             $(natTerm wordOffset))
+      else if let some (paramName, _fieldTy, wordOffset) :=
+          paramDynamicMemberProjection? params name then
+        `(Compiler.CompilationModel.Expr.paramDynamicMemberLength
+            $(strTerm paramName)
+            $(natTerm wordOffset))
       else
         `(Compiler.CompilationModel.Expr.arrayLength $(strTerm (← expectStringOrIdent name)))
   | `(term| arrayElement $name:term $index:term) =>
@@ -3478,6 +3568,13 @@ partial def translatePureExprWithTypes
         `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberElement
             $(strTerm paramName)
             $outerIndexExpr
+            $(natTerm wordOffset)
+            $innerIndexExpr)
+      else if let some (paramName, _fieldTy, wordOffset) :=
+          paramDynamicMemberProjection? params name then
+        let innerIndexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants
+        `(Compiler.CompilationModel.Expr.paramDynamicMemberElement
+            $(strTerm paramName)
             $(natTerm wordOffset)
             $innerIndexExpr)
       else
@@ -3956,11 +4053,39 @@ private def translateInternalHelperCallArgs
                     $(natTerm wordOffset)))
               | _ =>
                   throwErrorAt arg s!"helper call '{fn.name}' Array parameter '{fnParam.name}' requires an Array-typed projected member, got {renderValueType fieldTy}"
+            else if let some (paramName, fieldTy, wordOffset) :=
+                paramDynamicMemberProjection? params arg then
+              match fieldTy with
+              | .array _ =>
+                  out := out.push (← `(Compiler.CompilationModel.Expr.paramDynamicMemberDataOffset
+                    $(strTerm paramName)
+                    $(natTerm wordOffset)))
+                  out := out.push (← `(Compiler.CompilationModel.Expr.paramDynamicMemberLength
+                    $(strTerm paramName)
+                    $(natTerm wordOffset)))
+              | _ =>
+                  throwErrorAt arg s!"helper call '{fn.name}' Array parameter '{fnParam.name}' requires an Array-typed projected member, got {renderValueType fieldTy}"
             else
               throwErrorAt arg
                 s!"helper call '{fn.name}' Array parameter '{fnParam.name}' currently requires a direct Array parameter reference or projected struct-array member"
     | _ =>
-        out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+        if valueTypeUsesDynamicData fnParam.ty then
+          match directParamNameWithType? params arg with
+          | some (name, ty) =>
+              if valueTypeUsesDynamicData ty then
+                out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_data_offset")))
+              else
+                out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+          | none =>
+              if let some (paramName, index, _elemTy) := arrayElementDynamicTupleArg? params arg then
+                let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+                out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicDataOffset
+                  $(strTerm paramName)
+                  $indexExpr))
+              else
+                out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+        else
+          out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
   pure out
 
 private def translateLinkedExternalCallArgs
@@ -3993,6 +4118,21 @@ private def translateLinkedExternalCallArgs
                 out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
                   $(strTerm paramName)
                   $indexExpr
+                  $(natTerm wordOffset)))
+              else
+                throwErrorAt arg s!"linked external dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+          | _ =>
+              throwErrorAt arg s!"linked external dynamic-member argument requires an Array-typed member, got {renderValueType fieldTy}"
+        else if let some (paramName, fieldTy, wordOffset) :=
+            paramDynamicMemberProjection? params arg then
+          match fieldTy with
+          | .array elemTy =>
+              if externalCallDynamicArgSupported (.array elemTy) then
+                out := out.push (← `(Compiler.CompilationModel.Expr.paramDynamicMemberDataOffset
+                  $(strTerm paramName)
+                  $(natTerm wordOffset)))
+                out := out.push (← `(Compiler.CompilationModel.Expr.paramDynamicMemberLength
+                  $(strTerm paramName)
                   $(natTerm wordOffset)))
               else
                 throwErrorAt arg s!"linked external dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"

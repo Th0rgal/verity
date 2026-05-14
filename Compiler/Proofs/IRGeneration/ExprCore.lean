@@ -39,11 +39,16 @@ def exprBoundNames : Expr → List String
   | .adtField _ _ _ _ storageField => [storageField]
   | .arrayElement name index | .arrayElementWord name index _ _
   | .arrayElementDynamicWord name index _
+  | .arrayElementDynamicDataOffset name index
   | .arrayElementDynamicMemberDataOffset name index _
   | .arrayElementDynamicMemberLength name index _ => name :: exprBoundNames index
   | .arrayElementDynamicMemberElement name index _ innerIndex =>
       name :: (exprBoundNames index ++ exprBoundNames innerIndex)
   | .paramDynamicHeadWord name _ => [name]
+  | .paramDynamicMemberLength name _
+  | .paramDynamicMemberDataOffset name _ => [name]
+  | .paramDynamicMemberElement name _ innerIndex =>
+      name :: exprBoundNames innerIndex
   | .arrayLength name => [name]
   | .storageArrayLength name => [name]
   | .storageArrayElement name index => name :: exprBoundNames index

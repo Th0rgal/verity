@@ -30,6 +30,8 @@ def reservedExternalNames
       , checkedArrayElementWordMemoryHelperName
       , checkedArrayElementDynamicWordCalldataHelperName
       , checkedArrayElementDynamicWordMemoryHelperName
+      , checkedArrayElementDynamicDataOffsetCalldataHelperName
+      , checkedArrayElementDynamicDataOffsetMemoryHelperName
       ]
     else
       []
@@ -37,6 +39,12 @@ def reservedExternalNames
     if paramDynamicHeadWordHelpersRequired then
       [ checkedParamDynamicHeadWordCalldataHelperName
       , checkedParamDynamicHeadWordMemoryHelperName
+      , checkedParamDynamicMemberLengthCalldataHelperName
+      , checkedParamDynamicMemberLengthMemoryHelperName
+      , checkedParamDynamicMemberDataOffsetCalldataHelperName
+      , checkedParamDynamicMemberDataOffsetMemoryHelperName
+      , checkedParamDynamicMemberElementCalldataHelperName
+      , checkedParamDynamicMemberElementMemoryHelperName
       ]
     else
       []
@@ -80,6 +88,7 @@ def firstReservedExternalCollision
 
 def internalDynamicParamSupported : ParamType → Bool
   | ParamType.array _ => true
+  | ty@(ParamType.tuple _) => isDynamicParamType ty
   | _ => false
 
 def firstUnsupportedInternalDynamicParam
@@ -185,11 +194,14 @@ def validateInternalCallShapesInExpr
   | Expr.arrayElement _ index
   | Expr.arrayElementWord _ index _ _
   | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicDataOffset _ index
   | Expr.arrayElementDynamicMemberDataOffset _ index _
   | Expr.arrayElementDynamicMemberLength _ index _ =>
       validateInternalCallShapesInExpr functions callerName index
   | Expr.arrayElementDynamicMemberElement _ index _ innerIndex => do
       validateInternalCallShapesInExpr functions callerName index
+      validateInternalCallShapesInExpr functions callerName innerIndex
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
       validateInternalCallShapesInExpr functions callerName innerIndex
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b |
@@ -229,6 +241,8 @@ def validateInternalCallShapesInExpr
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       pure ()
@@ -450,11 +464,14 @@ def validateExternalCallTargetsInExpr
   | Expr.arrayElement _ index
   | Expr.arrayElementWord _ index _ _
   | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicDataOffset _ index
   | Expr.arrayElementDynamicMemberDataOffset _ index _
   | Expr.arrayElementDynamicMemberLength _ index _ =>
       validateExternalCallTargetsInExpr externals context index
   | Expr.arrayElementDynamicMemberElement _ index _ innerIndex => do
       validateExternalCallTargetsInExpr externals context index
+      validateExternalCallTargetsInExpr externals context innerIndex
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
       validateExternalCallTargetsInExpr externals context innerIndex
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b |
@@ -492,6 +509,8 @@ def validateExternalCallTargetsInExpr
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       pure ()

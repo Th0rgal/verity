@@ -350,6 +350,12 @@ inductive Expr
       nested dynamic members; `wordOffset` indexes the element head after the
       ABI element offset has been resolved. -/
   | arrayElementDynamicWord (name : String) (index : Expr) (wordOffset : Nat)
+  /-- Data offset of a dynamically-sized array element.  Given an array
+      parameter whose elements are dynamically encoded tuples/structs,
+      bounds-checks `index`, resolves the element offset table entry, and
+      returns the element head offset.  This is the dynamic-tuple analogue of
+      forwarding `(arrayElement <param> <i>)` into an internal helper. -/
+  | arrayElementDynamicDataOffset (name : String) (index : Expr)
   /-- Checked word access inside the head of a directly-passed struct/tuple
       parameter whose ABI encoding is dynamic.  `wordOffset` indexes the
       parameter's head section after the outer offset pointer has been
@@ -358,6 +364,16 @@ inductive Expr
       projected field is a single-word static leaf at a fixed head offset.
       (verity#1832) -/
   | paramDynamicHeadWord (name : String) (wordOffset : Nat)
+  /-- Length of a dynamic member inside a directly-passed dynamic tuple
+      parameter.  `wordOffset` points at the member's ABI head word relative to
+      `{name}_data_offset`. -/
+  | paramDynamicMemberLength (name : String) (wordOffset : Nat)
+  /-- Data offset of a dynamic member inside a directly-passed dynamic tuple
+      parameter, returning the first element word after the member length. -/
+  | paramDynamicMemberDataOffset (name : String) (wordOffset : Nat)
+  /-- Element access into an `Array<wordLike>` dynamic member inside a
+      directly-passed dynamic tuple parameter. -/
+  | paramDynamicMemberElement (name : String) (wordOffset : Nat) (innerIndex : Expr)
   /-- Length of a dynamic member inside a struct-array element.  Given a
       struct-array parameter `name` indexed at `index`, dereferences the
       head pointer at `wordOffset` (relative to the element's head

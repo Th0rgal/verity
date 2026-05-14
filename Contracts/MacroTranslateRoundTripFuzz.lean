@@ -156,6 +156,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.LinkedExternalDynamicArgSmoke.spec
   , Contracts.Smoke.LinkedExternalProjectedArrayArgSmoke.spec
   , Contracts.Smoke.NestedStructArrayProjectionSmoke.spec
+  , Contracts.Smoke.DynamicStructElementHelperArgSmoke.spec
   , Contracts.Smoke.ExternalCallMultiReturn.spec
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec

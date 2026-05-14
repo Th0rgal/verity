@@ -32,11 +32,35 @@ def checkedArrayElementDynamicWordCalldataHelperName : String :=
 def checkedArrayElementDynamicWordMemoryHelperName : String :=
   "__verity_array_element_dynamic_word_memory_checked"
 
+def checkedArrayElementDynamicDataOffsetCalldataHelperName : String :=
+  "__verity_array_element_dynamic_data_offset_calldata_checked"
+
+def checkedArrayElementDynamicDataOffsetMemoryHelperName : String :=
+  "__verity_array_element_dynamic_data_offset_memory_checked"
+
 def checkedParamDynamicHeadWordCalldataHelperName : String :=
   "__verity_param_dynamic_head_word_calldata_checked"
 
 def checkedParamDynamicHeadWordMemoryHelperName : String :=
   "__verity_param_dynamic_head_word_memory_checked"
+
+def checkedParamDynamicMemberLengthCalldataHelperName : String :=
+  "__verity_param_dynamic_member_length_calldata_checked"
+
+def checkedParamDynamicMemberLengthMemoryHelperName : String :=
+  "__verity_param_dynamic_member_length_memory_checked"
+
+def checkedParamDynamicMemberDataOffsetCalldataHelperName : String :=
+  "__verity_param_dynamic_member_data_offset_calldata_checked"
+
+def checkedParamDynamicMemberDataOffsetMemoryHelperName : String :=
+  "__verity_param_dynamic_member_data_offset_memory_checked"
+
+def checkedParamDynamicMemberElementCalldataHelperName : String :=
+  "__verity_param_dynamic_member_element_calldata_checked"
+
+def checkedParamDynamicMemberElementMemoryHelperName : String :=
+  "__verity_param_dynamic_member_element_memory_checked"
 
 def checkedArrayElementDynamicMemberLengthCalldataHelperName : String :=
   "__verity_array_element_dynamic_member_length_calldata_checked"
@@ -165,6 +189,59 @@ def checkedArrayElementDynamicWordCalldataHelper : YulStmt :=
 def checkedArrayElementDynamicWordMemoryHelper : YulStmt :=
   checkedArrayElementDynamicWordHelper checkedArrayElementDynamicWordMemoryHelperName "mload" none
 
+/-- Yul helper for `Expr.arrayElementDynamicDataOffset`.  Resolves the
+    element head of a dynamically encoded array element and returns that
+    absolute offset so the element can be forwarded as a dynamic tuple
+    parameter to an internal helper. -/
+private def checkedArrayElementDynamicDataOffsetHelper
+    (helperName loadOp : String) (sizeExpr? : Option YulExpr) : YulStmt :=
+  let offsetTableBytes := YulExpr.call "mul" [YulExpr.ident "length", YulExpr.lit 32]
+  let elementOffsetSlot := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.call "mul" [YulExpr.ident "index", YulExpr.lit 32]
+  ]
+  let elementHeadPos := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.ident "__element_rel_offset"
+  ]
+  let sizeCheck :=
+    match sizeExpr? with
+    | some sizeExpr =>
+        [YulStmt.if_ (YulExpr.call "gt" [
+          YulExpr.ident "__element_head_pos",
+          YulExpr.call "sub" [sizeExpr, YulExpr.lit 32]
+        ]) [
+          YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+        ]]
+    | none => []
+  YulStmt.funcDef helperName ["data_offset", "length", "index"] ["word"] (
+    [
+      YulStmt.if_ (YulExpr.call "iszero" [
+        YulExpr.call "lt" [YulExpr.ident "index", YulExpr.ident "length"]
+      ]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ],
+      YulStmt.let_ "__element_rel_offset" (YulExpr.call loadOp [elementOffsetSlot]),
+      YulStmt.if_ (YulExpr.call "lt" [YulExpr.ident "__element_rel_offset", offsetTableBytes]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ],
+      YulStmt.let_ "__element_head_pos" elementHeadPos
+    ] ++ sizeCheck ++ [
+      YulStmt.assign "word" (YulExpr.ident "__element_head_pos")
+    ])
+
+def checkedArrayElementDynamicDataOffsetCalldataHelper : YulStmt :=
+  checkedArrayElementDynamicDataOffsetHelper
+    checkedArrayElementDynamicDataOffsetCalldataHelperName
+    "calldataload"
+    (some (YulExpr.call "calldatasize" []))
+
+def checkedArrayElementDynamicDataOffsetMemoryHelper : YulStmt :=
+  checkedArrayElementDynamicDataOffsetHelper
+    checkedArrayElementDynamicDataOffsetMemoryHelperName
+    "mload"
+    none
+
 /-- Yul helper for `Expr.paramDynamicHeadWord` (verity#1832). Reads the
     word at `data_offset + word_offset * 32`, where `data_offset` is the
     `{name}_data_offset` produced by `genDynamicParamLoads` for a
@@ -197,6 +274,143 @@ def checkedParamDynamicHeadWordCalldataHelper : YulStmt :=
 
 def checkedParamDynamicHeadWordMemoryHelper : YulStmt :=
   checkedParamDynamicHeadWordHelper checkedParamDynamicHeadWordMemoryHelperName "mload" none
+
+/-- Shared helper for dynamic members nested in a directly passed dynamic
+    tuple parameter.  `data_offset` points at the tuple head.  The member's
+    head word stores a tuple-relative offset to its length word. -/
+private def checkedParamDynamicMemberLengthHelper
+    (helperName loadOp : String) (sizeExpr? : Option YulExpr) : YulStmt :=
+  let memberHeadSlot := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.call "mul" [YulExpr.ident "word_offset", YulExpr.lit 32]
+  ]
+  let memberDataPos := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.ident "__member_rel_offset"
+  ]
+  let sizeCheck :=
+    match sizeExpr? with
+    | some sizeExpr =>
+        [YulStmt.if_ (YulExpr.call "gt" [
+          YulExpr.ident "__member_data_pos",
+          YulExpr.call "sub" [sizeExpr, YulExpr.lit 32]
+        ]) [
+          YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+        ]]
+    | none => []
+  YulStmt.funcDef helperName ["data_offset", "word_offset"] ["word"] (
+    [
+      YulStmt.let_ "__member_rel_offset" (YulExpr.call loadOp [memberHeadSlot]),
+      YulStmt.let_ "__member_data_pos" memberDataPos
+    ] ++ sizeCheck ++ [
+      YulStmt.assign "word" (YulExpr.call loadOp [YulExpr.ident "__member_data_pos"])
+    ])
+
+def checkedParamDynamicMemberLengthCalldataHelper : YulStmt :=
+  checkedParamDynamicMemberLengthHelper
+    checkedParamDynamicMemberLengthCalldataHelperName
+    "calldataload"
+    (some (YulExpr.call "calldatasize" []))
+
+def checkedParamDynamicMemberLengthMemoryHelper : YulStmt :=
+  checkedParamDynamicMemberLengthHelper
+    checkedParamDynamicMemberLengthMemoryHelperName
+    "mload"
+    none
+
+private def checkedParamDynamicMemberDataOffsetHelper
+    (helperName loadOp : String) (sizeExpr? : Option YulExpr) : YulStmt :=
+  let memberHeadSlot := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.call "mul" [YulExpr.ident "word_offset", YulExpr.lit 32]
+  ]
+  let memberDataPos := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.ident "__member_rel_offset"
+  ]
+  let sizeCheck :=
+    match sizeExpr? with
+    | some sizeExpr =>
+        [YulStmt.if_ (YulExpr.call "gt" [
+          YulExpr.ident "__member_data_pos",
+          YulExpr.call "sub" [sizeExpr, YulExpr.lit 32]
+        ]) [
+          YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+        ]]
+    | none => []
+  YulStmt.funcDef helperName ["data_offset", "word_offset"] ["word"] (
+    [
+      YulStmt.let_ "__member_rel_offset" (YulExpr.call loadOp [memberHeadSlot]),
+      YulStmt.let_ "__member_data_pos" memberDataPos
+    ] ++ sizeCheck ++ [
+      YulStmt.assign "word" (YulExpr.call "add" [YulExpr.ident "__member_data_pos", YulExpr.lit 32])
+    ])
+
+def checkedParamDynamicMemberDataOffsetCalldataHelper : YulStmt :=
+  checkedParamDynamicMemberDataOffsetHelper
+    checkedParamDynamicMemberDataOffsetCalldataHelperName
+    "calldataload"
+    (some (YulExpr.call "calldatasize" []))
+
+def checkedParamDynamicMemberDataOffsetMemoryHelper : YulStmt :=
+  checkedParamDynamicMemberDataOffsetHelper
+    checkedParamDynamicMemberDataOffsetMemoryHelperName
+    "mload"
+    none
+
+private def checkedParamDynamicMemberElementHelper
+    (helperName loadOp : String) (sizeExpr? : Option YulExpr) : YulStmt :=
+  let memberHeadSlot := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.call "mul" [YulExpr.ident "word_offset", YulExpr.lit 32]
+  ]
+  let memberDataPos := YulExpr.call "add" [
+    YulExpr.ident "data_offset",
+    YulExpr.ident "__member_rel_offset"
+  ]
+  let wordPos := YulExpr.call "add" [
+    YulExpr.ident "__member_data_pos",
+    YulExpr.call "add" [
+      YulExpr.lit 32,
+      YulExpr.call "mul" [YulExpr.ident "inner_index", YulExpr.lit 32]
+    ]
+  ]
+  let sizeCheck :=
+    match sizeExpr? with
+    | some sizeExpr =>
+        [YulStmt.if_ (YulExpr.call "gt" [
+          YulExpr.ident "__word_pos",
+          YulExpr.call "sub" [sizeExpr, YulExpr.lit 32]
+        ]) [
+          YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+        ]]
+    | none => []
+  YulStmt.funcDef helperName ["data_offset", "word_offset", "inner_index"] ["word"] (
+    [
+      YulStmt.let_ "__member_rel_offset" (YulExpr.call loadOp [memberHeadSlot]),
+      YulStmt.let_ "__member_data_pos" memberDataPos,
+      YulStmt.let_ "__member_length" (YulExpr.call loadOp [YulExpr.ident "__member_data_pos"]),
+      YulStmt.if_ (YulExpr.call "iszero" [
+        YulExpr.call "lt" [YulExpr.ident "inner_index", YulExpr.ident "__member_length"]
+      ]) [
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
+      ],
+      YulStmt.let_ "__word_pos" wordPos
+    ] ++ sizeCheck ++ [
+      YulStmt.assign "word" (YulExpr.call loadOp [YulExpr.ident "__word_pos"])
+    ])
+
+def checkedParamDynamicMemberElementCalldataHelper : YulStmt :=
+  checkedParamDynamicMemberElementHelper
+    checkedParamDynamicMemberElementCalldataHelperName
+    "calldataload"
+    (some (YulExpr.call "calldatasize" []))
+
+def checkedParamDynamicMemberElementMemoryHelper : YulStmt :=
+  checkedParamDynamicMemberElementHelper
+    checkedParamDynamicMemberElementMemoryHelperName
+    "mload"
+    none
 
 /-- Yul helper for `Expr.arrayElementDynamicMemberLength` (verity#1849, G1).
     Reads the length word of a dynamically-sized member nested inside a

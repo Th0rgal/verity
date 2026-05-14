@@ -274,10 +274,14 @@ def exprReadsStateOrEnv : Expr → Bool
       if name == builtinExpName then exprListReadsStateOrEnv args else true
   | Expr.internalCall _ _ => true
   | Expr.arrayLength _ => false
-  | Expr.paramDynamicHeadWord _ _ => false
+  | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _ => false
+  | Expr.paramDynamicMemberElement _ _ innerIndex => exprReadsStateOrEnv innerIndex
   | Expr.storageArrayLength _ => true
   | Expr.storageArrayElement _ index => true || exprReadsStateOrEnv index
   | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicDataOffset _ index
   | Expr.arrayElementDynamicMemberDataOffset _ index _
   | Expr.arrayElementDynamicMemberLength _ index _ => exprReadsStateOrEnv index
   | Expr.arrayElementDynamicMemberElement _ index _ innerIndex =>
@@ -358,6 +362,7 @@ def exprWritesState : Expr → Bool
   | Expr.storageArrayElement _ index =>
       exprWritesState index
   | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicDataOffset _ index
   | Expr.arrayElementDynamicMemberDataOffset _ index _
   | Expr.arrayElementDynamicMemberLength _ index _ =>
       exprWritesState index
@@ -370,8 +375,12 @@ def exprWritesState : Expr → Bool
   | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       false
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprWritesState innerIndex
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -512,6 +521,7 @@ def exprHasUntrackableWrites : Expr → Bool
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
   | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.arrayElementWord _ key _ _
   | Expr.arrayElementDynamicWord _ key _
+  | Expr.arrayElementDynamicDataOffset _ key
   | Expr.arrayElementDynamicMemberDataOffset _ key _
   | Expr.arrayElementDynamicMemberLength _ key _
   | Expr.storageArrayElement _ key =>
@@ -538,11 +548,15 @@ def exprHasUntrackableWrites : Expr → Bool
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _
   | Expr.externalCall _ _ | Expr.call _ _ _ _ _ _ _
   | Expr.staticcall _ _ _ _ _ _ | Expr.delegatecall _ _ _ _ _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       false
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprHasUntrackableWrites innerIndex
 termination_by e => sizeOf e
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -653,12 +667,15 @@ def exprContainsExternalCall : Expr → Bool
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
   | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.arrayElementWord _ key _ _
   | Expr.arrayElementDynamicWord _ key _
+  | Expr.arrayElementDynamicDataOffset _ key
   | Expr.arrayElementDynamicMemberDataOffset _ key _
   | Expr.arrayElementDynamicMemberLength _ key _
   | Expr.storageArrayElement _ key =>
       exprContainsExternalCall key
   | Expr.arrayElementDynamicMemberElement _ key _ innerKey =>
       exprContainsExternalCall key || exprContainsExternalCall innerKey
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprContainsExternalCall innerIndex
   | Expr.mappingChain _ keys =>
       exprListContainsExternalCall keys
   | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
@@ -682,6 +699,8 @@ def exprContainsExternalCall : Expr → Bool
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       false
 termination_by e => sizeOf e
@@ -724,12 +743,15 @@ def exprMayContainExternalCall : Expr → Bool
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
   | Expr.structMember _ key _ | Expr.arrayElement _ key | Expr.arrayElementWord _ key _ _
   | Expr.arrayElementDynamicWord _ key _
+  | Expr.arrayElementDynamicDataOffset _ key
   | Expr.arrayElementDynamicMemberDataOffset _ key _
   | Expr.arrayElementDynamicMemberLength _ key _
   | Expr.storageArrayElement _ key =>
       exprMayContainExternalCall key
   | Expr.arrayElementDynamicMemberElement _ key _ innerKey =>
       exprMayContainExternalCall key || exprMayContainExternalCall innerKey
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprMayContainExternalCall innerIndex
   | Expr.mappingChain _ keys =>
       exprListMayContainExternalCall keys
   | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
@@ -751,6 +773,8 @@ def exprMayContainExternalCall : Expr → Bool
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       false
 termination_by e => sizeOf e
@@ -1174,11 +1198,14 @@ def exprContainsAdtConstruct : Expr → Bool
   | Expr.returndataOptionalBoolAt a
   | Expr.storageArrayElement _ a | Expr.arrayElement _ a | Expr.arrayElementWord _ a _ _
   | Expr.arrayElementDynamicWord _ a _
+  | Expr.arrayElementDynamicDataOffset _ a
   | Expr.arrayElementDynamicMemberDataOffset _ a _
   | Expr.arrayElementDynamicMemberLength _ a _ =>
       exprContainsAdtConstruct a
   | Expr.arrayElementDynamicMemberElement _ a _ b =>
       exprContainsAdtConstruct a || exprContainsAdtConstruct b
+  | Expr.paramDynamicMemberElement _ _ a =>
+      exprContainsAdtConstruct a
   | Expr.ite cond thenVal elseVal =>
       exprContainsAdtConstruct cond || exprContainsAdtConstruct thenVal ||
         exprContainsAdtConstruct elseVal
@@ -1214,6 +1241,8 @@ def exprContainsAdtConstruct : Expr → Bool
   | Expr.localVar _
   | Expr.arrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
       false
 termination_by e => sizeOf e

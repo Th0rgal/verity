@@ -293,6 +293,16 @@ def compileExpr (fields : List Field)
         indexExpr,
         YulExpr.lit wordOffset
       ])
+  | Expr.arrayElementDynamicDataOffset name index => do
+      let indexExpr ← compileExpr fields dynamicSource index
+      let helperName := match dynamicSource with
+        | .calldata => checkedArrayElementDynamicDataOffsetCalldataHelperName
+        | .memory => checkedArrayElementDynamicDataOffsetMemoryHelperName
+      pure (YulExpr.call helperName [
+        YulExpr.ident s!"{name}_data_offset",
+        YulExpr.ident s!"{name}_length",
+        indexExpr
+      ])
   | Expr.paramDynamicHeadWord name wordOffset => do
       let helperName := match dynamicSource with
         | .calldata => checkedParamDynamicHeadWordCalldataHelperName
@@ -300,6 +310,32 @@ def compileExpr (fields : List Field)
       pure (YulExpr.call helperName [
         YulExpr.ident s!"{name}_data_offset",
         YulExpr.lit wordOffset
+      ])
+  | Expr.paramDynamicMemberLength name wordOffset => do
+      let helperName := match dynamicSource with
+        | .calldata => checkedParamDynamicMemberLengthCalldataHelperName
+        | .memory => checkedParamDynamicMemberLengthMemoryHelperName
+      pure (YulExpr.call helperName [
+        YulExpr.ident s!"{name}_data_offset",
+        YulExpr.lit wordOffset
+      ])
+  | Expr.paramDynamicMemberDataOffset name wordOffset => do
+      let helperName := match dynamicSource with
+        | .calldata => checkedParamDynamicMemberDataOffsetCalldataHelperName
+        | .memory => checkedParamDynamicMemberDataOffsetMemoryHelperName
+      pure (YulExpr.call helperName [
+        YulExpr.ident s!"{name}_data_offset",
+        YulExpr.lit wordOffset
+      ])
+  | Expr.paramDynamicMemberElement name wordOffset innerIndex => do
+      let innerIndexExpr ← compileExpr fields dynamicSource innerIndex
+      let helperName := match dynamicSource with
+        | .calldata => checkedParamDynamicMemberElementCalldataHelperName
+        | .memory => checkedParamDynamicMemberElementMemoryHelperName
+      pure (YulExpr.call helperName [
+        YulExpr.ident s!"{name}_data_offset",
+        YulExpr.lit wordOffset,
+        innerIndexExpr
       ])
   | Expr.arrayElementDynamicMemberLength name index wordOffset => do
       let indexExpr ← compileExpr fields dynamicSource index

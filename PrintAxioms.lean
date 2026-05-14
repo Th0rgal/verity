@@ -2754,6 +2754,9 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDiv512Down  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDiv512Up  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicHeadWord  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicMemberLength  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicMemberDataOffset  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicMemberElement  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_call  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_staticcall  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_delegatecall  -- private
@@ -2791,7 +2794,9 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElement  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementWord  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicWord  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicDataOffset  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicMemberLength  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicMemberDataOffset  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicMemberElement  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingWord  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingPackedWord  -- private
@@ -5577,4 +5582,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5291 theorems/lemmas (3564 public, 1727 private, 0 sorry'd)
+-- Total: 5296 theorems/lemmas (3564 public, 1732 private, 0 sorry'd)

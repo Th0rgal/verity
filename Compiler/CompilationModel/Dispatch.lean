@@ -31,6 +31,11 @@ def internalFunctionYulParamNames (params : List Param) : List String :=
     match param.ty with
     | ParamType.array _ =>
         [s!"{param.name}_data_offset", s!"{param.name}_length"]
+    | ParamType.tuple _ =>
+        if isDynamicParamType param.ty then
+          [s!"{param.name}_data_offset"]
+        else
+          [param.name]
     | _ => [param.name]
 
 -- Compile internal function to a Yul function definition (#181)
@@ -427,6 +432,8 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
       , checkedArrayElementWordMemoryHelper
       , checkedArrayElementDynamicWordCalldataHelper
       , checkedArrayElementDynamicWordMemoryHelper
+      , checkedArrayElementDynamicDataOffsetCalldataHelper
+      , checkedArrayElementDynamicDataOffsetMemoryHelper
       -- verity#1849 G1: dynamic-member length helpers share the
       -- `arrayElementWord` gate because they read the same struct-array
       -- elements and have negligible code size; conservative emission is
@@ -444,6 +451,12 @@ def compileValidatedCore (spec : CompilationModel) (selectors : List Nat) : Exce
     (if paramDynamicHeadWordHelpersRequired then
       [ checkedParamDynamicHeadWordCalldataHelper
       , checkedParamDynamicHeadWordMemoryHelper
+      , checkedParamDynamicMemberLengthCalldataHelper
+      , checkedParamDynamicMemberLengthMemoryHelper
+      , checkedParamDynamicMemberDataOffsetCalldataHelper
+      , checkedParamDynamicMemberDataOffsetMemoryHelper
+      , checkedParamDynamicMemberElementCalldataHelper
+      , checkedParamDynamicMemberElementMemoryHelper
       ]
     else
       []) ++

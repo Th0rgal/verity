@@ -1102,7 +1102,7 @@ verity_contract NamedStructTupleProjectionRejected where
     return pair_0
 
 /--
-error: non-leaf struct parameter projection is not supported; project a scalar or static single-word leaf field instead (#1832)
+error: local binding 'notes' currently cannot bind dynamic values (Verity.Macro.ValueType.array (Verity.Macro.ValueType.uint256)) to local variables on the compilation-model path; use the parameter directly
 -/
 #guard_msgs in
 verity_contract NamedStructDynamicProjectionRejected where
@@ -1798,6 +1798,62 @@ example :
               10
           ]
       , Compiler.CompilationModel.Stmt.stop
+      ] := rfl
+
+verity_contract DynamicStructElementHelperArgSmoke where
+  storage
+
+  struct Transaction where
+    id : Uint256,
+    values : Array Uint256
+
+  function consumeValues (values : Array Uint256) : Uint256 := do
+    return arrayLength values
+
+  function inspect (txn : Transaction) : Uint256 := do
+    let first := arrayElement txn.values 0
+    let count ← consumeValues txn.values
+    return add txn.id (add first count)
+
+  function inspectAt (txs : Array Transaction, idx : Uint256) : Uint256 := do
+    let total ← inspect (arrayElement txs idx)
+    return total
+
+example :
+    DynamicStructElementHelperArgSmoke.inspect_modelBody =
+      [ Compiler.CompilationModel.Stmt.letVar
+          "first"
+          (Compiler.CompilationModel.Expr.paramDynamicMemberElement
+            "txn"
+            1
+            (Compiler.CompilationModel.Expr.literal 0))
+      , Compiler.CompilationModel.Stmt.letVar
+          "count"
+          (Compiler.CompilationModel.Expr.internalCall
+            "internal_consumeValues"
+            [ Compiler.CompilationModel.Expr.paramDynamicMemberDataOffset "txn" 1
+            , Compiler.CompilationModel.Expr.paramDynamicMemberLength "txn" 1
+            ])
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.add
+            (Compiler.CompilationModel.Expr.paramDynamicHeadWord "txn" 0)
+            (Compiler.CompilationModel.Expr.add
+              (Compiler.CompilationModel.Expr.localVar "first")
+              (Compiler.CompilationModel.Expr.localVar "count")))
+      ] := rfl
+
+example :
+    DynamicStructElementHelperArgSmoke.inspectAt_modelBody =
+      [ Compiler.CompilationModel.Stmt.letVar
+          "total"
+          (Compiler.CompilationModel.Expr.internalCall
+            "internal_inspect"
+            [ Compiler.CompilationModel.Expr.arrayElementDynamicDataOffset
+                "txs"
+                (Compiler.CompilationModel.Expr.param "idx")
+            ])
+      , Compiler.CompilationModel.Stmt.return
+          (Compiler.CompilationModel.Expr.localVar "total")
       ] := rfl
 
 example :
