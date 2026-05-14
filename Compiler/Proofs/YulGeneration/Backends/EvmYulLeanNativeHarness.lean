@@ -14539,6 +14539,39 @@ theorem NativeBlockPreservesWord_revived_block_empty_then_leave
     (NativeBlockPreservesWord_revived_singleton name value .Leave codeOverride
       (NativeStmtPreservesWord_revived_leave name value codeOverride))
 
+/-- Generic vacuity helper: if a `.Block` body's exec never produces an
+`.ok` result, then `_revived` preservation holds trivially (the implication's
+premise is unsatisfiable).
+
+Useful for halt-style bodies whose exec always returns `.error YulHalt`
+(stop / return / revert), where `_revived` preservation is vacuous. The
+counterpart for the OLD-form `NativeBlockPreservesWord` follows by the same
+argument; see `NativeBlockPreservesWord_of_never_ok` below. -/
+theorem NativeBlockPreservesWord_revived_of_never_ok
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hNeverOk :
+      ∀ fuel state final,
+        EvmYul.Yul.exec fuel (.Block body) codeOverride state ≠ .ok final) :
+    NativeBlockPreservesWord_revived name value body codeOverride := by
+  intro fuel state final _hRevive hExec
+  exact absurd hExec (hNeverOk fuel state final)
+
+/-- OLD-form counterpart of `NativeBlockPreservesWord_revived_of_never_ok`. -/
+theorem NativeBlockPreservesWord_of_never_ok
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hNeverOk :
+      ∀ fuel state final,
+        EvmYul.Yul.exec fuel (.Block body) codeOverride state ≠ .ok final) :
+    NativeBlockPreservesWord name value body codeOverride := by
+  intro fuel state final _hLookup hExec
+  exact absurd hExec (hNeverOk fuel state final)
+
 /-- `_revived` block preservation for the body shape `[.Block [], .Block [.Leave]]`
 — the lowered form of an IR `[.block [], .block [.leave]]` body (F4's body
 shape). Used by the future label-prefix lift for the block-leave case. -/
