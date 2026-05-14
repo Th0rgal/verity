@@ -366,6 +366,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.StructMappingSmoke.spec
   , Contracts.Smoke.ExternalCallSmoke.spec
   , Contracts.Smoke.TryExternalCallSmoke.spec
+  , Contracts.Smoke.LinkedExternalDynamicArgSmoke.spec
   , Contracts.Smoke.ExternalCallMultiReturn.spec
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
@@ -510,6 +511,8 @@ private def expectedExternalSignatures : List (String × List String) :=
       "approvalNonce(address,address)"])
   , ("ExternalCallSmoke", ["storeEcho(uint256)", "getEchoedValue()"])
   , ("TryExternalCallSmoke", ["tryEcho(uint256)"])
+  , ("LinkedExternalDynamicArgSmoke", ["hashLeaves(uint256[])", "sendLeaves(uint256[])",
+      "tryHash(uint256[])", "hashPayload(bytes)"])
   , ("ExternalCallMultiReturn", ["callFanout(uint256)", "noop()"])
   , ("ERC20HelperSmoke", ["pushTokens(address,address,uint256)", "pullTokens(address,address,address,uint256)",
       "approveTokens(address,address,uint256)", "snapshotBalance(address,address)",
@@ -635,6 +638,8 @@ private def expectedExternalSelectors : List (String × List String) :=
       "0x6c241120"])
   , ("ExternalCallSmoke", ["0x32fdff86", "0x21209dbd"])
   , ("TryExternalCallSmoke", ["0xaf842e53"])
+  , ("LinkedExternalDynamicArgSmoke", ["0xf1b3ebc7", "0x3f87a475", "0x35ea2663",
+      "0xc58b0a4d"])
   , ("ExternalCallMultiReturn", ["0x70fce9a3", "0x5dfc2e4a"])
   , ("ERC20HelperSmoke", ["0xa6c29ca3", "0x6aa209a6", "0x912d6e28", "0x48476c71", "0xdac24aaf",
       "0x7247c4a5"])
