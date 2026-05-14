@@ -211,6 +211,7 @@ def revertReturndata : Contract Unit := pure ()
 def arrayLength {α : Type} (values : Array α) : Uint256 := values.size
 def arrayElement {α : Type} [Inhabited α] (values : Array α) (index : Uint256) : α :=
   values.getD (index : Nat) (Inhabited.default : α)
+def abiHeadWord {α : Type} [Inhabited α] (_value : α) (_wordOffset : Uint256) : Uint256 := 0
 def arrayElementChecked {α : Type} (values : Array α) (index : Uint256) : Contract α := fun state =>
   if h : (index : Nat) < values.size then
     ContractResult.success (values[(index : Nat)]'h) state
