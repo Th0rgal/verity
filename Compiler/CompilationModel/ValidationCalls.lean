@@ -126,6 +126,16 @@ def linkedExternalCallYulArgCountForParam : ParamType → Nat
 def linkedExternalCallYulArgCount (params : List ParamType) : Nat :=
   params.foldl (fun acc paramTy => acc + linkedExternalCallYulArgCountForParam paramTy) 0
 
+def linkedExternalReturnYulCountForType : ParamType → Nat
+  | ParamType.tuple elemTys =>
+      elemTys.foldl (fun acc elemTy => acc + linkedExternalReturnYulCountForType elemTy) 0
+  | ParamType.fixedArray elemTy size =>
+      size * linkedExternalReturnYulCountForType elemTy
+  | _ => 1
+
+def linkedExternalReturnYulCount (returns : List ParamType) : Nat :=
+  returns.foldl (fun acc retTy => acc + linkedExternalReturnYulCountForType retTy) 0
+
 def findInternalFunctionByName (functions : List FunctionSpec)
     (callerName calleeName : String) : Except String FunctionSpec := do
   let candidates := functions.filter (fun fn => fn.isInternal && fn.name == calleeName)
@@ -611,8 +621,9 @@ def validateExternalCallTargetsInStmt
           if args.length != expectedArgs then
             throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} Yul arg(s), expected {expectedArgs}."
           let returns ← externalFunctionReturns ext
-          if returns.length != resultVars.length then
-            throw s!"Compilation error: {context} binds {resultVars.length} values from external function '{externalName}', but it returns {returns.length}."
+          let expectedReturns := linkedExternalReturnYulCount returns
+          if expectedReturns != resultVars.length then
+            throw s!"Compilation error: {context} binds {resultVars.length} Yul value(s) from external function '{externalName}', but it returns {expectedReturns} Yul value(s)."
           let rec checkDuplicateVars (seen : List String) : List String → Except String Unit
             | [] => pure ()
             | name :: rest =>
@@ -631,8 +642,9 @@ def validateExternalCallTargetsInStmt
           if args.length != expectedArgs then
             throw s!"Compilation error: {context} calls external function '{externalName}' with {args.length} Yul arg(s), expected {expectedArgs}."
           let returns ← externalFunctionReturns ext
-          if returns.length != resultVars.length then
-            throw s!"Compilation error: {context} binds {resultVars.length} values from external function '{externalName}', but it returns {returns.length}."
+          let expectedReturns := linkedExternalReturnYulCount returns
+          if expectedReturns != resultVars.length then
+            throw s!"Compilation error: {context} binds {resultVars.length} Yul value(s) from external function '{externalName}', but it returns {expectedReturns} Yul value(s)."
           let tryName := s!"{externalName}_try"
           match externals.find? (fun candidate => candidate.name == tryName) with
           | none =>
@@ -641,9 +653,10 @@ def validateExternalCallTargetsInStmt
               if tryExt.params != ext.params then
                 throw s!"Compilation error: try wrapper '{tryName}' must take the same parameters as external function '{externalName}'."
               let tryReturns ← externalFunctionReturns tryExt
-              let expectedTryReturns := ParamType.bool :: returns
-              if tryReturns != expectedTryReturns then
-                throw s!"Compilation error: try wrapper '{tryName}' must return Bool followed by the return values of external function '{externalName}'."
+              let expectedTryReturns := 1 + linkedExternalReturnYulCount returns
+              let actualTryReturns := linkedExternalReturnYulCount tryReturns
+              if actualTryReturns != expectedTryReturns then
+                throw s!"Compilation error: try wrapper '{tryName}' must return Bool followed by the flattened return values of external function '{externalName}'."
           let allVars := successVar :: resultVars
           let rec checkDuplicateTryVars (seen : List String) : List String → Except String Unit
             | [] => pure ()

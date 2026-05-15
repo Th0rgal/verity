@@ -13,13 +13,26 @@ set_option hygiene false
 
 @[command_elab verityContractCmd]
 def elabVerityContract : CommandElab := fun stx => do
-  let (contractName, _newtypeDecls, structDecls, adtDecls, fields, errorDecls, eventDecls, constDecls, immutableDecls, externalDecls, ctor, functions, storageNamespace) ← parseContractSyntax stx
+  let parsed ← parseContractSyntax stx
+  let contractName := parsed.contractName
+  let structDecls := parsed.structDecls
+  let adtDecls := parsed.adtDecls
+  let fields := parsed.fields
+  let errorDecls := parsed.errorDecls
+  let eventDecls := parsed.eventDecls
+  let constDecls := parsed.constDecls
+  let immutableDecls := parsed.immutableDecls
+  let externalDecls := parsed.externalDecls
+  let ctor := parsed.ctor
+  let modifiers := parsed.modifiers
+  let functions := parsed.functions
+  let storageNamespace := parsed.storageNamespace
 
   validateGeneratedDefNamesPublic fields constDecls immutableDecls functions
   validateConstantDeclsPublic constDecls
   validateImmutableDeclsPublic fields constDecls immutableDecls ctor
   validateExternalDeclsPublic externalDecls
-  validateFunctionDeclsPublic fields errorDecls constDecls immutableDecls externalDecls ctor functions
+  validateFunctionDeclsPublic fields errorDecls constDecls immutableDecls externalDecls ctor modifiers functions
 
   elabCommand (← `(namespace $contractName))
   try
@@ -49,7 +62,7 @@ def elabVerityContract : CommandElab := fun stx => do
         elabCommand cmd
       elabCommand (← mkBridgeCommand fn.ident)
 
-    elabCommand (← mkSpecCommandPublic (toString contractName.getId) fields errorDecls eventDecls constDecls immutableDecls externalDecls ctor functions adtDecls storageNamespace)
+    elabCommand (← mkSpecCommandPublic (toString contractName.getId) fields errorDecls eventDecls constDecls immutableDecls externalDecls ctor modifiers functions adtDecls storageNamespace)
 
     let findIdxSimpCmds ← mkFindIdxFieldSimpCommandsPublic contractName fields
     for cmd in findIdxSimpCmds do

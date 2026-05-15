@@ -218,6 +218,7 @@ def arrayLength {α : Type} (values : Array α) : Uint256 := values.size
 def arrayElement {α : Type} [Inhabited α] (values : Array α) (index : Uint256) : α :=
   values.getD (index : Nat) (Inhabited.default : α)
 def abiHeadWord {α : Type} [Inhabited α] (_value : α) (_wordOffset : Uint256) : Uint256 := 0
+def abiEncode {α : Type} [Inhabited α] (_value : α) : Uint256 := 0
 def arrayElementChecked {α : Type} (values : Array α) (index : Uint256) : Contract α := fun state =>
   if h : (index : Nat) < values.size then
     ContractResult.success (values[(index : Nat)]'h) state
@@ -253,6 +254,9 @@ instance : Coe Uint256 EventArg where
 
 instance (α : Type) : CoeTC (Array α) EventArg where
   coe values := EventArg.dynamicArray values.size
+
+instance (α : Type) : CoeTC (Contract (Array α)) EventArg where
+  coe _ := EventArg.dynamicArray 0
 
 def emit (name : String) (args : List EventArg) : Contract Unit :=
   emitEvent name (args.map EventArg.toWord)

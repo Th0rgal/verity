@@ -26,6 +26,8 @@ declare_syntax_cat verityAdtVariant
 declare_syntax_cat verityAdtDecl
 declare_syntax_cat verityNamespaceSpec
 declare_syntax_cat veritySpecialEntrypoint
+declare_syntax_cat verityModifier
+declare_syntax_cat verityModifierUse
 declare_syntax_cat verityFunction
 
 syntax ident " : " term " := " "slot" num : verityStorageField
@@ -78,7 +80,9 @@ syntax "constructor " "(" sepBy(verityParam, ",") ")" (ppSpace verityLocalObliga
 syntax "constructor " "(" sepBy(verityParam, ",") ")" " payable" (ppSpace verityLocalObligations)? " := " term : verityConstructor
 syntax "receive" (ppSpace verityLocalObligations)? " := " term : veritySpecialEntrypoint
 syntax "fallback" (ppSpace verityLocalObligations)? " := " term : veritySpecialEntrypoint
-syntax "function " verityMutability* ident " (" sepBy(verityParam, ",") ")" (ppSpace verityInitGuard)? (ppSpace verityRequiresRole)? (ppSpace verityModifies)? (ppSpace verityLocalObligations)? " : " term " := " term : verityFunction
+syntax "modifier " ident " := " term : verityModifier
+syntax "with " sepBy1(ident, ",") : verityModifierUse
+syntax "function " verityMutability* ident " (" sepBy(verityParam, ",") ")" (ppSpace verityInitGuard)? (ppSpace verityModifierUse)? (ppSpace verityRequiresRole)? (ppSpace verityModifies)? (ppSpace verityLocalObligations)? " : " term " := " term : verityFunction
 
 syntax (name := verityContractCmd)
   "verity_contract " ident " where "
@@ -94,6 +98,7 @@ syntax (name := verityContractCmd)
   ("linked_externals " verityExternal+)?
   (verityConstructor)?
   (veritySpecialEntrypoint)*
+  (verityModifier)*
   verityFunction* : command
 
 syntax (name := checkContractCmd)
