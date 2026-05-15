@@ -25,8 +25,6 @@ lean_lib «Contracts» where
     .one `Contracts.Common,
     .one `Contracts.Specs,
     .one `Contracts.Interpreter,
-    .one `Contracts.MacroTranslateInvariantTest,
-    .one `Contracts.MacroTranslateRoundTripFuzz,
     .one `Contracts.Smoke,
     .andSubmodules `Contracts.Counter,
     .andSubmodules `Contracts.SimpleStorage,
@@ -65,11 +63,6 @@ lean_exe «random-gen» where
 lean_exe «gas-report» where
   root := `Compiler.Gas.Report
 
-lean_exe «macro-roundtrip-fuzz» where
-  root := `Contracts.MacroTranslateRoundTripFuzz
-
 lean_exe «compiler-main-test» where
   root := `Compiler.MainTestRunner
 
-lean_exe «native-dispatch-oracle-test» where
-  root := `Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeDispatchOracleTest

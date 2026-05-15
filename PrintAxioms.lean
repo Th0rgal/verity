@@ -51,7 +51,6 @@ import Compiler.Proofs.KeccakBound
 import Compiler.Proofs.MappingSlot
 import Compiler.Proofs.StorageBounds
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
-import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
@@ -61,7 +60,6 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
-import Compiler.Proofs.YulGeneration.Equivalence
 import Compiler.Proofs.YulGeneration.IRFuel
 import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 import Compiler.Proofs.YulGeneration.RuntimeTypes
@@ -3198,15 +3196,6 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNativeAux_stmt_cons
   Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative_empty
 
-  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean
-  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.assign_equiv_let'  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.legacyExecYulFuel_stmts_nil  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_revert  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_return  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.AdapterCorrectness.for_init_hoist_stop  -- private
-
   -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean
   Compiler.Proofs.YulGeneration.Backends.isDynamicParamType_false_of_static_scalar
   -- Compiler.Proofs.YulGeneration.Backends.bridgedExpr_calldataload_lit  -- private
@@ -5516,22 +5505,6 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.StateBridge.storageLookup_projectStorage_projected
   Compiler.Proofs.YulGeneration.Backends.StateBridge.uint256_roundtrip
 
-  -- Compiler/Proofs/YulGeneration/Equivalence.lean
-  -- Compiler.Proofs.YulGeneration.resultsMatch_of_execResultsAligned  -- private
-  -- Compiler.Proofs.YulGeneration.statesAligned_refl  -- private
-  -- Compiler.Proofs.YulGeneration.execYulStmtsFuel_nil  -- private
-  -- Compiler.Proofs.YulGeneration.execYulStmtsFuel_cons  -- private
-  -- Compiler.Proofs.YulGeneration.execYulStmtFuel_for  -- private
-  -- Compiler.Proofs.YulGeneration.stmt_align_contra  -- private
-  -- Compiler.Proofs.YulGeneration.execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv  -- private
-  -- Compiler.Proofs.YulGeneration.execIRStmtsFuel_equiv_execYulStmts_of_stmt_equiv  -- private
-  -- Compiler.Proofs.YulGeneration.execIRFunctionFuel_equiv_interpretYulBodyFromState_of_stmt_equiv  -- private
-  -- Compiler.Proofs.YulGeneration.ir_yul_function_equiv_fuel_goal_of_stmt_equiv  -- private
-  -- Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal  -- private
-  -- Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_fuel_goal_and_adequacy  -- private
-  -- Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv_and_adequacy  -- private
-  -- Compiler.Proofs.YulGeneration.ir_yul_function_equiv_from_state_of_stmt_equiv  -- private
-
   -- Compiler/Proofs/YulGeneration/IRFuel.lean
   Compiler.Proofs.YulGeneration.execIRStmtsFuel_nil
   Compiler.Proofs.YulGeneration.execIRStmtsFuel_cons
@@ -5559,4 +5532,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5276 theorems/lemmas (3575 public, 1701 private, 0 sorry'd)
+-- Total: 5255 theorems/lemmas (3575 public, 1680 private, 0 sorry'd)

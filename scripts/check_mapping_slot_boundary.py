@@ -22,14 +22,12 @@ ALLOWED_MAPPING_ENCODING_IMPORTERS: set[Path] = set()
 
 REQUIRED_ABSTRACTION_IMPORTS = {
     PROOFS_DIR / "IRGeneration" / "IRInterpreter.lean",
-    PROOFS_DIR / "YulGeneration" / "ReferenceOracle" / "Semantics.lean",
 }
 
 LEGACY_SYMBOL_FORBIDDEN_FILES = REQUIRED_ABSTRACTION_IMPORTS
 
 BUILTINS_FILE = PROOFS_DIR / "YulGeneration" / "ReferenceOracle" / "Builtins.lean"
 IR_INTERPRETER_FILE = PROOFS_DIR / "IRGeneration" / "IRInterpreter.lean"
-YUL_SEMANTICS_FILE = PROOFS_DIR / "YulGeneration" / "ReferenceOracle" / "Semantics.lean"
 
 IMPORT_MAPPING_ENCODING_RE = re.compile(r"^\s*import\s+Compiler\.Proofs\.MappingEncoding\s*$", re.MULTILINE)
 IMPORT_MAPPING_SLOT_RE = re.compile(r"^\s*import\s+Compiler\.Proofs\.MappingSlot\s*$", re.MULTILINE)
@@ -183,14 +181,13 @@ def main() -> int:
     if not ABSTRACT_LOAD_REF_RE.search(builtins_text):
         errors.append(f"{builtins_rel}: missing reference to Compiler.Proofs.abstractLoadStorageOrMapping")
 
-    for state_file in (IR_INTERPRETER_FILE, YUL_SEMANTICS_FILE):
-        state_text = scrub_lean_code(state_file.read_text(encoding="utf-8"))
-        state_rel = state_file.relative_to(ROOT)
-        if STATE_MAPPINGS_FIELD_RE.search(state_text):
-            errors.append(
-                f"{state_rel}: execution state must not define a separate `mappings` table; "
-                "mapping semantics must flow through flat storage only"
-            )
+    state_text = scrub_lean_code(IR_INTERPRETER_FILE.read_text(encoding="utf-8"))
+    state_rel = IR_INTERPRETER_FILE.relative_to(ROOT)
+    if STATE_MAPPINGS_FIELD_RE.search(state_text):
+        errors.append(
+            f"{state_rel}: execution state must not define a separate `mappings` table; "
+            "mapping semantics must flow through flat storage only"
+        )
 
     if errors:
         print("Mapping slot boundary check failed:", file=sys.stderr)
