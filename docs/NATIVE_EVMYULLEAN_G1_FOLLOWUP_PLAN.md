@@ -589,23 +589,45 @@ stack — discharges `LeaveAwareCallDispatcherContinuation` unconditionally):
 - `NativeStmtPreservesWord_revived_if_of_cond_preserves_reviveJump`
   (`0b4151d6`) — takes a `reviveJump`-stated cond premise
 - `NativeBlockPreservesWord_revived_switchCaseBody_payable_of_user_body`
-  (`b002443a`)
+  (`b002443a` + `35e998f5` — drops `hCondReviveJump`)
 - `NativeBlockPreservesWord_revived_switchCaseBody_nonpayable_of_user_body`
-  (`b5410c1a`)
-- **Remaining**: cond-`reviveJump` premise discharge for the dispatcher's
-  specific `lt(calldatasize, k)` and `callvalue()` guards (the existing
-  `eval_lowerExprNative_lt_calldatasize_ok_fuel` handles Ok input states;
-  non-Ok input requires per-state-form eval analysis — see memory
-  `yul-state-lookup-bracket-vs-lookup`). Plus the parallel
-  `nativeGeneratedCallDispatcherResult_..._supported` dispatcher continuation
-  provider yielding `_revived` form.
+  (`b5410c1a` + `35e998f5` — drops both cond premises)
 
-**Per-`BridgedStraightStmt` framework** — still REMAINING LONG POLE. Until
-shipped, D1/D2/E6/E7 strengthening blocked behind the `hOnlyEmpty :
-preStmts = []` narrowing.
+### Stage 2 progress (2026-05-15)
 
-**Conflicts**: upstream main absorbed (merge commit `60d38ba8`) — incorporated
-PRs #1858-#1862 which added new IR Expr constructors
-(`arrayElementDynamicDataOffset`, `arrayElementDynamicMemberDataOffset`,
-`paramDynamicMember{Length,DataOffset,Element}`) that the fork conformance
-probe relies on.
+**Universal-input cond-reviveJump discharge** ✓ (DoD-4 closed):
+
+- `eval_lowerExprNative_lt_calldatasize_fuel` (state-generic, fuel ≥ 8)
+- `eval_lowerExprNative_lt_calldatasize_fuel_ge_6` (tight, fuel ≥ 6)
+- `eval_lowerExprNative_callvalue_fuel` (state-generic, fuel ≥ 5)
+- `eval_lowerExprNative_callvalue_fuel_ge_2` (tight, fuel ≥ 2)
+- `eval_lt_calldatasize_lit_preserves_reviveJump` — UNIVERSAL (any fuel,
+  any state form), splits fuel < 6 (vacuous, `maxHeartbeats 4M`) vs ≥ 6
+- `eval_callvalue_preserves_reviveJump` — UNIVERSAL similarly
+- Both `_revived_switchCaseBody_*` now apply the universal discharge
+  internally; `hCondReviveJump`/`hCallvalueReviveJump`/`hCalldataReviveJump`
+  premises dropped.
+
+Commits: `ce401bf0` (state-generic foundation), `b0611174` (callvalue
+universal), `a2e91c49` (lt-calldatasize universal), `35e998f5` (drop
+cond premises from `_revived_switchCaseBody_*`).
+
+**Polish**: `EvmYulLeanRetarget.lean` (1631 LoC) deleted (`2eac7c6d`) —
+its 7 theorems had no external callers beyond auto-generated PrintAxioms.
+DoD-5 second half (legacyExecYulFuel removal — 136 refs across 10 files)
+still remaining.
+
+**Per-`BridgedStraightStmt` framework** — still REMAINING LONG POLE
+(~2–4 weeks). Until shipped, D1/D2/E6/E7 strengthening blocked behind the
+`hOnlyEmpty : preStmts = []` narrowing.
+
+**Parallel `_revived` dispatcher continuation provider** — REMAINING. The
+`LeaveAwareCallDispatcherContinuation` predicate (EndToEnd.lean:19858) is
+required by E2/E4/E6/E7 and F2/F4/F6/F7. Building this is a parallel
+copy-modify of `nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_forall_of_compile_ok_supported`
+(~700 LoC), but the proof body needs `_revived` semantics threaded through
+the dispatcher chain. Estimated 3–7 days standalone, blocked on the
+per-stmt observation framework for the user-body preservation discharge.
+
+**Conflicts**: upstream main absorbed twice (merge commits `60d38ba8` and
+`3358dc56`) — currently 0 commits behind upstream/main.
