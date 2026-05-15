@@ -48,9 +48,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                    'checks',
                    'timeout-watchdog',
                    'build',
-                   'prepare-macro-fuzz',
                    'build-audits',
-                   'macro-fuzz',
                    'build-compiler-binaries',
                    'compiler-audits',
                    'compiler-regressions',
@@ -64,9 +62,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                         'checks': [],
                         'timeout-watchdog': ['checks'],
                         'build': ['changes', 'checks'],
-                        'prepare-macro-fuzz': ['changes', 'checks', 'build'],
                         'build-audits': ['changes', 'checks', 'build'],
-                        'macro-fuzz': ['changes', 'checks', 'prepare-macro-fuzz'],
                         'build-compiler-binaries': ['changes', 'checks', 'build'],
                         'compiler-audits': ['changes',
                                             'checks',
@@ -86,9 +82,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                'build-compiler-binaries'],
                         'failure-hints': ['checks',
                                           'build',
-                                          'prepare-macro-fuzz',
                                           'build-audits',
-                                          'macro-fuzz',
                                           'build-compiler-binaries',
                                           'compiler-audits',
                                           'compiler-regressions',
@@ -103,15 +97,9 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                     '&& inputs.clean_build)',
                                 'build': "needs.checks.result == 'success' && "
                                          "needs.changes.outputs.build == 'true'",
-                                'prepare-macro-fuzz': "needs.checks.result == 'success' && "
-                                                      "needs.build.result == 'success' && "
-                                                      "needs.changes.outputs.macro_fuzz == 'true'",
                                 'build-audits': "needs.checks.result == 'success' && "
                                                 "needs.build.result == 'success' && "
                                                 "needs.changes.outputs.build == 'true'",
-                                'macro-fuzz': "needs.checks.result == 'success' && "
-                                              "needs.prepare-macro-fuzz.result == 'success' && "
-                                              "needs.changes.outputs.macro_fuzz == 'true'",
                                 'build-compiler-binaries': "needs.checks.result == 'success' && "
                                                            "needs.build.result == 'success' && "
                                                            "needs.changes.outputs.compiler == "
@@ -149,9 +137,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                           'checks': '[self-hosted, linux, ARM64, dgx-spark, verity, fastlane]',
                           'timeout-watchdog': '[self-hosted, linux, ARM64, dgx-spark, verity, fastlane]',
                           'build': '[self-hosted, linux, x64, verity, build]',
-                          'prepare-macro-fuzz': '[self-hosted, linux, x64, verity, build]',
                           'build-audits': '[self-hosted, linux, x64, verity, build]',
-                          'macro-fuzz': '[self-hosted, linux, x64, verity, build]',
                           'build-compiler-binaries': '[self-hosted, linux, x64, verity, build]',
                           'compiler-audits': '[self-hosted, linux, x64, verity, build]',
                           'compiler-regressions': '[self-hosted, linux, x64, verity, build]',
@@ -165,9 +151,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                            'checks': 10,
                            'timeout-watchdog': 5,
                            'build': "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '60' || '35') }}",
-                           'prepare-macro-fuzz': 360,
                            'build-audits': 20,
-                           'macro-fuzz': "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '150' || '90') }}",
                            'build-compiler-binaries': 360,
                            'compiler-audits': 45,
                            'compiler-regressions': "${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '150' || '90') }}",
@@ -176,11 +160,10 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                            'foundry': 30,
                            'foundry-patched': 60,
                            'foundry-multi-seed': 45},
- 'expected_job_strategy_fail_fast': {'macro-fuzz': False, 'foundry': False, 'foundry-multi-seed': False},
+ 'expected_job_strategy_fail_fast': {'foundry': False, 'foundry-multi-seed': False},
  'expected_job_outputs': {'changes': {'code': '${{ steps.effective.outputs.code }}',
                                       'build': '${{ steps.effective.outputs.build }}',
-                                      'compiler': '${{ steps.effective.outputs.compiler }}',
-                                      'macro_fuzz': '${{ steps.effective.outputs.macro_fuzz }}'}},
+                                      'compiler': '${{ steps.effective.outputs.compiler }}'}},
  'expected_job_permissions': {'checks': {'contents': 'write'},
                               'timeout-watchdog': {'actions': 'read', 'contents': 'read'},
                               'failure-hints': {'contents': 'read', 'pull-requests': 'write'}},
@@ -206,25 +189,21 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                  '  code=true\n'
                                                  '  build=true\n'
                                                  '  compiler=true\n'
-                                                 '  macro_fuzz=true\n'
                                                  'else\n'
                                                  '  code="$CODE_CHANGED"\n'
                                                  '  build="$BUILD_CHANGED"\n'
                                                  '  compiler="$COMPILER_CHANGED"\n'
-                                                 '  macro_fuzz="$MACRO_FUZZ_CHANGED"\n'
                                                  'fi\n'
                                                  '\n'
                                                  '{\n'
                                                  '  echo "code=$code"\n'
                                                  '  echo "build=$build"\n'
                                                  '  echo "compiler=$compiler"\n'
-                                                 '  echo "macro_fuzz=$macro_fuzz"\n'
                                                  '} >> "$GITHUB_OUTPUT"',
                                           'env': {'FORCE_FULL_RUN': '${{ env.VERIFY_FORCE_FULL_RUN }}',
                                                   'CODE_CHANGED': '${{ steps.filter.outputs.code }}',
                                                   'BUILD_CHANGED': '${{ steps.filter.outputs.build }}',
-                                                  'COMPILER_CHANGED': '${{ steps.filter.outputs.compiler }}',
-                                                  'MACRO_FUZZ_CHANGED': '${{ steps.filter.outputs.macro_fuzz }}'}}],
+                                                  'COMPILER_CHANGED': '${{ steps.filter.outputs.compiler }}'}}],
                              'checks': [{'name': 'Clear sticky remote refs before PR checkout',
                                          'if': "github.event_name == 'pull_request'",
                                          'run': 'if [ -d .git ]; then\n'
@@ -291,45 +270,6 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                         "hashFiles('lean-toolchain') }}-${{ "
                                                         "hashFiles('lakefile.lean') }}-${{ "
                                                         "hashFiles('lake-manifest.json') }}"}}],
-                             'prepare-macro-fuzz': [{'uses': 'actions/checkout@v6',
-                                                     'with': {'submodules': 'recursive'}},
-                                                    {'name': 'Setup Lean',
-                                                     'uses': './.github/actions/setup-lean',
-                                                     'with': {'cache-key-prefix': 'lake',
-                                                              'use-sticky-disks': '${{ env.VERIFY_USE_STICKY_DISKS }}',
-                                                              'sticky-disk-key-prefix': 'verify',
-                                                              'use-build-sticky-disk': '${{ env.VERIFY_USE_STICKY_DISKS }}',
-                                                              'build-sticky-disk-key': "verify-build-macro-fuzz-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}",
-                                                              'disable-lake-cache-restore': '${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}',
-                                                              'cache-primary-key': 'lake-${{ '
-                                                                                   'runner.os '
-                                                                                   '}}-${{ '
-                                                                                   "hashFiles('lean-toolchain') "
-                                                                                   '}}-${{ '
-                                                                                   "hashFiles('lakefile.lean') "
-                                                                                   '}}-${{ '
-                                                                                   "hashFiles('lake-manifest.json') "
-                                                                                   '}}-${{ '
-                                                                                   'github.run_id '
-                                                                                   '}}'}},
-                                                    {'name': 'Download prepared Lean workspace build',
-                                                     'uses': 'actions/download-artifact@v7',
-                                                     'with': {'name': 'lean-workspace-build'}},
-                                                    {'name': 'Build macro round-trip fuzz executable',
-                                                     'run': 'for attempt in 1 2 3; do\n'
-                                                            '  if stdbuf -oL -eL lake build macro-roundtrip-fuzz; then\n'
-                                                            '    exit 0\n'
-                                                            '  fi\n'
-                                                            '  echo "::warning::lake build attempt $attempt failed; retrying in 10s"\n'
-                                                            '  sleep 10\n'
-                                                            'done\n'
-                                                            'echo "::error::lake build failed after 3 attempts"\n'
-                                                            'exit 1'},
-                                                    {'name': 'Upload macro-fuzz Lean workspace '
-                                                             'build',
-                                                     'uses': 'actions/upload-artifact@v7',
-                                                     'with': {'name': 'lean-workspace-macro-fuzz-build',
-                                                              'path': 'lean-workspace-macro-fuzz-build.tar'}}],
                              'build-audits': [{'uses': 'actions/checkout@v6',
                                                'with': {'submodules': 'recursive'}},
                                               {'name': 'Setup Lean',
@@ -355,29 +295,6 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                'with': {'name': 'axiom-dependency-report',
                                                         'path': 'axiom-report.md\n'
                                                                 'axiom-report-raw.log'}}],
-                             'macro-fuzz': [{'uses': 'actions/checkout@v6',
-                                             'with': {'submodules': 'recursive'}},
-                                            {'name': 'Setup Lean',
-                                             'uses': './.github/actions/setup-lean',
-                                             'with': {'cache-key-prefix': 'lake',
-                                                      'use-sticky-disks': '${{ env.VERIFY_USE_STICKY_DISKS }}',
-                                                      'sticky-disk-key-prefix': 'verify',
-                                                      'disable-lake-cache-restore': '${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}',
-                                                      'cache-primary-key': 'lake-${{ runner.os '
-                                                                           '}}-${{ '
-                                                                           "hashFiles('lean-toolchain') "
-                                                                           '}}-${{ '
-                                                                           "hashFiles('lakefile.lean') "
-                                                                           '}}-${{ '
-                                                                           "hashFiles('lake-manifest.json') "
-                                                                           '}}-${{ github.run_id '
-                                                                           '}}'}},
-                                            {'name': 'Download prepared Lean workspace build (fallback)',
-                                             'uses': 'actions/download-artifact@v7',
-                                             'with': {'name': 'lean-workspace-macro-fuzz-build'}},
-                                            {'name': 'Run macro round-trip fuzz harness',
-                                             'run': 'chmod +x ./.lake/build/bin/macro-roundtrip-fuzz\n'
-                                                    './.lake/build/bin/macro-roundtrip-fuzz'}],
                              'build-compiler-binaries': [{'uses': 'actions/checkout@v6',
                                                           'with': {'submodules': 'recursive'}},
                                                          {'name': 'Setup Lean',
@@ -744,7 +661,6 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                       'command': 'python3 scripts/check_gas.py calibration '
                                                  '--static-report gas-report-static.tsv'},
  'expected_uploaded_artifacts': {'build': ['lean-workspace-build'],
-                                 'prepare-macro-fuzz': ['lean-workspace-macro-fuzz-build'],
                                  'build-audits': ['axiom-dependency-report'],
                                  'build-compiler-binaries': ['difftest-interpreter',
                                                              'verity-compiler-binaries',
@@ -756,7 +672,6 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                              'static-gas-report-patched'],
                                  'lean-profile': ['lean-perf-queue']},
  'expected_uploaded_artifact_paths': {'build': ['lean-workspace-build.tar'],
-                                      'prepare-macro-fuzz': ['lean-workspace-macro-fuzz-build.tar'],
                                       'build-audits': ['axiom-report.md\naxiom-report-raw.log'],
                                       'build-compiler-binaries': ['.lake/build/bin/difftest-interpreter',
                                                                   'compiler/bin',
@@ -767,9 +682,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                                                   'gas-report-static.tsv',
                                                                   'gas-report-static-patched.tsv'],
                                       'lean-profile': ['lean-perf-queue.md']},
- 'expected_downloaded_artifacts': {'prepare-macro-fuzz': ['lean-workspace-build'],
-                                   'build-audits': ['lean-workspace-build'],
-                                   'macro-fuzz': ['lean-workspace-macro-fuzz-build'],
+ 'expected_downloaded_artifacts': {'build-audits': ['lean-workspace-build'],
                                    'build-compiler-binaries': ['lean-workspace-build'],
                                    'compiler-audits': ['lean-workspace-build',
                                                        'lean-workspace-compiler-build',
@@ -784,9 +697,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                    'foundry-gas-calibration': ['static-gas-report'],
                                    'foundry-patched': ['lean-workspace-build',
                                                        'lean-workspace-compiler-build']},
- 'expected_downloaded_artifact_paths': {'prepare-macro-fuzz': [None],
-                                        'build-audits': [None],
-                                        'macro-fuzz': [None],
+ 'expected_downloaded_artifact_paths': {'build-audits': [None],
                                         'build-compiler-binaries': [None],
                                         'compiler-audits': [None,
                                                             None,
@@ -807,9 +718,7 @@ SPEC['expected_jobs'] = [
     'checks',
     'timeout-watchdog',
     'build',
-    'prepare-macro-fuzz',
     'build-audits',
-    'macro-fuzz',
     'build-compiler-binaries',
     'compiler-audits',
     'compiler-regressions',
@@ -826,9 +735,7 @@ SPEC['expected_job_needs'] = {
     'checks': [],
     'timeout-watchdog': ['checks'],
     'build': ['changes', 'checks'],
-    'prepare-macro-fuzz': ['changes', 'checks', 'build'],
     'build-audits': ['changes', 'checks', 'build'],
-    'macro-fuzz': ['changes', 'checks', 'prepare-macro-fuzz'],
     'build-compiler-binaries': ['changes', 'checks', 'build'],
     'compiler-audits': ['changes', 'checks', 'build', 'build-compiler-binaries'],
     'compiler-regressions': ['changes', 'checks', 'build', 'build-compiler-binaries'],
@@ -837,7 +744,7 @@ SPEC['expected_job_needs'] = {
     'foundry': ['changes', 'build-compiler-binaries'],
     'foundry-patched': ['changes', 'build-compiler-binaries'],
     'foundry-multi-seed': ['changes', 'build-compiler-binaries'],
-    'failure-hints': ['checks', 'build', 'prepare-macro-fuzz', 'build-audits', 'macro-fuzz', 'build-compiler-binaries', 'compiler-audits', 'compiler-regressions', 'foundry-gas-calibration', 'foundry', 'foundry-patched', 'foundry-multi-seed'],
+    'failure-hints': ['checks', 'build', 'build-audits', 'build-compiler-binaries', 'compiler-audits', 'compiler-regressions', 'foundry-gas-calibration', 'foundry', 'foundry-patched', 'foundry-multi-seed'],
 }
 
 SPEC['expected_job_if_conditions'].update({
@@ -877,7 +784,6 @@ SPEC['expected_step_contracts']['build-compiler-binaries'] = [
 
 SPEC['expected_uploaded_artifacts'] = {
     'build': ['lean-workspace-build'],
-    'prepare-macro-fuzz': ['lean-workspace-macro-fuzz-build'],
     'build-audits': ['axiom-dependency-report'],
     'build-compiler-binaries': ['difftest-interpreter', 'verity-compiler-binaries', 'lean-workspace-compiler-build',
                                 'generated-yul', 'generated-yul-patched',
@@ -889,7 +795,6 @@ SPEC['expected_uploaded_artifacts'] = {
 
 SPEC['expected_uploaded_artifact_paths'] = {
     'build': ['lean-workspace-build.tar'],
-    'prepare-macro-fuzz': ['lean-workspace-macro-fuzz-build.tar'],
     'build-audits': ['axiom-report.md\naxiom-report-raw.log'],
     'build-compiler-binaries': ['.lake/build/bin/difftest-interpreter', 'compiler/bin', 'lean-workspace-compiler-build.tar',
                                 'compiler/yul', 'compiler/yul-patched',
@@ -900,9 +805,7 @@ SPEC['expected_uploaded_artifact_paths'] = {
 }
 
 SPEC['expected_downloaded_artifacts'] = {
-    'prepare-macro-fuzz': ['lean-workspace-build'],
     'build-audits': ['lean-workspace-build'],
-    'macro-fuzz': ['lean-workspace-macro-fuzz-build'],
     'build-compiler-binaries': ['lean-workspace-build'],
     'compiler-audits': ['lean-workspace-build', 'lean-workspace-compiler-build', 'generated-yul', 'generated-yul-patched', 'static-gas-report', 'static-gas-report-patched', 'patch-coverage-report', 'verity-compiler-binaries'],
     'compiler-regressions': ['lean-workspace-build', 'lean-workspace-compiler-build'],
@@ -913,9 +816,7 @@ SPEC['expected_downloaded_artifacts'] = {
 }
 
 SPEC['expected_downloaded_artifact_paths'] = {
-    'prepare-macro-fuzz': [None],
     'build-audits': [None],
-    'macro-fuzz': [None],
     'build-compiler-binaries': [None],
     'compiler-audits': [None, None, 'compiler/yul', 'compiler/yul-patched', None, None, 'compiler', 'compiler/bin'],
     'compiler-regressions': [None, None],

@@ -153,7 +153,7 @@ def _extract_changes_filter_paths(text: str, filter_name: str) -> list[str]:
     changes_body = extract_job_body(text, "changes", VERIFY_YML)
     return _extract_list_block(
         changes_body,
-        rf"^\s*filters:\s*\|\n(?:^\s+.*\n)*?^\s*{re.escape(filter_name)}:\n(?P<block>(?:^\s*-\s+.*\n)+)",
+        rf"^\s*filters:\s*\|\n(?:^\s+.*\n)*?^            {re.escape(filter_name)}:\n(?P<block>(?:^              -\s+.*\n)+)",
         f"changes.filter.{filter_name}",
     )
 
