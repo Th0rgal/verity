@@ -8,6 +8,10 @@ permissions:
   actions: write
   contents: read
 
+concurrency:
+  group: Verify proofs-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   cancel:
     name: Cancel stale PR workflow runs
