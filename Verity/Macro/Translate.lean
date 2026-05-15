@@ -1183,6 +1183,7 @@ private def externalExecutableParamType? : ValueType → Bool
   | ty => externalExecutableWordType? ty
 
 private partial def externalExecutableReturnType? : ValueType → Bool
+  | .tuple elemTys => elemTys.all externalExecutableReturnType?
   | .fixedArray elemTy _ => externalExecutableReturnType? elemTy
   | .struct _ fields => fields.all (fun field => externalExecutableReturnType? field.snd)
   | .newtype _ baseType => externalExecutableReturnType? baseType

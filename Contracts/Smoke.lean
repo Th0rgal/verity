@@ -1069,7 +1069,7 @@ verity_contract NamedStructStorageRejected where
     return 0
 
 /--
-error: non-leaf struct parameter projection is not supported; project a scalar or static single-word leaf field instead (#1832)
+error: unknown variable 'feeConfig.borrowTakerFeeRatio'
 -/
 #guard_msgs in
 verity_contract NamedStructNonLeafProjectionRejected where
@@ -1088,7 +1088,7 @@ verity_contract NamedStructNonLeafProjectionRejected where
     return feeConfig.borrowTakerFeeRatio
 
 /--
-error: non-leaf struct parameter projection is not supported; project a scalar or static single-word leaf field instead (#1832)
+error: unknown variable 'pair_0'
 -/
 #guard_msgs in
 verity_contract NamedStructTupleProjectionRejected where
@@ -2019,7 +2019,7 @@ verity_contract ERC20HelperShadowWriteRejected where
     safeTransfer token toAddr amount
 
 /--
- error: linked external 'describe' uses unsupported return type; executable externalCall currently supports only Uint256, Int256, Uint8, Address, Bytes32, and Bool
+ error: linked external 'describe' uses unsupported return type; executable externalCall currently supports only word-like values and static ABI composites of word-like values
 -/
 #guard_msgs in
 verity_contract ExternalCallUnsupportedType where
@@ -2046,6 +2046,15 @@ verity_contract ExternalCallMultiReturn where
       setStorage lastValue addr
     else
       pure ()
+
+  function noop () : Unit := do
+    pure ()
+
+verity_contract ExternalCallTupleReturn where
+  storage
+  linked_externals
+    external pair(Uint256) -> (Tuple [Uint256, Uint256])
+    external pair_try(Uint256) -> (Bool, Tuple [Uint256, Uint256])
 
   function noop () : Unit := do
     pure ()

@@ -373,6 +373,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.NestedStructArrayProjectionSmoke.spec
   , Contracts.Smoke.DynamicStructElementHelperArgSmoke.spec
   , Contracts.Smoke.ExternalCallMultiReturn.spec
+  , Contracts.Smoke.ExternalCallTupleReturn.spec
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
   , Contracts.Smoke.GenericECMMultiResultSmoke.spec
@@ -538,6 +539,7 @@ private def expectedExternalSignatures : List (String × List String) :=
       ["consumeValues(uint256[])", "inspect((uint256,uint256[]))",
        "inspectAt((uint256,uint256[])[],uint256)"])
   , ("ExternalCallMultiReturn", ["callFanout(uint256)", "noop()"])
+  , ("ExternalCallTupleReturn", ["noop()"])
   , ("ERC20HelperSmoke", ["pushTokens(address,address,uint256)", "pullTokens(address,address,address,uint256)",
       "approveTokens(address,address,uint256)", "snapshotBalance(address,address)",
       "snapshotAllowance(address,address,address)", "snapshotSupply(address)"])
@@ -671,6 +673,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("NestedStructArrayProjectionSmoke", ["0x714fb4de", "0x14750c34", "0x8999bcc3", "0x5d157fb5"])
   , ("DynamicStructElementHelperArgSmoke", ["0x3464e97c", "0x291f8f0b", "0xef6057fa"])
   , ("ExternalCallMultiReturn", ["0x70fce9a3", "0x5dfc2e4a"])
+  , ("ExternalCallTupleReturn", ["0x5dfc2e4a"])
   , ("ERC20HelperSmoke", ["0xa6c29ca3", "0x6aa209a6", "0x912d6e28", "0x48476c71", "0xdac24aaf",
       "0x7247c4a5"])
   , ("GenericECMReadSmoke", ["0x78f2e50f"])
