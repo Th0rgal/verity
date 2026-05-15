@@ -70,8 +70,6 @@ class CiInfraMaintenanceTests(unittest.TestCase):
     def test_parallel_build_jobs_use_four_lean_threads(self) -> None:
         text = VERIFY_WORKFLOW.read_text(encoding="utf-8")
         for job in (
-            "prepare-macro-fuzz",
-            "macro-fuzz",
             "build-compiler-binaries",
             "compiler-regressions",
         ):

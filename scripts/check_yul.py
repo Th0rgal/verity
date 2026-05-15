@@ -20,7 +20,6 @@ BUILTINS_FILE = PROOFS_DIR / "YulGeneration" / "ReferenceOracle" / "Builtins.lea
 DEFAULT_YUL_DIR = ROOT / "artifacts" / "yul"
 RUNTIME_INTERPRETERS = [
     PROOFS_DIR / "IRGeneration" / "IRInterpreter.lean",
-    PROOFS_DIR / "YulGeneration" / "ReferenceOracle" / "Semantics.lean",
 ]
 
 IMPORT_BUILTINS_RE = re.compile(

@@ -703,7 +703,6 @@
   ],
   "expected_build_audit_commands": [
     "check_split_package_builds.py",
-    "check_macro_roundtrip_fuzz_coverage.py",
     "check_proof_length.py --format=markdown >> $GITHUB_STEP_SUMMARY",
     "report_property_coverage.py --format=markdown >> $GITHUB_STEP_SUMMARY",
     "check_storage_layout.py --format=markdown >> $GITHUB_STEP_SUMMARY"

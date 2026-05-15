@@ -27,7 +27,6 @@ class MappingSlotBoundaryTests(unittest.TestCase):
 
             mapping_slot = proofs / "MappingSlot.lean"
             ir = proofs / "IRGeneration" / "IRInterpreter.lean"
-            sem = proofs / "YulGeneration" / "ReferenceOracle" / "Semantics.lean"
             builtins = proofs / "YulGeneration" / "ReferenceOracle" / "Builtins.lean"
             trust = root / "TRUST_ASSUMPTIONS.md"
 
@@ -54,12 +53,6 @@ class MappingSlotBoundaryTests(unittest.TestCase):
                 "def y := Compiler.Proofs.abstractStoreMappingEntry\n",
                 encoding="utf-8",
             )
-            sem.write_text(
-                "import Compiler.Proofs.MappingSlot\n"
-                "def x := Compiler.Proofs.abstractStoreStorageOrMapping\n"
-                "def y := Compiler.Proofs.abstractStoreMappingEntry\n",
-                encoding="utf-8",
-            )
             builtins.write_text(
                 "import Compiler.Proofs.MappingSlot\n"
                 "def x := Compiler.Proofs.abstractMappingSlot\n"
@@ -80,17 +73,15 @@ class MappingSlotBoundaryTests(unittest.TestCase):
             old_required = check_mapping_slot_boundary.REQUIRED_ABSTRACTION_IMPORTS
             old_forbidden = check_mapping_slot_boundary.LEGACY_SYMBOL_FORBIDDEN_FILES
             old_ir = check_mapping_slot_boundary.IR_INTERPRETER_FILE
-            old_sem = check_mapping_slot_boundary.YUL_SEMANTICS_FILE
             check_mapping_slot_boundary.ROOT = root
             check_mapping_slot_boundary.PROOFS_DIR = proofs
             check_mapping_slot_boundary.MAPPING_SLOT_FILE = mapping_slot
             check_mapping_slot_boundary.TRUST_ASSUMPTIONS_FILE = trust
             check_mapping_slot_boundary.BUILTINS_FILE = builtins
             check_mapping_slot_boundary.ALLOWED_MAPPING_ENCODING_IMPORTERS = set()
-            check_mapping_slot_boundary.REQUIRED_ABSTRACTION_IMPORTS = {ir, sem}
-            check_mapping_slot_boundary.LEGACY_SYMBOL_FORBIDDEN_FILES = {ir, sem}
+            check_mapping_slot_boundary.REQUIRED_ABSTRACTION_IMPORTS = {ir}
+            check_mapping_slot_boundary.LEGACY_SYMBOL_FORBIDDEN_FILES = {ir}
             check_mapping_slot_boundary.IR_INTERPRETER_FILE = ir
-            check_mapping_slot_boundary.YUL_SEMANTICS_FILE = sem
             try:
                 stderr = io.StringIO()
                 with redirect_stderr(stderr):
@@ -109,7 +100,6 @@ class MappingSlotBoundaryTests(unittest.TestCase):
                 check_mapping_slot_boundary.REQUIRED_ABSTRACTION_IMPORTS = old_required
                 check_mapping_slot_boundary.LEGACY_SYMBOL_FORBIDDEN_FILES = old_forbidden
                 check_mapping_slot_boundary.IR_INTERPRETER_FILE = old_ir
-                check_mapping_slot_boundary.YUL_SEMANTICS_FILE = old_sem
 
 
 if __name__ == "__main__":

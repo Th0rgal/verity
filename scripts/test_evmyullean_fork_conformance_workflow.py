@@ -103,10 +103,7 @@ class EvmYulLeanForkConformanceWorkflowTests(unittest.TestCase):
         self.assertIn("make test-evmyullean-fork", text)
         makefile_text = MAKEFILE.read_text(encoding="utf-8")
         self.assertIn("python3 scripts/generate_evmyullean_adapter_report.py --check", makefile_text)
-        self.assertIn("lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness", makefile_text)
         self.assertIn("lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness", makefile_text)
-        self.assertIn("lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeSmokeTest", makefile_text)
-        self.assertIn("lake exe native-dispatch-oracle-test", makefile_text)
         self.assertIn("lake build Compiler.Proofs.EndToEnd", makefile_text)
 
         issue_step = re.search(

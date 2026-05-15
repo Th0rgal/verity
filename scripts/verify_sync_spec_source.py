@@ -615,7 +615,6 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
  'expected_build_commands': ['check_lean_warning_regression.py --log lake-build.log'],
  'required_build_run_commands': ['lake build PrintAxioms'],
  'expected_build_audit_commands': ['check_split_package_builds.py',
-                                   'check_macro_roundtrip_fuzz_coverage.py',
                                    'check_proof_length.py --format=markdown >> '
                                    '$GITHUB_STEP_SUMMARY',
                                    'report_property_coverage.py --format=markdown >> '

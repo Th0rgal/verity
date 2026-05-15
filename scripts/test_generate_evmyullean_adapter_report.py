@@ -574,10 +574,13 @@ class ParseCorrectnessProofsTests(unittest.TestCase):
             with self.assertRaises(ValueError, msg="No correctness theorems found"):
                 gen._parse_correctness_proofs()
 
-    def test_missing_file_raises(self) -> None:
+    def test_missing_file_returns_na(self) -> None:
+        """After the EVMYulLean transition, the correctness file is removed and
+        the report records 'n/a' rather than raising."""
         with patch.object(gen, "CORRECTNESS_FILE", Path("/nonexistent/Correctness.lean")):
-            with self.assertRaises(FileNotFoundError):
-                gen._parse_correctness_proofs()
+            result = gen._parse_correctness_proofs()
+        self.assertIn("n/a", result["assign_to_let"])
+        self.assertIn("n/a", result["for_init_hoisting"])
 
 
 class ExtractBlockTests(unittest.TestCase):
@@ -689,6 +692,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             f"Universal bridge lemmas not in bridged set: {universal - bridged}",
         )
 
+    @unittest.skipUnless(
+        gen.RETARGET_FILE.exists(),
+        "phase4 retarget tracking removed with EvmYulLeanRetarget.lean (EVMYulLean transition)",
+    )
     def test_scalar_parameter_body_closure_is_tracked(self) -> None:
         report = gen.build_report()
         phase4 = report["phase4_retarget"]
@@ -1110,6 +1117,10 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             phase4["yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle"],
         )
 
+    @unittest.skipUnless(
+        gen.RETARGET_FILE.exists(),
+        "phase4 retarget tracking removed with EvmYulLeanRetarget.lean (EVMYulLean transition)",
+    )
     def test_universal_body_closure_proven_in_repo(self) -> None:
         """The repo artifact tracks the landed plan #1722 B7/B8 theorem stack."""
         report = gen.build_report()
