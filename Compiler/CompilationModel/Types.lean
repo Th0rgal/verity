@@ -341,6 +341,12 @@ inductive Expr
   | internalCall (functionName : String) (args : List Expr)  -- Internal function call (#181)
   | arrayLength (name : String)  -- Length of a dynamic array parameter (#180)
   | arrayElement (name : String) (index : Expr)  -- Checked element access of a dynamic array parameter (revert on out-of-range) (#180)
+  /-- Length of a memory-backed dynamic array binding, e.g. an internal helper
+      returning `(data_offset, length)`. -/
+  | memoryArrayLength (name : String)
+  /-- Checked element access for a memory-backed dynamic array binding with
+      single-word static elements. -/
+  | memoryArrayElement (name : String) (index : Expr)
   /-- Checked word access inside a dynamic array element.  `elementWords` is the
       static ABI word width of one element and `wordOffset` is the word inside
       that element.  This supports arrays of static tuple/struct-like values. -/
@@ -374,6 +380,10 @@ inductive Expr
   /-- Element access into an `Array<wordLike>` dynamic member inside a
       directly-passed dynamic tuple parameter. -/
   | paramDynamicMemberElement (name : String) (wordOffset : Nat) (innerIndex : Expr)
+  /-- Base pointer for a static composite member inside a directly-passed
+      dynamic tuple parameter. Event lowering uses this as the start of the
+      projected tuple's ABI words and then encodes each static leaf. -/
+  | paramDynamicStaticComposite (name : String) (wordOffset : Nat)
   /-- Length of a dynamic member inside a struct-array element.  Given a
       struct-array parameter `name` indexed at `index`, dereferences the
       head pointer at `wordOffset` (relative to the element's head

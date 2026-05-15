@@ -375,6 +375,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ExternalCallMultiReturn.spec
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
+  , Contracts.Smoke.GenericECMMultiResultSmoke.spec
   , Contracts.Smoke.GenericECMWriteSmoke.spec
   , Contracts.Smoke.CallWithValueSmoke.spec
   , Contracts.Smoke.BubblingValueCallECMSmoke.spec
@@ -507,7 +508,11 @@ private def expectedExternalSignatures : List (String × List String) :=
   , ("FixedArrayStructSmoke", ["rootOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
       "nullifierCountOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
       "commitmentCountOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
-      "ciphertextCountOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)"])
+      "ciphertextCountOf(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
+      "proofPA0Of(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
+      "proofPC1OfTxn(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[]))",
+      "proofPC1OfAlias(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)",
+      "nullifierCountOfAlias(((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256[],uint256[],uint256,(uint256,uint256[3])[])[],uint256)"])
   , ("UnlinkPoolShapeCheckSmoke", ["nullifierCountOf((uint256,uint256[],uint256[],uint256)[],uint256)",
       "commitmentCountOf((uint256,uint256[],uint256[],uint256)[],uint256)",
       "nullifierAt((uint256,uint256[],uint256[],uint256)[],uint256,uint256)",
@@ -537,6 +542,7 @@ private def expectedExternalSignatures : List (String × List String) :=
       "approveTokens(address,address,uint256)", "snapshotBalance(address,address)",
       "snapshotAllowance(address,address,address)", "snapshotSupply(address)"])
   , ("GenericECMReadSmoke", ["snapshotQuote(address,address)"])
+  , ("GenericECMMultiResultSmoke", ["addPoints(uint256,uint256,uint256,uint256)"])
   , ("GenericECMWriteSmoke", ["runEffect(uint256,uint256)"])
   , ("CallWithValueSmoke", ["execute(address,uint256,uint256,uint256)", "executeBytes(address,uint256,bytes)"])
   , ("BubblingValueCallECMSmoke", ["forwardNoOutput(address,uint256,uint256,uint256)"])
@@ -651,7 +657,8 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("ForEachMutableLocalSmoke", ["0x60bc84bc", "0x566ab477", "0x463324b5"])
   , ("ArrayElementDynamicMemberLengthSmoke", ["0xfbb81f5b"])
   , ("ArrayElementDynamicMemberElementSmoke", ["0x1ffe901b"])
-  , ("FixedArrayStructSmoke", ["0xe6f8cf0c", "0xf7910f7f", "0x82db9141", "0x82cb906c"])
+  , ("FixedArrayStructSmoke", ["0xe6f8cf0c", "0xf7910f7f", "0x82db9141", "0x82cb906c",
+      "0xaa7bf00c", "0xd1469472", "0x8ba58006", "0x7f010d4a"])
   , ("UnlinkPoolShapeCheckSmoke", ["0x4b6e2141", "0xdb1ca006", "0x41620c25", "0x76524b94",
       "0xfc01c1ec", "0xe4a609b8", "0x2e759c7f"])
   , ("StructMappingSmoke", ["0x468c900e", "0xe7933b6a", "0x8d22ea2a", "0xf4536007", "0xcb01943e",
@@ -667,6 +674,7 @@ private def expectedExternalSelectors : List (String × List String) :=
   , ("ERC20HelperSmoke", ["0xa6c29ca3", "0x6aa209a6", "0x912d6e28", "0x48476c71", "0xdac24aaf",
       "0x7247c4a5"])
   , ("GenericECMReadSmoke", ["0x78f2e50f"])
+  , ("GenericECMMultiResultSmoke", ["0xac9b48fe"])
   , ("GenericECMWriteSmoke", ["0xc1192eb1"])
   , ("CallWithValueSmoke", ["0xde3a04ad", "0xb1d30765"])
   , ("BubblingValueCallECMSmoke", ["0x7ba1ade4"])

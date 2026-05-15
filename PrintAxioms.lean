@@ -2776,6 +2776,7 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_calldatasize  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_returndataSize  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayLength  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_memoryArrayLength  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_dynamicBytesEq  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_externalCall  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mload  -- private
@@ -2787,6 +2788,7 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDiv512Down  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mulDiv512Up  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicHeadWord  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicStaticComposite  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicMemberLength  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicMemberDataOffset  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_paramDynamicMemberElement  -- private
@@ -2825,6 +2827,7 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mapping  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_mappingUint  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElement  -- private
+  -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_memoryArrayElement  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementWord  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicWord  -- private
   -- Compiler.Proofs.IRGeneration.SourceSemantics.evalExpr_arrayElementDynamicDataOffset  -- private
@@ -4541,8 +4544,18 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_initialState_ok
   Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_ok_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_lt_calldatasize_ok_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_lt_calldatasize_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_lt_calldatasize_fuel_ge_6
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_fuel_ge_2
   Compiler.Proofs.YulGeneration.Backends.Native.eval_lt_calldatasize_lit_preserves_reviveJump_of_ok_at_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.eval_callvalue_preserves_reviveJump_of_ok_at_fuel
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lt_calldatasize_lit_preserves_reviveJump_at_fuel_ge_8
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_callvalue_preserves_reviveJump_at_fuel_ge_5
+  -- Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_callvalue_lt2_not_ok  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_callvalue_preserves_reviveJump
+  -- Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_lt_calldatasize_lt6_not_ok  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.eval_lt_calldatasize_lit_preserves_reviveJump
   Compiler.Proofs.YulGeneration.Backends.Native.eval_lowerExprNative_sload_ok_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerExprNative_mstore_lit_sload_lit_ok_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerExprNative_mstore_lit_lit_ok_fuel
@@ -5626,4 +5639,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5340 theorems/lemmas (3574 public, 1766 private, 0 sorry'd)
+-- Total: 5353 theorems/lemmas (3582 public, 1771 private, 0 sorry'd)

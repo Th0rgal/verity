@@ -111,6 +111,13 @@ def internalCallYulArgCountForParam : ParamType → Nat
 def internalCallYulArgCount (params : List Param) : Nat :=
   params.foldl (fun acc param => acc + internalCallYulArgCountForParam param.ty) 0
 
+def internalReturnYulCountForType : ParamType → Nat
+  | ParamType.array _ => 2
+  | _ => 1
+
+def internalReturnYulCount (returns : List ParamType) : Nat :=
+  returns.foldl (fun acc retTy => acc + internalReturnYulCountForType retTy) 0
+
 def linkedExternalCallYulArgCountForParam : ParamType → Nat
   | ParamType.array elemTy => if isSingleWordStaticParamType elemTy then 2 else 1
   | ParamType.bytes | ParamType.string => 2
@@ -139,8 +146,8 @@ def validateInternalCallShapesInExpr
       if args.length != expectedArgs then
         throw s!"Compilation error: function '{callerName}' calls internal function '{calleeName}' with {args.length} Yul arg(s), expected {expectedArgs} ({issue625Ref})."
       let returns ← functionReturns callee
-      if returns.length != 1 then
-        throw s!"Compilation error: function '{callerName}' uses Expr.internalCall '{calleeName}' but callee returns {returns.length} values; use Stmt.internalCallAssign for multi-return calls ({issue625Ref})."
+      if returns.length != 1 || internalReturnYulCount returns != 1 then
+        throw s!"Compilation error: function '{callerName}' uses Expr.internalCall '{calleeName}' but callee returns {returns.length} logical value(s) / {internalReturnYulCount returns} Yul value(s); use Stmt.internalCallAssign for multi-return calls ({issue625Ref})."
   | Expr.call gas target value inOffset inSize outOffset outSize => do
       validateInternalCallShapesInExpr functions callerName gas
       validateInternalCallShapesInExpr functions callerName target
@@ -192,6 +199,7 @@ def validateInternalCallShapesInExpr
       validateInternalCallShapesInExpr functions callerName key
   | Expr.storageArrayElement _ index
   | Expr.arrayElement _ index
+  | Expr.memoryArrayElement _ index
   | Expr.arrayElementWord _ index _ _
   | Expr.arrayElementDynamicWord _ index _
   | Expr.arrayElementDynamicDataOffset _ index
@@ -239,8 +247,9 @@ def validateInternalCallShapesInExpr
   | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize
   | Expr.localVar _
-  | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.arrayLength _ | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _
@@ -349,8 +358,9 @@ def validateInternalCallShapesInStmt
       if args.length != expectedArgs then
         throw s!"Compilation error: function '{callerName}' calls internal function '{calleeName}' with {args.length} Yul arg(s), expected {expectedArgs} ({issue625Ref})."
       let returns ← functionReturns callee
-      if returns.length != names.length then
-        throw s!"Compilation error: function '{callerName}' binds {names.length} values from internal function '{calleeName}', but callee returns {returns.length} ({issue625Ref})."
+      let expectedReturns := internalReturnYulCount returns
+      if expectedReturns != names.length then
+        throw s!"Compilation error: function '{callerName}' binds {names.length} Yul value(s) from internal function '{calleeName}', but callee returns {returns.length} logical value(s) / {expectedReturns} Yul value(s) ({issue625Ref})."
   | Stmt.rawLog topics dataOffset dataSize => do
       validateInternalCallShapesInExprList functions callerName topics
       validateInternalCallShapesInExpr functions callerName dataOffset
@@ -462,6 +472,7 @@ def validateExternalCallTargetsInExpr
       validateExternalCallTargetsInExprList externals context args
   | Expr.storageArrayElement _ index
   | Expr.arrayElement _ index
+  | Expr.memoryArrayElement _ index
   | Expr.arrayElementWord _ index _ _
   | Expr.arrayElementDynamicWord _ index _
   | Expr.arrayElementDynamicDataOffset _ index
@@ -507,8 +518,9 @@ def validateExternalCallTargetsInExpr
   | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize
   | Expr.localVar _
-  | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.arrayLength _ | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _

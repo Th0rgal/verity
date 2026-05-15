@@ -255,12 +255,20 @@ def compileExpr (fields : List Field)
       let argExprs ← compileExprList fields dynamicSource args
       pure (YulExpr.call (internalFunctionYulName functionName) argExprs)
   | Expr.arrayLength name => pure (YulExpr.ident s!"{name}_length")
+  | Expr.memoryArrayLength name => pure (YulExpr.ident s!"{name}_length")
   | Expr.arrayElement name index => do
       let indexExpr ← compileExpr fields dynamicSource index
       let helperName := match dynamicSource with
         | .calldata => checkedArrayElementCalldataHelperName
         | .memory => checkedArrayElementMemoryHelperName
       pure (YulExpr.call helperName [
+        YulExpr.ident s!"{name}_data_offset",
+        YulExpr.ident s!"{name}_length",
+        indexExpr
+      ])
+  | Expr.memoryArrayElement name index => do
+      let indexExpr ← compileExpr fields dynamicSource index
+      pure (YulExpr.call checkedArrayElementMemoryHelperName [
         YulExpr.ident s!"{name}_data_offset",
         YulExpr.ident s!"{name}_length",
         indexExpr
@@ -336,6 +344,11 @@ def compileExpr (fields : List Field)
         YulExpr.ident s!"{name}_data_offset",
         YulExpr.lit wordOffset,
         innerIndexExpr
+      ])
+  | Expr.paramDynamicStaticComposite name wordOffset =>
+      pure (YulExpr.call "add" [
+        YulExpr.ident s!"{name}_data_offset",
+        YulExpr.lit (wordOffset * 32)
       ])
   | Expr.arrayElementDynamicMemberLength name index wordOffset => do
       let indexExpr ← compileExpr fields dynamicSource index

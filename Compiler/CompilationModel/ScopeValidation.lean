@@ -117,6 +117,11 @@ def validateScopedExprIdentifiers
           throw s!"Compilation error: {context} Expr.arrayLength '{name}' requires array parameter, got {repr ty}"
       | none =>
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayLength"
+  | Expr.memoryArrayLength name =>
+      if localScope.contains s!"{name}_data_offset" && localScope.contains s!"{name}_length" then
+        pure ()
+      else
+        throw s!"Compilation error: {context} Expr.memoryArrayLength '{name}' requires local bindings '{name}_data_offset' and '{name}_length'"
   | Expr.storageArrayLength _ =>
       pure ()
   | Expr.storageArrayElement _ index => do
@@ -132,6 +137,12 @@ def validateScopedExprIdentifiers
           throw s!"Compilation error: {context} Expr.arrayElement '{name}' requires array parameter, got {repr ty}"
       | none =>
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.arrayElement"
+      validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
+  | Expr.memoryArrayElement name index => do
+      if localScope.contains s!"{name}_data_offset" && localScope.contains s!"{name}_length" then
+        pure ()
+      else
+        throw s!"Compilation error: {context} Expr.memoryArrayElement '{name}' requires local bindings '{name}_data_offset' and '{name}_length'"
       validateScopedExprIdentifiers context params paramScope dynamicParams localScope constructorArgCount index
   | Expr.arrayElementWord name index elementWords wordOffset => do
       if elementWords == 0 then
@@ -245,6 +256,21 @@ def validateScopedExprIdentifiers
           throw s!"Compilation error: {context} Expr.paramDynamicHeadWord '{name}' requires a tuple parameter, got {repr ty}"
       | none =>
           throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.paramDynamicHeadWord"
+  | Expr.paramDynamicStaticComposite name wordOffset => do
+      match findParamType params name with
+      | some ty@(ParamType.tuple _) =>
+          if isDynamicParamType ty then
+            let expectedWords := paramLocalHeadWords ty
+            if wordOffset < expectedWords then
+              pure ()
+            else
+              throw s!"Compilation error: {context} Expr.paramDynamicStaticComposite '{name}' wordOffset {wordOffset} is outside head width {expectedWords} for {repr ty}"
+          else
+            throw s!"Compilation error: {context} Expr.paramDynamicStaticComposite '{name}' requires a dynamically-encoded tuple parameter, got {repr ty}"
+      | some ty =>
+          throw s!"Compilation error: {context} Expr.paramDynamicStaticComposite '{name}' requires a tuple parameter, got {repr ty}"
+      | none =>
+          throw s!"Compilation error: {context} references unknown parameter '{name}' in Expr.paramDynamicStaticComposite"
   | Expr.paramDynamicMemberLength name wordOffset
   | Expr.paramDynamicMemberDataOffset name wordOffset => do
       match findParamType params name with
@@ -521,7 +547,17 @@ def validateScopedStmtIdentifiers
           throw s!"Compilation error: {context} ECM '{mod.name}' redeclares result '{rv}' in the same scope"
         scope := rv :: scope
       pure scope
-  | Stmt.returnArray _ | Stmt.returnBytes _ | Stmt.returnStorageWords _
+  | Stmt.returnArray name =>
+      match findParamType params name with
+      | some (ParamType.array _) => pure localScope
+      | some ty =>
+          throw s!"Compilation error: {context} Stmt.returnArray '{name}' requires array parameter or memory-array local, got {repr ty}"
+      | none =>
+          if localScope.contains s!"{name}_data_offset" && localScope.contains s!"{name}_length" then
+            pure localScope
+          else
+            throw s!"Compilation error: {context} Stmt.returnArray '{name}' requires parameter '{name}' or local bindings '{name}_data_offset' and '{name}_length'"
+  | Stmt.returnBytes _ | Stmt.returnStorageWords _
   | Stmt.revertReturndata | Stmt.stop =>
       pure localScope
 termination_by s => sizeOf s

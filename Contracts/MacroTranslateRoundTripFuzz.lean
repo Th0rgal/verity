@@ -160,6 +160,7 @@ private def macroSpecs : List CompilationModel :=
   , Contracts.Smoke.ExternalCallMultiReturn.spec
   , Contracts.Smoke.ERC20HelperSmoke.spec
   , Contracts.Smoke.GenericECMReadSmoke.spec
+  , Contracts.Smoke.GenericECMMultiResultSmoke.spec
   , Contracts.Smoke.GenericECMWriteSmoke.spec
   , Contracts.Smoke.CallWithValueSmoke.spec
   , Contracts.Smoke.BubblingValueCallECMSmoke.spec

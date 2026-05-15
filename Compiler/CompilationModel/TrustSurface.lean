@@ -59,6 +59,7 @@ private partial def collectLowLevelExprMechanics : Expr → List String
   | .mappingUint _ key
   | .storageArrayElement _ key
   | .arrayElement _ key
+  | .memoryArrayElement _ key
   | .arrayElementWord _ key _ _
   | .arrayElementDynamicWord _ key _
   | .arrayElementDynamicMemberLength _ key _ =>
@@ -128,6 +129,7 @@ private partial def collectAxiomatizedExprPrimitives : Expr → List String
   | .mappingUint _ key
   | .storageArrayElement _ key
   | .arrayElement _ key
+  | .memoryArrayElement _ key
   | .arrayElementWord _ key _ _
   | .arrayElementDynamicWord _ key _
   | .arrayElementDynamicMemberLength _ key _ =>
@@ -454,6 +456,7 @@ private partial def collectEventEmissionExprMechanics : Expr → List String
       keys.flatMap collectEventEmissionExprMechanics
   | .mappingUint _ key
   | .arrayElement _ key
+  | .memoryArrayElement _ key
   | .arrayElementWord _ key _ _
   | .arrayElementDynamicWord _ key _
   | .arrayElementDynamicMemberLength _ key _ =>
@@ -621,6 +624,7 @@ private partial def collectRuntimeIntrospectionExprMechanics : Expr → List Str
       keys.flatMap collectRuntimeIntrospectionExprMechanics
   | .mappingUint _ key
   | .arrayElement _ key
+  | .memoryArrayElement _ key
   | .arrayElementWord _ key _ _
   | .arrayElementDynamicWord _ key _
   | .arrayElementDynamicMemberLength _ key _ =>
@@ -778,6 +782,7 @@ private partial def collectExternalExprNames : Expr → List String
       keys.flatMap collectExternalExprNames
   | .mappingUint _ key
   | .arrayElement _ key
+  | .memoryArrayElement _ key
   | .arrayElementWord _ key _ _
   | .arrayElementDynamicWord _ key _
   | .arrayElementDynamicMemberLength _ key _ =>

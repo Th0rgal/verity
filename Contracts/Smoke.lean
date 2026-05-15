@@ -13,6 +13,7 @@ import Contracts.ERC721.ERC721
 import Compiler.Modules.Calls
 import Compiler.Modules.ERC20
 import Compiler.Modules.Oracle
+import Compiler.Modules.Precompiles
 
 namespace Contracts.Smoke
 
@@ -1907,6 +1908,19 @@ verity_contract GenericECMReadSmoke where
     setStorage lastQuote quote
     return quote
 
+verity_contract GenericECMMultiResultSmoke where
+  storage
+    lastX : Uint256 := slot 0
+    lastY : Uint256 := slot 1
+
+  function allow_post_interaction_writes addPoints
+      (x1 : Uint256, y1 : Uint256, x2 : Uint256, y2 : Uint256) : Unit := do
+    ecmBind [sumX, sumY]
+      (Compiler.Modules.Precompiles.bn256AddModule "sumX" "sumY")
+      [x1, y1, x2, y2]
+    setStorage lastX sumX
+    setStorage lastY sumY
+
 verity_contract GenericECMWriteSmoke where
   storage
 
@@ -2536,6 +2550,30 @@ example :
           (Compiler.CompilationModel.Expr.localVar "quote")
       , Compiler.CompilationModel.Stmt.return
           (Compiler.CompilationModel.Expr.localVar "quote")
+      ] := rfl
+
+example :
+    (Compiler.CompilationModel.FunctionSpec.body
+      (GenericECMMultiResultSmoke.addPoints_model : Compiler.CompilationModel.FunctionSpec)) =
+    GenericECMMultiResultSmoke.addPoints_modelBody := by
+  simpa using GenericECMMultiResultSmoke.addPoints_semantic_preservation
+
+example :
+    GenericECMMultiResultSmoke.addPoints_modelBody =
+      [ Compiler.CompilationModel.Stmt.ecm
+          (Compiler.Modules.Precompiles.bn256AddModule "sumX" "sumY")
+          [ Compiler.CompilationModel.Expr.param "x1"
+          , Compiler.CompilationModel.Expr.param "y1"
+          , Compiler.CompilationModel.Expr.param "x2"
+          , Compiler.CompilationModel.Expr.param "y2"
+          ]
+      , Compiler.CompilationModel.Stmt.setStorage
+          "lastX"
+          (Compiler.CompilationModel.Expr.localVar "sumX")
+      , Compiler.CompilationModel.Stmt.setStorage
+          "lastY"
+          (Compiler.CompilationModel.Expr.localVar "sumY")
+      , Compiler.CompilationModel.Stmt.stop
       ] := rfl
 
 example :

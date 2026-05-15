@@ -8,6 +8,8 @@ declare_syntax_cat verityStorageField
 declare_syntax_cat verityStructMember
 declare_syntax_cat verityParam
 declare_syntax_cat verityError
+declare_syntax_cat verityEventParam
+declare_syntax_cat verityEvent
 declare_syntax_cat verityConstant
 declare_syntax_cat verityImmutable
 declare_syntax_cat verityExternal
@@ -33,6 +35,9 @@ syntax "MappingStruct(" term "," "[" sepBy(verityStructMember, ",") "]" ")" : te
 syntax "MappingStruct2(" term "," term "," "[" sepBy(verityStructMember, ",") "]" ")" : term
 syntax ident " : " term : verityParam
 syntax "error " ident "(" sepBy(term, ",") ")" : verityError
+syntax ident " : " term : verityEventParam
+syntax "@indexed " ident " : " term : verityEventParam
+syntax "event " ident "(" sepBy(verityEventParam, ",") ")" : verityEvent
 syntax ident " : " term:max " := " term:max : verityConstant
 syntax ident " : " term:max " := " term:max : verityImmutable
 syntax "external " ident "(" sepBy(term, ",") ")" (" -> " "(" sepBy(term, ",") ")")? : verityExternal
@@ -67,6 +72,7 @@ macro_rules
 syntax "revert " ident "(" sepBy(term, ",") ")" : doElem
 syntax "revertError " ident "(" sepBy(term, ",") ")" : doElem
 syntax "requireError " term:max ppSpace ident "(" sepBy(term, ",") ")" : doElem
+syntax "ecmBind " term:max ppSpace term:max ppSpace term:max : doElem
 syntax (priority := high) "unsafe " str " do " doSeq : doElem
 syntax "constructor " "(" sepBy(verityParam, ",") ")" (ppSpace verityLocalObligations)? " := " term : verityConstructor
 syntax "constructor " "(" sepBy(verityParam, ",") ")" " payable" (ppSpace verityLocalObligations)? " := " term : verityConstructor
@@ -82,6 +88,7 @@ syntax (name := verityContractCmd)
   "storage " verityStorageField*
   (verityStructDecl)*
   ("errors " verityError+)?
+  ("event_defs " verityEvent+)?
   ("constants " verityConstant+)?
   ("immutables " verityImmutable+)?
   ("linked_externals " verityExternal+)?

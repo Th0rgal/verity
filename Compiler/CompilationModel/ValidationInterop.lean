@@ -83,7 +83,8 @@ def validateInteropExpr (context : String) : Expr → Except String Unit
       validateInteropExprList context args
   | Expr.storageArrayElement _ index =>
       validateInteropExpr context index
-  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElement _ index | Expr.memoryArrayElement _ index
+  | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
   | Expr.arrayElementDynamicDataOffset _ index
   | Expr.arrayElementDynamicMemberDataOffset _ index _
   | Expr.arrayElementDynamicMemberLength _ index _ =>
@@ -124,8 +125,9 @@ def validateInteropExpr (context : String) : Expr → Except String Unit
   | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.blockTimestamp | Expr.blockNumber
   | Expr.localVar _
-  | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.arrayLength _ | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _

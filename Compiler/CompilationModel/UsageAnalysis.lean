@@ -92,7 +92,7 @@ end
 
 mutual
 def exprUsesArrayElementKind (includePlain includeWord : Bool) : Expr → Bool
-  | Expr.arrayElement _ index =>
+  | Expr.arrayElement _ index | Expr.memoryArrayElement _ index =>
       let nested := exprUsesArrayElementKind includePlain includeWord index
       if nested then true else includePlain
   | Expr.arrayElementWord _ index _ _ =>
@@ -187,8 +187,10 @@ def exprUsesArrayElementKind (includePlain includeWord : Bool) : Expr → Bool
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.memoryArrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
@@ -310,7 +312,8 @@ attribute [simp] exprUsesArrayElementKind exprListUsesArrayElementKind
 
 mutual
 def exprUsesArrayElement : Expr → Bool
-  | Expr.arrayElement _ _ | Expr.arrayElementWord _ _ _ _ | Expr.arrayElementDynamicWord _ _ _
+  | Expr.arrayElement _ _ | Expr.memoryArrayElement _ _
+  | Expr.arrayElementWord _ _ _ _ | Expr.arrayElementDynamicWord _ _ _
   | Expr.arrayElementDynamicDataOffset _ _
   | Expr.arrayElementDynamicMemberDataOffset _ _ _
   | Expr.arrayElementDynamicMemberLength _ _ _
@@ -360,8 +363,10 @@ def exprUsesArrayElement : Expr → Bool
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.memoryArrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
@@ -506,14 +511,15 @@ def contractUsesArrayElementWord (spec : CompilationModel) : Bool :=
 -- `SupportedSpec.lean` can simp/unfold each case.
 mutual
 def exprUsesParamDynamicHeadWord : Expr → Bool
-  | Expr.paramDynamicHeadWord _ _ => true
+  | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _ => true
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _ => true
   | Expr.paramDynamicMemberElement _ _ innerIndex =>
       exprUsesParamDynamicHeadWord innerIndex
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
   | Expr.mappingUint _ key | Expr.structMember _ key _
-  | Expr.storageArrayElement _ key | Expr.arrayElement _ key
+  | Expr.storageArrayElement _ key | Expr.arrayElement _ key | Expr.memoryArrayElement _ key
   | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _
   | Expr.arrayElementDynamicDataOffset _ key
   | Expr.arrayElementDynamicMemberDataOffset _ key _
@@ -559,6 +565,7 @@ def exprUsesParamDynamicHeadWord : Expr → Bool
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance
   | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.memoryArrayLength _
   | Expr.storageArrayLength _
   | Expr.dynamicBytesEq _ _
   | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
@@ -654,7 +661,7 @@ def exprUsesMulDiv512 : Expr → Bool
   | Expr.mulDiv512Down _ _ _ | Expr.mulDiv512Up _ _ _ => true
   | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _
   | Expr.mappingUint _ key | Expr.structMember _ key _
-  | Expr.storageArrayElement _ key | Expr.arrayElement _ key
+  | Expr.storageArrayElement _ key | Expr.arrayElement _ key | Expr.memoryArrayElement _ key
   | Expr.arrayElementWord _ key _ _ | Expr.arrayElementDynamicWord _ key _
   | Expr.arrayElementDynamicDataOffset _ key
   | Expr.arrayElementDynamicMemberDataOffset _ key _
@@ -696,8 +703,10 @@ def exprUsesMulDiv512 : Expr → Bool
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance
   | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
   | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.memoryArrayLength _
   | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.dynamicBytesEq _ _
@@ -855,15 +864,18 @@ def exprUsesStorageArrayElement : Expr → Bool
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
-  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
       false
   | Expr.paramDynamicMemberElement _ _ innerIndex =>
       exprUsesStorageArrayElement innerIndex
-  | Expr.arrayElement _ index | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElement _ index | Expr.memoryArrayElement _ index
+  | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
   | Expr.arrayElementDynamicDataOffset _ index
   | Expr.arrayElementDynamicMemberDataOffset _ index _
   | Expr.arrayElementDynamicMemberLength _ index _ =>
@@ -986,7 +998,7 @@ def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.returndataOptionalBoolAt outOffset => exprUsesDynamicBytesEq outOffset
   | Expr.externalCall _ args | Expr.internalCall _ args =>
       exprListUsesDynamicBytesEq args
-  | Expr.storageArrayElement _ index | Expr.arrayElement _ index
+  | Expr.storageArrayElement _ index | Expr.arrayElement _ index | Expr.memoryArrayElement _ index
   | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
   | Expr.arrayElementDynamicDataOffset _ index
   | Expr.arrayElementDynamicMemberDataOffset _ index _
@@ -1013,8 +1025,10 @@ def exprUsesDynamicBytesEq : Expr → Bool
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
-  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>

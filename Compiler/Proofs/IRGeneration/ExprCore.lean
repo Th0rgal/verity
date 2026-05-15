@@ -37,7 +37,8 @@ def exprBoundNames : Expr → List String
   | .externalCall _ args | .internalCall _ args | .adtConstruct _ _ args => exprListBoundNames args
   | .adtTag _ field => [field]
   | .adtField _ _ _ _ storageField => [storageField]
-  | .arrayElement name index | .arrayElementWord name index _ _
+  | .arrayElement name index | .memoryArrayElement name index
+  | .arrayElementWord name index _ _
   | .arrayElementDynamicWord name index _
   | .arrayElementDynamicDataOffset name index
   | .arrayElementDynamicMemberDataOffset name index _
@@ -45,11 +46,12 @@ def exprBoundNames : Expr → List String
   | .arrayElementDynamicMemberElement name index _ innerIndex =>
       name :: (exprBoundNames index ++ exprBoundNames innerIndex)
   | .paramDynamicHeadWord name _ => [name]
+  | .paramDynamicStaticComposite name _ => [name]
   | .paramDynamicMemberLength name _
   | .paramDynamicMemberDataOffset name _ => [name]
   | .paramDynamicMemberElement name _ innerIndex =>
       name :: exprBoundNames innerIndex
-  | .arrayLength name => [name]
+  | .arrayLength name | .memoryArrayLength name => [name]
   | .storageArrayLength name => [name]
   | .storageArrayElement name index => name :: exprBoundNames index
   | .add a b | .sub a b | .mul a b | .div a b | .sdiv a b | .mod a b | .smod a b

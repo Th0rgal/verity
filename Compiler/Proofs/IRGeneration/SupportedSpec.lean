@@ -557,13 +557,15 @@ def exprTouchesUnsupportedConstructorRawCalldataSurface : Expr → Bool
   | .chainid | .msgValue | .selfBalance | .blockTimestamp | .blockNumber
   | .blobbasefee | .constructorArg _ | .returndataSize | .extcodesize _ => false
   | .calldatasize => true
-  | .storage _ | .storageAddr _ | .arrayLength _ | .storageArrayLength _ => false
+  | .storage _ | .storageAddr _ | .arrayLength _ | .memoryArrayLength _
+  | .storageArrayLength _ => false
   | .logicalNot a | .bitNot a | .mload a | .tload a | .returndataOptionalBoolAt a =>
       exprTouchesUnsupportedConstructorRawCalldataSurface a
   | .calldataload _ =>
       true
   | .mapping _ a | .mappingWord _ a _ | .mappingPackedWord _ a _ _
   | .mappingUint _ a | .structMember _ a _ | .arrayElement _ a
+  | .memoryArrayElement _ a
   | .arrayElementWord _ a _ _
   | .arrayElementDynamicWord _ a _
   | .arrayElementDynamicDataOffset _ a
@@ -596,7 +598,8 @@ def exprTouchesUnsupportedConstructorRawCalldataSurface : Expr → Bool
   -- `paramDynamicHeadWord` reads the head section of an ABI-decoded
   -- parameter; like `param _` it does not touch raw calldata, so the
   -- constructor-arg precondition is unaffected.
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _ => false
   | .mappingChain _ keys | .internalCall _ keys | .externalCall _ keys =>
       exprListTouchesUnsupportedConstructorRawCalldataSurface keys
@@ -731,13 +734,15 @@ def exprTouchesUnsupportedCoreSurface : Expr → Bool
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
   | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
-  | .arrayLength _ | .arrayElement _ _ | .arrayElementWord _ _ _ _
+  | .arrayLength _ | .memoryArrayLength _
+  | .arrayElement _ _ | .memoryArrayElement _ _ | .arrayElementWord _ _ _ _
   | .arrayElementDynamicWord _ _ _
   | .arrayElementDynamicDataOffset _ _
   | .arrayElementDynamicMemberLength _ _ _
   | .arrayElementDynamicMemberDataOffset _ _ _
   | .arrayElementDynamicMemberElement _ _ _ _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _ | .paramDynamicMemberElement _ _ _
   | .mulDiv512Down _ _ _ | .mulDiv512Up _ _ _
   | .storageArrayLength _ | .storageArrayElement _ _
@@ -777,13 +782,15 @@ def exprTouchesUnsupportedStateSurface : Expr → Bool
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
-  | .arrayLength _ | .arrayElement _ _ | .arrayElementWord _ _ _ _
+  | .arrayLength _ | .memoryArrayLength _
+  | .arrayElement _ _ | .memoryArrayElement _ _ | .arrayElementWord _ _ _ _
   | .arrayElementDynamicWord _ _ _
   | .arrayElementDynamicMemberLength _ _ _
   | .arrayElementDynamicDataOffset _ _
   | .arrayElementDynamicMemberDataOffset _ _ _
   | .arrayElementDynamicMemberElement _ _ _ _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _ | .paramDynamicMemberElement _ _ _
   | .dynamicBytesEq _ _ => false
   | .mload a | .tload a | .calldataload a => exprTouchesUnsupportedStateSurface a
@@ -800,7 +807,9 @@ def exprTouchesUnsupportedCallSurface : Expr → Bool
   | .constructorArg _ | .blobbasefee
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .memoryArrayLength _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _
   | .storageArrayLength _ => false
   | .paramDynamicMemberElement _ _ b =>
@@ -813,7 +822,8 @@ def exprTouchesUnsupportedCallSurface : Expr → Bool
       exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedCallSurface a || exprTouchesUnsupportedCallSurface b
-  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .memoryArrayElement _ b
+  | .arrayElementWord _ b _ _
   | .arrayElementDynamicWord _ b _
   | .storageArrayElement _ b =>
       exprTouchesUnsupportedCallSurface b
@@ -850,7 +860,9 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
   | .constructorArg _ | .blobbasefee
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .memoryArrayLength _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _
   | .storageArrayLength _ | .externalCall _ _ => false
   | .paramDynamicMemberElement _ _ b =>
@@ -864,7 +876,8 @@ def exprTouchesUnsupportedHelperSurface : Expr → Bool
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedHelperSurface a || exprTouchesUnsupportedHelperSurface b
-  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .memoryArrayElement _ b
+  | .arrayElementWord _ b _ _
   | .arrayElementDynamicWord _ b _
   | .storageArrayElement _ b =>
       exprTouchesUnsupportedHelperSurface b
@@ -909,7 +922,9 @@ def exprTouchesInternalHelperSurface : Expr → Bool
   | .constructorArg _ | .blobbasefee
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .memoryArrayLength _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _
   | .storageArrayLength _ | .externalCall _ _ => false
   | .paramDynamicMemberElement _ _ b =>
@@ -923,7 +938,8 @@ def exprTouchesInternalHelperSurface : Expr → Bool
       exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesInternalHelperSurface a || exprTouchesInternalHelperSurface b
-  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .memoryArrayElement _ b
+  | .arrayElementWord _ b _ _
   | .arrayElementDynamicWord _ b _
   | .arrayElementDynamicDataOffset _ b
   | .arrayElementDynamicMemberLength _ b _
@@ -963,7 +979,9 @@ def exprTouchesUnsupportedForeignSurface : Expr → Bool
   | .constructorArg _ | .blobbasefee
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .memoryArrayLength _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _
   | .storageArrayLength _ | .internalCall _ _ => false
   | .paramDynamicMemberElement _ _ b =>
@@ -977,7 +995,8 @@ def exprTouchesUnsupportedForeignSurface : Expr → Bool
       exprTouchesUnsupportedForeignSurface a || exprTouchesUnsupportedForeignSurface b
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedForeignSurface a || exprTouchesUnsupportedForeignSurface b
-  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .memoryArrayElement _ b
+  | .arrayElementWord _ b _ _
   | .arrayElementDynamicWord _ b _
   | .arrayElementDynamicMemberLength _ b _
   | .arrayElementDynamicDataOffset _ b
@@ -1015,7 +1034,9 @@ def exprTouchesUnsupportedLowLevelSurface : Expr → Bool
   | .constructorArg _ | .blobbasefee
   | .calldatasize | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .keccak256 _ _ | .arrayLength _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .memoryArrayLength _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _
   | .storageArrayLength _ | .internalCall _ _ | .externalCall _ _ => false
   | .paramDynamicMemberElement _ _ b =>
@@ -1028,7 +1049,8 @@ def exprTouchesUnsupportedLowLevelSurface : Expr → Bool
       exprTouchesUnsupportedLowLevelSurface a || exprTouchesUnsupportedLowLevelSurface b
   | .min a b | .max a b | .wMulDown a b | .wDivUp a b | .ceilDiv a b =>
       exprTouchesUnsupportedLowLevelSurface a || exprTouchesUnsupportedLowLevelSurface b
-  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .arrayElementWord _ b _ _
+  | .mapping _ b | .mappingUint _ b | .arrayElement _ b | .memoryArrayElement _ b
+  | .arrayElementWord _ b _ _
   | .arrayElementDynamicWord _ b _
   | .arrayElementDynamicDataOffset _ b
   | .arrayElementDynamicMemberLength _ b _
@@ -1093,13 +1115,15 @@ def exprTouchesUnsupportedContractSurface (expr : Expr) : Bool :=
   | .call _ _ _ _ _ _ _ | .staticcall _ _ _ _ _ _ | .delegatecall _ _ _ _ _ _
   | .returndataSize | .extcodesize _
   | .returndataOptionalBoolAt _ | .externalCall _ _ | .internalCall _ _
-  | .arrayLength _ | .arrayElement _ _ | .arrayElementWord _ _ _ _
+  | .arrayLength _ | .memoryArrayLength _
+  | .arrayElement _ _ | .memoryArrayElement _ _ | .arrayElementWord _ _ _ _
   | .arrayElementDynamicWord _ _ _
   | .arrayElementDynamicDataOffset _ _
   | .arrayElementDynamicMemberLength _ _ _
   | .arrayElementDynamicMemberDataOffset _ _ _
   | .arrayElementDynamicMemberElement _ _ _ _
-  | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+  | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+  | .paramDynamicMemberLength _ _
   | .paramDynamicMemberDataOffset _ _ | .paramDynamicMemberElement _ _ _
   | .mulDiv512Down _ _ _ | .mulDiv512Up _ _ _
   | .storageArrayLength _ | .storageArrayElement _ _
@@ -1703,6 +1727,7 @@ mutual
         calleeName :: exprListInternalHelperCallNames args
     | .mapping _ key | .mappingWord _ key _ | .mappingPackedWord _ key _ _
     | .mappingUint _ key | .structMember _ key _ | .arrayElement _ key
+    | .memoryArrayElement _ key
     | .arrayElementWord _ key _ _
     | .arrayElementDynamicWord _ key _
     | .arrayElementDynamicDataOffset _ key
@@ -1763,8 +1788,9 @@ mutual
     | .caller | .contractAddress | .chainid | .msgValue | .selfBalance
     | .blockTimestamp | .blockNumber | .blobbasefee
     | .calldatasize | .returndataSize
-    | .localVar _ | .arrayLength _ | .storageArrayLength _
-    | .paramDynamicHeadWord _ _ | .paramDynamicMemberLength _ _
+    | .localVar _ | .arrayLength _ | .memoryArrayLength _ | .storageArrayLength _
+    | .paramDynamicHeadWord _ _ | .paramDynamicStaticComposite _ _
+    | .paramDynamicMemberLength _ _
     | .paramDynamicMemberDataOffset _ _
     | .dynamicBytesEq _ _
     | .adtConstruct _ _ _ | .adtTag _ _ | .adtField _ _ _ _ _ =>
@@ -3221,8 +3247,9 @@ mutual
     | literal _ | param _ | caller | contractAddress | chainid | msgValue | selfBalance
     | blockTimestamp | blockNumber | localVar _ | storage _ | storageAddr _
     | constructorArg _ | blobbasefee | calldatasize | returndataSize
-    | arrayLength _ | storageArrayLength _ | dynamicBytesEq _ _
-    | paramDynamicHeadWord _ _ | paramDynamicMemberLength _ _
+    | arrayLength _ | memoryArrayLength _ | storageArrayLength _ | dynamicBytesEq _ _
+    | paramDynamicHeadWord _ _ | paramDynamicStaticComposite _ _
+    | paramDynamicMemberLength _ _
     | paramDynamicMemberDataOffset _ _
     | externalCall _ _ =>
         simp [exprTouchesInternalHelperSurface]
@@ -3266,7 +3293,8 @@ mutual
         simp only [exprTouchesUnsupportedHelperSurface] at hsurface
         simp [exprTouchesInternalHelperSurface,
           exprTouchesInternalHelperSurface_eq_false_of_helperSurfaceClosed hsurface]
-    | mapping _ b | mappingUint _ b | arrayElement _ b | arrayElementWord _ b _ _
+    | mapping _ b | mappingUint _ b | arrayElement _ b | memoryArrayElement _ b
+    | arrayElementWord _ b _ _
     | arrayElementDynamicWord _ b _
     | storageArrayElement _ b
     | mappingWord _ b _ | mappingPackedWord _ b _ _ | structMember _ b _ =>
@@ -3621,7 +3649,8 @@ private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
   | literal _ | param _ | caller | contractAddress
   | chainid | msgValue | selfBalance | blockTimestamp | blockNumber
   | localVar _ | storage _ | storageAddr _
-  | paramDynamicHeadWord _ _ | paramDynamicMemberLength _ _
+  | paramDynamicHeadWord _ _ | paramDynamicStaticComposite _ _
+  | paramDynamicMemberLength _ _
   | paramDynamicMemberDataOffset _ _
   | constructorArg _ | blobbasefee | calldatasize | returndataSize =>
       simp [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
@@ -3637,6 +3666,7 @@ private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
   | extcodesize _
   | returndataOptionalBoolAt _ | keccak256 _ _ | arrayLength _
+  | memoryArrayLength _
   | storageArrayLength _ | dynamicBytesEq _ _ =>
       simp [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
@@ -3666,7 +3696,8 @@ private theorem exprTouchesUnsupportedCallSurface_eq_featureOr
       simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
       exact exprTouchesUnsupportedCallSurface_eq_featureOr b
-  | mapping _ b | mappingUint _ b | arrayElement _ b | arrayElementWord _ b _ _
+  | mapping _ b | mappingUint _ b | arrayElement _ b | memoryArrayElement _ b
+  | arrayElementWord _ b _ _
   | storageArrayElement _ b =>
       simp only [exprTouchesUnsupportedCallSurface, exprTouchesUnsupportedHelperSurface,
         exprTouchesUnsupportedForeignSurface, exprTouchesUnsupportedLowLevelSurface]
@@ -3840,11 +3871,12 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
       simp [exprTouchesUnsupportedCoreSurface] at hcore
   | storage _ | storageAddr _ =>
       cases hstate
-  | paramDynamicHeadWord _ _ | paramDynamicMemberLength _ _
+  | paramDynamicHeadWord _ _ | paramDynamicStaticComposite _ _
+  | paramDynamicMemberLength _ _
   | paramDynamicMemberDataOffset _ _ | paramDynamicMemberElement _ _ _ =>
       cases hcore
   | constructorArg _
-  | returndataSize | arrayLength _ | storageArrayLength _
+  | returndataSize | arrayLength _ | memoryArrayLength _ | storageArrayLength _
   | returndataOptionalBoolAt _ | extcodesize _
   | dynamicBytesEq _ _ | keccak256 _ _ =>
       cases hcore
@@ -3923,7 +3955,8 @@ private theorem exprTouchesUnsupportedContractSurface_eq_false_of_featureClosed
   | mapping _ _ | mappingWord _ _ _ | mappingPackedWord _ _ _ _
   | mapping2 _ _ _ | mapping2Word _ _ _ _ | mappingUint _ _
   | mappingChain _ _ | structMember _ _ _ | structMember2 _ _ _ _
-  | arrayElement _ _ | arrayElementWord _ _ _ _ | arrayElementDynamicWord _ _ _
+  | arrayElement _ _ | memoryArrayElement _ _ | arrayElementWord _ _ _ _
+  | arrayElementDynamicWord _ _ _
   | arrayElementDynamicDataOffset _ _
   | arrayElementDynamicMemberLength _ _ _
   | arrayElementDynamicMemberDataOffset _ _ _
@@ -4222,18 +4255,20 @@ theorem exprTouchesUnsupportedHelperSurface_eq_false_of_contractSurfaceClosed
   | storage _ | storageAddr _ | internalCall _ _ | externalCall _ _
   | constructorArg _ | keccak256 _ _
   | returndataSize | extcodesize _
-  | returndataOptionalBoolAt _ | arrayLength _ | storageArrayLength _
+  | returndataOptionalBoolAt _ | arrayLength _ | memoryArrayLength _ | storageArrayLength _
   | dynamicBytesEq _ _
   | call _ _ _ _ _ _ _ | staticcall _ _ _ _ _ _ | delegatecall _ _ _ _ _ _
   | mapping _ _ | mappingWord _ _ _ | mappingPackedWord _ _ _ _
   | mapping2 _ _ _ | mapping2Word _ _ _ _ | mappingUint _ _
   | structMember _ _ _ | structMember2 _ _ _ _
-  | arrayElement _ _ | arrayElementWord _ _ _ _ | arrayElementDynamicWord _ _ _
+  | arrayElement _ _ | memoryArrayElement _ _ | arrayElementWord _ _ _ _
+  | arrayElementDynamicWord _ _ _
   | arrayElementDynamicDataOffset _ _
   | arrayElementDynamicMemberLength _ _ _
   | arrayElementDynamicMemberDataOffset _ _ _
   | arrayElementDynamicMemberElement _ _ _ _
-  | paramDynamicHeadWord _ _ | paramDynamicMemberLength _ _
+  | paramDynamicHeadWord _ _ | paramDynamicStaticComposite _ _
+  | paramDynamicMemberLength _ _
   | paramDynamicMemberDataOffset _ _ | paramDynamicMemberElement _ _ _
   | storageArrayElement _ _
   | mappingChain _ _ =>

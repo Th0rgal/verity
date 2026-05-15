@@ -77,12 +77,14 @@ def collectExprNames : Expr → List String
   | Expr.localVar name => [name]
   | Expr.externalCall name args => name :: collectExprListNames args
   | Expr.internalCall name args => name :: collectExprListNames args
-  | Expr.arrayLength name => [name]
+  | Expr.arrayLength name | Expr.memoryArrayLength name => [name]
   | Expr.paramDynamicHeadWord name _ => [name]
+  | Expr.paramDynamicStaticComposite name _ => [name]
   | Expr.paramDynamicMemberLength name _
   | Expr.paramDynamicMemberDataOffset name _ => [name]
   | Expr.paramDynamicMemberElement name _ innerIndex => name :: collectExprNames innerIndex
-  | Expr.arrayElement name index | Expr.arrayElementWord name index _ _
+  | Expr.arrayElement name index | Expr.memoryArrayElement name index
+  | Expr.arrayElementWord name index _ _
   | Expr.arrayElementDynamicWord name index _
   | Expr.arrayElementDynamicDataOffset name index
   | Expr.arrayElementDynamicMemberDataOffset name index _

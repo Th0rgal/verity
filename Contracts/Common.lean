@@ -23,6 +23,12 @@ macro_rules
           let _ := $_module
           let _ := $_args
           pure ())
+  | `(doElem| ecmBind [ $[$names:ident],* ] $_module:term $_args:term) =>
+      `(doElem| do
+          let _ := $_module
+          let _ := $_args
+          $[let $names := (0 : Uint256)]*
+          pure ())
   | `(doElem| unsafe $_reason:str do $body:doSeq) =>
       `(doElem| do $body)
   | `(doElem| tryCatch $attempt:term (fun $name:ident => do $[$elems:doElem]*)) => do
@@ -211,16 +217,45 @@ def revertReturndata : Contract Unit := pure ()
 def arrayLength {α : Type} (values : Array α) : Uint256 := values.size
 def arrayElement {α : Type} [Inhabited α] (values : Array α) (index : Uint256) : α :=
   values.getD (index : Nat) (Inhabited.default : α)
+def abiHeadWord {α : Type} [Inhabited α] (_value : α) (_wordOffset : Uint256) : Uint256 := 0
 def arrayElementChecked {α : Type} (values : Array α) (index : Uint256) : Contract α := fun state =>
   if h : (index : Nat) < values.size then
     ContractResult.success (values[(index : Nat)]'h) state
   else
     ContractResult.revert "Array index out of bounds" state
+def allocArray (len : Uint256) : Contract (Array Uint256) :=
+  pure (Array.replicate (len : Nat) 0)
+def setMemoryArrayElement (values : Array Uint256) (index value : Uint256) : Contract Unit :=
+  let _ := values
+  let _ := index
+  let _ := value
+  pure ()
 def returnArray {α : Type} (values : Array α) : Contract (Array α) := pure values
 def returnValues (_values : List Uint256) : Contract Unit := pure ()
 def returnBytes {α : Type} (value : α) : Contract α := pure value
 def returnStorageWords {α : Type} (_slots : Array α) : Contract (Array Uint256) := pure #[]
-def emit (name : String) (args : List Uint256) : Contract Unit := emitEvent name args
+
+inductive EventArg where
+  | word (value : Uint256)
+  | dynamicArray (length : Uint256)
+deriving Repr, DecidableEq
+
+namespace EventArg
+
+def toWord : EventArg → Uint256
+  | .word value => value
+  | .dynamicArray length => length
+
+end EventArg
+
+instance : Coe Uint256 EventArg where
+  coe value := EventArg.word value
+
+instance (α : Type) : CoeTC (Array α) EventArg where
+  coe values := EventArg.dynamicArray values.size
+
+def emit (name : String) (args : List EventArg) : Contract Unit :=
+  emitEvent name (args.map EventArg.toWord)
 def setPackedStorage {α : Type} (rootSlot : StorageSlot α) (wordOffset : Nat)
     (word : Uint256) : Contract Unit := fun state =>
   let targetSlot := (rootSlot.slot + wordOffset) % Compiler.Constants.evmModulus

@@ -1655,6 +1655,38 @@ verity_contract MacroDynamicArray where
   function echoAmounts (amounts : Array Uint256) : Array Uint256 := do
     returnArray amounts
 
+  function echoedAmountCount (amounts : Array Uint256) : Uint256 := do
+    let echoed ← echoAmounts amounts
+    return (arrayLength echoed)
+
+  function firstEchoedAmount (amounts : Array Uint256) : Uint256 := do
+    let echoed ← echoAmounts amounts
+    return (arrayElement echoed 0)
+
+  function forwardedEchoedAmount (amounts : Array Uint256) : Uint256 := do
+    let echoed ← echoAmounts amounts
+    let forwarded ← echoAmounts echoed
+    return (arrayElement forwarded 0)
+
+  function compactAmounts (amounts : Array Uint256) : Array Uint256 := do
+    let mut count := 0
+    forEach "i" (arrayLength amounts) (do
+      let value := arrayElement amounts i
+      if value != 0 then
+        count := add count 1
+      else
+        pure ())
+    let compacted ← allocArray count
+    let mut j := 0
+    forEach "i" (arrayLength amounts) (do
+      let value := arrayElement amounts i
+      if value != 0 then
+        setMemoryArrayElement compacted j value
+        j := add j 1
+      else
+        pure ())
+    returnArray compacted
+
   function echoRecipients (recipients : Array Address) : Array Address := do
     returnArray recipients
 
@@ -1686,6 +1718,78 @@ def echoAmountsModelUsesReturnArray : Bool :=
   | _ => false
 
 example : echoAmountsModelUsesReturnArray = true := by native_decide
+
+def echoedAmountCountUsesMemoryArrayLength : Bool :=
+  match MacroDynamicArray.echoedAmountCount_modelBody with
+  | [Stmt.internalCallAssign ["echoed_data_offset", "echoed_length"] "internal_echoAmounts"
+        [Expr.param "amounts_data_offset", Expr.param "amounts_length"],
+      Stmt.return (Expr.memoryArrayLength "echoed")] =>
+      true
+  | _ => false
+
+example : echoedAmountCountUsesMemoryArrayLength = true := by native_decide
+
+def firstEchoedAmountUsesMemoryArrayElement : Bool :=
+  match MacroDynamicArray.firstEchoedAmount_modelBody with
+  | [Stmt.internalCallAssign ["echoed_data_offset", "echoed_length"] "internal_echoAmounts"
+        [Expr.param "amounts_data_offset", Expr.param "amounts_length"],
+      Stmt.return (Expr.memoryArrayElement "echoed" (Expr.literal 0))] =>
+      true
+  | _ => false
+
+example : firstEchoedAmountUsesMemoryArrayElement = true := by native_decide
+
+def forwardedEchoedAmountPassesMemoryArray : Bool :=
+  match MacroDynamicArray.forwardedEchoedAmount_modelBody with
+  | [Stmt.internalCallAssign ["echoed_data_offset", "echoed_length"] "internal_echoAmounts"
+        [Expr.param "amounts_data_offset", Expr.param "amounts_length"],
+      Stmt.internalCallAssign ["forwarded_data_offset", "forwarded_length"] "internal_echoAmounts"
+        [Expr.localVar "echoed_data_offset", Expr.localVar "echoed_length"],
+      Stmt.return (Expr.memoryArrayElement "forwarded" (Expr.literal 0))] =>
+      true
+  | _ => false
+
+example : forwardedEchoedAmountPassesMemoryArray = true := by native_decide
+
+def compactAmountsAllocatesMemoryArray : Bool :=
+  let body := MacroDynamicArray.compactAmounts_modelBody
+  body.any (fun stmt =>
+    match stmt with
+    | Stmt.letVar "compacted_length" (Expr.localVar "count") => true
+    | _ => false) &&
+  body.any (fun stmt =>
+    match stmt with
+    | Stmt.letVar "compacted_data_offset"
+        (Expr.add (Expr.mload (Expr.literal 64)) (Expr.literal 32)) => true
+    | _ => false) &&
+  body.any (fun stmt =>
+    match stmt with
+    | Stmt.returnArray "compacted" => true
+    | _ => false)
+
+example : compactAmountsAllocatesMemoryArray = true := by native_decide
+
+def compactAmountsWritesMemoryArray : Bool :=
+  let body := MacroDynamicArray.compactAmounts_modelBody
+  body.any (fun stmt =>
+    match stmt with
+    | Stmt.forEach "i" (Expr.arrayLength "amounts") loopBody =>
+        loopBody.any (fun inner =>
+          match inner with
+          | Stmt.ite _ thenBranch _ =>
+              thenBranch.any (fun branchStmt =>
+                match branchStmt with
+                | Stmt.unsafeBlock "write memory-backed uint256 array element"
+                    [Stmt.mstore
+                      (Expr.add (Expr.localVar "compacted_data_offset")
+                        (Expr.mul (Expr.localVar "j") (Expr.literal 32)))
+                      (Expr.localVar "value")] =>
+                    true
+                | _ => false)
+          | _ => false)
+    | _ => false)
+
+example : compactAmountsWritesMemoryArray = true := by native_decide
 
 def echoRecipientsModelUsesReturnArray : Bool :=
   match MacroDynamicArray.echoRecipients_modelBody with
@@ -1881,8 +1985,33 @@ open Verity.EVM.Uint256
 verity_contract MacroEventTrace where
   storage
 
+  struct Note where
+    npk : Uint256,
+    token : Address,
+    amount : Uint256
+
+  struct Transaction where
+    withdrawal : Note,
+    ciphertexts : Array Uint256
+
+  event_defs
+    event Transfer(@indexed amount : Uint256, total : Uint256)
+    event Amounts(total : Uint256, values : Array Uint256)
+    event MemoryAmounts(values : Array Uint256)
+    event NoteLogged(note : Note)
+
   function emitNamed (amount : Uint256, bonus : Uint256) : Unit := do
     emit "Transfer" [amount, add amount bonus]
+
+  function emitArray (total : Uint256, values : Array Uint256) : Unit := do
+    emit "Amounts" [total, values]
+
+  function emitMemoryArray (len : Uint256) : Unit := do
+    let values ← allocArray len
+    emit "MemoryAmounts" [values]
+
+  function emitNote (txn : Transaction) : Unit := do
+    emit "NoteLogged" [txn.withdrawal]
 
   function emitDynamicLog
       (topic0 : Uint256, topic1 : Uint256, dataOffset : Uint256, dataSize : Uint256) : Unit := do
@@ -1897,6 +2026,42 @@ def emitNamedModelUsesStmtEmit : Bool :=
 
 example : emitNamedModelUsesStmtEmit = true := by native_decide
 
+def emitArrayModelUsesDynamicArrayParam : Bool :=
+  match MacroEventTrace.emitArray_modelBody with
+  | [Stmt.emit "Amounts" [Expr.param "total", Expr.param "values"],
+      Stmt.stop] =>
+      true
+  | _ => false
+
+example : emitArrayModelUsesDynamicArrayParam = true := by native_decide
+
+def emitMemoryArrayModelUsesMemoryArrayLength : Bool :=
+  let body := MacroEventTrace.emitMemoryArray_modelBody
+  body.any (fun stmt =>
+    match stmt with
+    | Stmt.letVar "values_length" (Expr.param "len") => true
+    | _ => false) &&
+  body.any (fun stmt =>
+    match stmt with
+    | Stmt.letVar "values_data_offset"
+        (Expr.add (Expr.mload (Expr.literal 64)) (Expr.literal 32)) => true
+    | _ => false) &&
+  body.any (fun stmt =>
+    match stmt with
+    | Stmt.emit "MemoryAmounts" [Expr.memoryArrayLength "values"] => true
+    | _ => false)
+
+example : emitMemoryArrayModelUsesMemoryArrayLength = true := by native_decide
+
+def emitNoteModelUsesProjectedStaticComposite : Bool :=
+  match MacroEventTrace.emitNote_modelBody with
+  | [Stmt.emit "NoteLogged" [Expr.paramDynamicStaticComposite "txn" 0],
+      Stmt.stop] =>
+      true
+  | _ => false
+
+example : emitNoteModelUsesProjectedStaticComposite = true := by native_decide
+
 def emitDynamicLogModelUsesStmtRawLog : Bool :=
   match MacroEventTrace.emitDynamicLog_modelBody with
   | [Stmt.rawLog
@@ -1909,6 +2074,33 @@ def emitDynamicLogModelUsesStmtRawLog : Bool :=
 
 example : emitDynamicLogModelUsesStmtRawLog = true := by native_decide
 
+def eventTraceSpecCarriesEventMetadata : Bool :=
+  MacroEventTrace.spec.events.any (fun ev =>
+    match ev with
+    | { name := "Transfer",
+        params := [
+          { name := "amount", ty := ParamType.uint256, kind := EventParamKind.indexed },
+          { name := "total", ty := ParamType.uint256, kind := EventParamKind.unindexed }
+        ] } => true
+    | _ => false) &&
+  MacroEventTrace.spec.events.any (fun ev =>
+    match ev with
+    | { name := "Amounts",
+        params := [
+          { name := "total", ty := ParamType.uint256, kind := EventParamKind.unindexed },
+          { name := "values", ty := ParamType.array ParamType.uint256, kind := EventParamKind.unindexed }
+        ] } => true
+    | _ => false) &&
+  MacroEventTrace.spec.events.any (fun ev =>
+    match ev with
+    | { name := "MemoryAmounts",
+        params := [
+          { name := "values", ty := ParamType.array ParamType.uint256, kind := EventParamKind.unindexed }
+        ] } => true
+    | _ => false)
+
+example : eventTraceSpecCarriesEventMetadata = true := by native_decide
+
 def emitNamedExecutableAppendsNamedEvent : Bool :=
   match MacroEventTrace.emitNamed 7 5 Verity.defaultState with
   | .success () state =>
@@ -1919,6 +2111,28 @@ def emitNamedExecutableAppendsNamedEvent : Bool :=
   | .revert _ _ => false
 
 example : emitNamedExecutableAppendsNamedEvent = true := by native_decide
+
+def emitArrayExecutableAppendsArrayLengthPlaceholder : Bool :=
+  match MacroEventTrace.emitArray 7 #[11, 13] Verity.defaultState with
+  | .success () state =>
+      match state.events with
+      | [{ name := "Amounts", args := [7, 2], indexedArgs := [] }] =>
+          state.sender == Verity.defaultState.sender
+      | _ => false
+  | .revert _ _ => false
+
+example : emitArrayExecutableAppendsArrayLengthPlaceholder = true := by native_decide
+
+def emitMemoryArrayExecutableAppendsArrayLengthPlaceholder : Bool :=
+  match MacroEventTrace.emitMemoryArray 3 Verity.defaultState with
+  | .success () state =>
+      match state.events with
+      | [{ name := "MemoryAmounts", args := [3], indexedArgs := [] }] =>
+          state.sender == Verity.defaultState.sender
+      | _ => false
+  | .revert _ _ => false
+
+example : emitMemoryArrayExecutableAppendsArrayLengthPlaceholder = true := by native_decide
 
 def emitDynamicLogExecutableAppendsLowLevelTrace : Bool :=
   match MacroEventTrace.emitDynamicLog 3 4 64 96 Verity.defaultState with
@@ -2436,6 +2650,81 @@ private def stringEventMismatchSpec : CompilationModel := {
   ]
 }
 
+private def memoryArrayEventSourceSpec : CompilationModel := {
+  name := "MemoryArrayEventSource"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "log"
+      params := []
+      returnType := none
+      body := [
+        Stmt.letVar "values_length" (Expr.literal 2),
+        Stmt.letVar "values_data_offset" (Expr.literal 128),
+        Stmt.emit "Amounts" [Expr.memoryArrayLength "values"],
+        Stmt.stop
+      ]
+    }
+  ]
+  events := [
+    { name := "Amounts"
+      params := [{ name := "values", ty := ParamType.array ParamType.uint256, kind := EventParamKind.unindexed }]
+    }
+  ]
+}
+
+private def projectedArrayEventSourceSpec : CompilationModel := {
+  name := "ProjectedArrayEventSource"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "log"
+      params := [{ name := "payload", ty := ParamType.tuple [ParamType.array ParamType.uint256] }]
+      returnType := none
+      body := [
+        Stmt.emit "Amounts" [Expr.paramDynamicMemberLength "payload" 0],
+        Stmt.stop
+      ]
+    }
+  ]
+  events := [
+    { name := "Amounts"
+      params := [{ name := "values", ty := ParamType.array ParamType.uint256, kind := EventParamKind.unindexed }]
+    }
+  ]
+}
+
+private def projectedStaticCompositeEventSourceSpec : CompilationModel := {
+  name := "ProjectedStaticCompositeEventSource"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "log"
+      params := [
+        { name := "payload",
+          ty := ParamType.tuple [
+            ParamType.tuple [ParamType.uint256, ParamType.address, ParamType.uint256],
+            ParamType.array ParamType.uint256
+          ] }
+      ]
+      returnType := none
+      body := [
+        Stmt.emit "NoteLogged" [Expr.paramDynamicStaticComposite "payload" 0],
+        Stmt.stop
+      ]
+    }
+  ]
+  events := [
+    { name := "NoteLogged"
+      params := [
+        { name := "note",
+          ty := ParamType.tuple [ParamType.uint256, ParamType.address, ParamType.uint256],
+          kind := EventParamKind.unindexed }
+      ]
+    }
+  ]
+}
+
 private def eventEncodingRegressionSpec : CompilationModel := {
   name := "EventEncodingRegression"
   fields := []
@@ -2536,14 +2825,6 @@ private def adtAliasPayloadMemoizesExprSpec : CompilationModel := {
     { name := "choice", ty := FieldType.adt "Choice" 1, «slot» := some 10, aliasSlots := [100] }
   ]
   «constructor» := none
-  externals := [
-    { name := "echo"
-      params := [ParamType.uint256]
-      returnType := some ParamType.uint256
-      returns := [ParamType.uint256]
-      axiomNames := []
-    }
-  ]
   functions := [
     { name := "store"
       params := [{ name := "input", ty := ParamType.uint256 }]
@@ -2628,6 +2909,32 @@ private def addressArrayReturnSpec : CompilationModel := {
       returnType := none
       returns := [ParamType.array ParamType.address]
       body := [Stmt.returnArray "recipients"]
+    }
+  ]
+}
+
+private def internalAddressArrayReturnSpec : CompilationModel := {
+  name := "InternalAddressArrayReturn"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "echoArray"
+      params := [{ name := "recipients", ty := ParamType.array ParamType.address }]
+      returnType := none
+      returns := [ParamType.array ParamType.address]
+      body := [Stmt.returnArray "recipients"]
+      isInternal := true
+    },
+    { name := "countEchoed"
+      params := [{ name := "recipients", ty := ParamType.array ParamType.address }]
+      returnType := some FieldType.address
+      body := [
+        Stmt.internalCallAssign
+          ["echoed_data_offset", "echoed_length"]
+          "echoArray"
+          [Expr.param "recipients_data_offset", Expr.param "recipients_length"],
+        Stmt.return (Expr.memoryArrayElement "echoed" (Expr.literal 0))
+      ]
     }
   ]
 }
@@ -3086,6 +3393,28 @@ private def sha256PackedWordsSmokeSpec : CompilationModel := {
   ]
 }
 
+private def abiEncodeStaticArraySmokeSpec : CompilationModel := {
+  name := "AbiEncodeStaticArraySmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "hash"
+      params := [
+        { name := "items", ty := ParamType.array (ParamType.tuple [
+          ParamType.uint256, ParamType.fixedArray ParamType.uint256 3
+        ]) }
+      ]
+      returnType := none
+      returns := [ParamType.bytes32]
+      body := [
+        Compiler.Modules.Hashing.abiEncodeStaticArray
+          "digest" "items" 4 (Expr.arrayLength "items"),
+        Stmt.returnValues [Expr.localVar "digest"]
+      ]
+    }
+  ]
+}
+
 private def abiEncodePackedStaticSegmentsSmokeSpec : CompilationModel := {
   name := "AbiEncodePackedStaticSegmentsSmoke"
   fields := []
@@ -3158,6 +3487,40 @@ private def abiEncodePackedWordsBadAritySpec : CompilationModel := {
       body := [
         Stmt.ecm (Compiler.Modules.Hashing.abiEncodePackedWordsModule "digest" 2)
           [Expr.param "a"],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def abiEncodeStaticArrayBadAritySpec : CompilationModel := {
+  name := "AbiEncodeStaticArrayBadArity"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "items", ty := ParamType.array ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.ecm (Compiler.Modules.Hashing.abiEncodeStaticArrayModule "digest" "items" 1)
+          [Expr.arrayLength "items", Expr.literal 0],
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def abiEncodeStaticArrayBadWidthSpec : CompilationModel := {
+  name := "AbiEncodeStaticArrayBadWidth"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "bad"
+      params := [{ name := "items", ty := ParamType.array ParamType.uint256 }]
+      returnType := none
+      body := [
+        Compiler.Modules.Hashing.abiEncodeStaticArray
+          "digest" "items" 0 (Expr.arrayLength "items"),
         Stmt.stop
       ]
     }
@@ -4034,6 +4397,8 @@ set_option maxRecDepth 4096 in
     MacroImmutableSmoke.typedImmutableExecutableReadsConvertedValues
   expectTrue "macro emit lowers to Stmt.emit"
     MacroEventTraceSmoke.emitNamedModelUsesStmtEmit
+  expectTrue "macro event declarations populate CompilationModel event metadata"
+    MacroEventTraceSmoke.eventTraceSpecCarriesEventMetadata
   expectTrue "macro rawLog lowers to Stmt.rawLog with dynamic topic expressions"
     MacroEventTraceSmoke.emitDynamicLogModelUsesStmtRawLog
   expectTrue "macro emit executable path appends the named event trace"
@@ -4081,6 +4446,27 @@ set_option maxRecDepth 4096 in
     "string events reject bytes parameters"
     stringEventMismatchSpec
     "event 'MessageLogged' param 'message' expects"
+  let memoryArrayEventsCompile :=
+    match Compiler.CompilationModel.compile memoryArrayEventSourceSpec
+        (selectorsFor memoryArrayEventSourceSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "memory array event sources compile for unindexed uint256[] params"
+    memoryArrayEventsCompile
+  let projectedArrayEventsCompile :=
+    match Compiler.CompilationModel.compile projectedArrayEventSourceSpec
+        (selectorsFor projectedArrayEventSourceSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "projected dynamic array event sources compile for unindexed uint256[] params"
+    projectedArrayEventsCompile
+  let projectedStaticCompositeEventsCompile :=
+    match Compiler.CompilationModel.compile projectedStaticCompositeEventSourceSpec
+        (selectorsFor projectedStaticCompositeEventSourceSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "projected static composite event sources compile for unindexed tuple params"
+    projectedStaticCompositeEventsCompile
   let stringArrayEventsCompile :=
     match Compiler.CompilationModel.compile Contracts.StringArrayEventSmoke.spec
         (selectorsFor Contracts.StringArrayEventSmoke.spec) with
@@ -4144,6 +4530,32 @@ set_option maxRecDepth 4096 in
     | .ok _ => true
     | .error _ => false
   expectTrue "address[] params can round-trip through returnArray" addressArrayReturnCompiled
+  let internalAddressArrayReturnContract ←
+    expectCompile
+      "internal address[] helper return lowers to offset/length Yul returns"
+      internalAddressArrayReturnSpec
+  let internalAddressArrayReturnShape :=
+    match internalAddressArrayReturnContract.internalFunctions.find? (fun stmt =>
+        match stmt with
+        | Compiler.Yul.YulStmt.funcDef name _ _ _ => name == "internal_echoArray"
+        | _ => false) with
+    | some (Compiler.Yul.YulStmt.funcDef "internal_echoArray"
+        ["recipients_data_offset", "recipients_length"]
+        [retOffset, retLength]
+        [Compiler.Yul.YulStmt.assign assignedOffset (Compiler.Yul.YulExpr.ident "recipients_data_offset"),
+         Compiler.Yul.YulStmt.assign assignedLength (Compiler.Yul.YulExpr.ident "recipients_length"),
+         Compiler.Yul.YulStmt.leave]) =>
+        retOffset == assignedOffset && retLength == assignedLength && retOffset != retLength
+    | _ => false
+  expectTrue "internal address[] helper return binds data offset and length"
+    internalAddressArrayReturnShape
+  let internalAddressArrayReturnYul ←
+    expectCompileToYul
+      "internal address[] helper return can be read as memory array"
+      internalAddressArrayReturnSpec
+  expectTrue "internal array return callers read returned array data from memory"
+    (contains internalAddressArrayReturnYul
+      s!"{checkedArrayElementMemoryHelperName}(echoed_data_offset, echoed_length, 0)")
   let addressStorageWordReturnCompiled :=
     match Compiler.CompilationModel.compile addressStorageWordReturnSpec
         (selectorsFor addressStorageWordReturnSpec) with
@@ -4365,6 +4777,32 @@ set_option maxRecDepth 4096 in
       contains abiEncodePackedWordsYul "mstore(64, __packed_word_2)")
   expectTrue "abiEncodePackedWords hashes the exact packed byte length"
     (contains abiEncodePackedWordsYul "let digest := keccak256(0, 96)")
+  let abiEncodeStaticArrayYul ←
+    expectCompileToYul "abiEncodeStaticArray smoke spec" abiEncodeStaticArraySmokeSpec
+  expectTrue "abiEncodeStaticArray writes the single dynamic argument head and length"
+    (contains abiEncodeStaticArrayYul "mstore(__digest_abi_array_ptr, 32)" &&
+      contains abiEncodeStaticArrayYul "mstore(add(__digest_abi_array_ptr, 32), items_length)")
+  expectTrue "abiEncodeStaticArray copies the fixed-width element payload"
+    (contains abiEncodeStaticArrayYul
+      "let __digest_abi_array_data_bytes := mul(items_length, 128)" &&
+      contains abiEncodeStaticArrayYul
+      "calldatacopy(add(__digest_abi_array_ptr, 64), items_data_offset, __digest_abi_array_data_bytes)")
+  expectTrue "abiEncodeStaticArray hashes the ABI-encoded dynamic array byte length"
+    (contains abiEncodeStaticArrayYul
+      "let digest := keccak256(__digest_abi_array_ptr, __digest_abi_array_total_bytes)")
+  expectCompileErrorContains
+    "abiEncodeStaticArray ECM rejects invalid argument counts"
+    abiEncodeStaticArrayBadAritySpec
+    "uses ECM 'abiEncodeStaticArray' with 2 arguments but it expects 1"
+  expectCompileErrorContains
+    "abiEncodeStaticArray rejects zero-width elements"
+    abiEncodeStaticArrayBadWidthSpec
+    "abiEncodeStaticArray requires elementWords > 0"
+  let abiEncodeStaticArrayTrustReport := emitTrustReportJson [abiEncodeStaticArraySmokeSpec]
+  expectTrue "abiEncodeStaticArray trust report surfaces array layout and keccak assumptions"
+    (contains abiEncodeStaticArrayTrustReport "\"module\":\"abiEncodeStaticArray\"" &&
+      contains abiEncodeStaticArrayTrustReport "\"assumption\":\"abi_standard_dynamic_array_static_element_layout\"" &&
+      contains abiEncodeStaticArrayTrustReport "\"assumption\":\"keccak256_memory_slice_matches_evm\"")
   let sha256PackedWordsYul ←
     expectCompileToYul "sha256PackedWords smoke spec" sha256PackedWordsSmokeSpec
   expectTrue "sha256PackedWords evaluates source words before clobbering scratch memory"

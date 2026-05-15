@@ -22,6 +22,7 @@ partial def exprContainsCallLike (expr : Expr) : Bool :=
       exprContainsCallLike key1 || exprContainsCallLike key2
   | Expr.storageArrayElement _ index
   | Expr.arrayElement _ index
+  | Expr.memoryArrayElement _ index
   | Expr.arrayElementWord _ index _ _
   | Expr.arrayElementDynamicWord _ index _
   | Expr.arrayElementDynamicDataOffset _ index
@@ -62,8 +63,10 @@ partial def exprContainsCallLike (expr : Expr) : Bool :=
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
-  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
@@ -130,7 +133,7 @@ def exprContainsUnsafeLogicalCallLike (expr : Expr) : Bool :=
   | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
   | Expr.structMember2 _ key1 key2 _ =>
       exprContainsUnsafeLogicalCallLike key1 || exprContainsUnsafeLogicalCallLike key2
-  | Expr.storageArrayElement _ index | Expr.arrayElement _ index
+  | Expr.storageArrayElement _ index | Expr.arrayElement _ index | Expr.memoryArrayElement _ index
   | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
   | Expr.arrayElementDynamicDataOffset _ index
   | Expr.arrayElementDynamicMemberDataOffset _ index _
@@ -169,8 +172,10 @@ def exprContainsUnsafeLogicalCallLike (expr : Expr) : Bool :=
   | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
   | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance | Expr.blockTimestamp
   | Expr.blockNumber | Expr.blobbasefee
-  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _ | Expr.storageArrayLength _
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.memoryArrayLength _ | Expr.storageArrayLength _
   | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
   | Expr.paramDynamicMemberLength _ _
   | Expr.paramDynamicMemberDataOffset _ _
   | Expr.adtTag _ _ =>
