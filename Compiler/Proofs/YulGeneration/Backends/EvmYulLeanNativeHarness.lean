@@ -6813,6 +6813,55 @@ theorem eval_callvalue_preserves_reviveJump
       (eval_lowerExprNative_callvalue_lt2_not_ok fuel (by omega)
         state codeOverride (final, v))
 
+set_option maxHeartbeats 4000000 in
+/-- For fuel < 6, eval of the lowered `lt(calldatasize, k)` expression errors
+out: the deeply nested Call/PrimCall structure consumes 6 fuel units before
+the inner CALLDATASIZE primop's `executionEnvOp` runs. -/
+private theorem eval_lowerExprNative_lt_calldatasize_lt6_not_ok
+    (fuel : Nat) (hLT : fuel < 6)
+    (s : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (k : Nat) (result : EvmYul.Yul.State × EvmYul.Literal) :
+    EvmYul.Yul.eval fuel
+        (Backends.lowerExprNative
+          (Yul.YulExpr.call "lt"
+            [Yul.YulExpr.call "calldatasize" [],
+             Yul.YulExpr.lit k]))
+        codeOverride s ≠ .ok result := by
+  intro hEval
+  rcases fuel with _ | _ | _ | _ | _ | _ | _
+  all_goals first
+    | omega
+    | (simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+        EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+        EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
+        EvmYul.Yul.head'] at hEval)
+
+/-- UNIVERSAL-INPUT reviveJump discharge for the dispatcher's
+`lt(calldatasize, k)` guard: for ANY fuel and ANY state, a successful eval
+preserves `reviveJump`. Closes the `hCondReviveJump` premise for this
+guard. -/
+theorem eval_lt_calldatasize_lit_preserves_reviveJump
+    (k : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    ∀ fuel state final v,
+      EvmYul.Yul.eval fuel
+          (Backends.lowerExprNative
+            (Yul.YulExpr.call "lt"
+              [Yul.YulExpr.call "calldatasize" [],
+               Yul.YulExpr.lit k]))
+          codeOverride state = .ok (final, v) →
+        final.reviveJump = state.reviveJump := by
+  intro fuel state final v hEval
+  by_cases hFuel : fuel ≥ 6
+  · obtain ⟨n, rfl⟩ : ∃ n, fuel = n + 6 := ⟨fuel - 6, by omega⟩
+    rw [eval_lowerExprNative_lt_calldatasize_fuel_ge_6] at hEval
+    obtain ⟨hStateEq, _⟩ := Prod.mk.inj (Except.ok.inj hEval)
+    rw [hStateEq]
+  · exact absurd hEval
+      (eval_lowerExprNative_lt_calldatasize_lt6_not_ok fuel (by omega)
+        state codeOverride k (final, v))
+
 /-- Native evaluation of the lowered `sload(lit slot)` Yul expression. At any
     fuel `≥ fuel + 6`, the eval reduces to the closed-form pair returned by
     EVMYulLean's `SLOAD` primitive: the new `SharedState` carries the
