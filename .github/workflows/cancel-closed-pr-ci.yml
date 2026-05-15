@@ -48,3 +48,5 @@ jobs:
               fi
             done
           done
+
+# End-to-end cleanup workflow test only.
