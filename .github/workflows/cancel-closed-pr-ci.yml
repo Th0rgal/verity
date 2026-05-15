@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: Verify proofs-${{ github.ref }}
+  group: Verify proofs-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
