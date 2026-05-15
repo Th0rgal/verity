@@ -55,8 +55,8 @@ class HygieneFixtureTestBase(unittest.TestCase):
         (self.root / "Verity" / "Proofs").mkdir(parents=True)
         (self.root / "Contracts").mkdir(parents=True)
 
-        # Default: zero allowUnsafeReducibility (after the legacyExecYulFuel
-        # removal, the proof chain no longer has any unsafe-reducibility uses).
+        # Default: zero allowUnsafeReducibility (the proof chain no longer
+        # has any unsafe-reducibility uses).
         self._unsafe_file = self.root / "Compiler" / "Unsafe.lean"
         self._unsafe_file.write_text(
             "-- no unsafe here\n", encoding="utf-8"

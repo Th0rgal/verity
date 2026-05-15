@@ -106,22 +106,21 @@ theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
 
 Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/StatementEquivalence.lean), [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean), [`AXIOMS.md`](../AXIOMS.md)
 
-### Phase 4: EVMYulLean Semantic Retargeting (safe-body EndToEnd target)
+### Phase 4: EVMYulLean Native Dispatcher (safe-body EndToEnd target)
 
-The retargeting module [`EvmYulLeanRetarget.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean) proves the following retargeting facts. The backend-fuel executor facts are private transition evidence, not public proof authority:
-- Private `backends_agree_on_bridged_builtins`: the `.verity` and `.evmYulLean` backends produce identical results at the `evalBuiltinCallWithBackendContext` level for all 36 bridged builtins (dispatch proof delegates to the 36 fully proven per-builtin context-lifted bridge lemmas in `EvmYulLeanBridgeLemmas.lean`)
-- Private `evalYulExpr_evmYulLean_eq_on_bridged`: `evalYulExpr` agrees with the `.evmYulLean` backend-parameterized evaluator for every `BridgedExpr` expression, including nested calls to bridged builtins and backend-independent `tload`/`mload`; all builtin bridge dependencies are fully proven
-- Private `execYulFuelWithBackend_verity_eq`: the backend-parameterized statement executor recovers existing `legacyExecYulFuel` semantics at `.verity`, giving the next induction a verified executor surface
-- Private `execYulFuelWithBackend_eq_on_bridged_straight_stmts`: `.verity` and `.evmYulLean` statement execution agree for straight-line statement lists satisfying `BridgedStraightStmts`, covering value bindings, `letMany`'s shared revert behavior, and dedicated statement-call semantics for mapping-slot, literal-slot, and identifier-slot `sstore`, `mstore`, `tstore`, `stop`, `return`, and `revert`; all builtin bridge dependencies are fully proven
-- Private `execYulFuelWithBackend_block_eq_on_bridged_straight_stmts`: `.block` wrappers around those straight-line lists preserve the same backend equivalence
-- Private `execYulFuelWithBackend_if_eq_on_bridged_body`: `.if_` statements with bridged conditions and straight-line bodies preserve the same backend equivalence
-- Private `execYulFuelWithBackend_switch_eq_on_bridged_cases`: `.switch` statements with bridged scrutinees and straight-line selected case/default bodies preserve the same backend equivalence
-- Private `execYulFuelWithBackend_for_eq_on_bridged_parts`: `.for_` statements with straight-line init/body/post lists and a bridged condition preserve the same backend equivalence
-- Private `execYulFuelWithBackend_eq_on_bridged_target`: recursive `.verity = .evmYulLean` backend equivalence for `BridgedTarget` executions whose nested statements satisfy `BridgedStmt`
-- `emitYul_runtimeCode_bridged`: the emitted runtime dispatch wrapper satisfies `BridgedTarget` when the IR function bodies, fallback/receive bodies, and internal helper statements it embeds satisfy `BridgedStmt`
-- Private `emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies`: emitted runtime-code execution through Verity `legacyExecYulFuel` equals the EVMYulLean backend executor when those embedded function/entrypoint/internal bodies satisfy `BridgedStmts`
-- The old transition-only `yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle` theorem has been removed. The retargeting module still keeps backend-wrapper equivalence facts as isolated transition evidence, but it no longer exports a Layer-3 preservation theorem that routes through the legacy reference oracle as public proof authority.
-- `EndToEnd.lean` no longer defines `layers2_3_ir_matches_yul_evmYulLeanBackend` or other backend-wrapper transition lemmas. The retargeting evidence remains isolated in `EvmYulLeanRetarget.lean`, while public EndToEnd correctness targets native dispatcher execution through `interpretIRRuntimeNative`.
+The retargeting module that bridged the legacy `.verity` proof-interpreter
+backend to the `.evmYulLean` backend (`EvmYulLeanRetarget.lean` plus
+`ReferenceOracle.Semantics`, `YulGeneration.{Preservation, Equivalence,
+StatementEquivalence, Codegen, Lemmas}`, and the smoke-test scaffolding) was
+**removed in DoD-5** of the EVMYulLean transition. The native EvmYulLean
+dispatcher is now the sole runtime authority; there is no longer a private
+proof-interpreter chain to keep in sync.
+
+The retained content of Phase 4 is the body-closure layer that proves
+compiler-emitted runtime Yul satisfies `BridgedStmts` so that the public
+EndToEnd surface (which targets native `EvmYul.Yul.callDispatcher`
+execution through `EvmYulLeanNativeHarness`) can compose with those
+closures unconditionally for the supported fragment.
 - `genParamLoads_scalar_bridged`: scalar calldata parameter-loading prologues emitted by `genParamLoads` satisfy `BridgedStmts`
 - `genStaticTypeLoads_calldataload_bridged`: static scalar leaf-load helpers for fixed arrays/tuples satisfy `BridgedStmts`
 - `genParamLoads_static_scalar_bridged`: full calldata parameter-loading prologues for static scalar fixed arrays/tuples satisfy `BridgedStmts`

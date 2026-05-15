@@ -14,9 +14,9 @@ holds for **every supported-generated contract directly against
 `EvmYul.Yul.callDispatcher`**, with:
 
 1. No `hUserBodyHalt` premise on the public theorem.
-2. No opt-in legacy machinery
-   (`legacyExecYulFuel`, `EvmYulLeanRetarget.lean`, reference-oracle composition)
-   on the proof chain for the supported fragment.
+2. No opt-in legacy machinery on the proof chain for the supported fragment
+   (the legacy fuel-based executor, the retargeting layer, and the
+   reference-oracle composition have all been removed in DoD-5).
 3. Zero `sorry`, zero new axioms (invariant carried over from PR #1822).
 
 The G1 plan in `docs/NATIVE_EVMYULLEAN_TRANSITION.md` decomposes this into
@@ -623,7 +623,7 @@ cond premises from `_revived_switchCaseBody_*`).
 - 7058 lines removed total.
 - CI plumbing cleanup (`6307373a`, `a563505a`): verify.yml macro-fuzz job
   removed, sync spec updated, dependent Python scripts and tests adjusted.
-- `legacyExecYulFuel` references: 0. `git grep` returns nothing.
+- Legacy fuel-based executor references: 0. `git grep` returns nothing.
 
 **DoD-6 ✓** sorry count 5 ≤ upstream/main 7; axiom count 0 = 0.
 **DoD-7 ✓** `lake clean && lake build` green (5m12s).

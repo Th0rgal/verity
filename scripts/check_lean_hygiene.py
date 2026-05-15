@@ -78,8 +78,9 @@ def main() -> None:
                             f"(debug command that slows builds)"
                         )
 
-    # Check 2: Exactly 0 allowUnsafeReducibility (the prior single usage targeted
-    # `legacyExecYulFuel`, which was removed in the EVMYulLean transition).
+    # Check 2: Exactly 0 allowUnsafeReducibility (the prior single usage was
+    # tied to the legacy fuel-based executor, removed in the EVMYulLean
+    # transition).
     expected_unsafe = 0
     unsafe_count = 0
     unsafe_locations: list[str] = []
