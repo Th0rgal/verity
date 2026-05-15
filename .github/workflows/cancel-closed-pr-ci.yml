@@ -11,7 +11,7 @@ permissions:
 jobs:
   cancel:
     name: Cancel stale PR workflow runs
-    runs-on: [self-hosted, linux, x64, verity, fastlane]
+    runs-on: [self-hosted, Linux, X64, verity, fastlane]
     timeout-minutes: 5
     steps:
       - name: Cancel queued and running CI for the closed PR
