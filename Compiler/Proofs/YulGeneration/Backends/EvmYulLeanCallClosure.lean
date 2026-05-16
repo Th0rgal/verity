@@ -600,4 +600,58 @@ theorem BridgedStmts_of_compileStmtList_append
   subst hEq
   exact BridgedStmts_append (hPfx hPfxOk) (hSfx hSfxOk)
 
+/-! ## Phase 4 smoke: end-to-end G3 closure proof on a minimal example
+
+Demonstrates that the closure machinery built in Phases 1-3 actually
+discharges `BridgedStmts` on a real source statement. We construct a
+two-entry function table whose bodies are trivially bridged (one
+`leave`, one `let x := 0`) and prove that compiling a single
+`Stmt.internalCall "helper" [Expr.literal 0]` against it yields a
+`BridgedStmts` output. -/
+
+namespace G3Smoke
+
+/-- Trivially bridged singleton body: `[YulStmt.leave]`. -/
+private def leaveBody : { body : List YulStmt // BridgedStmts body } :=
+  ⟨[YulStmt.leave], by
+    intro stmt hMem
+    simp only [List.mem_singleton] at hMem
+    subst stmt
+    exact BridgedStmt.straight _ BridgedStraightStmt.leave⟩
+
+/-- Function table with one entry under the compiled internal name
+`internal_helper`. -/
+private def smokeTable : BridgedFunctionTable :=
+  [(internalFunctionYulName "helper", leaveBody)]
+
+/-- Sanity: `helper` resolves in the smoke table. -/
+private theorem smokeTable_lookup_some :
+    (BridgedFunctionTable.lookup smokeTable
+      (internalFunctionYulName "helper")).isSome = true := by
+  simp [BridgedFunctionTable.lookup, smokeTable]
+
+/-- A `Stmt.internalCall "helper" [Expr.literal 0]` is in the
+function-table-aware bridged-source predicate. -/
+private theorem smoke_internalCall_bridged :
+    BridgedSourceInternalCallStmt smokeTable
+      (.internalCall "helper" [.literal 0]) := by
+  refine BridgedSourceInternalCallStmt.call "helper" [.literal 0] ?_ ?_
+  · intro a hMem
+    simp only [List.mem_singleton] at hMem
+    subst a
+    exact BridgedSourceExpr.literal 0
+  · exact smokeTable_lookup_some
+
+/-- End-to-end G3 closure smoke test: compiling the source
+`internalCall` statement yields a `BridgedStmts` output. -/
+theorem smoke_compileStmt_internalCall_bridged
+    {out : List YulStmt}
+    (hOk : compileStmt [] [] [] .calldata [] false [] []
+      (.internalCall "helper" [.literal 0]) = .ok out) :
+    BridgedStmts out :=
+  compileStmt_internalCall_bridged (table := smokeTable)
+    [] [] [] .calldata [] false [] [] smoke_internalCall_bridged hOk
+
+end G3Smoke
+
 end Compiler.Proofs.YulGeneration.Backends
