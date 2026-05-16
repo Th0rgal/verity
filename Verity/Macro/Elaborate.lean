@@ -18,6 +18,7 @@ def elabVerityContract : CommandElab := fun stx => do
   let structDecls := parsed.structDecls
   let adtDecls := parsed.adtDecls
   let fields := parsed.fields
+  let storageStructAccessors := parsed.storageStructAccessors
   let errorDecls := parsed.errorDecls
   let eventDecls := parsed.eventDecls
   let constDecls := parsed.constDecls
@@ -44,7 +45,12 @@ def elabVerityContract : CommandElab := fun stx => do
       elabCommand (← mkStructEventArgInstanceCommandPublic structDecl)
 
     for field in fields do
-      elabCommand (← mkStorageDefCommandPublic field)
+      if field.emitDef then
+        elabCommand (← mkStorageDefCommandPublic field)
+
+    for accessor in storageStructAccessors do
+      for cmd in (← mkStorageStructAccessorCommandsPublic accessor) do
+        elabCommand cmd
 
     for imm in immutableDecls.zipIdx do
       elabCommand (← mkStorageDefCommandPublic (immutableStorageFieldDecl fields imm.1 imm.2))

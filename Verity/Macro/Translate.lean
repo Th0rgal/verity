@@ -64,6 +64,18 @@ structure StorageFieldDecl where
   ty : StorageType
   slotNum : Nat
   adtInfo? : Option (String × Nat) := none
+  packedBits : Option (Nat × Nat) := none
+  emitDef : Bool := true
+  aliases : List String := []
+
+inductive StorageAccessorTree where
+  | leaf (name : String) (ty : StorageType) (slotNum : Nat)
+  | node (name : String) (children : Array StorageAccessorTree)
+
+structure StorageStructAccessorDecl where
+  ident : Ident
+  name : String
+  tree : StorageAccessorTree
 
 structure ParamDecl where
   ident : Ident
@@ -723,6 +735,89 @@ private def parseStorageField (newtypes : Array NewtypeDecl) (structDecls : Arra
       }
   | _ => throwErrorAt stx "invalid storage field declaration"
 
+private def pathFieldName (parts : List String) : String :=
+  String.intercalate "." parts
+
+private def pathFieldModelName (parts : List String) : String :=
+  String.intercalate "_" parts
+
+private def pathFieldIdent (root : Ident) (parts : List String) : Ident :=
+  mkIdentFrom root (Name.mkSimple (pathFieldModelName parts))
+
+private partial def parseStorageStructMember
+    (newtypes : Array NewtypeDecl)
+    (structDecls : Array StructDecl := #[])
+    (adtDecls : Array AdtDecl := #[])
+    (rootIdent : Ident)
+    (pathPrefix : List String)
+    (baseSlot : Nat)
+    (stx : TSyntax `verityStorageStructMember) :
+    CommandElabM (Array StorageFieldDecl × StorageAccessorTree) := do
+  let leafDecl (name : Ident) (ty : Term) (wordOffset : TSyntax `num)
+      (packed : Option (TSyntax `num × TSyntax `num)) := do
+    let localName := toString name.getId
+    let parts := pathPrefix ++ [localName]
+    let parsedTy ← storageTypeFromSyntax newtypes structDecls adtDecls ty
+    let packedBits ←
+      match packed with
+      | none => pure none
+      | some (offset, width) => pure (some (← natFromSyntax offset, ← natFromSyntax width))
+    let slotNum := baseSlot + (← natFromSyntax wordOffset)
+    let field : StorageFieldDecl := {
+      ident := pathFieldIdent rootIdent parts
+      name := pathFieldModelName parts
+      ty := parsedTy
+      slotNum := slotNum
+      adtInfo? :=
+        match parsedTy with
+        | .scalar (.adt adtName maxFields) => some (adtName, maxFields)
+        | _ => none
+      packedBits := packedBits
+      emitDef := false
+      aliases := [pathFieldName parts]
+    }
+    pure (#[field], StorageAccessorTree.leaf localName parsedTy slotNum)
+  match stx with
+  | `(verityStorageStructMember| $name:ident : $ty:term @word $wordOffset:num) =>
+      leafDecl name ty wordOffset none
+  | `(verityStorageStructMember| $name:ident : $ty:term @word $wordOffset:num packed($offset:num,$width:num)) =>
+      leafDecl name ty wordOffset (some (offset, width))
+  | `(verityStorageStructMember| $name:ident : StorageStruct [ $[$members:verityStorageStructMember],* ] @word $wordOffset:num) =>
+      let localName := toString name.getId
+      let childBase := baseSlot + (← natFromSyntax wordOffset)
+      let childPrefix := pathPrefix ++ [localName]
+      let mut fields : Array StorageFieldDecl := #[]
+      let mut children : Array StorageAccessorTree := #[]
+      for member in members do
+        let (memberFields, memberTree) ← parseStorageStructMember newtypes structDecls adtDecls rootIdent childPrefix childBase member
+        fields := fields ++ memberFields
+        children := children.push memberTree
+      pure (fields, StorageAccessorTree.node localName children)
+  | _ => throwErrorAt stx "invalid storage struct member declaration"
+
+private def parseStorageStructItem
+    (newtypes : Array NewtypeDecl)
+    (structDecls : Array StructDecl := #[])
+    (adtDecls : Array AdtDecl := #[])
+    (stx : TSyntax `verityStorageItem) :
+    CommandElabM (Option (Array StorageFieldDecl × StorageStructAccessorDecl)) := do
+  match stx with
+  | `(verityStorageItem| $name:ident : StorageStruct [ $[$members:verityStorageStructMember],* ] := slot $slotNum:num) =>
+      let rootName := toString name.getId
+      let baseSlot ← natFromSyntax slotNum
+      let mut fields : Array StorageFieldDecl := #[]
+      let mut children : Array StorageAccessorTree := #[]
+      for member in members do
+        let (memberFields, memberTree) ← parseStorageStructMember newtypes structDecls adtDecls name [rootName] baseSlot member
+        fields := fields ++ memberFields
+        children := children.push memberTree
+      pure (some (fields, {
+        ident := name
+        name := rootName
+        tree := StorageAccessorTree.node rootName children
+      }))
+  | _ => pure none
+
 private def parseParam (newtypes : Array NewtypeDecl) (structDecls : Array StructDecl) (adtDecls : Array AdtDecl) (stx : Syntax) : CommandElabM ParamDecl := do
   match stx with
   | `(verityParam| $name:ident : $ty:term) =>
@@ -1217,7 +1312,7 @@ private def lookupStructMemberDecl
     (fieldName memberName : String)
     (expectNested : Bool) : CommandElabM StructMemberDecl := do
   let field ←
-    match fields.find? (fun f => f.name == fieldName) with
+    match fields.find? (fun f => f.name == fieldName || f.aliases.contains fieldName) with
     | some f => pure f
     | none => throwError s!"unknown storage field '{fieldName}'"
   let members ←
@@ -1239,7 +1334,7 @@ private def lookupStructMemberDecl
   | none => throwError s!"unknown struct member '{memberName}' on field '{fieldName}'"
 
 private def lookupStorageField (fields : Array StorageFieldDecl) (name : String) : CommandElabM StorageFieldDecl := do
-  match fields.find? (fun f => f.name == name) with
+  match fields.find? (fun f => f.name == name || f.aliases.contains name) with
   | some f => pure f
   | none => throwError s!"unknown storage field '{name}'"
 
@@ -6832,14 +6927,13 @@ private def mkModelParamsTerm (params : Array ParamDecl) : CommandElabM Term := 
     `(Compiler.CompilationModel.Param.mk $(strTerm p.name) $(← modelParamTypeTerm p.ty))
   `([ $[$xs],* ])
 
-private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd := do
+private def storageSlotInnerTypeTerm (ty : StorageType) : CommandElabM Term := do
   let rec mkStorageMappingTy (keys : List MappingKeyType) : CommandElabM Term := do
     match keys with
     | [] => `(Uint256)
     | keyTy :: rest =>
         `(($(← storageKeyTypeContractTerm keyTy) → $(← mkStorageMappingTy rest)))
-  let storageTy ←
-    match field.ty with
+  match ty with
     | .scalar .uint256 => `(Uint256)
     | .scalar .int256 => `(Uint256)
     | .scalar .uint8 => throwError "storage field cannot be Uint8; use Uint256 encoding"
@@ -6875,8 +6969,55 @@ private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd :=
     | .mappingStruct2 .address .uint256 _ => `(Address → Uint256 → Uint256)
     | .mappingStruct2 .uint256 .address _ => `(Uint256 → Address → Uint256)
     | .mappingStruct2 .uint256 .uint256 _ => `(Uint256 → Uint256 → Uint256)
+
+private def mkStorageDefCommand (field : StorageFieldDecl) : CommandElabM Cmd := do
+  let storageTy ← storageSlotInnerTypeTerm field.ty
   let fid := field.ident
   `(command| def $fid : Verity.StorageSlot $storageTy := ⟨$(natTerm field.slotNum)⟩)
+
+private def storageAccessorTypeName (parts : List String) : Ident :=
+  mkIdent (Name.mkSimple (String.intercalate "_" parts ++ "_StorageSlots"))
+
+private partial def storageAccessorTreeName : StorageAccessorTree → String
+  | .leaf name .. => name
+  | .node name _ => name
+
+private partial def storageAccessorTypeCommands
+    (path : List String) : StorageAccessorTree → CommandElabM (Array Cmd)
+  | .leaf .. => pure #[]
+  | .node _ children => do
+      let mut cmds : Array Cmd := #[]
+      for child in children do
+        cmds := cmds ++ (← storageAccessorTypeCommands (path ++ [storageAccessorTreeName child]) child)
+      let typeId := storageAccessorTypeName path
+      let mut fieldIds : Array Ident := #[]
+      let mut fieldTypes : Array Term := #[]
+      for child in children do
+        fieldIds := fieldIds.push (mkIdent (Name.mkSimple (storageAccessorTreeName child)))
+        match child with
+        | .leaf _ ty _ =>
+            fieldTypes := fieldTypes.push (← `(Verity.StorageSlot $(← storageSlotInnerTypeTerm ty)))
+        | .node name _ =>
+            fieldTypes := fieldTypes.push (storageAccessorTypeName (path ++ [name]))
+      cmds := cmds.push (← `(command| structure $typeId where
+          $[$fieldIds:ident : $fieldTypes:term]*))
+      pure cmds
+
+private partial def storageAccessorValueTerm : StorageAccessorTree → CommandElabM Term
+  | .leaf _ ty slotNum => do
+      `((⟨$(natTerm slotNum)⟩ : Verity.StorageSlot $(← storageSlotInnerTypeTerm ty)))
+  | .node _ children => do
+      let fieldIds := children.map (fun child => mkIdent (Name.mkSimple (storageAccessorTreeName child)))
+      let values ← children.mapM storageAccessorValueTerm
+      `({ $[$fieldIds:ident := $values:term],* })
+
+def mkStorageStructAccessorCommandsPublic
+    (accessor : StorageStructAccessorDecl) : CommandElabM (Array Cmd) := do
+  let typeCmds ← storageAccessorTypeCommands [accessor.name] accessor.tree
+  let rootType := storageAccessorTypeName [accessor.name]
+  let rootValue ← storageAccessorValueTerm accessor.tree
+  let rootCmd ← `(command| def $(accessor.ident) : $rootType := $rootValue)
+  pure (typeCmds.push rootCmd)
 
 private def packedOptionTerm (packed : Option (Nat × Nat)) : CommandElabM Term := do
   match packed with
@@ -6983,11 +7124,16 @@ def mkExecutableStructMappingCommandsPublic (fields : Array StorageFieldDecl) :
   pure cmds
 
 private def mkModelFieldTerm (field : StorageFieldDecl) : CommandElabM Term := do
+  let packedTerm ←
+    match field.packedBits with
+    | none => `(none)
+    | some (offset, width) =>
+        `(some { offset := $(natTerm offset), width := $(natTerm width) })
   `(Compiler.CompilationModel.Field.mk
       $(strTerm field.name)
       $(← modelFieldTypeTerm field.ty)
       (some $(natTerm field.slotNum))
-      none
+      $packedTerm
       [])
 
 private def mkModelErrorTerm (err : ErrorDecl) : CommandElabM Term := do
@@ -7368,12 +7514,17 @@ private def storageFieldFromItem?
       pure (some (← `(verityStorageField| $name:ident : $ty:term := slot $slotNum:num)))
   | _ => pure none
 
+private partial def offsetStorageAccessorTree (offset : Nat) : StorageAccessorTree → StorageAccessorTree
+  | .leaf name ty slotNum => .leaf name ty (slotNum + offset)
+  | .node name children => .node name (children.map (offsetStorageAccessorTree offset))
+
 structure ParsedContractSyntax where
   contractName : Ident
   newtypeDecls : Array NewtypeDecl
   structDecls : Array StructDecl
   adtDecls : Array AdtDecl
   fields : Array StorageFieldDecl
+  storageStructAccessors : Array StorageStructAccessorDecl
   errorDecls : Array ErrorDecl
   eventDecls : Array EventDecl
   constDecls : Array ConstantDecl
@@ -7459,6 +7610,7 @@ def parseContractSyntax
       -- `storage_namespace` items switch the active namespace for subsequent
       -- fields, allowing multiple ERC-7201 roots in one contract model.
       let mut parsedFields : Array StorageFieldDecl := #[]
+      let mut parsedStorageStructAccessors : Array StorageStructAccessorDecl := #[]
       let mut currentNamespaceOffset := namespaceOffset
       let mut namespaceOpt : Option Nat :=
         if nsSpec.isSome then some namespaceOffset else none
@@ -7469,18 +7621,26 @@ def parseContractSyntax
             if namespaceOpt.isNone then
               namespaceOpt := some offset
         | none =>
-            match (← storageFieldFromItem? item) with
-            | some fieldStx =>
-                let field ← parseStorageField parsedNewtypes parsedStructs parsedAdts fieldStx
-                parsedFields := parsedFields.push { field with slotNum := field.slotNum + currentNamespaceOffset }
+            match (← parseStorageStructItem parsedNewtypes parsedStructs parsedAdts item) with
+            | some (structFields, accessor) =>
+                parsedFields := parsedFields ++
+                  (structFields.map fun field => { field with slotNum := field.slotNum + currentNamespaceOffset })
+                parsedStorageStructAccessors := parsedStorageStructAccessors.push
+                  { accessor with tree := offsetStorageAccessorTree currentNamespaceOffset accessor.tree }
             | none =>
-                throwErrorAt item "unsupported storage item"
+                match (← storageFieldFromItem? item) with
+                | some fieldStx =>
+                    let field ← parseStorageField parsedNewtypes parsedStructs parsedAdts fieldStx
+                    parsedFields := parsedFields.push { field with slotNum := field.slotNum + currentNamespaceOffset }
+                | none =>
+                    throwErrorAt item "unsupported storage item"
       pure {
         contractName := contractName
         newtypeDecls := parsedNewtypes
         structDecls := parsedStructs
         adtDecls := parsedAdts
         fields := parsedFields
+        storageStructAccessors := parsedStorageStructAccessors
         errorDecls := parsedErrors
         eventDecls := parsedEvents
         constDecls := parsedConstants

@@ -6,6 +6,7 @@ open Lean
 
 declare_syntax_cat verityStorageField
 declare_syntax_cat verityStorageItem
+declare_syntax_cat verityStorageStructMember
 declare_syntax_cat verityStructMember
 declare_syntax_cat verityParam
 declare_syntax_cat verityError
@@ -33,6 +34,10 @@ declare_syntax_cat verityFunction
 
 syntax ident " : " term " := " "slot" num : verityStorageField
 syntax ident " : " term " := " "slot" num : verityStorageItem
+syntax ident " : " term " @word " num : verityStorageStructMember
+syntax ident " : " term " @word " num " packed(" num "," num ")" : verityStorageStructMember
+syntax ident " : " "StorageStruct" "[" sepBy(verityStorageStructMember, ",") "]" " @word " num : verityStorageStructMember
+syntax ident " : " "StorageStruct" "[" sepBy(verityStorageStructMember, ",") "]" " := " "slot" num : verityStorageItem
 syntax "storage_namespace " : verityStorageItem
 syntax "storage_namespace " str : verityStorageItem
 syntax "storage_namespace " "erc7201 " str : verityStorageItem

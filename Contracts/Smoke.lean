@@ -1053,20 +1053,35 @@ verity_contract NamedStructParamSmoke where
   function readNestedMaker (config : OrderConfig) : Address := do
     return config.maker
 
-/--
-error: top-level named struct storage fields are not supported yet (#1758); flatten the struct into explicit scalar storage fields with fixed slots, or use MappingStruct/MappingStruct2 for struct-valued mappings
--/
-#guard_msgs in
-verity_contract NamedStructStorageRejected where
+verity_contract NestedStructStorageSmoke where
   storage
-    feeConfig : FeeConfig := slot 0
+    state : StorageStruct [
+      merkleRoot : Uint256 @word 0,
+      merkleTree : StorageStruct [
+        maxIndex : Uint256 @word 0 packed(0,40),
+        numberOfLeaves : Uint256 @word 0 packed(40,40),
+        elements : Uint256 → Uint256 @word 1
+      ] @word 1,
+      verifierRouter : Address @word 4
+    ] := slot 0
 
-  struct FeeConfig where
-    borrowTakerFeeRatio : Uint256,
-    lendMakerFeeRatio : Uint256
+  function readLeaves () : Uint256 := do
+    let n ← getStorage state.merkleTree.numberOfLeaves
+    return n
 
-  function readBorrowFee () : Uint256 := do
-    return 0
+  function writeLeaves (n : Uint256) : Unit := do
+    setStorage state.merkleTree.numberOfLeaves n
+
+  function writeElement (key : Uint256, value : Uint256) : Unit := do
+    setMappingWord state.merkleTree.elements key 0 value
+
+  function readRouter () : Address := do
+    let router ← getStorageAddr state.verifierRouter
+    return router
+
+example : NestedStructStorageSmoke.state.merkleTree.numberOfLeaves.slot = 1 := by decide
+example : NestedStructStorageSmoke.state.merkleTree.elements.slot = 2 := by decide
+example : NestedStructStorageSmoke.state.verifierRouter.slot = 4 := by decide
 
 /--
 error: unknown variable 'feeConfig.borrowTakerFeeRatio'
@@ -2360,6 +2375,7 @@ end SpecGenSmoke
 #check_contract SpecialEntrypointSmoke
 #check_contract TupleSmoke
 #check_contract NamedStructParamSmoke
+#check_contract NestedStructStorageSmoke
 #check_contract NamedStructDynamicRootLeafProjection
 #check_contract CurveCutArraySmoke
 #check_contract DynamicStructArraySmoke
