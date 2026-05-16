@@ -54,6 +54,7 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanCallClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeSignedArithLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
@@ -4056,6 +4057,9 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_funcDef
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_funcDef
 
+  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanCallClosure.lean
+  Compiler.Proofs.YulGeneration.Backends.BridgedFunctionTable.bodies_bridged
+
   -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean
   Compiler.Proofs.YulGeneration.Backends.Native.observableSlot_mem_materializedStorageSlots
   Compiler.Proofs.YulGeneration.Backends.Native.yulFunctionBodies_nil
@@ -5532,4 +5536,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5255 theorems/lemmas (3575 public, 1680 private, 0 sorry'd)
+-- Total: 5256 theorems/lemmas (3576 public, 1680 private, 0 sorry'd)
