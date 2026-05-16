@@ -325,7 +325,7 @@ def revertWithCustomError (dynamicSource : DynamicDataSource)
         | Expr.param name =>
             if isDynamicParamType ty then
               let dstName := s!"__err_arg{idx}_dst"
-              let srcBase := indexedDynamicBaseOffsetExpr dynamicSource name
+              let srcBase := YulExpr.ident s!"{name}_data_offset"
               let (encStmts, encLen) ←
                 compileUnindexedAbiEncode dynamicSource ty srcBase (YulExpr.ident dstName) s!"__err_arg{idx}"
               pure ([
@@ -348,7 +348,7 @@ def revertWithCustomError (dynamicSource : DynamicDataSource)
         match srcExpr with
         | Expr.param name =>
             let dstName := s!"__err_arg{idx}_dst"
-            let srcBase := indexedDynamicBaseOffsetExpr dynamicSource name
+            let srcBase := YulExpr.call "sub" [YulExpr.ident s!"{name}_data_offset", YulExpr.lit 32]
             let (encStmts, encLen) ←
               compileUnindexedAbiEncode dynamicSource ty srcBase (YulExpr.ident dstName) s!"__err_arg{idx}"
             pure ([
