@@ -3,7 +3,7 @@
 
 Validates:
 1. No debug commands (#eval, #check, #print, #reduce) in proof files
-2. Exactly 1 allowUnsafeReducibility (documented trust assumption)
+2. Exactly 0 allowUnsafeReducibility (legacy trust assumption removed)
 3. Zero sorry in Lean code after scrubbing comments/strings
 4. No native_decide in proof files outside smoke tests (kernel bypass)
 
@@ -78,8 +78,10 @@ def main() -> None:
                             f"(debug command that slows builds)"
                         )
 
-    # Check 2: Exactly 1 allowUnsafeReducibility
-    expected_unsafe = 1
+    # Check 2: Exactly 0 allowUnsafeReducibility (the prior single usage was
+    # tied to the legacy fuel-based executor, removed in the EVMYulLean
+    # transition).
+    expected_unsafe = 0
     unsafe_count = 0
     unsafe_locations: list[str] = []
     for lean_file in ROOT.rglob("*.lean"):

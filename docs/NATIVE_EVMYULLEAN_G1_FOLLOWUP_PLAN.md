@@ -14,9 +14,9 @@ holds for **every supported-generated contract directly against
 `EvmYul.Yul.callDispatcher`**, with:
 
 1. No `hUserBodyHalt` premise on the public theorem.
-2. No opt-in legacy machinery
-   (`legacyExecYulFuel`, `EvmYulLeanRetarget.lean`, reference-oracle composition)
-   on the proof chain for the supported fragment.
+2. No opt-in legacy machinery on the proof chain for the supported fragment
+   (the legacy fuel-based executor, the retargeting layer, and the
+   reference-oracle composition have all been removed in DoD-5).
 3. Zero `sorry`, zero new axioms (invariant carried over from PR #1822).
 
 The G1 plan in `docs/NATIVE_EVMYULLEAN_TRANSITION.md` decomposes this into
@@ -532,3 +532,130 @@ substrate hit `orphan_no_runner` and freeze failures on 4/4 spawn attempts
 for Layer D and Layer EF, with no convergence in this session. Direct
 implementation across multiple turns is the only working path until the
 substrate (sandboxed.sh) is fixed.
+
+## Stage 2 Plan (after #1826 foundation merge)
+
+The `_revived` foundation is now landed in main (#1826). Stage 2 carries
+the remaining Layer D / E / F / G work in this stacked PR.
+
+### Stage 2 scope (all deferred from #1826)
+
+- **D1 / S5**: `NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_nativePreservableStraightStmts_leave`
+  + new source-side helper
+  `nativeResultsMatchOn_execIRFunction_nativePreservableStraightStmts_leave_body_markedPrefix`
+- **D2 / S6**: `NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_bridgedStraightStmts_falling_through`
+  + new source-side helper
+  `nativeResultsMatchOn_execIRFunction_bridgedStraightStmts_falling_through_body_markedPrefix`
+- **E2/E4/E6/E7 / S7**: success-bridge wiring via `_revived` cascade
+- **F2/F4/F6/F7**: label-prefix variants
+- **G / S8**: drop `hUserBodyHalt` premise
+
+### Architectural prerequisite
+
+D1 and D2 both require a per-`BridgedStraightStmt`-constructor IR↔native
+observation-equivalence theorem that does not currently exist as generic
+infrastructure. The existing concrete-body helpers (e.g.
+`store0_calldataload4_stop_markedPrefix`) hand-roll their own equivalence
+inline. Stage 2's first task is to build the generic compositional
+theorem (~500-1000 LoC of inductive proof per direction).
+
+### Stage 2 sequencing
+
+1. Build the per-`BridgedStraightStmt` IR↔native observation correspondence
+2. D2 (simpler — falling-through case)
+3. D1 (preStmts ++ [.leave] case)
+4. E2/E4/E6/E7 success-bridge cascade (Path B chains using `_revived`)
+5. F2/F4/F6/F7 label-prefix variants
+6. S8 dispatcher refactor
+
+### Stage 2 progress (2026-05-14)
+
+**Shipped degenerate slots** (hOnlyEmpty narrowing — preStmts = []):
+
+- D1/S5 degenerate (`193537a5`), D2/S6 degenerate (`7b9c2e86`)
+- E7 degenerate (`c272db72`) + 5-commit `_revived` Preserves chain
+- E2/E4/E6 SuccessBridge slots (`f1c087fc`) — conditional on
+  `LeaveAwareCallDispatcherContinuation`
+- S8 `_via_result` private variant (`e0dd38ad` + `cebb0325`)
+- F2/F4/F6 direct (`62f662ea` + `b4863167`), F7 via E3 delegation
+  (`eb9b9735` + `a52accfd`)
+
+**Parallel `_revived` upstream chain** (so the OLD-form
+`NativeBlockPreservesWord` is mirrored end-to-end on the dispatcher result
+stack — discharges `LeaveAwareCallDispatcherContinuation` unconditionally):
+
+- `NativeBlockPreservesWord_revived_nativeRevertZeroZero` (`b89b43cb` +
+  `9ba14c3d` refactor) — vacuity leaf
+- `NativeStmtPreservesWord_revived_if_of_cond_preserves_reviveJump`
+  (`0b4151d6`) — takes a `reviveJump`-stated cond premise
+- `NativeBlockPreservesWord_revived_switchCaseBody_payable_of_user_body`
+  (`b002443a` + `35e998f5` — drops `hCondReviveJump`)
+- `NativeBlockPreservesWord_revived_switchCaseBody_nonpayable_of_user_body`
+  (`b5410c1a` + `35e998f5` — drops both cond premises)
+
+### Stage 2 progress (2026-05-15)
+
+**Universal-input cond-reviveJump discharge** ✓ (DoD-4 closed):
+
+- `eval_lowerExprNative_lt_calldatasize_fuel` (state-generic, fuel ≥ 8)
+- `eval_lowerExprNative_lt_calldatasize_fuel_ge_6` (tight, fuel ≥ 6)
+- `eval_lowerExprNative_callvalue_fuel` (state-generic, fuel ≥ 5)
+- `eval_lowerExprNative_callvalue_fuel_ge_2` (tight, fuel ≥ 2)
+- `eval_lt_calldatasize_lit_preserves_reviveJump` — UNIVERSAL (any fuel,
+  any state form), splits fuel < 6 (vacuous, `maxHeartbeats 4M`) vs ≥ 6
+- `eval_callvalue_preserves_reviveJump` — UNIVERSAL similarly
+- Both `_revived_switchCaseBody_*` now apply the universal discharge
+  internally; `hCondReviveJump`/`hCallvalueReviveJump`/`hCalldataReviveJump`
+  premises dropped.
+
+Commits: `ce401bf0` (state-generic foundation), `b0611174` (callvalue
+universal), `a2e91c49` (lt-calldatasize universal), `35e998f5` (drop
+cond premises from `_revived_switchCaseBody_*`).
+
+**Polish (DoD-5) ✓ COMPLETE**:
+- `EvmYulLeanRetarget.lean` (1631 LoC) deleted (`2eac7c6d`)
+- 9 more legacy modules deleted in `0751d4ac`
+  (Preservation, StatementEquivalence, Equivalence, Codegen, Lemmas in
+  YulGeneration/; AdapterCorrectness, NativeSmokeTest,
+  NativeDispatchOracleTest in YulGeneration/Backends/; ReferenceOracle/Semantics)
+  plus the two MacroTranslate{InvariantTest,RoundTripFuzz} legacy regression
+  files (1240 + 389 LoC).
+- 7058 lines removed total.
+- CI plumbing cleanup (`6307373a`, `a563505a`, `c3ffd809`): verify.yml
+  macro-fuzz job removed, fork-conformance path filters scrubbed, sync spec
+  updated, dependent Python scripts and tests adjusted.
+- Legacy fuel-based executor references: 0. `git grep` returns nothing.
+- Final scrub (`aafc0e26`): all `legacyExecYulFuel` mentions removed from
+  TRUST_ASSUMPTIONS.md, INTERPRETER_FEATURE_MATRIX.md,
+  NATIVE_EVMYULLEAN_TRANSITION.md, NATIVE_EVMYULLEAN_G1_FOLLOWUP_PLAN.md,
+  VERIFICATION_STATUS.md, check_lean_hygiene.py, check_proof_length.py,
+  test_check_lean_hygiene.py — DoD-5's `git grep -n legacyExecYulFuel = 0`
+  strictly satisfied.
+
+**DoD-6 ✓** sorry count 5 ≤ upstream/main 7; axiom count 0 = 0.
+**DoD-7 ✓** `lake clean && lake build` green (5m12s).
+**DoD-8 ✓** `make check` green (1m41s).
+**DoD-10 ✓** TRUST_ASSUMPTIONS.md / AUDIT.md / AXIOMS.md updated (`5d1010d1`).
+
+### Remaining (DoD-1, DoD-2, DoD-3)
+
+**Per-`BridgedStraightStmt` framework** — REMAINING LONG POLE (~2–4 weeks
+standalone). For each of ~20 statement constructors in
+`NativePreservableStraightStmt`, prove that IR-side execution and
+native-generated execution are observationally equivalent on storage slots
+and events. Until shipped, D1/D2/E6/E7 strengthening blocked behind the
+`hOnlyEmpty : preStmts = []` narrowing.
+
+**Parallel `_revived` dispatcher continuation provider** — REMAINING. The
+`LeaveAwareCallDispatcherContinuation` predicate (EndToEnd.lean:19858) is
+required by E2/E4/E6/E7 and F2/F4/F6/F7. Building this is a parallel
+copy-modify of `nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_forall_of_compile_ok_supported`
+(~700 LoC), but the proof body needs `_revived` semantics threaded through
+the dispatcher chain. Estimated 3–7 days standalone; blocked on the per-stmt
+observation framework for the user-body preservation discharge of Leave-
+ending bodies (the OLD-form provider's NativeBlockPreservesWord fails on
+Leave-ending bodies because OLD's `final[name]!` returns `default` for
+Checkpoint Leave states — see memory `yul-state-lookup-bracket-vs-lookup`).
+
+**Conflicts**: upstream main absorbed twice (merge commits `60d38ba8` and
+`3358dc56`) — currently 0 commits behind upstream/main.

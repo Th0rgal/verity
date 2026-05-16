@@ -1290,14 +1290,16 @@ scope so the native path does not look more complete than it is:
    closed by `simpleStorageNativeStoreHitMatchBridge_proved`, which covers both
    the short-calldata revert and argument-present storage update paths.
 
-## Cleanup After the Flip
+## Cleanup After the Flip (DoD-5 — completed)
 
-- Keep `legacyExecYulFuel` and the private `execYulFuelWithBackend` wrapper in
-  reference-oracle or isolated lower-level transition status.
-- Remove bridge-only docs that describe the custom interpreter as the active
-  semantic target.
-- Keep cross-check tests between the old oracle and native EVMYulLean for one
-  release cycle.
+- ~~Keep the legacy fuel-based executor and the private
+  `execYulFuelWithBackend` wrapper in reference-oracle or isolated
+  lower-level transition status~~ → **removed** (the legacy reference-oracle
+  stack and the proof-interpreter retargeting layer were deleted in the
+  EVMYulLean transition).
+- Bridge-only docs that described the custom interpreter as the active
+  semantic target have been updated to describe the native EvmYulLean
+  dispatcher as the sole runtime authority.
 - Upstream any EVMYulLean fork changes needed for memory, returndata, logs, or
   external-call semantics.
 
@@ -1314,9 +1316,9 @@ ending in `leave`/fall-through" cases are scoped out to a follow-up PR.
 - **Public-surface retarget** — `interpretYulRuntimeEvmYulLean` and
   `interpretYulRuntimeEvmYulLeanFuel`; Layer 3 and SimpleStorage EndToEnd
   theorems retargeted to EVMYulLean conclusions; legacy reference-oracle
-  paths renamed to `..._via_reference_oracle`; `defaultBuiltinBackend := .evmYulLean`;
-  `legacyBuiltinBackend := .verity`, `legacyEvalBuiltinCallWithContext`,
-  `legacyExecYulFuel` opt-ins for old reference-oracle/bridge-comparison paths.
+  paths renamed to `..._via_reference_oracle`; `defaultBuiltinBackend := .evmYulLean`.
+  (The legacy `legacyBuiltinBackend`/`legacyEvalBuiltinCallWithContext`/legacy
+  fuel executor opt-ins were later removed in DoD-5.)
 - **Native EndToEnd surface** — `nativeResultsMatchOn`, the supported-compiler
   generated direct `EvmYul.Yul.callDispatcher` theorem and its helper-free /
   mapping-helper lowering wrappers, concrete SimpleStorage native theorem,

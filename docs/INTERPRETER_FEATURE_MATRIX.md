@@ -12,8 +12,12 @@ Machine-readable version: [`artifacts/interpreter_feature_matrix.json`](../artif
 | Interpreter | File | Entry Point | Purpose |
 |---|---|---|---|
 | **IRInterpreter** | `Compiler/Proofs/IRGeneration/IRInterpreter.lean` | `execIRStmts` | Layer-2 preservation proofs |
-| **YulSemantics reference oracle** | `Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean` | `legacyExecYulFuel` | Historical Layer-3 Yul execution semantics retained for regression comparisons |
 | **EVMYulLean bridge** | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | `evalBuiltinCallViaEvmYulLean` | Pure builtin evaluation via EVMYulLean UInt256 |
+
+The legacy YulSemantics reference oracle (`ReferenceOracle/Semantics.lean`
+with its fuel-based executor entry point) was removed as part of the
+EVMYulLean transition (DoD-5); the native EvmYulLean dispatcher is now the
+sole runtime authority.
 
 The old `SpecInterpreter` module has been removed. Source semantics now live in
 `Verity/Core.lean`, with the supported whole-contract Layer-2 source-side model

@@ -480,7 +480,18 @@ def _parse_bridged_builtins_defs() -> tuple[list[str], list[str]]:
 def _parse_correctness_proofs() -> dict[str, object]:
     """Parse adapter correctness proof theorems."""
     if not CORRECTNESS_FILE.exists():
-        raise FileNotFoundError(f"Correctness proof file not found: {CORRECTNESS_FILE}")
+        # The legacy adapter correctness file was removed as part of the
+        # EVMYulLean transition (DoD-5 polish). The native EvmYulLean chain
+        # no longer relies on the proof-interpreter adapter, so report N/A.
+        try:
+            file_label = str(CORRECTNESS_FILE.relative_to(ROOT))
+        except ValueError:
+            file_label = str(CORRECTNESS_FILE)
+        return {
+            "file": file_label,
+            "assign_to_let": "n/a (file removed in EVMYulLean transition)",
+            "for_init_hoisting": "n/a (file removed in EVMYulLean transition)",
+        }
     text = CORRECTNESS_FILE.read_text(encoding="utf-8")
     code = _strip_lean_strings(_strip_lean_comments(text))
     theorem_matches = list(CORRECTNESS_THEOREM_RE.finditer(code))

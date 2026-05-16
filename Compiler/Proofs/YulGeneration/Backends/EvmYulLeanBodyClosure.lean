@@ -2,9 +2,9 @@
   Body closure under `BridgedStmt` for compiler-emitted IR function prologues.
 
   This module begins the proof that compiler-emitted IR function and entrypoint
-  bodies satisfy `BridgedStmt`, enabling `emitYul_runtimeCode_bridged`
-  (`Compiler.Proofs.YulGeneration.Backends.EvmYulLeanRetarget`) to be used
-  unconditionally for real programs.
+  bodies satisfy `BridgedStmt`, enabling the SupportedSpec-discharged
+  `emitYul_runtimeCode_bridged_of_compile_ok_supported` (in `EndToEnd.lean`)
+  to be used unconditionally for real programs.
 
   The first increment covers `Compiler.CompilationModel.genParamLoads` for
   parameter lists whose types are all primitive scalar ABI types
@@ -156,9 +156,8 @@ private theorem bridgedStraightStmt_revert_zero :
       (YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])) :=
   BridgedStraightStmt.expr_revert (YulExpr.lit 0) (YulExpr.lit 0)
 
-/-- `lt(calldatasize(), lit n)` as a `BridgedExpr`. Uses the same shape as
-`bridgedExpr_calldatasize_lt` from `EvmYulLeanRetarget` but is re-exposed
-here at the public level for downstream body-closure work. -/
+/-- `lt(calldatasize(), lit n)` as a `BridgedExpr`. Exposed here at the public
+level for downstream body-closure work. -/
 private theorem bridgedExpr_lt_calldatasize (n : Nat) :
     BridgedExpr
       (YulExpr.call "lt" [YulExpr.call "calldatasize" [], YulExpr.lit n]) := by

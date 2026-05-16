@@ -54,19 +54,14 @@ class EvmYulLeanForkConformanceWorkflowTests(unittest.TestCase):
             "scripts/test_evmyullean_fork_conformance_workflow.py",
             "artifacts/evmyullean_adapter_report.json",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
-            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapterCorrectness.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean",
-            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeDispatchOracleTest.lean",
-            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeSmokeTest.lean",
-            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanRetarget.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSignedArithSpec.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanSourceExprClosure.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanStateBridge.lean",
             "Compiler/Proofs/YulGeneration/ReferenceOracle/Builtins.lean",
-            "Compiler/Proofs/YulGeneration/ReferenceOracle/Semantics.lean",
         ]:
             self.assertEqual(
                 text.count(path),
@@ -103,10 +98,7 @@ class EvmYulLeanForkConformanceWorkflowTests(unittest.TestCase):
         self.assertIn("make test-evmyullean-fork", text)
         makefile_text = MAKEFILE.read_text(encoding="utf-8")
         self.assertIn("python3 scripts/generate_evmyullean_adapter_report.py --check", makefile_text)
-        self.assertIn("lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapterCorrectness", makefile_text)
         self.assertIn("lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness", makefile_text)
-        self.assertIn("lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeSmokeTest", makefile_text)
-        self.assertIn("lake exe native-dispatch-oracle-test", makefile_text)
         self.assertIn("lake build Compiler.Proofs.EndToEnd", makefile_text)
 
         issue_step = re.search(

@@ -327,7 +327,6 @@ ALLOWLIST: set[str] = {
     "yulCodegen_preserves_semantics_via_reference_oracle",
     "stmt_and_stmts_equiv",
     "execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv",
-    "legacyExecYulFuel_succ_eq",
     "exec_switchCaseBody_revert_of_short",
     "exec_switchCaseBody_continue_of_long",
     "SwitchCaseBodyBridge_short",
@@ -416,11 +415,12 @@ ALLOWLIST: set[str] = {
     # Pure-context dispatch is the same 25-builtin case split specialized to
     # context-free builtins; each branch delegates to an individual bridge.
     "evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge",
-    # Backend-parameterized mirror of legacyExecYulFuel; long by construction because
-    # it preserves all statement cases while swapping only expression backend.
+    # Backend-parameterized mirror of the legacy fuel-based executor; long by
+    # construction because it preserves all statement cases while swapping only
+    # expression backend.
     "execYulFuelWithBackend",
     # Recovery proof mirrors the executor's statement case split; each branch is
-    # direct simplification back to legacyExecYulFuel.
+    # direct simplification back to the legacy fuel-based executor.
     "execYulFuelWithBackend_verity_eq",
     # Native harness block-append lemmas are structural inductions over a Yul
     # block prefix with fuel normalization at each cons. The success, suffix
@@ -1108,7 +1108,7 @@ ALLOWLIST_REGEXES: tuple[re.Pattern[str], ...] = tuple(
         r"^NativeStmtPreservesWord_(?:lowerStmtGroupNativeWithSwitchIds|"
         r"of_mem_lowerStmtsNativeWithSwitchIds)_of_mappingFreePreservableStraightStmt",
         r"^NativeStmtPreservesWord_let(?:Many)?_lowerExprNative_of_mappingFreeBridgedExpr$",
-        r"^NativeBlockPreservesWord_switchCaseBody_"
+        r"^NativeBlockPreservesWord(?:_revived)?_switchCaseBody_"
         r"(?:payable|nonpayable)_of_user_body$",
         r"^native_(?:mappingSlot_call_preserves_lookup|"
         r"mappingSlot_call_preserves_lookup_state|"

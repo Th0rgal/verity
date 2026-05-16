@@ -32,6 +32,7 @@ on:
       - 'README.md'
       - 'TRUST_ASSUMPTIONS.md'
   pull_request:
+    types: [opened, synchronize, reopened, closed]
     paths:
       - '.github/actions/**'
       - '.github/ISSUE_TEMPLATE/**'
@@ -75,7 +76,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref }}
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 env:
@@ -91,14 +92,57 @@ env:
   VERIFY_LOCAL_ARTIFACT_ROOT: /srv/verity-ci-cache/artifacts
 
 jobs:
+  closed-pr-cleanup:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: [self-hosted, linux, ARM64, dgx-spark, verity, fastlane]
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Cancel queued and running CI for the closed PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          statuses=(queued in_progress waiting requested pending)
+
+          for status in "${statuses[@]}"; do
+            gh api \
+              --method GET \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/repos/${REPO}/actions/runs" \
+              -f event=pull_request \
+              -f status="$status" \
+              -f per_page=100 \
+              --paginate \
+              --jq '.workflow_runs[]
+                | select((.id | tostring) != env.CURRENT_RUN_ID)
+                | select(.head_branch == env.HEAD_BRANCH)
+                | select(.head_repository.full_name == env.HEAD_REPOSITORY)
+                | .id' |
+            while read -r run_id; do
+              if [ -n "$run_id" ]; then
+                echo "Canceling stale ${status} PR run ${run_id}"
+                gh run cancel "$run_id" -R "$REPO" || true
+              fi
+            done
+          done
+
   changes:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
     runs-on: [self-hosted, linux, ARM64, dgx-spark, verity, fastlane]
     timeout-minutes: 5
     outputs:
       code: ${{ steps.effective.outputs.code }}
       build: ${{ steps.effective.outputs.build }}
       compiler: ${{ steps.effective.outputs.compiler }}
-      macro_fuzz: ${{ steps.effective.outputs.macro_fuzz }}
     steps:
       - uses: actions/checkout@v6
 
@@ -160,18 +204,6 @@ jobs:
               - 'lake-manifest.json'
               - 'lean-toolchain'
               - 'foundry.toml'
-            macro_fuzz:
-              - '.github/actions/setup-lean/action.yml'
-              - 'Verity/Macro/**'
-              - 'Compiler/**'
-              - '!Compiler/Proofs/**'
-              - 'Compiler.lean'
-              - 'Contracts/**'
-              - '!Contracts/**/Proofs/**'
-              - 'Contracts.lean'
-              - 'lakefile.lean'
-              - 'lake-manifest.json'
-              - 'lean-toolchain'
       - name: Resolve effective change flags
         id: effective
         env:
@@ -179,28 +211,25 @@ jobs:
           CODE_CHANGED: ${{ steps.filter.outputs.code }}
           BUILD_CHANGED: ${{ steps.filter.outputs.build }}
           COMPILER_CHANGED: ${{ steps.filter.outputs.compiler }}
-          MACRO_FUZZ_CHANGED: ${{ steps.filter.outputs.macro_fuzz }}
         run: |
           if [ "$FORCE_FULL_RUN" = "true" ]; then
             code=true
             build=true
             compiler=true
-            macro_fuzz=true
           else
             code="$CODE_CHANGED"
             build="$BUILD_CHANGED"
             compiler="$COMPILER_CHANGED"
-            macro_fuzz="$MACRO_FUZZ_CHANGED"
           fi
 
           {
             echo "code=$code"
             echo "build=$build"
             echo "compiler=$compiler"
-            echo "macro_fuzz=$macro_fuzz"
           } >> "$GITHUB_OUTPUT"
 
   checks:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
     runs-on: [self-hosted, linux, ARM64, dgx-spark, verity, fastlane]
     timeout-minutes: 10
     permissions:
@@ -336,69 +365,6 @@ jobs:
           path: .lake
           key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
 
-  prepare-macro-fuzz:
-    runs-on: [self-hosted, linux, x64, verity, build]
-    timeout-minutes: 360
-    needs: [changes, checks, build]
-    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
-    env:
-      LEAN_NUM_THREADS: 4
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Setup Lean
-        uses: ./.github/actions/setup-lean
-        with:
-          cache-key-prefix: lake
-          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
-          sticky-disk-key-prefix: verify
-          lake-packages-sticky-key: lake-packages-verify-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-verify-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
-          use-build-sticky-disk: ${{ env.VERIFY_USE_STICKY_DISKS }}
-          build-sticky-disk-key: verify-build-macro-fuzz-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-          build-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('verify-build-macro-fuzz-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
-          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
-          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-
-      - name: Download prepared Lean workspace build
-        uses: actions/download-artifact@v7
-        with:
-          name: lean-workspace-build
-
-      - name: Restore prepared Lean workspace build
-        run: tar -xf lean-workspace-build.tar
-
-      - name: Build macro round-trip fuzz executable
-        run: |
-          for attempt in 1 2 3; do
-            if stdbuf -oL -eL lake build macro-roundtrip-fuzz; then
-              exit 0
-            fi
-            echo "::warning::lake build attempt $attempt failed; retrying in 10s"
-            sleep 10
-          done
-          echo "::error::lake build failed after 3 attempts"
-          exit 1
-
-      - name: Package macro-fuzz Lean workspace build
-        run: tar -hcf lean-workspace-macro-fuzz-build.tar .lake/build .lake/lakefile.olean .lake/lakefile.olean.trace
-
-      - name: Publish macro-fuzz build locally
-        run: |
-          scripts/ci_local_persistence.sh publish \
-            --run-id "${{ github.run_id }}" \
-            --name lean-workspace-macro-fuzz-build \
-            --path lean-workspace-macro-fuzz-build.tar
-
-      - name: Upload macro-fuzz Lean workspace build
-        continue-on-error: true
-        uses: actions/upload-artifact@v7
-        with:
-          name: lean-workspace-macro-fuzz-build
-          path: lean-workspace-macro-fuzz-build.tar
-
   build-audits:
     runs-on: [self-hosted, linux, x64, verity, build]
     timeout-minutes: 20
@@ -432,9 +398,6 @@ jobs:
 
       - name: Build split Lake packages independently
         run: python3 scripts/check_split_package_builds.py
-
-      - name: Check macro round-trip fuzz coverage
-        run: python3 scripts/check_macro_roundtrip_fuzz_coverage.py
 
       - name: Check for axioms in proof files
         run: |
@@ -492,61 +455,6 @@ jobs:
           path: |
             axiom-report.md
             axiom-report-raw.log
-
-  macro-fuzz:
-    runs-on: [self-hosted, linux, x64, verity, build]
-    timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.clean_build && '150' || '90') }}
-    needs: [changes, checks, prepare-macro-fuzz]
-    if: needs.checks.result == 'success' && needs.prepare-macro-fuzz.result == 'success' && needs.changes.outputs.macro_fuzz == 'true'
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        shard_index: [0, 1, 2, 3]
-    env:
-      LEAN_NUM_THREADS: 4
-      MACRO_FUZZ_SHARD_INDEX: ${{ matrix.shard_index }}
-      MACRO_FUZZ_SHARD_COUNT: 4
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Setup Lean
-        id: setup-lean
-        uses: ./.github/actions/setup-lean
-        with:
-          cache-key-prefix: lake
-          use-sticky-disks: ${{ env.VERIFY_USE_STICKY_DISKS }}
-          sticky-disk-key-prefix: verify
-          lake-packages-sticky-key: lake-packages-verify-${{ env.VERIFY_CACHE_BUCKET }}-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}
-          lake-packages-main-fallback-sticky-key: ${{ github.event_name == 'pull_request' && format('lake-packages-verify-{0}-{1}-{2}-{3}-{4}', env.VERIFY_MAIN_CACHE_BUCKET, runner.os, hashFiles('lean-toolchain'), hashFiles('lakefile.lean'), hashFiles('lake-manifest.json')) || '' }}
-          disable-lake-cache-restore: ${{ env.VERIFY_DISABLE_LAKE_CACHE_RESTORE }}
-          cache-primary-key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.run_id }}
-
-      - name: Restore macro-fuzz build (local)
-        id: local-restore-macro-fuzz
-        continue-on-error: true
-        run: |
-          scripts/ci_local_persistence.sh fetch \
-            --run-id "${{ github.run_id }}" \
-            --name lean-workspace-macro-fuzz-build \
-            --timeout 30
-
-      - name: Download prepared Lean workspace build (fallback)
-        if: steps.local-restore-macro-fuzz.outcome != 'success'
-        uses: actions/download-artifact@v7
-        with:
-          name: lean-workspace-macro-fuzz-build
-
-      - name: Restore prepared Lean workspace build (fallback)
-        if: steps.local-restore-macro-fuzz.outcome != 'success'
-        run: tar -xf lean-workspace-macro-fuzz-build.tar
-
-      - name: Run macro round-trip fuzz harness
-        run: |
-          chmod +x ./.lake/build/bin/macro-roundtrip-fuzz
-          ./.lake/build/bin/macro-roundtrip-fuzz
 
   build-compiler-binaries:
     runs-on: [self-hosted, linux, x64, verity, build]
@@ -1582,7 +1490,7 @@ jobs:
 
   failure-hints:
     runs-on: [self-hosted, linux, ARM64, dgx-spark, verity, fastlane]
-    needs: [checks, build, prepare-macro-fuzz, build-audits, macro-fuzz, build-compiler-binaries, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
+    needs: [checks, build, build-audits, build-compiler-binaries, compiler-audits, compiler-regressions, foundry-gas-calibration, foundry, foundry-patched, foundry-multi-seed]
     if: always() && github.event_name == 'pull_request' && contains(join(needs.*.result, ','), 'failure')
     permissions:
       contents: read

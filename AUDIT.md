@@ -51,8 +51,8 @@ theorem is proved.
   builtin bridge matrix synchronization, Lean hygiene, proof length, and
   documentation counters.
 - `make test-evmyullean-fork` validates the pinned fork audit, checks the
-  adapter report, rebuilds adapter correctness and the public EndToEnd
-  EVMYulLean target, and runs the concrete bridge-equivalence tests.
+  adapter report, rebuilds the public EndToEnd EVMYulLean target, and runs
+  the concrete bridge-equivalence tests.
 - `.github/workflows/evmyullean-fork-conformance.yml` runs the EVMYulLean fork
   conformance probe weekly. Scheduled or manual failures fail the workflow and
   open or update a GitHub issue for drift triage.

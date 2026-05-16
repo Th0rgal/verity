@@ -55,10 +55,11 @@ class HygieneFixtureTestBase(unittest.TestCase):
         (self.root / "Verity" / "Proofs").mkdir(parents=True)
         (self.root / "Contracts").mkdir(parents=True)
 
-        # Default: one allowUnsafeReducibility so check 2 passes
+        # Default: zero allowUnsafeReducibility (the proof chain no longer
+        # has any unsafe-reducibility uses).
         self._unsafe_file = self.root / "Compiler" / "Unsafe.lean"
         self._unsafe_file.write_text(
-            "set_option allowUnsafeReducibility true\n", encoding="utf-8"
+            "-- no unsafe here\n", encoding="utf-8"
         )
 
         # Patch ROOT so the script operates on the fixture
@@ -119,27 +120,32 @@ class DebugCommandTests(HygieneFixtureTestBase):
 
 
 class UnsafeReducibilityTests(HygieneFixtureTestBase):
-    """Check 2: allowUnsafeReducibility count."""
+    """Check 2: allowUnsafeReducibility count (expected = 0 after legacy removal)."""
 
-    def test_exactly_one_passes(self) -> None:
+    def test_exactly_zero_passes(self) -> None:
         rc, output = self._run_main()
         self.assertEqual(rc, 0, output)
-        self.assertIn("1 allowUnsafeReducibility", output)
+        self.assertIn("0 allowUnsafeReducibility", output)
 
-    def test_zero_fails(self) -> None:
-        self._unsafe_file.write_text("-- no unsafe here\n", encoding="utf-8")
+    def test_one_fails(self) -> None:
+        self._unsafe_file.write_text(
+            "set_option allowUnsafeReducibility true\n", encoding="utf-8"
+        )
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
-        self.assertIn("Expected 1 allowUnsafeReducibility", output)
+        self.assertIn("Expected 0 allowUnsafeReducibility, found 1", output)
 
     def test_two_fails(self) -> None:
+        self._unsafe_file.write_text(
+            "set_option allowUnsafeReducibility true\n", encoding="utf-8"
+        )
         extra = self.root / "Verity" / "Extra.lean"
         extra.write_text(
             "set_option allowUnsafeReducibility true\n", encoding="utf-8"
         )
         rc, output = self._run_main()
         self.assertNotEqual(rc, 0)
-        self.assertIn("Expected 1 allowUnsafeReducibility, found 2", output)
+        self.assertIn("Expected 0 allowUnsafeReducibility, found 2", output)
 
     def test_lake_dir_excluded(self) -> None:
         lake = self.root / ".lake" / "packages" / "lib" / "Hack.lean"

@@ -117,9 +117,9 @@ the EVM.
 **Soundness controls**:
 - `make check` validates the fork-audit artifact against `lake-manifest.json`.
 - `make test-evmyullean-fork` rechecks the fork audit, checks the adapter
-  report, rebuilds adapter correctness, the native transition harness, the
-  public EndToEnd EVMYulLean target, and the concrete `native_decide`
-  bridge-equivalence tests.
+  report, rebuilds the native transition harness, the public EndToEnd
+  EVMYulLean target, and the concrete `native_decide` bridge-equivalence
+  tests.
 - `.github/workflows/evmyullean-fork-conformance.yml` runs the conformance probe
   weekly; scheduled or manual failures fail the workflow and
   open or update a GitHub issue for drift triage.

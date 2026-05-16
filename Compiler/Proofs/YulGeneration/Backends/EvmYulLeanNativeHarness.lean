@@ -6619,6 +6619,249 @@ theorem eval_lowerExprNative_lt_calldatasize_ok_fuel
     EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
     EvmYul.Yul.head', EvmYul.Yul.State.executionEnv]
 
+/-- State-generic native evaluation of the lowered `lt(calldatasize(), k)`
+expression. At any fuel ≥ 8, eval returns the SAME state unchanged with value
+`lt(s.executionEnv.calldata.size, k)`. Works for any state form (Ok,
+OutOfFuel, Checkpoint) because the underlying `executionEnvOp` and
+`dispatchBinary` are state-preserving (no shape-match on state). -/
+theorem eval_lowerExprNative_lt_calldatasize_fuel
+    (fuel : Nat)
+    (s : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (k : Nat) :
+    EvmYul.Yul.eval (fuel + 8)
+        (Backends.lowerExprNative
+          (Yul.YulExpr.call "lt"
+            [Yul.YulExpr.call "calldatasize" [],
+             Yul.YulExpr.lit k]))
+        codeOverride s =
+      .ok (s,
+        EvmYul.UInt256.lt
+          (EvmYul.UInt256.ofNat s.executionEnv.calldata.size)
+          (EvmYul.UInt256.ofNat k)) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+    EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
+    EvmYul.Yul.head']
+
+/-- Tight (minimum-fuel) state-generic version: eval succeeds at fuel ≥ 6. -/
+theorem eval_lowerExprNative_lt_calldatasize_fuel_ge_6
+    (fuel : Nat)
+    (s : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (k : Nat) :
+    EvmYul.Yul.eval (fuel + 6)
+        (Backends.lowerExprNative
+          (Yul.YulExpr.call "lt"
+            [Yul.YulExpr.call "calldatasize" [],
+             Yul.YulExpr.lit k]))
+        codeOverride s =
+      .ok (s,
+        EvmYul.UInt256.lt
+          (EvmYul.UInt256.ofNat s.executionEnv.calldata.size)
+          (EvmYul.UInt256.ofNat k)) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+    EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
+    EvmYul.Yul.head']
+
+/-- State-generic native evaluation of the lowered `callvalue()` expression.
+At any fuel ≥ 5, eval returns the SAME state unchanged with value
+`s.executionEnv.weiValue`. Works for any state form. -/
+theorem eval_lowerExprNative_callvalue_fuel
+    (fuel : Nat)
+    (s : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    EvmYul.Yul.eval (fuel + 5)
+        (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+        codeOverride s =
+      .ok (s, s.executionEnv.weiValue) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalPrimCall,
+    EvmYul.Yul.reverse', EvmYul.Yul.head']
+
+/-- Tight (minimum-fuel) state-generic version: eval succeeds at fuel ≥ 2. -/
+theorem eval_lowerExprNative_callvalue_fuel_ge_2
+    (fuel : Nat)
+    (s : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    EvmYul.Yul.eval (fuel + 2)
+        (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+        codeOverride s =
+      .ok (s, s.executionEnv.weiValue) := by
+  simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+    EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalPrimCall,
+    EvmYul.Yul.reverse', EvmYul.Yul.head']
+
+/-- At fuel `n + 8` with Ok input state, the dispatcher's `lt(calldatasize, k)`
+guard eval returns the same Ok state, so `final.reviveJump = state.reviveJump`.
+Direct corollary of `eval_lowerExprNative_lt_calldatasize_ok_fuel`. -/
+theorem eval_lt_calldatasize_lit_preserves_reviveJump_of_ok_at_fuel
+    (k : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (n : Nat) :
+    ∀ final v,
+      EvmYul.Yul.eval (n + 8)
+          (Backends.lowerExprNative
+            (Yul.YulExpr.call "lt"
+              [Yul.YulExpr.call "calldatasize" [],
+               Yul.YulExpr.lit k]))
+          codeOverride (.Ok shared store) = .ok (final, v) →
+        final.reviveJump = (EvmYul.Yul.State.Ok shared store).reviveJump := by
+  intro final v hEval
+  rw [eval_lowerExprNative_lt_calldatasize_ok_fuel] at hEval
+  obtain ⟨hStateEq, _⟩ := Prod.mk.inj (Except.ok.inj hEval)
+  rw [hStateEq]
+
+/-- At fuel `n + 5` with Ok input state, the dispatcher's `callvalue()` guard
+eval returns the same Ok state, so `final.reviveJump = state.reviveJump`.
+Direct corollary of `eval_lowerExprNative_callvalue_ok_fuel`. Used to discharge
+the `hCallvalueReviveJump` premise of
+`NativeBlockPreservesWord_revived_switchCaseBody_nonpayable_of_user_body` when
+the caller can establish Ok input form (the dispatcher's actual case at the
+selected-body entry). -/
+theorem eval_callvalue_preserves_reviveJump_of_ok_at_fuel
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (n : Nat) :
+    ∀ final v,
+      EvmYul.Yul.eval (n + 5)
+          (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+          codeOverride (.Ok shared store) = .ok (final, v) →
+        final.reviveJump = (EvmYul.Yul.State.Ok shared store).reviveJump := by
+  intro final v hEval
+  rw [eval_lowerExprNative_callvalue_ok_fuel] at hEval
+  obtain ⟨hStateEq, _⟩ := Prod.mk.inj (Except.ok.inj hEval)
+  rw [hStateEq]
+
+/-- State-generic reviveJump preservation for `lt(calldatasize, k)` at
+fuel ≥ 8. -/
+theorem eval_lt_calldatasize_lit_preserves_reviveJump_at_fuel_ge_8
+    (k : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (s : EvmYul.Yul.State)
+    (n : Nat) :
+    ∀ final v,
+      EvmYul.Yul.eval (n + 8)
+          (Backends.lowerExprNative
+            (Yul.YulExpr.call "lt"
+              [Yul.YulExpr.call "calldatasize" [],
+               Yul.YulExpr.lit k]))
+          codeOverride s = .ok (final, v) →
+        final.reviveJump = s.reviveJump := by
+  intro final v hEval
+  rw [eval_lowerExprNative_lt_calldatasize_fuel] at hEval
+  obtain ⟨hStateEq, _⟩ := Prod.mk.inj (Except.ok.inj hEval)
+  rw [hStateEq]
+
+/-- State-generic reviveJump preservation for `callvalue()` at fuel ≥ 5. -/
+theorem eval_callvalue_preserves_reviveJump_at_fuel_ge_5
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (s : EvmYul.Yul.State)
+    (n : Nat) :
+    ∀ final v,
+      EvmYul.Yul.eval (n + 5)
+          (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+          codeOverride s = .ok (final, v) →
+        final.reviveJump = s.reviveJump := by
+  intro final v hEval
+  rw [eval_lowerExprNative_callvalue_fuel] at hEval
+  obtain ⟨hStateEq, _⟩ := Prod.mk.inj (Except.ok.inj hEval)
+  rw [hStateEq]
+
+/-- For fuel < 2, eval of the lowered `callvalue()` expression errors out:
+the outer `.Call` decrement plus inner `evalArgs 0` returns `.error
+.OutOfFuel`. -/
+private theorem eval_lowerExprNative_callvalue_lt2_not_ok
+    (fuel : Nat) (hLT : fuel < 2)
+    (s : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (result : EvmYul.Yul.State × EvmYul.Literal) :
+    EvmYul.Yul.eval fuel
+        (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+        codeOverride s ≠ .ok result := by
+  intro hEval
+  rcases fuel with _ | _ | _
+  all_goals first
+    | omega
+    | (simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+        EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalPrimCall,
+        EvmYul.Yul.reverse', EvmYul.Yul.head'] at hEval)
+
+/-- UNIVERSAL-INPUT reviveJump discharge for the dispatcher's `callvalue()`
+guard: for ANY fuel and ANY state, a successful eval preserves `reviveJump`.
+This is the closed lemma that callers of
+`NativeStmtPreservesWord_revived_if_of_cond_preserves_reviveJump` apply
+blind for the callvalue guard. -/
+theorem eval_callvalue_preserves_reviveJump
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    ∀ fuel state final v,
+      EvmYul.Yul.eval fuel
+          (Backends.lowerExprNative (Yul.YulExpr.call "callvalue" []))
+          codeOverride state = .ok (final, v) →
+        final.reviveJump = state.reviveJump := by
+  intro fuel state final v hEval
+  by_cases hFuel : fuel ≥ 2
+  · obtain ⟨n, rfl⟩ : ∃ n, fuel = n + 2 := ⟨fuel - 2, by omega⟩
+    rw [eval_lowerExprNative_callvalue_fuel_ge_2] at hEval
+    obtain ⟨hStateEq, _⟩ := Prod.mk.inj (Except.ok.inj hEval)
+    rw [hStateEq]
+  · exact absurd hEval
+      (eval_lowerExprNative_callvalue_lt2_not_ok fuel (by omega)
+        state codeOverride (final, v))
+
+set_option maxHeartbeats 4000000 in
+/-- For fuel < 6, eval of the lowered `lt(calldatasize, k)` expression errors
+out: the deeply nested Call/PrimCall structure consumes 6 fuel units before
+the inner CALLDATASIZE primop's `executionEnvOp` runs. -/
+private theorem eval_lowerExprNative_lt_calldatasize_lt6_not_ok
+    (fuel : Nat) (hLT : fuel < 6)
+    (s : EvmYul.Yul.State)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (k : Nat) (result : EvmYul.Yul.State × EvmYul.Literal) :
+    EvmYul.Yul.eval fuel
+        (Backends.lowerExprNative
+          (Yul.YulExpr.call "lt"
+            [Yul.YulExpr.call "calldatasize" [],
+             Yul.YulExpr.lit k]))
+        codeOverride s ≠ .ok result := by
+  intro hEval
+  rcases fuel with _ | _ | _ | _ | _ | _ | _
+  all_goals first
+    | omega
+    | (simp [Backends.lowerExprNative, Backends.lookupRuntimePrimOp,
+        EvmYul.Yul.eval, EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail,
+        EvmYul.Yul.evalPrimCall, EvmYul.Yul.reverse', EvmYul.Yul.cons',
+        EvmYul.Yul.head'] at hEval)
+
+/-- UNIVERSAL-INPUT reviveJump discharge for the dispatcher's
+`lt(calldatasize, k)` guard: for ANY fuel and ANY state, a successful eval
+preserves `reviveJump`. Closes the `hCondReviveJump` premise for this
+guard. -/
+theorem eval_lt_calldatasize_lit_preserves_reviveJump
+    (k : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    ∀ fuel state final v,
+      EvmYul.Yul.eval fuel
+          (Backends.lowerExprNative
+            (Yul.YulExpr.call "lt"
+              [Yul.YulExpr.call "calldatasize" [],
+               Yul.YulExpr.lit k]))
+          codeOverride state = .ok (final, v) →
+        final.reviveJump = state.reviveJump := by
+  intro fuel state final v hEval
+  by_cases hFuel : fuel ≥ 6
+  · obtain ⟨n, rfl⟩ : ∃ n, fuel = n + 6 := ⟨fuel - 6, by omega⟩
+    rw [eval_lowerExprNative_lt_calldatasize_fuel_ge_6] at hEval
+    obtain ⟨hStateEq, _⟩ := Prod.mk.inj (Except.ok.inj hEval)
+    rw [hStateEq]
+  · exact absurd hEval
+      (eval_lowerExprNative_lt_calldatasize_lt6_not_ok fuel (by omega)
+        state codeOverride k (final, v))
+
 /-- Native evaluation of the lowered `sload(lit slot)` Yul expression. At any
     fuel `≥ fuel + 6`, the eval reduces to the closed-form pair returned by
     EVMYulLean's `SLOAD` primitive: the new `SharedState` carries the
@@ -7367,6 +7610,51 @@ theorem exec_block_block_leave_ok_add_ten
   have hFuel :
       fuel + suffixLen + 10 =
         Nat.succ (Nat.succ (Nat.succ (Nat.succ (fuel + suffixLen + 6)))) := by
+    omega
+  rw [hFuel]
+  simp [EvmYul.Yul.exec]
+
+/-- Executing the native lowering of a source `[.block [], .leave]` user body
+(F2's body shape).
+
+`[.block [], .leave]` lowers to `[.Block [], .Leave]`; wrapped in the outer
+dispatcher block this becomes `.Block [.Block [], .Leave]`. The inner
+`.Block []` is a no-op head, the outer block continues with `.Leave`, and the
+final state is `state.setLeave`. Mirrors `exec_block_block_leave_ok_add_ten`
+but with a leading `.Block []` no-op instead of a wrapping `.Block`. -/
+theorem exec_block_label_prefix_leave_ok_add_ten
+    (fuel suffixLen : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.exec (fuel + suffixLen + 10) (.Block [.Block [], .Leave])
+        codeOverride state =
+      .ok (state.setLeave) := by
+  have hFuel :
+      fuel + suffixLen + 10 =
+        Nat.succ (Nat.succ (Nat.succ (Nat.succ (fuel + suffixLen + 6)))) := by
+    omega
+  rw [hFuel]
+  simp [EvmYul.Yul.exec]
+
+/-- Executing the native lowering of a source `[.block [], .block [.leave]]`
+user body (F4's body shape).
+
+`[.block [], .block [.leave]]` lowers to `[.Block [], .Block [.Leave]]`;
+wrapped in the outer dispatcher block this becomes
+`.Block [.Block [], .Block [.Leave]]`. The leading `.Block []` is a no-op, the
+inner `.Block [.Leave]` sets the leave flag, and the final state is
+`state.setLeave`. -/
+theorem exec_block_label_prefix_block_leave_ok_add_ten
+    (fuel suffixLen : Nat)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state : EvmYul.Yul.State) :
+    EvmYul.Yul.exec (fuel + suffixLen + 10)
+        (.Block [.Block [], .Block [.Leave]]) codeOverride state =
+      .ok (state.setLeave) := by
+  have hFuel :
+      fuel + suffixLen + 10 =
+        Nat.succ (Nat.succ (Nat.succ (Nat.succ (Nat.succ (Nat.succ
+          (fuel + suffixLen + 4)))))) := by
     omega
   rw [hFuel]
   simp [EvmYul.Yul.exec]
@@ -13353,6 +13641,51 @@ theorem NativeStmtPreservesWord_if_of_cond_preserves_and_nativeStmtsWriteNames_n
     (NativeBlockPreservesWord_of_nativeStmtsWriteNames_not_mem
       name value body codeOverride hFresh hPreserves)
 
+/-- `_revived` mirror of `NativeStmtPreservesWord_if_of_cond_preserves` using a
+condition-state-preservation premise stated via `reviveJump` (instead of OLD-form
+`NativeExprPreservesWord` which is unsound on Checkpoint inputs — see memory
+`yul-state-lookup-bracket-vs-lookup`).
+
+The premise `hCondReviveJump` is per-condition; for the dispatcher's
+`lt(calldatasize, k)` and `callvalue` guards on Ok input, it follows from
+`eval_lowerExprNative_*_ok_fuel` (eval returns the same state). -/
+theorem NativeStmtPreservesWord_revived_if_of_cond_preserves_reviveJump
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (cond : EvmYul.Yul.Ast.Expr)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hCondReviveJump :
+      ∀ fuel state final v,
+        EvmYul.Yul.eval fuel cond codeOverride state = .ok (final, v) →
+          final.reviveJump = state.reviveJump)
+    (hBody : NativeBlockPreservesWord_revived name value body codeOverride) :
+    NativeStmtPreservesWord_revived name value (.If cond body) codeOverride := by
+  intro fuel state final hLookup hExec
+  cases fuel with
+  | zero =>
+      simp [EvmYul.Yul.exec] at hExec
+  | succ fuel' =>
+      simp [EvmYul.Yul.exec] at hExec
+      cases hEval : EvmYul.Yul.eval fuel' cond codeOverride state with
+      | error err =>
+          simp [hEval] at hExec
+      | ok condResult =>
+          rcases condResult with ⟨condState, condValue⟩
+          have hReviveEq : condState.reviveJump = state.reviveJump :=
+            hCondReviveJump fuel' state condState condValue hEval
+          have hCondLookup : condState.reviveJump[name]! = value := by
+            rw [hReviveEq]; exact hLookup
+          simp [hEval] at hExec
+          by_cases hCondNonzero : condValue ≠ ⟨0⟩
+          · simp [hCondNonzero] at hExec
+            exact hBody fuel' condState final hCondLookup hExec
+          · have hCondZero : condValue = ⟨0⟩ :=
+              Decidable.not_not.mp hCondNonzero
+            simp [hCondZero] at hExec
+            cases hExec
+            exact hCondLookup
+
 theorem nativeSwitchBranchFold_ok_preserves_word
     (name : EvmYul.Identifier)
     (value cond : EvmYul.Literal)
@@ -14488,7 +14821,7 @@ theorem NativeStmtPreservesWord_revived_leave
       cases state with
       | Ok shared store =>
           subst final
-          simp [EvmYul.Yul.State.setLeave, reviveJump_Leave_eq, reviveJump_Ok_eq]
+          simp [EvmYul.Yul.State.setLeave, reviveJump_Leave_eq]
           simpa [reviveJump_Ok_eq] using hLookup
       | OutOfFuel =>
           subst final
@@ -14523,6 +14856,135 @@ theorem NativeStmtPreservesWord_revived_block_leave
   NativeStmtPreservesWord_revived_block name value [.Leave] codeOverride
     (NativeBlockPreservesWord_revived_singleton name value .Leave codeOverride
       (NativeStmtPreservesWord_revived_leave name value codeOverride))
+
+/-- `_revived` block preservation for the body shape `[.Block [], .Leave]` —
+the lowered form of an IR `[.block [], .leave]` body (F2's body shape). Used
+by the future label-prefix lift `ExecBridgeAtFuelRevivedLeaveAware.of_leave_body_with_label_prefix`. -/
+theorem NativeBlockPreservesWord_revived_block_empty_then_leave
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeBlockPreservesWord_revived name value [.Block [], .Leave]
+      codeOverride :=
+  NativeBlockPreservesWord_revived_cons name value (.Block []) [.Leave]
+    codeOverride
+    (NativeStmtPreservesWord_revived_empty_block name value codeOverride)
+    (NativeBlockPreservesWord_revived_singleton name value .Leave codeOverride
+      (NativeStmtPreservesWord_revived_leave name value codeOverride))
+
+/-- Generic vacuity helper: if a `.Block` body's exec never produces an
+`.ok` result, then `_revived` preservation holds trivially (the implication's
+premise is unsatisfiable).
+
+Useful for halt-style bodies whose exec always returns `.error YulHalt`
+(stop / return / revert), where `_revived` preservation is vacuous. The
+counterpart for the OLD-form `NativeBlockPreservesWord` follows by the same
+argument; see `NativeBlockPreservesWord_of_never_ok` below. -/
+theorem NativeBlockPreservesWord_revived_of_never_ok
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hNeverOk :
+      ∀ fuel state final,
+        EvmYul.Yul.exec fuel (.Block body) codeOverride state ≠ .ok final) :
+    NativeBlockPreservesWord_revived name value body codeOverride := by
+  intro fuel state final _hRevive hExec
+  exact absurd hExec (hNeverOk fuel state final)
+
+/-- OLD-form counterpart of `NativeBlockPreservesWord_revived_of_never_ok`. -/
+theorem NativeBlockPreservesWord_of_never_ok
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (hNeverOk :
+      ∀ fuel state final,
+        EvmYul.Yul.exec fuel (.Block body) codeOverride state ≠ .ok final) :
+    NativeBlockPreservesWord name value body codeOverride := by
+  intro fuel state final _hLookup hExec
+  exact absurd hExec (hNeverOk fuel state final)
+
+/-- Helper for `NativeBlockPreservesWord_revived_nativeRevertZeroZero`: for
+fuel < 7, `exec fuel (.Block [revert]) state` is structurally not `.ok` — the
+fuel runs out before completing the primitive-call unfolding. -/
+private theorem exec_block_nativeRevertZeroZero_low_fuel_ne_ok
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (state final : EvmYul.Yul.State) (fuel : Nat) (hLt : fuel < 7) :
+    EvmYul.Yul.exec fuel (.Block [nativeRevertZeroZeroStmt]) codeOverride state
+      ≠ .ok final := by
+  intro hExec
+  match fuel, hLt, hExec with
+  | 0, _, hExec => simp [EvmYul.Yul.exec] at hExec
+  | 1, _, hExec => simp [EvmYul.Yul.exec, nativeRevertZeroZeroStmt] at hExec
+  | 2, _, hExec =>
+      simp [EvmYul.Yul.exec, nativeRevertZeroZeroStmt, EvmYul.Yul.eval,
+        EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail, EvmYul.Yul.execPrimCall,
+        EvmYul.Yul.reverse', EvmYul.Yul.cons'] at hExec
+  | 3, _, hExec =>
+      simp [EvmYul.Yul.exec, nativeRevertZeroZeroStmt, EvmYul.Yul.eval,
+        EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail, EvmYul.Yul.execPrimCall,
+        EvmYul.Yul.reverse', EvmYul.Yul.cons'] at hExec
+  | 4, _, hExec =>
+      simp [EvmYul.Yul.exec, nativeRevertZeroZeroStmt, EvmYul.Yul.eval,
+        EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail, EvmYul.Yul.execPrimCall,
+        EvmYul.Yul.reverse', EvmYul.Yul.cons'] at hExec
+  | 5, _, hExec =>
+      simp [EvmYul.Yul.exec, nativeRevertZeroZeroStmt, EvmYul.Yul.eval,
+        EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail, EvmYul.Yul.execPrimCall,
+        EvmYul.Yul.reverse', EvmYul.Yul.cons'] at hExec
+  | 6, _, hExec =>
+      simp [EvmYul.Yul.exec, nativeRevertZeroZeroStmt, EvmYul.Yul.eval,
+        EvmYul.Yul.evalArgs, EvmYul.Yul.evalTail, EvmYul.Yul.execPrimCall,
+        EvmYul.Yul.reverse', EvmYul.Yul.cons'] at hExec
+
+/-- `_revived` block preservation for the singleton revert body
+`[nativeRevertZeroZeroStmt]`. Proved via the vacuity helper: revert always
+errors, so `exec ... = .ok final` is structurally unsatisfiable.
+
+This is the first leaf of the parallel `_revived` upstream chain needed by
+the dispatcher continuation provider — mirror of the OLD-form
+`NativeBlockPreservesWord_nativeRevertZeroZero` (in EndToEnd.lean) without
+going through the (currently missing) `_revived` primitive call chain. -/
+theorem NativeBlockPreservesWord_revived_nativeRevertZeroZero
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeBlockPreservesWord_revived name value
+      [nativeRevertZeroZeroStmt] codeOverride := by
+  apply NativeBlockPreservesWord_revived_of_never_ok
+  intro fuel state final hExec
+  by_cases hLt : fuel < 7
+  · exact exec_block_nativeRevertZeroZero_low_fuel_ne_ok codeOverride state
+      final fuel hLt hExec
+  · obtain ⟨n, rfl⟩ : ∃ n, fuel = n + 7 := ⟨fuel - 7, by omega⟩
+    have hStmt :
+        EvmYul.Yul.exec (n + 6) nativeRevertZeroZeroStmt codeOverride state =
+          .error EvmYul.Yul.Exception.Revert :=
+      exec_revert_zero_zero_error n state codeOverride
+    have hBlock :
+        EvmYul.Yul.exec (Nat.succ (n + 6)) (.Block [nativeRevertZeroZeroStmt])
+          codeOverride state = .error EvmYul.Yul.Exception.Revert :=
+      exec_block_cons_error (n + 6) nativeRevertZeroZeroStmt [] codeOverride
+        state EvmYul.Yul.Exception.Revert hStmt
+    rw [show n + 7 = Nat.succ (n + 6) from rfl, hBlock] at hExec
+    cases hExec
+
+/-- `_revived` block preservation for the body shape `[.Block [], .Block [.Leave]]`
+— the lowered form of an IR `[.block [], .block [.leave]]` body (F4's body
+shape). Used by the future label-prefix lift for the block-leave case. -/
+theorem NativeBlockPreservesWord_revived_block_empty_then_block_leave
+    (name : EvmYul.Identifier)
+    (value : EvmYul.Literal)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract) :
+    NativeBlockPreservesWord_revived name value
+      [.Block [], .Block [.Leave]] codeOverride :=
+  NativeBlockPreservesWord_revived_cons name value (.Block [])
+    [.Block [.Leave]] codeOverride
+    (NativeStmtPreservesWord_revived_empty_block name value codeOverride)
+    (NativeBlockPreservesWord_revived_singleton name value (.Block [.Leave])
+      codeOverride
+      (NativeStmtPreservesWord_revived_block_leave name value codeOverride))
 
 theorem NativeStmtPreservesWord_lowerStmtGroupNativeWithSwitchIds_comment
     (name : EvmYul.Identifier)
