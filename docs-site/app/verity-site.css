@@ -55,17 +55,13 @@ html {
 
 body {
   margin: 0;
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--verity-rule) 18%, transparent) 1px, transparent 1px) 0 0 / 5rem 5rem,
-    var(--verity-bg);
+  background: var(--verity-bg);
   color: var(--verity-ink);
   font-family: var(--verity-font-prose);
 }
 
 .dark body {
-  background:
-    linear-gradient(90deg, rgba(201, 169, 97, 0.08) 1px, transparent 1px) 0 0 / 5rem 5rem,
-    #000000;
+  background: #000000;
 }
 
 ::selection {
@@ -78,6 +74,12 @@ body {
   border-bottom: 1px solid var(--verity-rule) !important;
   box-shadow: none !important;
   backdrop-filter: blur(10px);
+}
+
+.dark .nextra-nav-container-blur,
+.dark .nextra-nav-container {
+  background: color-mix(in srgb, var(--verity-surface) 94%, transparent) !important;
+  border-bottom-color: var(--verity-rule) !important;
 }
 
 .verity-brand {
@@ -104,10 +106,20 @@ input[type="search"] {
 }
 
 aside.nextra-sidebar-container,
-.nextra-sidebar-container {
+.nextra-sidebar-container,
+.nextra-sidebar {
   background: color-mix(in srgb, var(--verity-bg) 95%, transparent) !important;
   border-right: 1px solid var(--verity-rule) !important;
   font-family: var(--verity-font-ui);
+}
+
+.dark aside.nextra-sidebar-container,
+.dark .nextra-sidebar-container,
+.dark .nextra-sidebar,
+.dark .nextra-mobile-nav {
+  background: var(--verity-surface) !important;
+  border-right-color: var(--verity-rule) !important;
+  box-shadow: 1px 0 0 rgba(201, 169, 97, 0.06) inset;
 }
 
 .nextra-toc {
@@ -115,11 +127,22 @@ aside.nextra-sidebar-container,
   font-family: var(--verity-font-ui);
 }
 
+.dark .nextra-toc {
+  background: color-mix(in srgb, var(--verity-bg) 84%, var(--verity-surface)) !important;
+  border-left-color: var(--verity-rule) !important;
+}
+
 .nextra-sidebar-container a,
 .nextra-toc a,
 nav a {
   color: var(--verity-muted) !important;
   text-decoration: none !important;
+}
+
+.dark .nextra-sidebar-container a,
+.dark .nextra-toc a,
+.dark nav a {
+  color: var(--verity-muted) !important;
 }
 
 .nextra-sidebar-container a:hover,
@@ -134,6 +157,24 @@ nav a:hover {
   color: var(--verity-heading) !important;
   background: color-mix(in srgb, var(--verity-accent) 12%, transparent) !important;
   border-radius: 0.25rem !important;
+}
+
+.dark .nextra-sidebar-container a[aria-current="page"],
+.dark .nextra-toc a[aria-current="true"],
+.dark .nextra-toc a[aria-selected="true"],
+.dark li.active > a,
+.dark .nextra-sidebar-container li.active > a,
+.dark .nextra-sidebar li.active > a,
+.dark .nextra-sidebar-container [class*="active"] a,
+.dark .nextra-sidebar-container a[class*="active"] {
+  background: color-mix(in srgb, var(--verity-accent) 18%, var(--verity-surface)) !important;
+  color: var(--verity-heading) !important;
+}
+
+.dark li.active > a:hover,
+.dark .nextra-sidebar-container li.active > a:hover,
+.dark .nextra-sidebar li.active > a:hover {
+  color: var(--verity-heading) !important;
 }
 
 main,

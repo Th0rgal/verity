@@ -46,28 +46,28 @@
     {
       "scope": ["entity.name.type.contract.verity", "storage.type.verity", "support.type", "entity.name.type", "storage.type"],
       "settings": {
-        "foreground": "#D9B7FF",
+        "foreground": "#E5C98A",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["entity.name.function.verity", "source.lean entity.name.function", "support.function.tactic.verity", "support.function.storage.verity", "support.function.context.verity", "support.function.arithmetic.verity", "support.function.spec.verity"],
       "settings": {
-        "foreground": "#86D6C8",
+        "foreground": "#D8B989",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["entity.name.function.external.verity", "support.function.external-call.verity"],
       "settings": {
-        "foreground": "#91C9FF",
+        "foreground": "#E9B06D",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["entity.name.function.event.verity", "support.function.event.verity"],
       "settings": {
-        "foreground": "#A7E39B",
+        "foreground": "#C9A961",
         "fontStyle": "bold"
       }
     },
@@ -81,21 +81,21 @@
     {
       "scope": ["support.function.guard.verity", "entity.name.exception.custom-error.verity"],
       "settings": {
-        "foreground": "#FF9E8A",
+        "foreground": "#F0A070",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["support.function.loop.verity", "support.function.abi.verity"],
       "settings": {
-        "foreground": "#D5B3FF",
+        "foreground": "#D6B36F",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["variable.other.storage.verity", "variable.language.verity", "variable.other", "identifier"],
       "settings": {
-        "foreground": "#D7E4F2"
+        "foreground": "#D9D0C0"
       }
     },
     {

@@ -6,6 +6,34 @@ figure[data-rehype-pretty-code-figure] pre[data-language="verity"] {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset;
 }
 
+.dark figure[data-rehype-pretty-code-figure] pre {
+  background: var(--verity-code-bg) !important;
+  border: 1px solid var(--verity-rule) !important;
+  color: var(--verity-ink) !important;
+}
+
+.dark figure[data-rehype-pretty-code-figure] pre code {
+  color: var(--verity-ink) !important;
+}
+
+.dark figure[data-rehype-pretty-code-figure] span[style*="#D9B7FF"],
+.dark figure[data-rehype-pretty-code-figure] span[style*="#D5B3FF"] {
+  color: #E5C98A !important;
+}
+
+.dark figure[data-rehype-pretty-code-figure] span[style*="#91C9FF"],
+.dark figure[data-rehype-pretty-code-figure] span[style*="#86D6C8"] {
+  color: #D8B989 !important;
+}
+
+.dark figure[data-rehype-pretty-code-figure] span[style*="#A7E39B"] {
+  color: #C9A961 !important;
+}
+
+.dark figure[data-rehype-pretty-code-figure] span[style*="#D7E4F2"] {
+  color: #D9D0C0 !important;
+}
+
 figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code {
   line-height: 1.62;
 }
