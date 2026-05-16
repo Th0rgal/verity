@@ -31,10 +31,20 @@ Verity's custom Yul builtin semantics to `interpretYulRuntimeWithBackend
   `BridgedStmts` body witnesses from `SupportedSpec`, static parameter
   witnesses, and source-level safe-body witnesses.
 
-The remaining scope limit is the external-call/function-table family
-(`internalCall`, `internalCallAssign`, `externalCallBind`, and `ecm`). These
-constructors stay outside `BridgedSafeStmts` until a function-table simulation
-theorem is proved.
+The external-call/function-table family
+(`internalCall`, `internalCallAssign`, `externalCallBind`, and `ecm`) now has
+function-table-aware closure scaffolding in
+`Compiler/Proofs/YulGeneration/Backends/EvmYulLeanCallClosure.lean`. The
+public surface — `BridgedSourceInternalCallStmt`,
+`BridgedSourceExternalCallBindStmt`, `BridgedSourceEcmStmt` (with the
+per-module `ECMBridgeable` obligation), and the corresponding
+`compileStmt_*_bridged` / `compileStmtList_*_bridged` closure theorems —
+discharges `BridgedStmts` against a `BridgedFunctionTable`. The composition
+lemma `BridgedStmts_of_compileStmtList_append` lets concrete contracts
+chain these closures with `compileStmtList_always_bridged` across an
+arbitrary `pfx ++ sfx` split. End-to-end smoke proof in the same file.
+Wiring of `SupportedFragment` / `SupportedSpec` for contracts that
+actually use this family is the next milestone.
 
 ## Audit Artifacts
 
