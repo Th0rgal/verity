@@ -7,6 +7,7 @@ import Compiler.CompilationModel.AbiTypeLayout
 import Compiler.CompilationModel.DynamicData
 import Compiler.CompilationModel.InternalNaming
 import Compiler.CompilationModel.IssueRefs
+import Compiler.CompilationModel.ScopeValidation
 import Compiler.CompilationModel.UsageAnalysis
 
 namespace Compiler.CompilationModel
@@ -88,7 +89,9 @@ def firstReservedExternalCollision
 
 def internalDynamicParamSupported : ParamType → Bool
   | ParamType.array _ => true
+  | ParamType.bytes | ParamType.string => true
   | ty@(ParamType.tuple _) => isDynamicParamType ty
+  | ty@(ParamType.fixedArray _ _) => isDynamicParamType ty
   | _ => false
 
 def firstUnsupportedInternalDynamicParam
@@ -106,6 +109,13 @@ def firstUnsupportedInternalDynamicParam
 
 def internalCallYulArgCountForParam : ParamType → Nat
   | ParamType.array _ => 2
+  | ParamType.bytes | ParamType.string => 2
+  | ty@(ParamType.fixedArray _ _) =>
+      if isDynamicParamType ty then 1 else (staticParamBindingNames "__arg" ty).length
+  | ty@(ParamType.tuple _) =>
+      if isDynamicParamType ty then 1 else (staticParamBindingNames "__arg" ty).length
+  | ParamType.newtypeOf _ baseTy =>
+      internalCallYulArgCountForParam baseTy
   | _ => 1
 
 def internalCallYulArgCount (params : List Param) : Nat :=

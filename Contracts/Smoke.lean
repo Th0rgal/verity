@@ -1442,11 +1442,7 @@ example :
           (Compiler.CompilationModel.Expr.localVar "total")
       ] := rfl
 
-/--
-error: helper call 'consumePayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
--/
-#guard_msgs in
-verity_contract DirectHelperCallDynamicEffectRejected where
+verity_contract DirectHelperCallBytesEffectSmoke where
   storage
 
   function consumePayload (_payload : Bytes) : Unit := do
@@ -1455,25 +1451,17 @@ verity_contract DirectHelperCallDynamicEffectRejected where
   function run (payload : Bytes) : Unit := do
     consumePayload payload
 
-/--
-error: helper call 'measurePayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
--/
-#guard_msgs in
-verity_contract DirectHelperCallDynamicBindRejected where
+verity_contract DirectHelperCallBytesBindSmoke where
   storage
 
-  function measurePayload (_payload : Bytes) : Uint256 := do
-    return 0
+  function samePayload (lhs : Bytes, rhs : Bytes) : Bool := do
+    return (lhs == rhs)
 
-  function run (payload : Bytes) : Uint256 := do
-    let measured ← measurePayload payload
-    return measured
+  function run (payload : Bytes) : Bool := do
+    let same ← samePayload payload payload
+    return same
 
-/--
-error: helper call 'fanoutPayload' uses a parameter or return type that direct macro helper lowering does not support yet; only static non-fallback/non-receive helpers can be lowered to internal specs
--/
-#guard_msgs in
-verity_contract DirectHelperCallDynamicTupleRejected where
+verity_contract DirectHelperCallBytesTupleSmoke where
   storage
 
   function fanoutPayload (_payload : Bytes) : Tuple [Uint256, Uint256] := do
@@ -1482,6 +1470,47 @@ verity_contract DirectHelperCallDynamicTupleRejected where
   function run (payload : Bytes) : Tuple [Uint256, Uint256] := do
     let (left, right) ← fanoutPayload payload
     return (left, right)
+
+verity_contract DirectHelperCallStaticCompositeSmoke where
+  storage
+    sentinel : Uint256 := slot 0
+
+  struct TokenPermissions where
+    token : Address,
+    amount : Uint256
+
+  struct PermitTransferFrom where
+    permitted : TokenPermissions,
+    nonce : Uint256,
+    deadline : Uint256
+
+  function transferWithBalanceCheck
+      (permit : PermitTransferFrom, depositor : Address, signature : Bytes,
+       amount : Uint256, noteCommitment : Bytes32) : Uint256 := do
+    let _depositorWord := addressToWord depositor
+    let _noteCommitment := noteCommitment
+    let sigSame := signature == signature
+    if sigSame then
+      return (add permit.permitted.amount amount)
+    else
+      return permit.nonce
+
+  function allow_post_interaction_writes run
+      (permit : PermitTransferFrom, depositor : Address, signature : Bytes,
+       amount : Uint256, noteCommitment : Bytes32) : Uint256 := do
+    let checked ← transferWithBalanceCheck permit depositor signature amount noteCommitment
+    setStorage sentinel checked
+    return checked
+
+verity_contract DirectHelperCallUint256Bytes32AliasSmoke where
+  storage
+    sentinel : Uint256 := slot 0
+
+  function rememberDigest (digest : Bytes32) : Unit := do
+    setStorage sentinel digest
+
+  function run (word : Uint256) : Unit := do
+    rememberDigest word
 
 verity_contract Uint8Smoke where
   storage
@@ -1594,6 +1623,34 @@ verity_contract StructMappingSmoke where
   function approvalNonce (owner : Address, spender : Address) : Uint256 := do
     let nextNonce ← structMember2 "approvals" owner spender "nonce"
     return nextNonce
+
+verity_contract UintKeyStructMappingSmoke where
+  storage
+    circuits : MappingStruct(Uint256,[
+      verifier @word 0 packed(0,160),
+      inputCount @word 0 packed(160,16),
+      outputCount @word 0 packed(176,16),
+      active @word 0 packed(192,8)
+    ]) := slot 0
+
+  constants
+    TRUE_WORD : Uint256 := 1
+
+  function setCircuit
+      (circuitId : Uint256, verifierAddr : Address, inputCount : Uint256,
+       outputCount : Uint256) : Unit := do
+    setStructMember "circuits" circuitId "verifier" verifierAddr
+    setStructMember "circuits" circuitId "inputCount" inputCount
+    setStructMember "circuits" circuitId "outputCount" outputCount
+    setStructMember "circuits" circuitId "active" TRUE_WORD
+
+  function getCircuit
+      (circuitId : Uint256) : Tuple [Address, Uint256, Uint256, Uint256] := do
+    let verifierAddr ← structMember "circuits" circuitId "verifier"
+    let inputCount ← structMember "circuits" circuitId "inputCount"
+    let outputCount ← structMember "circuits" circuitId "outputCount"
+    let active ← structMember "circuits" circuitId "active"
+    return (verifierAddr, inputCount, outputCount, active)
 
 private def _structMemberExecutableHelper :
     String → Address → String → Contract Uint256 :=
@@ -2310,6 +2367,11 @@ end SpecGenSmoke
 #check_contract DirectHelperCallSmoke
 #check_contract MultiReturnHelperSmoke
 #check_contract ArrayHelperCallSmoke
+#check_contract DirectHelperCallBytesEffectSmoke
+#check_contract DirectHelperCallBytesBindSmoke
+#check_contract DirectHelperCallBytesTupleSmoke
+#check_contract DirectHelperCallStaticCompositeSmoke
+#check_contract DirectHelperCallUint256Bytes32AliasSmoke
 #check_contract ForEachMutableLocalSmoke
 #check_contract Uint8Smoke
 #check_contract AddressHelpersSmoke
@@ -2319,6 +2381,7 @@ end SpecGenSmoke
 #check_contract HelperExternalArgumentSmoke
 #check_contract BlockTimestampSmoke
 #check_contract StructMappingSmoke
+#check_contract UintKeyStructMappingSmoke
 #check_contract ExternalCallSmoke
 #check_contract TryExternalCallSmoke
 #check_contract LinkedExternalDynamicArgSmoke
@@ -3079,6 +3142,39 @@ example : CustomNamespacedSmoke.spec.storageNamespace.isSome = true := rfl
 example : CustomNamespacedSmoke.storageNamespace = CustomNamespacedSmoke.spec.storageNamespace.get! := rfl
 example : CustomNamespacedSmoke.storageNamespace = 105542539407630759878214364786123406227647255732885741380220581264062975076298 := rfl
 example : CustomNamespacedSmoke.storageNamespace ≠ 67387409610395734986217237394999073412260967828994783805404864304835768435504 := by decide
+
+-- Multiple namespace roots in one contract. Each `storage_namespace` item
+-- inside the storage block applies to subsequent fields until the next item.
+verity_contract MultiNamespaceStorageSmoke where
+  storage
+    storage_namespace erc7201 "unlink.storage.State"
+    stateMerkleRoot : Uint256 := slot 0
+    stateVerifierRouter : Address := slot 4
+    storage_namespace erc7201 "unlink.storage.UnlinkPoolRelayers"
+    relayersSlot : Address → Uint256 := slot 0
+
+  function writeState (root : Uint256, router : Address) : Unit := do
+    setStorage stateMerkleRoot root
+    setStorageAddr stateVerifierRouter router
+
+  function readStateRoot () : Uint256 := do
+    let value ← getStorage stateMerkleRoot
+    return value
+
+  function readRelayer (account : Address) : Uint256 := do
+    let enabled ← getMapping relayersSlot account
+    return enabled
+
+#check_contract MultiNamespaceStorageSmoke
+
+example : MultiNamespaceStorageSmoke.stateMerkleRoot.slot =
+    0xd7df6c02d48ad87762ead6689b0b308617a10b99ac21276cc6fd199681dcb000 := by native_decide
+example : MultiNamespaceStorageSmoke.stateVerifierRouter.slot =
+    0xd7df6c02d48ad87762ead6689b0b308617a10b99ac21276cc6fd199681dcb004 := by native_decide
+example : MultiNamespaceStorageSmoke.relayersSlot.slot =
+    0xd8b607728433c567965c4023813a35a19b26751353d5652c8798f8eea4b19b00 := by native_decide
+example : MultiNamespaceStorageSmoke.stateMerkleRoot.slot ≠ MultiNamespaceStorageSmoke.relayersSlot.slot := by decide
+example : MultiNamespaceStorageSmoke.spec.storageNamespace.isSome = true := rfl
 
 -- ADT (inductive) section smoke test (#1727, Axis 1 Steps 5a/5b)
 -- Declares algebraic data types with typed variant fields.

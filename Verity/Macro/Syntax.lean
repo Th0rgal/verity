@@ -5,6 +5,7 @@ namespace Verity.Macro
 open Lean
 
 declare_syntax_cat verityStorageField
+declare_syntax_cat verityStorageItem
 declare_syntax_cat verityStructMember
 declare_syntax_cat verityParam
 declare_syntax_cat verityError
@@ -31,6 +32,10 @@ declare_syntax_cat verityModifierUse
 declare_syntax_cat verityFunction
 
 syntax ident " : " term " := " "slot" num : verityStorageField
+syntax ident " : " term " := " "slot" num : verityStorageItem
+syntax "storage_namespace " : verityStorageItem
+syntax "storage_namespace " str : verityStorageItem
+syntax "storage_namespace " "erc7201 " str : verityStorageItem
 syntax ident " @word " num : verityStructMember
 syntax ident " @word " num " packed(" num "," num ")" : verityStructMember
 syntax "MappingStruct(" term "," "[" sepBy(verityStructMember, ",") "]" ")" : term
@@ -60,6 +65,7 @@ syntax "| " ident : verityAdtVariant
 syntax ident " := " verityAdtVariant+ : verityAdtDecl
 syntax "storage_namespace " : verityNamespaceSpec
 syntax "storage_namespace " str : verityNamespaceSpec
+syntax "storage_namespace " "erc7201 " str : verityNamespaceSpec
 syntax "initializer(" ident ")" : verityInitGuard
 syntax "reinitializer(" ident ", " num ")" : verityInitGuard
 syntax "ecmCall " term:max ppSpace term:max : term
@@ -89,7 +95,7 @@ syntax (name := verityContractCmd)
   ("types " verityNewtype+)?
   ("inductive " verityAdtDecl+)?
   (verityNamespaceSpec)?
-  "storage " verityStorageField*
+  "storage " verityStorageItem*
   (verityStructDecl)*
   ("errors " verityError+)?
   ("event_defs " verityEvent+)?

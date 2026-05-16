@@ -1761,7 +1761,10 @@ private def numericLiteralCompatibleValueType : ValueType → Bool
   | _ => false
 
 private def argumentTypeMatchesParam (arg : Term) (argTy paramTy : ValueType) : Bool :=
-  argTy == paramTy || (argTy == .uint256 && isNatLiteralTerm arg && numericLiteralCompatibleValueType paramTy)
+  argTy == paramTy ||
+    (argTy == .uint256 && paramTy == .bytes32) ||
+    (argTy == .bytes32 && paramTy == .uint256) ||
+    (argTy == .uint256 && isNatLiteralTerm arg && numericLiteralCompatibleValueType paramTy)
 
 private def argumentTypesMatchParams (args : Array Term) (argTypes : Array ValueType)
     (params : Array ParamDecl) : Bool :=
@@ -2499,6 +2502,7 @@ private partial def hasDynamicInternalHelperType (ty : ValueType) : Bool :=
 
 private def supportsInternalHelperParamType (ty : ValueType) : Bool :=
   match ty with
+  | .string | .bytes => true
   | .array _ => true
   | .struct _ _ => true
   | .tuple _ => true
@@ -4582,6 +4586,34 @@ private def tupleReturnValueExprs?
       | _ =>
           pure none
 
+private partial def staticInternalHelperBindingNames (name : String) (ty : ValueType) : List String :=
+  match ty with
+  | .uint256 | .int256 | .uint8 | .address | .bool | .bytes32 => [name]
+  | .fixedArray elemTy size =>
+      (List.range size).flatMap fun idx =>
+        staticInternalHelperBindingNames s!"{name}_{idx}" elemTy
+  | .tuple elemTys =>
+      let rec goTuple (tys : List ValueType) (idx : Nat) : List String :=
+        match tys with
+        | [] => []
+        | elemTy :: rest =>
+            staticInternalHelperBindingNames s!"{name}_{idx}" elemTy ++ goTuple rest (idx + 1)
+      goTuple elemTys 0
+  | .struct _ fields =>
+      let rec goStruct (fs : List (String × ValueType)) (idx : Nat) : List String :=
+        match fs with
+        | [] => []
+        | field :: rest =>
+            staticInternalHelperBindingNames s!"{name}_{idx}" field.snd ++ goStruct rest (idx + 1)
+      goStruct fields 0
+  | .newtype _ baseTy => staticInternalHelperBindingNames name baseTy
+  | _ => []
+
+private def isStaticCompositeInternalHelperType : ValueType → Bool
+  | .tuple _ | .struct _ _ | .fixedArray _ _ => true
+  | .newtype _ baseTy => isStaticCompositeInternalHelperType baseTy
+  | _ => false
+
 private def translateInternalHelperCallArgs
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -4654,7 +4686,12 @@ private def translateInternalHelperCallArgs
           match directParamNameWithType? params arg with
           | some (name, ty) =>
               if valueTypeUsesDynamicData ty then
-                out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_data_offset")))
+                match fnParam.ty with
+                | .bytes | .string =>
+                    out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_data_offset")))
+                    out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_length")))
+                | _ =>
+                    out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_data_offset")))
               else
                 out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
           | none =>
@@ -4666,7 +4703,19 @@ private def translateInternalHelperCallArgs
               else
                 out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
         else
-          out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+          if isStaticCompositeInternalHelperType fnParam.ty then
+            match directParamNameWithType? params arg with
+            | some (name, ty) =>
+                let bindingNames := staticInternalHelperBindingNames name ty
+                if bindingNames.isEmpty then
+                  out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+                else
+                  for bindingName in bindingNames do
+                    out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm bindingName)))
+            | none =>
+                out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
+          else
+            out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals arg)
   pure out
 
 private def translateLinkedExternalCallArgs
@@ -7268,6 +7317,57 @@ def computeStorageNamespace (contractName : String) : Nat :=
 def computeStorageNamespaceKey (key : String) : Nat :=
   KeccakEngine.keccak256_str_nat key
 
+private def natToBytes32BE (n : Nat) : ByteArray :=
+  let bytes := (List.range 32).map fun idx =>
+    UInt8.ofNat ((n / (256 ^ (31 - idx))) % 256)
+  ⟨bytes.toArray⟩
+
+/-- Compute an ERC-7201 namespace root:
+    `keccak256(abi.encode(uint256(keccak256(key)) - 1)) & ~bytes32(uint256(0xff))`. -/
+def computeERC7201StorageNamespaceKey (key : String) : Nat :=
+  let keyHash := KeccakEngine.keccak256_str_nat key
+  let encoded := natToBytes32BE (keyHash - 1)
+  let slotHash := KeccakEngine.byteArrayToNatBE (KeccakEngine.keccak256 encoded)
+  (slotHash / 256) * 256
+
+private def namespaceOffsetFromSpec
+    (contractName : Ident) (spec : TSyntax `verityNamespaceSpec) : CommandElabM Nat := do
+  match spec with
+  | `(verityNamespaceSpec| storage_namespace erc7201 $customKey:str) =>
+      match customKey.raw.isStrLit? with
+      | some key => pure (computeERC7201StorageNamespaceKey key)
+      | none => throwErrorAt customKey "expected storage namespace string literal"
+  | `(verityNamespaceSpec| storage_namespace $customKey:str) =>
+      match customKey.raw.isStrLit? with
+      | some key => pure (computeStorageNamespaceKey key)
+      | none => throwErrorAt customKey "expected storage namespace string literal"
+  | `(verityNamespaceSpec| storage_namespace) =>
+      pure (computeStorageNamespace (toString contractName.getId))
+  | _ =>
+      throwErrorAt spec "unsupported storage namespace syntax"
+
+private def namespaceOffsetFromStorageItem?
+    (contractName : Ident) (item : TSyntax `verityStorageItem) : CommandElabM (Option Nat) := do
+  match item with
+  | `(verityStorageItem| storage_namespace erc7201 $customKey:str) =>
+      match customKey.raw.isStrLit? with
+      | some key => pure (some (computeERC7201StorageNamespaceKey key))
+      | none => throwErrorAt customKey "expected storage namespace string literal"
+  | `(verityStorageItem| storage_namespace $customKey:str) =>
+      match customKey.raw.isStrLit? with
+      | some key => pure (some (computeStorageNamespaceKey key))
+      | none => throwErrorAt customKey "expected storage namespace string literal"
+  | `(verityStorageItem| storage_namespace) =>
+      pure (some (computeStorageNamespace (toString contractName.getId)))
+  | _ => pure none
+
+private def storageFieldFromItem?
+    (item : TSyntax `verityStorageItem) : CommandElabM (Option (TSyntax `verityStorageField)) := do
+  match item with
+  | `(verityStorageItem| $name:ident : $ty:term := slot $slotNum:num) =>
+      pure (some (← `(verityStorageField| $name:ident : $ty:term := slot $slotNum:num)))
+  | _ => pure none
+
 structure ParsedContractSyntax where
   contractName : Ident
   newtypeDecls : Array NewtypeDecl
@@ -7288,7 +7388,7 @@ def parseContractSyntax
     (stx : Syntax)
     : CommandElabM ParsedContractSyntax := do
   match stx with
-  | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? $[inductive $[$adtDecls:verityAdtDecl]*]? $[$nsSpec:verityNamespaceSpec]? storage $[$storageFields:verityStorageField]* $[$structDecls:verityStructDecl]* $[errors $[$errorDecls:verityError]*]? $[event_defs $[$eventDecls:verityEvent]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$modifierDecls:verityModifier]* $[$functions:verityFunction]*) =>
+  | `(command| verity_contract $contractName:ident where $[types $[$newtypeDecls:verityNewtype]*]? $[inductive $[$adtDecls:verityAdtDecl]*]? $[$nsSpec:verityNamespaceSpec]? storage $[$storageItems:verityStorageItem]* $[$structDecls:verityStructDecl]* $[errors $[$errorDecls:verityError]*]? $[event_defs $[$eventDecls:verityEvent]*]? $[constants $[$constantDecls:verityConstant]*]? $[immutables $[$immutableDecls:verityImmutable]*]? $[linked_externals $[$externalDecls:verityExternal]*]? $[$ctor:verityConstructor]? $[$entrypoints:veritySpecialEntrypoint]* $[$modifierDecls:verityModifier]* $[$functions:verityFunction]*) =>
       -- Parse newtypes first — they are needed by all downstream type resolution
       let parsedNewtypes ←
         match newtypeDecls with
@@ -7328,25 +7428,12 @@ def parseContractSyntax
       for adtDecl in parsedAdts do
         if builtinTypeNames.contains adtDecl.name then
           throwErrorAt adtDecl.ident s!"ADT name '{adtDecl.name}' shadows a built-in type"
-      -- Compute namespace offset (#1730, Axis 4 Steps 4b/4c): when `storage_namespace`
-      -- is present, every user-declared slot N becomes (namespaceBase + N).
-      -- With `storage_namespace "custom"`, the custom string replaces the default
-      -- "{ContractName}.storage.v0" key.
+      -- Compute the initial namespace offset (#1730, Axis 4 Steps 4b/4c).
+      -- A legacy `storage_namespace` before `storage` applies to all following
+      -- fields until overridden by an in-storage `storage_namespace` item.
       let namespaceOffset : Nat ←
         match nsSpec with
-        | some spec =>
-            -- `storage_namespace` alone → default; `storage_namespace "key"` → custom.
-            -- Match the syntax category directly so the custom string is not lost
-            -- behind parser wrapper nodes.
-            match spec with
-            | `(verityNamespaceSpec| storage_namespace $customKey:str) =>
-                match customKey.raw.isStrLit? with
-                | some key => pure (computeStorageNamespaceKey key)
-                | none => throwErrorAt customKey "expected storage namespace string literal"
-            | `(verityNamespaceSpec| storage_namespace) =>
-                pure (computeStorageNamespace (toString contractName.getId))
-            | _ =>
-                throwErrorAt spec "unsupported storage namespace syntax"
+        | some spec => namespaceOffsetFromSpec contractName spec
         | none => pure 0
       let parsedErrors ←
         match errorDecls with
@@ -7368,13 +7455,26 @@ def parseContractSyntax
         match externalDecls with
         | some decls => decls.mapM (parseExternal parsedNewtypes parsedStructs parsedAdts)
         | none => pure #[]
-      -- Apply namespace offset to parsed storage fields (#1730, Axis 4 Step 4b)
-      let parsedFields ← storageFields.mapM (parseStorageField parsedNewtypes parsedStructs parsedAdts)
-      let parsedFields := parsedFields.map fun field =>
-        { field with slotNum := field.slotNum + namespaceOffset }
-      -- Compute the Option Nat for the spec's storageNamespace field (#1730, Axis 4 Step 4d)
-      let namespaceOpt : Option Nat :=
+      -- Apply namespace offsets to parsed storage fields (#1730).  In-storage
+      -- `storage_namespace` items switch the active namespace for subsequent
+      -- fields, allowing multiple ERC-7201 roots in one contract model.
+      let mut parsedFields : Array StorageFieldDecl := #[]
+      let mut currentNamespaceOffset := namespaceOffset
+      let mut namespaceOpt : Option Nat :=
         if nsSpec.isSome then some namespaceOffset else none
+      for item in storageItems do
+        match (← namespaceOffsetFromStorageItem? contractName item) with
+        | some offset =>
+            currentNamespaceOffset := offset
+            if namespaceOpt.isNone then
+              namespaceOpt := some offset
+        | none =>
+            match (← storageFieldFromItem? item) with
+            | some fieldStx =>
+                let field ← parseStorageField parsedNewtypes parsedStructs parsedAdts fieldStx
+                parsedFields := parsedFields.push { field with slotNum := field.slotNum + currentNamespaceOffset }
+            | none =>
+                throwErrorAt item "unsupported storage item"
       pure {
         contractName := contractName
         newtypeDecls := parsedNewtypes

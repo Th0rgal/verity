@@ -6,6 +6,7 @@
 -/
 import Compiler.CompilationModel.Compile
 import Compiler.CompilationModel.ParamLoading
+import Compiler.CompilationModel.ScopeValidation
 
 namespace Compiler.CompilationModel
 
@@ -36,11 +37,23 @@ def internalFunctionYulParamNames (params : List Param) : List String :=
     match param.ty with
     | ParamType.array _ =>
         [s!"{param.name}_data_offset", s!"{param.name}_length"]
+    | ParamType.bytes | ParamType.string =>
+        [s!"{param.name}_data_offset", s!"{param.name}_length"]
+    | ParamType.fixedArray _ _ =>
+        if isDynamicParamType param.ty then
+          [s!"{param.name}_data_offset"]
+        else
+          staticParamBindingNames param.name param.ty
     | ParamType.tuple _ =>
         if isDynamicParamType param.ty then
           [s!"{param.name}_data_offset"]
         else
-          [param.name]
+          staticParamBindingNames param.name param.ty
+    | ParamType.newtypeOf _ baseTy =>
+        if isDynamicParamType param.ty then
+          [s!"{param.name}_data_offset"]
+        else
+          staticParamBindingNames param.name baseTy
     | _ => [param.name]
 
 -- Compile internal function to a Yul function definition (#181)
