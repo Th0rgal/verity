@@ -517,4 +517,87 @@ theorem compileStmtList_ecm_bridged
           · exact hHeadBridged yulStmt hHead'
           · exact hTailBridged yulStmt hTail'
 
+/-! ## Phase 3: composition machinery for mixed bodies
+
+Real contract bodies mix call-family statements with the `BridgedSafeStmts`
+fragment. `compileStmtList` splits cleanly over `++`, so a body can be
+discharged by splitting it into segments and proving each segment's output
+is `BridgedStmts` independently. The composition lemma below packages
+this split-and-recombine pattern. -/
+
+/-- Inversion: a successful `compileStmtList` over `pfx ++ sfx` factors
+into successful compilations of `pfx` and of `sfx` (with the scope
+threaded through `pfx`). -/
+theorem compileStmtList_append_ok_inv
+    {fields : List Field} {events : List EventDef} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {isInternal : Bool} {adtTypes : List AdtTypeDef} :
+    ∀ (pfx sfx : List Stmt) (inScopeNames : List String) {out : List YulStmt},
+      compileStmtList fields events errors dynamicSource internalRetNames
+        isInternal inScopeNames adtTypes (pfx ++ sfx) = .ok out →
+      ∃ pfxOut sfxOut,
+        compileStmtList fields events errors dynamicSource internalRetNames
+            isInternal inScopeNames adtTypes pfx = .ok pfxOut ∧
+        compileStmtList fields events errors dynamicSource internalRetNames
+            isInternal
+            (List.foldl (fun s stmt => collectStmtNames stmt ++ s) inScopeNames pfx)
+            adtTypes sfx = .ok sfxOut ∧
+        out = pfxOut ++ sfxOut := by
+  intro pfx
+  induction pfx with
+  | nil =>
+    intro sfx inScopeNames out hOk
+    refine ⟨[], out, ?_, ?_, ?_⟩
+    · simp [compileStmtList, Pure.pure, Except.pure]
+    · simpa using hOk
+    · simp
+  | cons s rest ih =>
+    intro sfx inScopeNames out hOk
+    simp only [List.cons_append, compileStmtList, bind, Except.bind] at hOk
+    cases hHead : compileStmt fields events errors dynamicSource
+      internalRetNames isInternal inScopeNames adtTypes s with
+    | error _ => simp [hHead] at hOk
+    | ok headOut =>
+      simp [hHead] at hOk
+      cases hRest : compileStmtList fields events errors dynamicSource
+        internalRetNames isInternal (collectStmtNames s ++ inScopeNames)
+        adtTypes (rest ++ sfx) with
+      | error _ => simp [hRest] at hOk
+      | ok restOut =>
+        simp [hRest, Pure.pure, Except.pure] at hOk
+        subst out
+        obtain ⟨pfxOut, sfxOut, hPfx, hSfx, hEq⟩ :=
+          ih sfx (collectStmtNames s ++ inScopeNames) hRest
+        refine ⟨headOut ++ pfxOut, sfxOut, ?_, ?_, ?_⟩
+        · simp only [compileStmtList, bind, Except.bind, hHead, hPfx,
+            Pure.pure, Except.pure]
+        · simpa using hSfx
+        · subst hEq; simp [List.append_assoc]
+
+/-- `BridgedStmts` composes over `compileStmtList` split: if a body
+factors into `pfx ++ sfx` and each factor compiles to a `BridgedStmts`
+output, then the whole body's output is `BridgedStmts`. -/
+theorem BridgedStmts_of_compileStmtList_append
+    {fields : List Field} {events : List EventDef} {errors : List ErrorDef}
+    {dynamicSource : DynamicDataSource} {internalRetNames : List String}
+    {isInternal : Bool} {adtTypes : List AdtTypeDef}
+    {pfx sfx : List Stmt} {inScopeNames : List String} {out : List YulStmt}
+    (hOk : compileStmtList fields events errors dynamicSource internalRetNames
+      isInternal inScopeNames adtTypes (pfx ++ sfx) = .ok out)
+    (hPfx : ∀ {pfxOut : List YulStmt},
+      compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames adtTypes pfx = .ok pfxOut →
+      BridgedStmts pfxOut)
+    (hSfx : ∀ {sfxOut : List YulStmt},
+      compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal
+          (List.foldl (fun s stmt => collectStmtNames stmt ++ s) inScopeNames pfx)
+          adtTypes sfx = .ok sfxOut →
+      BridgedStmts sfxOut) :
+    BridgedStmts out := by
+  obtain ⟨pfxOut, sfxOut, hPfxOk, hSfxOk, hEq⟩ :=
+    compileStmtList_append_ok_inv pfx sfx inScopeNames hOk
+  subst hEq
+  exact BridgedStmts_append (hPfx hPfxOk) (hSfx hSfxOk)
+
 end Compiler.Proofs.YulGeneration.Backends
