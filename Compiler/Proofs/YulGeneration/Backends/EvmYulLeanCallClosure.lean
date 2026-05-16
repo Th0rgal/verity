@@ -19,10 +19,15 @@
 -/
 
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
+import Compiler.CompilationModel.Compile
+import Compiler.CompilationModel.InternalNaming
 
 namespace Compiler.Proofs.YulGeneration.Backends
 
+open Compiler
 open Compiler.Yul
+open Compiler.CompilationModel
 
 /-- A flat helper-function table: name → bridged body. Carrying `BridgedStmts`
 in the entries means the table itself is the proof that every callable user
@@ -149,5 +154,135 @@ theorem BridgedStmts_of_userFunctionCallStmts
     cases hMem with
     | head => exact BridgedStmt.of_userFunctionCallBind hHead
     | tail _ hTail => exact ih stmt hTail
+
+/-! ## Phase 2: source-level closure for `Stmt.internalCall` / `Stmt.internalCallAssign`
+
+Given a `BridgedFunctionTable` whose keys are the compiled internal-function
+names (`internalFunctionYulName <source_name>`), a source-level
+`Stmt.internalCall` or `Stmt.internalCallAssign` with bridged argument
+expressions compiles to a `BridgedUserFunctionCall{Expr,Bind}` Yul shape.
+-/
+
+/-- A source `Stmt.internalCall` or `Stmt.internalCallAssign` whose arguments
+are bridged at the source level AND whose callee resolves in the function
+table under its compiled Yul name. -/
+inductive BridgedSourceInternalCallStmt
+    (table : BridgedFunctionTable) : Stmt → Prop
+  | call (funcName : String) (args : List Expr)
+      (hArgs : ∀ a ∈ args, BridgedSourceExpr a)
+      (hFn : (BridgedFunctionTable.lookup table
+        (internalFunctionYulName funcName)).isSome) :
+      BridgedSourceInternalCallStmt table (.internalCall funcName args)
+  | callAssign (names : List String) (funcName : String) (args : List Expr)
+      (hArgs : ∀ a ∈ args, BridgedSourceExpr a)
+      (hFn : (BridgedFunctionTable.lookup table
+        (internalFunctionYulName funcName)).isSome) :
+      BridgedSourceInternalCallStmt table
+        (.internalCallAssign names funcName args)
+
+/-- Phase 2.1: compiling a source `Stmt.internalCall` with bridged arguments
+and a callee that resolves in `table` yields a `BridgedStmts` output. -/
+theorem compileStmt_internalCall_bridged
+    {table : BridgedFunctionTable}
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (inScopeNames : List String) (adtTypes : List AdtTypeDef)
+    {stmt : Stmt} (hStmt : BridgedSourceInternalCallStmt table stmt)
+    {out : List YulStmt}
+    (hOk : compileStmt fields events errors dynamicSource internalRetNames
+      isInternal inScopeNames adtTypes stmt = .ok out) :
+    BridgedStmts out := by
+  cases hStmt with
+  | call funcName args hArgs hFn =>
+    simp only [compileStmt, bind, Except.bind] at hOk
+    cases hExprs : compileExprList fields dynamicSource args with
+    | error _ => simp [hExprs] at hOk
+    | ok argExprs =>
+      simp [hExprs, Pure.pure, Except.pure] at hOk
+      subst out
+      have hArgsBridged : ∀ y ∈ argExprs, BridgedExpr y :=
+        compileExprList_bridgedSource fields dynamicSource hArgs hExprs
+      intro yulStmt hMem
+      simp only [List.mem_singleton] at hMem
+      subst yulStmt
+      exact BridgedStmt.of_userFunctionCallExpr
+        (BridgedUserFunctionCallExpr.mk (internalFunctionYulName funcName)
+          argExprs
+          (BridgedUserFunctionCall.call (internalFunctionYulName funcName)
+            argExprs hArgsBridged hFn))
+  | callAssign names funcName args hArgs hFn =>
+    simp only [compileStmt, bind, Except.bind] at hOk
+    cases hExprs : compileExprList fields dynamicSource args with
+    | error _ => simp [hExprs] at hOk
+    | ok argExprs =>
+      simp [hExprs, Pure.pure, Except.pure] at hOk
+      subst out
+      have hArgsBridged : ∀ y ∈ argExprs, BridgedExpr y :=
+        compileExprList_bridgedSource fields dynamicSource hArgs hExprs
+      intro yulStmt hMem
+      simp only [List.mem_singleton] at hMem
+      subst yulStmt
+      exact BridgedStmt.of_userFunctionCallBind
+        (BridgedUserFunctionCallBind.mk names (internalFunctionYulName funcName)
+          argExprs
+          (BridgedUserFunctionCall.call (internalFunctionYulName funcName)
+            argExprs hArgsBridged hFn))
+
+/-- A list of source statements, each in `BridgedSourceInternalCallStmt`. -/
+inductive BridgedSourceInternalCallStmts
+    (table : BridgedFunctionTable) : List Stmt → Prop
+  | nil : BridgedSourceInternalCallStmts table []
+  | cons {stmt : Stmt} {rest : List Stmt}
+      (hHead : BridgedSourceInternalCallStmt table stmt)
+      (hRest : BridgedSourceInternalCallStmts table rest) :
+      BridgedSourceInternalCallStmts table (stmt :: rest)
+
+/-- List-level closure: `compileStmtList` over a list of internal-call source
+statements (with table-resolving callees) yields a `BridgedStmts` output. -/
+theorem compileStmtList_internalCall_bridged
+    {table : BridgedFunctionTable}
+    (fields : List Field) (events : List EventDef) (errors : List ErrorDef)
+    (dynamicSource : DynamicDataSource) (internalRetNames : List String)
+    (isInternal : Bool) (adtTypes : List AdtTypeDef) :
+    ∀ (stmts : List Stmt) (inScopeNames : List String),
+      BridgedSourceInternalCallStmts table stmts →
+      ∀ {out : List YulStmt},
+        compileStmtList fields events errors dynamicSource internalRetNames
+          isInternal inScopeNames adtTypes stmts = .ok out →
+        BridgedStmts out := by
+  intro stmts
+  induction stmts with
+  | nil =>
+    intro _ _ _ hOk
+    simp [compileStmtList, Pure.pure, Except.pure] at hOk
+    subst hOk
+    intro _ hMem
+    cases hMem
+  | cons s ss ih =>
+    intro inScopeNames hStmts out hOk
+    cases hStmts with
+    | cons hHead hRest =>
+      simp only [compileStmtList, bind, Except.bind] at hOk
+      cases hHeadOk : compileStmt fields events errors dynamicSource
+        internalRetNames isInternal inScopeNames adtTypes s with
+      | error _ => simp [hHeadOk] at hOk
+      | ok headOut =>
+        simp [hHeadOk] at hOk
+        cases hTailOk : compileStmtList fields events errors dynamicSource
+          internalRetNames isInternal (collectStmtNames s ++ inScopeNames)
+          adtTypes ss with
+        | error _ => simp [hTailOk] at hOk
+        | ok tailOut =>
+          simp [hTailOk, Pure.pure, Except.pure] at hOk
+          subst out
+          have hHeadBridged : BridgedStmts headOut :=
+            compileStmt_internalCall_bridged fields events errors dynamicSource
+              internalRetNames isInternal inScopeNames adtTypes hHead hHeadOk
+          have hTailBridged : BridgedStmts tailOut :=
+            ih _ hRest hTailOk
+          intro yulStmt hMem
+          rcases List.mem_append.mp hMem with hHead' | hTail'
+          · exact hHeadBridged yulStmt hHead'
+          · exact hTailBridged yulStmt hTail'
 
 end Compiler.Proofs.YulGeneration.Backends
