@@ -77,7 +77,7 @@ example : expr1 = expr2 := rfl  -- Definitional equality
 **Cause**: Definition not unfolded, or no simp lemmas apply.
 
 **Solution 1**: Unfold before simping
-```lean
+```verity
 -- ❌ DOESN'T WORK
 theorem getValue_correct : ... := by
   simp [getStorage]  -- Error: simp made no progress
@@ -228,7 +228,7 @@ exact my_proof
 ### SafeAdd/SafeSub Failures
 
 **Pattern 1**: Proving safeAdd returns Some
-```lean
+```verity
 -- Goal: safeAdd a b = some c
 theorem safeAdd_proof (h : a.val + b.val ≤ MAX_UINT256) :
     safeAdd a b = some ⟨a.val + b.val, by omega⟩ := by
@@ -249,7 +249,7 @@ theorem increment_no_overflow (h : count.val < MAX_UINT256) :
 ```
 
 **Pattern 3**: Bounded arithmetic
-```lean
+```verity
 -- Prove result stays in bounds
 theorem bounded_add (h1 : a.val ≤ bound) (h2 : b.val ≤ bound) :
     (safeAdd a b).isSome → (safeAdd a b).get!.val ≤ 2 * bound := by
@@ -307,7 +307,7 @@ Avoid `Contract.runState` and `Contract.runValue` in new proofs — use `((op).r
 **Problem**: Prove two storage functions are equal.
 
 **Pattern**: Use `ext` tactic
-```lean
+```verity
 -- Goal: state1.storage = state2.storage
 theorem storage_equal : state1.storage = state2.storage := by
   ext slot  -- For all slots
@@ -319,7 +319,7 @@ theorem storage_equal : state1.storage = state2.storage := by
 ### Storage Unchanged Except
 
 **Pattern**: Common in contract proofs
-```lean
+```verity
 -- Goal: Only slot k changed
 theorem only_slot_k_changed :
     ∀ slot, slot ≠ k → state'.storage slot = state.storage slot := by
@@ -346,7 +346,7 @@ theorem increment_twice_adds_two (s : ContractState) :
 ```
 
 For low-level multi-update proofs, unfold bind directly:
-```lean
+```verity
 theorem two_updates (s : ContractState) :
   let s' := ((do setStorage slot1 val1; setStorage slot2 val2).run s).snd
   s'.storage slot2.slot = val2 := by
@@ -437,7 +437,7 @@ theorem retrieve_meets_spec (s : ContractState) :
 ```
 
 **Alternative when simp can't unfold**:
-```lean
+```verity
 -- ✅ OK: unfold first, then simp
 theorem good_order : getValue state = value := by
   unfold getValue     -- Expose the definition
@@ -591,7 +591,7 @@ theorem retrieve_meets_spec (s : ContractState) :
 
 **Goal**: Prove `increment` updates count and preserves everything else.
 
-```lean
+```verity
 -- The spec is a conjunction: correct value ∧ other slots preserved ∧ context preserved
 theorem increment_meets_spec (s : ContractState) :
   let s' := ((increment).run s).snd
@@ -616,7 +616,7 @@ theorem increment_meets_spec (s : ContractState) :
 
 **Goal**: Prove ownership transfer works when the caller is the current owner.
 
-```lean
+```verity
 theorem transferOwnership_meets_spec_when_owner (s : ContractState) (newOwner : Address)
   (h_is_owner : s.sender = s.storageAddr 0) :
   let s' := ((transferOwnership newOwner).run s).snd

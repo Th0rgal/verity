@@ -34,7 +34,7 @@ Example (SimpleStorage):
 
 Single storage slot with get/set.
 
-```lean
+```verity
 def storedData : StorageSlot Uint256 := ⟨0⟩
 
 def store (value : Uint256) : Contract Unit := do
@@ -50,7 +50,7 @@ Proofs cover store/retrieve roundtrip and state isolation.
 
 Read-modify-write with increment and decrement.
 
-```lean
+```verity
 def count : StorageSlot Uint256 := ⟨0⟩
 
 def increment : Contract Unit := do
@@ -68,7 +68,7 @@ Proofs cover arithmetic, composition (two increments add 2), and decrement-at-ze
 
 Same as Counter but uses checked arithmetic from `Stdlib/Math`.
 
-```lean
+```verity
 def increment : Contract Unit := do
   let current ← getStorage count
   let newCount ← requireSomeUint (safeAdd current 1) "Overflow"
@@ -81,7 +81,7 @@ Proofs cover overflow/underflow revert and bounds preservation.
 
 Access control with an owner address and a `require` guard.
 
-```lean
+```verity
 def owner : StorageSlot Address := ⟨0⟩
 
 def isOwner : Contract Bool := do
@@ -100,7 +100,7 @@ Proofs cover access control enforcement and ownership transfer.
 
 Composes Owned and Counter. Increment/decrement require ownership.
 
-```lean
+```verity
 def owner : StorageSlot Address := ⟨0⟩
 def count : StorageSlot Uint256 := ⟨1⟩
 
@@ -116,7 +116,7 @@ Proofs cover cross-pattern composition, ownership transfer locking out old owner
 
 Mapping storage for per-address balances with deposit, withdraw, and transfer.
 
-```lean
+```verity
 def balances : StorageSlot (Address → Uint256) := ⟨0⟩
 
 def deposit (amount : Uint256) : Contract Unit := do
@@ -143,7 +143,7 @@ Proofs cover balance guards, deposit/withdraw/transfer sum equations, and deposi
 
 Composes Owned and Ledger. Adds owner-controlled minting and supply tracking.
 
-```lean
+```verity
 def owner : StorageSlot Address := ⟨0⟩
 def balances : StorageSlot (Address → Uint256) := ⟨1⟩
 def totalSupply : StorageSlot Uint256 := ⟨2⟩
@@ -202,7 +202,7 @@ Proofs cover: existential attack witness (vulnerability is provably exploitable)
 
 Unverified example demonstrating external library linking via the [Linker](/compiler#linker). Has no specs or proofs; it exists to show how external Yul helper functions integrate with compiled output. See the [Linking Libraries](/guides/linking-libraries) guide for a walkthrough.
 
-```lean
+```verity
 -- Placeholder hash for proofs (replaced with real Poseidon at compile time)
 def hashTwo (a b : Uint256) : Contract Uint256 := do
   return add a b

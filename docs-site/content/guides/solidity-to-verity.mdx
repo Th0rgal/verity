@@ -51,7 +51,7 @@ modifier onlyOwner() {
 
 Verity pattern:
 
-```lean
+```verity
 verity_contract OwnedExample where
   storage
     owner : Address := slot 0
@@ -72,7 +72,7 @@ Call helpers directly by name. `internalCall` and `internalCallAssign` are the l
 
 Partial support exists today via low-level `tryCatch` sugar in `verity_contract`:
 
-```lean
+```verity
 tryCatch (call gas target value inOffset inSize outOffset outSize) (do
   setStorage lastFailure 1)
 ```
@@ -123,14 +123,14 @@ function transfer(address to, uint256 amount) external returns (bool) {
 
 ### Step A: Define slots
 
-```lean
+```verity
 def balances : StorageSlot (Address → Uint256) := ⟨0⟩
 def totalSupply : StorageSlot Uint256 := ⟨1⟩
 ```
 
 ### Step B: Translate the function body
 
-```lean
+```verity
 def transfer (to : Address) (amount : Uint256) : Contract Bool := do
   let sender <- msgSender
   let current <- getStorage balances

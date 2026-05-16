@@ -17,12 +17,12 @@ echo 'function myHash(a, b) -> result { result := add(xor(a, b), 0x42) }' > exam
 ```
 
 **Step 2** — Use a placeholder in your Lean EDSL (for proofs):
-```lean
+```verity
 def myHash (a b : Uint256) : Contract Uint256 := return add a b
 ```
 
 **Step 3** — Declare the external function and reference it in your CompilationModel:
-```lean
+```verity
 -- In your CompilationModel definition:
 externals := [
   { name := "myHash"
@@ -68,7 +68,7 @@ function myHash(a, b) -> result {
 
 In your EDSL contract, define a placeholder that models the same interface:
 
-```lean
+```verity
 -- Placeholder for proofs: models the hash as addition
 -- At compile time, replaced by the real myHash from MyHash.yul
 def myHash (a b : Uint256) : Contract Uint256 := do
@@ -79,7 +79,7 @@ def myHash (a b : Uint256) : Contract Uint256 := do
 
 In `Compiler/Specs.lean`, first declare the external function in the `externals` field of your CompilationModel, then use `Expr.externalCall` in the function body:
 
-```lean
+```verity
 def myCompilationModel : CompilationModel := {
   name := "MyContract"
   fields := [...]
@@ -136,7 +136,7 @@ This means you forgot to pass `--link examples/external-libs/MyHash.yul`.
 Verity includes a working example in [`Verity/Examples/CryptoHash.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Examples/CryptoHash.lean) with libraries in [`examples/external-libs/`](https://github.com/Th0rgal/verity/tree/main/examples/external-libs).
 
 **EDSL placeholder** (`Verity/Examples/CryptoHash.lean`):
-```lean
+```verity
 -- Placeholder: just adds the inputs (for proving logic)
 def hashTwo (a b : Uint256) : Contract Uint256 := do
   return add a b

@@ -1,0 +1,41 @@
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] {
+  background:
+    linear-gradient(90deg, rgba(123, 63, 50, 0.06), transparent 22rem),
+    #fffaf1 !important;
+  border: 1px solid #eadcca;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset;
+}
+
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code {
+  line-height: 1.62;
+}
+
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span {
+  position: relative;
+}
+
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 1.35rem;
+  border-left: 1px solid rgba(139, 118, 99, 0.13);
+  pointer-events: none;
+}
+
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#7b3f32" i]:first-child),
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#875c24" i]) {
+  background: linear-gradient(90deg, rgba(234, 220, 202, 0.7), rgba(234, 220, 202, 0));
+}
+
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#a34537" i]) {
+  background: linear-gradient(90deg, rgba(163, 69, 55, 0.08), rgba(163, 69, 55, 0));
+}
+
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#285f91" i]) {
+  background: linear-gradient(90deg, rgba(40, 95, 145, 0.07), rgba(40, 95, 145, 0));
+}
+
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#3f7456" i]) {
+  background: linear-gradient(90deg, rgba(63, 116, 86, 0.08), rgba(63, 116, 86, 0));
+}

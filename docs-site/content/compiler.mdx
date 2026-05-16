@@ -55,7 +55,7 @@ Roadmap, milestones, and progress updates live in `docs-site/content/research.md
 ## Example: SimpleStorage
 
 ### EDSL Implementation
-```lean
+```verity
 -- Verity/Examples/SimpleStorage.lean
 def storedData : StorageSlot Uint256 := ⟨0⟩
 
@@ -67,7 +67,7 @@ def retrieve : Contract Uint256 := do
 ```
 
 ### Declarative Specification
-```lean
+```verity
 -- Compiler/Specs.lean
 def simpleStorageSpec : CompilationModel := {
   name := "SimpleStorage"
@@ -217,7 +217,7 @@ forge create SimpleStorage --from 0x... --private-key ...
 ## Features
 
 ### Automatic Storage Slot Inference ✅
-```lean
+```verity
 fields := [
   { name := "owner", ty := FieldType.address },     -- slot 0
   { name := "balances", ty := FieldType.mappingTyped (.simple .address) },  -- slot 1
@@ -228,7 +228,7 @@ fields := [
 No manual slot management needed. Compiler assigns slots based on field order.
 
 ### Constructor Parameters ✅
-```lean
+```verity
 constructor := some {
   params := [{ name := "initialOwner", ty := ParamType.address }]
   body := [
@@ -363,7 +363,7 @@ Members can carry packed bit metadata, so common `uint128`-style packed subfield
 | `internalCall "f" args` | Call internal function (statement) | `internal_f(args...)` |
 
 **Example**, combining multiple features:
-```lean
+```verity
 -- Balance check with require
 Stmt.require (Expr.ge (Expr.mapping "balances" Expr.caller) (Expr.param "amount")) "Insufficient",
 Stmt.setMapping "balances" Expr.caller
@@ -371,14 +371,14 @@ Stmt.setMapping "balances" Expr.caller
 Stmt.stop
 ```
 
-```lean
+```verity
 -- If/else branching
 Stmt.ite (Expr.eq Expr.caller (Expr.storage "owner"))
   [Stmt.setStorage "paused" (Expr.literal 1), Stmt.stop]
   [Stmt.stop]  -- non-owner: no-op
 ```
 
-```lean
+```verity
 -- Bounded loop over array
 Stmt.forEach "i" (Expr.arrayLength "recipients")
   [Stmt.setMapping "balances" (Expr.arrayElement "recipients" (Expr.localVar "i"))
@@ -441,7 +441,7 @@ lake exe verity-compiler-patched --backend-profile solidity-parity
 
 Conditional logic for contract functions:
 
-```lean
+```verity
 -- Simple if (no else)
 Stmt.ite (Expr.eq Expr.caller (Expr.storage "owner"))
   [Stmt.setStorage "paused" (Expr.literal 1)]
@@ -468,7 +468,7 @@ Compiles to a block-scoped condition variable to avoid re-evaluation after state
 
 Iterate over array parameters or fixed counts:
 
-```lean
+```verity
 -- Iterate over a dynamic array
 Stmt.forEach "i" (Expr.arrayLength "recipients")
   [Stmt.setMapping "balances"
@@ -500,7 +500,7 @@ let (lhs, rhs) ← helperPair arg
 
 Those source forms lower to `Stmt.internalCall`, `Stmt.internalCallAssign`, or `Expr.internalCall` in the compilation model.
 
-```lean
+```verity
 def mySpec : CompilationModel := {
   name := "MyContract"
   fields := [{ name := "balances", ty := FieldType.mappingTyped (.simple .address) }]
@@ -531,7 +531,7 @@ def mySpec : CompilationModel := {
 ```
 
 Internal functions that return values use `__ret` assignment instead of EVM `RETURN`:
-```lean
+```verity
 -- Internal function returning a value
 { name := "getBalance"
   params := [{ name := "addr", ty := ParamType.address }]
@@ -548,7 +548,7 @@ Stmt.letVar "bal" (Expr.internalCall "getBalance" [Expr.caller])
 
 Emit EVM events for standards compliance (ERC20 Transfer/Approval, etc.):
 
-```lean
+```verity
 def tokenSpec : CompilationModel := {
   name := "Token"
   fields := [{ name := "balances", ty := FieldType.mappingTyped (.simple .address) }]
@@ -582,7 +582,7 @@ Event topic0 is computed from the event signature (e.g., `keccak256("Transfer(ad
 
 For ERC20 allowances and similar patterns requiring `mapping(address => mapping(address => uint256))`:
 
-```lean
+```verity
 fields := [
   { name := "allowances", ty := FieldType.mappingTyped (MappingType.nested .address .address) }
 ]
@@ -600,7 +600,7 @@ Storage layout: `keccak256(spender . keccak256(owner . slot))`; matches Solidity
 
 For mappings keyed by numeric values instead of addresses:
 
-```lean
+```verity
 fields := [
   { name := "data", ty := FieldType.mappingTyped (MappingType.simple .uint256) }
 ]
@@ -616,7 +616,7 @@ Stmt.setMappingUint "data" (Expr.param "tokenId") (Expr.param "value")
 
 Dynamic arrays, fixed arrays, and bytes parameters for batch operations:
 
-```lean
+```verity
 -- Dynamic array parameter
 { name := "recipients", ty := ParamType.array ParamType.address }
 
@@ -660,7 +660,7 @@ FOUNDRY_PROFILE=difftest forge test
 ### Add New Contract
 
 1. **Add a macro contract declaration** in `Contracts/<Name>/<Name>.lean`:
-```lean
+```verity
 verity_contract MyContract where
   storage
     value : Uint256 := slot 0
@@ -765,7 +765,7 @@ private def ownedContract : IRContract :=
 ```
 
 **After** (declarative spec):
-```lean
+```verity
 def ownedSpec : CompilationModel := {
   name := "Owned"
   fields := [

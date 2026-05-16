@@ -41,7 +41,7 @@ This project uses Lean to:
 Each contract has three files:
 
 **1. Specification** (`Contracts/SimpleToken/Spec.lean`)
-```lean
+```verity
 -- What should mint do?
 def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
   s'.storageMap 1 to = add (s.storageMap 1 to) amount ∧  -- balance increases
@@ -51,7 +51,7 @@ def mint_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
 ```
 
 **2. Implementation** (`Contracts/SimpleToken/SimpleToken.lean`)
-```lean
+```verity
 -- How to implement mint (with overflow protection)
 def mint (to : Address) (amount : Uint256) : Contract Unit := do
   onlyOwner
@@ -64,7 +64,7 @@ def mint (to : Address) (amount : Uint256) : Contract Unit := do
 ```
 
 **3. Proof** (`Contracts/SimpleToken/Proofs/Basic.lean`)
-```lean
+```verity
 -- Proof that implementation satisfies specification
 theorem mint_meets_spec (s : ContractState) (to : Address) (amount : Uint256)
   (h_owner : s.sender = s.storageAddr 0) :
