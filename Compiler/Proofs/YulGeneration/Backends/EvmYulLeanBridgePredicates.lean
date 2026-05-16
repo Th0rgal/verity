@@ -194,6 +194,21 @@ inductive BridgedStmt : Compiler.Yul.YulStmt → Prop
       (hPost : ∀ stmt ∈ post, BridgedStmt stmt)
       (hBody : ∀ stmt ∈ body, BridgedStmt stmt) :
       BridgedStmt (.for_ init cond post body)
+  /-- User-function call as a statement (no return-value binding). The callee
+  must resolve in the helper-function table to a body that is itself bridged.
+  Carries the callee body explicitly so the witness is self-contained. -/
+  | userCallExpr (funcName : String) (args : List Compiler.Yul.YulExpr)
+      (calleeBody : List Compiler.Yul.YulStmt)
+      (hArgs : ∀ arg ∈ args, BridgedExpr arg)
+      (hCallee : ∀ stmt ∈ calleeBody, BridgedStmt stmt) :
+      BridgedStmt (.expr (.call funcName args))
+  /-- User-function call with `letMany` binding of return values. Mirrors
+  `userCallExpr` for the multi-value-bind shape. -/
+  | userCallBind (resultVars : List String) (funcName : String)
+      (args : List Compiler.Yul.YulExpr) (calleeBody : List Compiler.Yul.YulStmt)
+      (hArgs : ∀ arg ∈ args, BridgedExpr arg)
+      (hCallee : ∀ stmt ∈ calleeBody, BridgedStmt stmt) :
+      BridgedStmt (.letMany resultVars (.call funcName args))
 
 def BridgedStmts (stmts : List Compiler.Yul.YulStmt) : Prop :=
   ∀ stmt ∈ stmts, BridgedStmt stmt

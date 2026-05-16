@@ -98,4 +98,56 @@ theorem BridgedFunctionTable.bodies_bridged
     BridgedStmts witness.val :=
   witness.property
 
+/-- Bridge: `BridgedUserFunctionCallExpr table stmt` implies `BridgedStmt stmt`
+by extracting the callee witness from the table and applying
+`BridgedStmt.userCallExpr`. -/
+theorem BridgedStmt.of_userFunctionCallExpr
+    {table : BridgedFunctionTable} {stmt : YulStmt}
+    (h : BridgedUserFunctionCallExpr table stmt) :
+    BridgedStmt stmt := by
+  cases h with
+  | mk funcName args hCall =>
+    cases hCall with
+    | call _ _ hArgs hFn =>
+      match hLookup : table.lookup funcName with
+      | none => simp [hLookup] at hFn
+      | some witness =>
+        exact BridgedStmt.userCallExpr funcName args witness.val hArgs
+          witness.property
+
+/-- Bridge for the `letMany` variant. -/
+theorem BridgedStmt.of_userFunctionCallBind
+    {table : BridgedFunctionTable} {stmt : YulStmt}
+    (h : BridgedUserFunctionCallBind table stmt) :
+    BridgedStmt stmt := by
+  cases h with
+  | mk names funcName args hCall =>
+    cases hCall with
+    | call _ _ hArgs hFn =>
+      match hLookup : table.lookup funcName with
+      | none => simp [hLookup] at hFn
+      | some witness =>
+        exact BridgedStmt.userCallBind names funcName args witness.val hArgs
+          witness.property
+
+/-- A list of `BridgedUserFunctionCall{Expr,Bind}` statements is bridged. -/
+theorem BridgedStmts_of_userFunctionCallStmts
+    {table : BridgedFunctionTable} {stmts : List YulStmt}
+    (h : BridgedUserFunctionCallStmts table stmts) :
+    BridgedStmts stmts := by
+  induction h with
+  | nil =>
+    intro stmt hMem
+    cases hMem
+  | consExpr hHead _ ih =>
+    intro stmt hMem
+    cases hMem with
+    | head => exact BridgedStmt.of_userFunctionCallExpr hHead
+    | tail _ hTail => exact ih stmt hTail
+  | consBind hHead _ ih =>
+    intro stmt hMem
+    cases hMem with
+    | head => exact BridgedStmt.of_userFunctionCallBind hHead
+    | tail _ hTail => exact ih stmt hTail
+
 end Compiler.Proofs.YulGeneration.Backends
