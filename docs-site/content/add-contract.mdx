@@ -8,6 +8,8 @@ title: Add a Contract
 
 This is the shortest reliable path to add a new contract end-to-end, anchored to SimpleStorage. It assumes familiarity with the Verity EDSL and proof patterns.
 
+Porting from Solidity? Start with [Solidity to Verity Translation](/guides/solidity-to-verity). For production contracts with inheritance, modifiers, precompiles, linked externals, or protocol-specific cryptography, use [Production Solidity Patterns](/guides/production-solidity-patterns) before introducing new helpers.
+
 ## Quick Start: Scaffold Generator
 
 Use the scaffold generator to create all boilerplate files at once:
@@ -123,5 +125,7 @@ python3 scripts/check_lean_hygiene.py
 ## See also
 
 - [Adding Your First Contract](/guides/first-contract), step-by-step tutorial with TipJar
+- [Solidity to Verity Translation](/guides/solidity-to-verity), direct mappings and translation workflow
+- [Production Solidity Patterns](/guides/production-solidity-patterns), reusable surfaces and oracle/spec-boundary guidance
 - [Linking External Libraries](/guides/linking-libraries), if your contract uses Yul library functions
 - [Proof Debugging Handbook](/guides/debugging-proofs), when proofs get stuck

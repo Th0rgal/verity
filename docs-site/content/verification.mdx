@@ -45,7 +45,7 @@ Verity/Proofs/Stdlib/     # Reusable proof infrastructure (Math, Automation, etc
 
 The `ContractResult` type models Solidity's `require` explicitly:
 
-```lean
+```verity
 inductive ContractResult (α : Type) where
   | success : α → ContractState → ContractResult α
   | revert : String → ContractState → ContractResult α

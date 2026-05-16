@@ -56,7 +56,7 @@ Two approaches coexist for overflow safety:
 ## Proof Techniques
 
 **Full unfolding** is the main approach:
-```lean
+```verity
 simp only [operation, onlyOwner, isOwner, owner,
   msgSender, getStorageAddr, setStorage,
   Verity.bind, Bind.bind, Pure.pure,

@@ -68,7 +68,7 @@ Before reading files, keep this map:
 3. `Compiler/Specs.lean`: `CompilationModel` compiler models that generate IR/Yul.
 
 **1. Open an example contract** — [`Verity/Examples/SimpleStorage.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Examples/SimpleStorage.lean):
-```lean
+```verity
 -- A contract with a single uint256 storage slot
 def store (value : Uint256) : Contract Unit := setStorage storedData value
 def retrieve : Contract Uint256 := getStorage storedData

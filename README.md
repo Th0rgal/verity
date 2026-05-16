@@ -89,6 +89,8 @@ Verity is complementary to these tools. It is for cases where you need mathemati
 | Resource | Description |
 |----------|-------------|
 | [veritylang.com](https://veritylang.com/) | Full documentation site |
+| [Solidity to Verity](https://veritylang.com/guides/solidity-to-verity) | Practical syntax and semantic mappings for Solidity ports |
+| [Production Solidity Patterns](https://veritylang.com/guides/production-solidity-patterns) | Agent guidance for production ports, reusable Verity features, and oracle/spec boundaries |
 | [docs/VERIFICATION_STATUS.md](docs/VERIFICATION_STATUS.md) | Theorem counts, proof status, test coverage |
 | [TRUST_ASSUMPTIONS.md](TRUST_ASSUMPTIONS.md) | What is verified vs. what is trusted |
 | [AXIOMS.md](AXIOMS.md) | Documented axioms (currently 0) |

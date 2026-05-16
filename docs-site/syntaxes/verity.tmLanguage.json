@@ -1,0 +1,519 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Verity",
+  "scopeName": "source.verity",
+  "fileTypes": [
+    "verity"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#errors-and-events"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#contract"
+    },
+    {
+      "include": "#sections"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#modifiers"
+    },
+    {
+      "include": "#declarations"
+    },
+    {
+      "include": "#edsl"
+    },
+    {
+      "include": "#abi"
+    },
+    {
+      "include": "#field-access"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#storage-slots"
+    },
+    {
+      "include": "#addresses"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "source.lean"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.documentation.verity",
+          "begin": "/--",
+          "end": "-/"
+        },
+        {
+          "name": "comment.block.verity",
+          "begin": "/-",
+          "end": "-/"
+        },
+        {
+          "name": "comment.line.double-dash.verity",
+          "match": "--.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.verity",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.verity",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "contract": {
+      "patterns": [
+        {
+          "name": "meta.contract.verity",
+          "match": "\\b(verity_contract)\\s+([A-Z][A-Za-z0-9_']*)\\s+(where)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.contract.verity"
+            },
+            "2": {
+              "name": "entity.name.type.contract.verity"
+            },
+            "3": {
+              "name": "keyword.control.where.verity"
+            }
+          }
+        },
+        {
+          "name": "meta.contract.check.verity",
+          "match": "(#check_contract)\\s+([A-Z][A-Za-z0-9_']*)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.other.directive.verity"
+            },
+            "2": {
+              "name": "entity.name.type.contract.verity"
+            }
+          }
+        }
+      ]
+    },
+    "sections": {
+      "patterns": [
+        {
+          "name": "keyword.other.section.verity",
+          "match": "^\\s*\\b(storage|types|inductive|errors|event_defs|constants|immutables|linked_externals)\\b"
+        },
+        {
+          "name": "meta.block.linked-externals.verity",
+          "begin": "^\\s*(linked_externals)\\b",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.other.section.linked-externals.verity"
+            }
+          },
+          "end": "^(?=\\s*(?:storage|types|inductive|errors|event_defs|constants|immutables|function|constructor|receive|fallback|modifier|local_obligations)\\b)",
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "include": "#strings"
+            },
+            {
+              "name": "meta.external.typed.verity",
+              "match": "\\b(external)\\s+([a-zA-Z_][A-Za-z0-9_']*)\\s*(\\()",
+              "captures": {
+                "1": {
+                  "name": "keyword.declaration.external.verity"
+                },
+                "2": {
+                  "name": "entity.name.function.external.verity"
+                },
+                "3": {
+                  "name": "punctuation.definition.parameters.begin.verity"
+                }
+              }
+            },
+            {
+              "include": "#types"
+            },
+            {
+              "include": "#operators"
+            },
+            {
+              "include": "#numbers"
+            }
+          ]
+        },
+        {
+          "name": "meta.storage-field.verity",
+          "match": "^\\s*([a-zA-Z_][A-Za-z0-9_']*)\\s*(:)\\s*([^:=]+?)\\s*(:=)\\s*(slot)\\s+(0x[0-9A-Fa-f]+|[0-9]+)",
+          "captures": {
+            "1": {
+              "name": "variable.other.storage.verity"
+            },
+            "2": {
+              "name": "punctuation.separator.type.verity"
+            },
+            "3": {
+              "name": "storage.type.verity"
+            },
+            "4": {
+              "name": "keyword.operator.assignment.verity"
+            },
+            "5": {
+              "name": "keyword.other.slot.verity"
+            },
+            "6": {
+              "name": "constant.numeric.storage-slot.verity"
+            }
+          }
+        },
+        {
+          "name": "meta.constant.verity",
+          "match": "^\\s*([a-zA-Z_][A-Za-z0-9_']*)\\s*(:)\\s*([A-Z][A-Za-z0-9_']*)\\s*(:=)",
+          "captures": {
+            "1": {
+              "name": "constant.other.contract.verity"
+            },
+            "2": {
+              "name": "punctuation.separator.type.verity"
+            },
+            "3": {
+              "name": "storage.type.verity"
+            },
+            "4": {
+              "name": "keyword.operator.assignment.verity"
+            }
+          }
+        },
+        {
+          "name": "meta.external.verity",
+          "match": "^\\s*(external)\\s+([a-zA-Z_][A-Za-z0-9_']*)\\s*(\\()",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.external.verity"
+            },
+            "2": {
+              "name": "entity.name.function.external.verity"
+            },
+            "3": {
+              "name": "punctuation.definition.parameters.begin.verity"
+            }
+          }
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "meta.function.header.verity",
+          "begin": "^\\s*(function)\\b",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.declaration.function.verity"
+            }
+          },
+          "end": "(:=)\\s*(do)\\b",
+          "endCaptures": {
+            "1": {
+              "name": "keyword.operator.assignment.verity"
+            },
+            "2": {
+              "name": "keyword.control.do.verity"
+            }
+          },
+          "patterns": [
+            {
+              "name": "storage.modifier.reentrancy.verity",
+              "match": "\\bnonreentrant\\s*\\([^)]*\\)"
+            },
+            {
+              "name": "storage.modifier.verity",
+              "match": "\\b(payable|view|no_external_calls|allow_post_interaction_writes|cei_safe|initializer|reinitializer)\\b"
+            },
+            {
+              "name": "meta.modifier.clause.verity",
+              "match": "\\b(with)\\s+([a-zA-Z_][A-Za-z0-9_']*)",
+              "captures": {
+                "1": {
+                  "name": "keyword.control.modifier-clause.verity"
+                },
+                "2": {
+                  "name": "entity.name.function.modifier.verity"
+                }
+              }
+            },
+            {
+              "name": "entity.name.function.verity",
+              "match": "\\b[a-zA-Z_][A-Za-z0-9_']*(?=\\s*(?:\\(|:|with|$))"
+            },
+            {
+              "include": "#types"
+            },
+            {
+              "include": "#operators"
+            },
+            {
+              "name": "punctuation.definition.parameters.begin.verity",
+              "match": "\\("
+            },
+            {
+              "name": "punctuation.definition.parameters.end.verity",
+              "match": "\\)"
+            }
+          ]
+        },
+        {
+          "name": "meta.constructor.verity",
+          "match": "^\\s*(constructor|receive|fallback)\\b\\s*([a-zA-Z_][A-Za-z0-9_']*)?",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.function.verity"
+            },
+            "2": {
+              "name": "entity.name.function.verity"
+            }
+          }
+        },
+        {
+          "name": "meta.local-obligation.verity",
+          "match": "\\b(local_obligations|assumed)\\b|\\b([A-Za-z_][A-Za-z0-9_']*)\\s*(:=)\\s*(assumed)",
+          "captures": {
+            "1": {
+              "name": "keyword.other.obligation.verity"
+            },
+            "2": {
+              "name": "entity.name.tag.obligation.verity"
+            },
+            "3": {
+              "name": "keyword.operator.assignment.verity"
+            },
+            "4": {
+              "name": "keyword.other.obligation.verity"
+            }
+          }
+        }
+      ]
+    },
+    "modifiers": {
+      "patterns": [
+        {
+          "name": "meta.modifier.declaration.verity",
+          "begin": "^\\s*(modifier)\\s+([a-zA-Z_][A-Za-z0-9_']*)\\b",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.declaration.modifier.verity"
+            },
+            "2": {
+              "name": "entity.name.function.modifier.verity"
+            }
+          },
+          "end": "(:=)\\s*(do)\\b|$",
+          "endCaptures": {
+            "1": {
+              "name": "keyword.operator.assignment.verity"
+            },
+            "2": {
+              "name": "keyword.control.do.verity"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#types"
+            },
+            {
+              "include": "#operators"
+            }
+          ]
+        },
+        {
+          "name": "storage.modifier.verity",
+          "match": "\\b(requires|modifies|with)\\b"
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "name": "keyword.declaration.lean.verity",
+          "match": "\\b(import|namespace|end|open|def|theorem|lemma|example|structure|inductive|where|deriving|instance|class)\\b"
+        },
+        {
+          "name": "keyword.control.lean.verity",
+          "match": "\\b(do|by|let|mut|if|then|else|match|return|pure|for|in|have|show|from|fun|forall)\\b"
+        },
+        {
+          "name": "support.function.tactic.verity",
+          "match": "\\b(simp|simp_all|rw|rfl|omega|constructor|cases|case|intro|intros|exact|apply|unfold|split|aesop|decide|norm_num)\\b"
+        }
+      ]
+    },
+    "edsl": {
+      "patterns": [
+        {
+          "name": "support.function.storage.verity",
+          "match": "\\b(getStorage|setStorage|getStorageAddr|setStorageAddr|getMapping|getMappingUint|getMapping2|setMapping|setMappingUint|setMapping2|structMembers|structMembers2|arrayLength|arrayElement)\\b"
+        },
+        {
+          "name": "support.function.context.verity",
+          "match": "\\b(msgSender|msgValue|blockTimestamp|blockNumber|contractAddress|chainid|blobbasefee|defaultState)\\b"
+        },
+        {
+          "name": "support.function.guard.verity",
+          "match": "\\b(require|requireSomeUint|requireError|revert|revertError)\\b"
+        },
+        {
+          "name": "support.function.external-call.verity",
+          "match": "\\b(tryExternalCall|externalCall|ecmBind|ecmCall|ecmDo|tryCatch)\\b"
+        },
+        {
+          "name": "support.function.event.verity",
+          "match": "\\b(emitEvent|emit)\\b"
+        },
+        {
+          "name": "support.function.loop.verity",
+          "match": "\\b(forEach|forEach2)\\b"
+        },
+        {
+          "name": "support.function.arithmetic.verity",
+          "match": "\\b(add|sub|mul|div|mod|pow|safeAdd|safeSub|safeMul|safeDiv|mulDivDown|mulDivUp|wMulDown|wDivUp|mulDiv512Down\\?|mulDiv512Up\\?|wordToAddress|keccak256)\\b"
+        },
+        {
+          "name": "support.function.spec.verity",
+          "match": "\\b(storageMapUnchangedExceptKeyAtSlot|storageMapUnchangedExceptKey|storageMapUnchangedExceptSlot|sameStorage|sameStorageAddr|sameContext|sameStorageAddrContext|sameEvents|sameExcept|run|getValue\\?)\\b"
+        },
+        {
+          "name": "variable.language.verity",
+          "match": "\\b(self|sender|thisAddress|totalSupply|owner|balances|allowances)\\b"
+        }
+      ]
+    },
+    "abi": {
+      "patterns": [
+        {
+          "name": "support.function.abi.verity",
+          "match": "\\b(abiEncode|abiHeadWord|abiWord|abiBytes|abiArray|abiDynamicHeadWord|abiDynamicTail)\\b"
+        }
+      ]
+    },
+    "errors-and-events": {
+      "patterns": [
+        {
+          "name": "entity.name.exception.custom-error.verity",
+          "match": "\\b[A-Z][A-Za-z0-9_']*Error\\b|\\bPool[A-Za-z0-9_']*(?=\\s*\\()"
+        },
+        {
+          "name": "entity.name.function.event.verity",
+          "match": "\"(?:[A-Z][A-Za-z0-9_']*(?:ed|n|d|red|redn|Transfer|Approval|Withdrawn|Transferred|Deposited))\""
+        }
+      ]
+    },
+    "field-access": {
+      "patterns": [
+        {
+          "name": "meta.field-access.verity",
+          "match": "(\\.)([a-zA-Z_][A-Za-z0-9_']*)",
+          "captures": {
+            "1": {
+              "name": "punctuation.accessor.verity"
+            },
+            "2": {
+              "name": "variable.other.property.verity"
+            }
+          }
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.verity",
+          "match": "\\b(Contract|ContractState|StorageSlot|Address|Uint256|Uint128|Uint64|Uint32|Uint16|Uint8|Bool|Unit|String|Bytes|List|Option|Tuple|MappingStruct|MappingStruct2|Prop|Nat|Int)\\b"
+        },
+        {
+          "name": "constant.language.boolean.verity",
+          "match": "\\b(true|false|none|some)\\b"
+        }
+      ]
+    },
+    "storage-slots": {
+      "patterns": [
+        {
+          "name": "constant.numeric.storage-slot.verity",
+          "match": "\\bslot\\s+(0x[0-9A-Fa-f]+|[0-9]+)"
+        },
+        {
+          "name": "keyword.other.slot.verity",
+          "match": "\\bslot\\b"
+        }
+      ]
+    },
+    "addresses": {
+      "patterns": [
+        {
+          "name": "constant.numeric.address.verity",
+          "match": "\\b0x[a-fA-F0-9]{40}\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.verity",
+          "match": "\\b0x[0-9A-Fa-f]+\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.verity",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.verity",
+          "match": ":=|<-|←|=>|→|->"
+        },
+        {
+          "name": "keyword.operator.comparison.verity",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.logical.verity",
+          "match": "&&|\\|\\||∧|∨|¬"
+        },
+        {
+          "name": "keyword.operator.arithmetic.verity",
+          "match": "\\+|-|\\*|/|\\^|%"
+        }
+      ]
+    }
+  }
+}

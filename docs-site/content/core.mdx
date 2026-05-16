@@ -9,7 +9,7 @@ The core is intentionally small. It provides types for contract state, storage o
 
 ## Types
 
-```lean
+```verity
 abbrev Address := String
 abbrev Uint256 := Verity.Core.Uint256
 
@@ -25,7 +25,7 @@ structure StorageSlot (α : Type) where
 
 ## ContractState
 
-```lean
+```verity
 structure ContractState where
   storage : Nat → Uint256                         -- Uint256 storage
   storageAddr : Nat → Address                      -- Address storage
@@ -64,7 +64,7 @@ abbrev Contract (α : Type) := ContractState → ContractResult α
 
 A contract is a function from state to result. The custom `bind` short-circuits on revert:
 
-```lean
+```verity
 def bind (ma : Contract α) (f : α → Contract β) : Contract β :=
   fun s => match ma s with
   | ContractResult.success a s' => f a s'
@@ -87,7 +87,7 @@ Five pairs of get/set functions, one per storage type:
 
 All follow the same pattern — read from or write to the corresponding `ContractState` field:
 
-```lean
+```verity
 def getStorage (s : StorageSlot Uint256) : Contract Uint256 :=
   fun state => ContractResult.success (state.storage s.slot) state
 
@@ -99,7 +99,7 @@ def setStorage (s : StorageSlot Uint256) (value : Uint256) : Contract Unit :=
 
 Mapping operations take key arguments:
 
-```lean
+```verity
 -- Address-keyed mapping (e.g., balances[owner])
 let bal ← getMapping balances owner
 setMapping balances owner newBal
@@ -119,7 +119,7 @@ setMapping2 allowances owner spender newAllow
 
 Read-only functions for accessing transaction context:
 
-```lean
+```verity
 let sender ← msgSender           -- Transaction sender address
 let self ← contractAddress        -- This contract's address
 let value ← msgValue             -- ETH value sent with call
@@ -130,7 +130,7 @@ These return values from `ContractState` without modifying state.
 
 ## Event emission
 
-```lean
+```verity
 emitEvent "Transfer" [amount] [senderBal, recipientBal]
 ```
 
@@ -138,7 +138,7 @@ emitEvent "Transfer" [amount] [senderBal, recipientBal]
 
 ## Require guard
 
-```lean
+```verity
 def require (condition : Bool) (message : String) : Contract Unit :=
   fun s => if condition
            then ContractResult.success () s
@@ -151,7 +151,7 @@ Returns `success` when the condition holds, `revert` with the message when it do
 
 Every storage operation, context accessor, and event function has a full-result `@[simp]` lemma:
 
-```lean
+```verity
 -- Full-result form (preferred for new proofs):
 @[simp] theorem getStorage_run (s : StorageSlot Uint256) (state : ContractState) :
   (getStorage s).run state = ContractResult.success (state.storage s.slot) state := rfl
@@ -173,7 +173,7 @@ A plain `StateM ContractState α` monad cannot model `require` failures — proo
 
 The `StorageSlot α` type parameter prevents mixing storage types:
 
-```lean
+```verity
 def owner : StorageSlot Address := ⟨0⟩
 def count : StorageSlot Uint256 := ⟨1⟩
 def balances : StorageSlot (Address → Uint256) := ⟨2⟩

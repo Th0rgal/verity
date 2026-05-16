@@ -90,7 +90,7 @@ Specifications describe **what** the contract should do, not **how** it does it.
 
 Open `Contracts/TipJar/Spec.lean`:
 
-```lean
+```verity
 /-
   TipJar: Formal Specification
 
@@ -133,7 +133,7 @@ end Contracts.TipJar.Spec
 
 Open `Contracts/TipJar/Invariants.lean`:
 
-```lean
+```verity
 /-
   TipJar: State Invariants
 
@@ -167,7 +167,7 @@ Now we implement the contract using the EDSL. Every function in the EDSL is a `C
 
 Open `Contracts/TipJar/TipJar.lean`:
 
-```lean
+```verity
 /-
   TipJar: Deposit tips and check balances
 
@@ -252,7 +252,7 @@ This is where formal verification happens. We prove that our implementation matc
 
 Open `Contracts/TipJar/Proofs/Basic.lean`:
 
-```lean
+```verity
 /-
   TipJar: Basic Correctness Proofs
 
@@ -357,7 +357,7 @@ grep -r "sorry" Contracts/TipJar/
 Add your contract in `Contracts/<Name>/<Name>.lean` with `verity_contract`.
 Then register `Contracts.<Name>.spec` in `Compiler/Specs.lean` under `allSpecs`:
 
-```lean
+```verity
 verity_contract TipJar where
   storage
     tips : Address -> Uint256 := slot 0
@@ -650,7 +650,7 @@ open Verity.EVM.Uint256
 **Problem**: Wrong return type.
 
 **Solution**: Check the function signature matches what you return:
-```lean
+```verity
 def tip (amount : Uint256) : Contract Unit := do  -- Returns nothing
   ...
 
@@ -663,7 +663,7 @@ def getBalance (addr : Address) : Contract Uint256 := do  -- Returns Uint256
 **Problem**: `simp` can't solve the goal.
 
 **Solution**: Try `unfold` first to expose definitions, then `simp`:
-```lean
+```verity
 theorem my_thm : ... := by
   unfold myFunction bind
   simp [getMapping, setMapping, msgSender, tips]
