@@ -4070,6 +4070,9 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_ecm_bridged
   Compiler.Proofs.YulGeneration.Backends.compileStmtList_append_ok_inv
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_of_compileStmtList_append
+  -- Compiler.Proofs.YulGeneration.Backends.G3Smoke.smokeTable_lookup_some  -- private
+  -- Compiler.Proofs.YulGeneration.Backends.G3Smoke.smoke_internalCall_bridged  -- private
+  Compiler.Proofs.YulGeneration.Backends.G3Smoke.smoke_compileStmt_internalCall_bridged
 
   -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean
   Compiler.Proofs.YulGeneration.Backends.Native.observableSlot_mem_materializedStorageSlots
@@ -5547,4 +5550,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5267 theorems/lemmas (3587 public, 1680 private, 0 sorry'd)
+-- Total: 5270 theorems/lemmas (3588 public, 1682 private, 0 sorry'd)
