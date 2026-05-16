@@ -8,7 +8,6 @@ import './verity-code.css'
 export const metadata = {
   title: {
     default: 'Verity',
-    template: '%s – Verity',
   },
   description: 'Minimal Lean 4 EDSL for Smart Contracts with Formal Verification',
   icons: {

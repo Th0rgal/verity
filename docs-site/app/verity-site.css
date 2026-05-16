@@ -2,17 +2,21 @@
 
 :root {
   color-scheme: light;
-  --verity-bg: #F5EFD8;
-  --verity-surface: #FFF8E8;
-  --verity-surface-strong: #EFE4C1;
+  --verity-bg: #F7F1E4;
+  --verity-page: #FBF6EC;
+  --verity-sidebar: #ECE0C7;
+  --verity-sidebar-strong: #E2D2B3;
+  --verity-surface: #FFF9EE;
+  --verity-surface-strong: #E9D9B8;
   --verity-ink: #2A1810;
   --verity-heading: #1A0F08;
-  --verity-muted: #6B5849;
-  --verity-rule: #C9BFA7;
-  --verity-code-bg: #EDE5C7;
+  --verity-muted: #6D5D50;
+  --verity-rule: #C7B797;
+  --verity-code-bg: #F0E7D2;
   --verity-code-surface: #FFF9E8;
-  --verity-accent: #7B3F00;
-  --verity-accent-ink: #F5EFD8;
+  --verity-accent: #6F3B13;
+  --verity-accent-soft: #D9C39B;
+  --verity-accent-ink: #FFF9EE;
   --verity-shadow: 0 18px 44px rgba(42, 24, 16, 0.09);
   --verity-font-prose: "Source Serif 4", Georgia, serif;
   --verity-font-display: "Source Serif 4", Georgia, serif;
@@ -22,9 +26,9 @@
   --nextra-navbar-height: 68px;
   --nextra-content-width: 82rem;
   --nextra-primary-hue: 31deg;
-  --nextra-primary-saturation: 100%;
-  --nextra-primary-lightness: 24%;
-  --nextra-bg: 245, 239, 216;
+  --nextra-primary-saturation: 71%;
+  --nextra-primary-lightness: 25%;
+  --nextra-bg: 247, 241, 228;
 }
 
 .dark {
@@ -55,7 +59,7 @@ html {
 
 body {
   margin: 0;
-  background: var(--verity-bg);
+  background: var(--verity-page);
   color: var(--verity-ink);
   font-family: var(--verity-font-prose);
 }
@@ -70,7 +74,7 @@ body {
 
 .nextra-nav-container-blur,
 .nextra-nav-container {
-  background: color-mix(in srgb, var(--verity-bg) 92%, transparent) !important;
+  background: color-mix(in srgb, var(--verity-page) 94%, transparent) !important;
   border-bottom: 1px solid var(--verity-rule) !important;
   box-shadow: none !important;
   backdrop-filter: blur(10px);
@@ -108,9 +112,25 @@ input[type="search"] {
 aside.nextra-sidebar-container,
 .nextra-sidebar-container,
 .nextra-sidebar {
-  background: color-mix(in srgb, var(--verity-bg) 95%, transparent) !important;
+  background: var(--verity-sidebar) !important;
   border-right: 1px solid var(--verity-rule) !important;
   font-family: var(--verity-font-ui);
+}
+
+.nextra-sidebar > div,
+.nextra-sidebar ul,
+.nextra-sidebar-footer {
+  background: transparent !important;
+}
+
+.nextra-sidebar-footer {
+  width: 100% !important;
+  min-width: 100% !important;
+  align-self: stretch !important;
+  box-sizing: border-box !important;
+  margin-inline: 0 !important;
+  padding-inline: 1rem !important;
+  border-top: 1px solid color-mix(in srgb, var(--verity-rule) 82%, var(--verity-sidebar-strong)) !important;
 }
 
 .dark aside.nextra-sidebar-container,
@@ -132,30 +152,42 @@ aside.nextra-sidebar-container,
   border-left-color: var(--verity-rule) !important;
 }
 
+.nextra-sidebar a,
 .nextra-sidebar-container a,
 .nextra-toc a,
 nav a {
   color: var(--verity-muted) !important;
+  background: transparent !important;
   text-decoration: none !important;
 }
 
+.dark .nextra-sidebar a,
 .dark .nextra-sidebar-container a,
 .dark .nextra-toc a,
 .dark nav a {
   color: var(--verity-muted) !important;
 }
 
+.nextra-sidebar a:hover,
 .nextra-sidebar-container a:hover,
 .nextra-toc a:hover,
 nav a:hover {
   color: var(--verity-accent) !important;
+  background: color-mix(in srgb, var(--verity-accent-soft) 34%, transparent) !important;
 }
 
+.nextra-sidebar a[aria-current="page"],
+.nextra-sidebar a[class*="x:bg-primary"],
+.nextra-sidebar a[class*="x:text-primary-800"],
+.nextra-sidebar li.active > a,
 .nextra-sidebar-container a[aria-current="page"],
+.nextra-sidebar-container a[class*="x:bg-primary"],
+.nextra-sidebar-container a[class*="x:text-primary-800"],
+.nextra-sidebar-container li.active > a,
 .nextra-toc a[aria-current="true"],
 .nextra-toc a[aria-selected="true"] {
   color: var(--verity-heading) !important;
-  background: color-mix(in srgb, var(--verity-accent) 12%, transparent) !important;
+  background: color-mix(in srgb, var(--verity-accent-soft) 52%, transparent) !important;
   border-radius: 0.25rem !important;
 }
 
@@ -226,11 +258,25 @@ article.nextra-body-typesetting-article blockquote {
   color: var(--verity-ink);
 }
 
+article a,
+article a[class*="x:text-primary"],
 article.nextra-body-typesetting-article a {
-  color: var(--verity-accent);
+  color: var(--verity-accent) !important;
   font-weight: 600;
-  text-decoration-color: color-mix(in srgb, var(--verity-accent) 45%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--verity-accent) 45%, transparent) !important;
   text-underline-offset: 0.16em;
+}
+
+article a:hover,
+article.nextra-body-typesetting-article a:hover,
+.nextra-breadcrumb a:hover,
+.nextra-pagination a:hover,
+.nextra-toc-footer a:hover {
+  color: var(--verity-heading) !important;
+}
+
+.subheading-anchor {
+  color: var(--verity-muted) !important;
 }
 
 article.nextra-body-typesetting-article hr {
