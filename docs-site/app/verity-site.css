@@ -2,18 +2,18 @@
 
 :root {
   color-scheme: light;
-  --verity-bg: #F7F1E4;
-  --verity-page: #FBF6EC;
-  --verity-sidebar: #ECE0C7;
-  --verity-sidebar-strong: #E2D2B3;
-  --verity-surface: #FFF9EE;
-  --verity-surface-strong: #E9D9B8;
+  --verity-bg: #F4EFE6;
+  --verity-page: #FBF8F1;
+  --verity-sidebar: #E8DECA;
+  --verity-sidebar-strong: #D8C6A9;
+  --verity-surface: #FFFDF7;
+  --verity-surface-strong: #E7D7BB;
   --verity-ink: #2A1810;
   --verity-heading: #1A0F08;
   --verity-muted: #6D5D50;
-  --verity-rule: #C7B797;
-  --verity-code-bg: #F0E7D2;
-  --verity-code-surface: #FFF9E8;
+  --verity-rule: #C9BBA4;
+  --verity-code-bg: #F0E6D5;
+  --verity-code-surface: #FFFCF4;
   --verity-accent: #6F3B13;
   --verity-accent-soft: #D9C39B;
   --verity-accent-ink: #FFF9EE;
@@ -29,6 +29,25 @@
   --nextra-primary-saturation: 71%;
   --nextra-primary-lightness: 25%;
   --nextra-bg: 247, 241, 228;
+  --x-color-blue-100: #E8D8BB;
+  --x-color-blue-400: #A8733F;
+  --x-color-blue-600: #7D4319;
+  --x-color-blue-700: #6F3B13;
+  --x-color-blue-900: #3D2111;
+  --x-color-slate-50: #FBF8F1;
+  --x-color-slate-100: #F4EFE6;
+  --x-color-slate-200: #E7D7BB;
+  --x-color-slate-700: #2A1810;
+  --x-color-slate-900: #1A0F08;
+  --x-color-gray-50: #FBF8F1;
+  --x-color-gray-100: #F0E6D5;
+  --x-color-gray-200: #DDCEB7;
+  --x-color-gray-300: #C9BBA4;
+  --x-color-gray-400: #8B7B68;
+  --x-color-gray-600: #6D5D50;
+  --x-color-gray-700: #534539;
+  --x-color-gray-800: #35271D;
+  --x-color-gray-900: #21150E;
 }
 
 .dark {
@@ -62,6 +81,36 @@ body {
   background: var(--verity-page);
   color: var(--verity-ink);
   font-family: var(--verity-font-prose);
+}
+
+[class*="x:text-blue"],
+[class*="x:text-primary"] {
+  color: var(--verity-accent) !important;
+}
+
+[class*="x:bg-blue"],
+[class*="x:bg-primary"] {
+  background-color: color-mix(in srgb, var(--verity-accent-soft) 42%, transparent) !important;
+}
+
+[class*="x:border-blue"],
+[class*="x:border-primary"] {
+  border-color: var(--verity-rule) !important;
+}
+
+.dark [class*="x:dark:text-blue"],
+.dark [class*="x:dark:text-primary"] {
+  color: var(--verity-accent) !important;
+}
+
+.dark [class*="x:dark:bg-blue"],
+.dark [class*="x:dark:bg-primary"] {
+  background-color: color-mix(in srgb, var(--verity-accent) 18%, var(--verity-surface)) !important;
+}
+
+.dark [class*="x:dark:border-blue"],
+.dark [class*="x:dark:border-primary"] {
+  border-color: var(--verity-rule) !important;
 }
 
 .dark body {
@@ -229,6 +278,11 @@ article {
   color: var(--verity-ink);
 }
 
+article[class*="x:text-slate"],
+article [class*="x:text-slate"] {
+  color: var(--verity-ink) !important;
+}
+
 article.nextra-body-typesetting-article {
   font-family: var(--verity-font-prose);
   font-size: 1.06rem;
@@ -309,6 +363,20 @@ article.nextra-body-typesetting-article table {
   font-size: 0.95rem;
 }
 
+article tr,
+article tr:nth-child(even),
+article tr[class*="x:even:bg-gray"],
+article.nextra-body-typesetting-article tr,
+article.nextra-body-typesetting-article tr:nth-child(even),
+article.nextra-body-typesetting-article tr[class*="x:even:bg-gray"] {
+  background: var(--verity-surface) !important;
+}
+
+article tbody tr:nth-child(even),
+article.nextra-body-typesetting-article tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--verity-sidebar) 35%, var(--verity-surface)) !important;
+}
+
 article.nextra-body-typesetting-article th {
   background: var(--verity-surface-strong);
   color: var(--verity-heading);
@@ -319,6 +387,26 @@ article.nextra-body-typesetting-article th,
 article.nextra-body-typesetting-article td {
   border-color: var(--verity-rule) !important;
   padding: 0.7rem 0.85rem;
+}
+
+article pre,
+article pre[class*="nextra"],
+article pre[class*="x:bg-white"],
+article pre[class*="x:ring-gray"],
+article.nextra-body-typesetting-article pre,
+article.nextra-body-typesetting-article pre[class*="nextra"],
+figure[data-rehype-pretty-code-figure] pre {
+  background: var(--verity-code-surface) !important;
+  border: 1px solid var(--verity-rule) !important;
+  box-shadow: none !important;
+  color: var(--verity-ink) !important;
+}
+
+article.nextra-body-typesetting-article :not(pre) > code,
+code.nextra-code:not(pre code) {
+  background: color-mix(in srgb, var(--verity-sidebar) 34%, var(--verity-surface)) !important;
+  border: 1px solid color-mix(in srgb, var(--verity-rule) 74%, transparent) !important;
+  color: var(--verity-heading) !important;
 }
 
 article.nextra-body-typesetting-article blockquote,
