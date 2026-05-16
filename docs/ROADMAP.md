@@ -183,18 +183,16 @@ Translation tracking:
   ceiling ([#1842](https://github.com/lfglabs-dev/verity/pull/1842)). The
   verity-benchmark pin has been bumped past those merges
   ([verity-benchmark#44](https://github.com/lfglabs-dev/verity-benchmark/pull/44)).
-- Promotion of the `unlink_xyz/pool` case to `build_green` is still blocked.
-  An empirical pilot against `verity-benchmark@1e9b631` confirmed that
-  writing the `transfer` / `withdraw` / `emergencyWithdraw` bodies needs
-  three further macro lifts beyond the single-word static leaf projections
-  delivered by #1832 / #1843, tracked under
-  [#1849](https://github.com/lfglabs-dev/verity/issues/1849):
-  `arrayLength` on a struct-element dynamic member (G1), element indexing
-  on struct-element dynamic members (G2), and pass-through of dynamic-array
-  arguments to `tryExternalCall` / `emit` / `revertError` (G3). The last
-  piece, plus [#1824](https://github.com/lfglabs-dev/verity/issues/1824)
-  (internal helpers with Array parameters), is the final gate on the body
-  translation.
+- The `unlink_xyz/pool` body-translation blockers tracked under
+  [#1849](https://github.com/lfglabs-dev/verity/issues/1849) and
+  [#1824](https://github.com/lfglabs-dev/verity/issues/1824) have shipped:
+  struct-element dynamic member length/index paths, dynamic-array
+  pass-through to `tryExternalCall` / `emit` / `revertError`, and internal
+  helpers with `Array` parameters are now supported. The remaining
+  `build_green` work has shifted to internal-helper ABI lowering for
+  `bytes` / `string` and composite helper parameters
+  ([#1889](https://github.com/lfglabs-dev/verity/issues/1889)), plus the
+  Verity-core versus `unlink-verity` package-boundary work above.
 
 ---
 
