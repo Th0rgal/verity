@@ -4314,7 +4314,7 @@ set_option maxRecDepth 4096 in
   expectCompileErrorContains
     "effect-only external call bind still rejects non-void externals"
     effectOnlyExternalBindMismatchSpec
-    "binds 0 values from external function 'echo', but it returns 1."
+    "binds 0 Yul value(s) from external function 'echo', but it returns 1 Yul value(s)."
   expectCompileErrorContains
     "reserved builtin exp name cannot be shadowed by externals"
     reservedBuiltinExpExternalSpec
