@@ -507,6 +507,12 @@ article main h4 {
   content: none !important;
 }
 
+/* Drop the § N marker on the home page — the page is short and
+   numbered sections feel formal there. Keep them on doc pages. */
+article:has(.verity-hero) main h2::after {
+  content: none !important;
+}
+
 article main p,
 article main li,
 article main blockquote {
