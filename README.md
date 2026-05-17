@@ -5,7 +5,7 @@
 <h1 align="center">Verity</h1>
 
 <p align="center">
-  <strong>A formally verified smart contract compiler. Read the <a href="https://lfglabs.dev/research/verity">paper</a>.</strong>
+  <strong>A formally verified smart contract compiler. Read the <a href="https://lfglabs.dev/papers/verity.pdf">paper</a>.</strong>
 </p>
 
 <p align="center">
@@ -99,7 +99,7 @@ Verity is complementary to these tools. It is for cases where you need mathemati
 
 ### Research
 
-- [Verity: A Formally Verified Smart Contract Compiler](https://lfglabs.dev/research/verity)
+- [Verity: A Formally Verified Smart Contract Compiler](https://lfglabs.dev/papers/verity.pdf)
 - [Verity Benchmark: AI-Driven Proof Generation](https://lfglabs.dev/research/verity-benchmark)
 - [What is a formal proof?](https://lfglabs.dev/research/what-is-a-formal-proof)
 
