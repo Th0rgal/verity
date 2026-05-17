@@ -713,7 +713,11 @@ a[role="button"] {
 
 .verity-hero__terminal {
   color: var(--verity-accent);
-  margin-left: -0.05em;
+  margin-left: -0.04em;
+  /* Slight optical bump so the dot reads as part of the logotype,
+     not an afterthought punctuation mark. */
+  font-size: 1.08em;
+  line-height: 1;
 }
 
 .verity-hero__dek {
