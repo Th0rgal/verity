@@ -704,6 +704,7 @@ article main pre[class*="nextra"],
 figure[data-rehype-pretty-code-figure] pre {
   background: var(--verity-code-surface) !important;
   border: 1px solid var(--verity-rule) !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
   color: var(--verity-ink) !important;
 }
