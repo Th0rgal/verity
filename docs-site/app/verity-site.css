@@ -247,8 +247,7 @@ aside.nextra-sidebar-container,
 .nextra-sidebar-container a,
 .nextra-mobile-nav a,
 .nextra-mobile-nav button,
-.nextra-toc a,
-nav a {
+.nextra-toc a {
   color: var(--verity-muted) !important;
   background: transparent !important;
   text-decoration: none !important;
@@ -258,8 +257,7 @@ nav a {
 .dark .nextra-sidebar-container a,
 .dark .nextra-mobile-nav a,
 .dark .nextra-mobile-nav button,
-.dark .nextra-toc a,
-.dark nav a {
+.dark .nextra-toc a {
   color: var(--verity-muted) !important;
 }
 
@@ -267,8 +265,7 @@ nav a {
 .nextra-sidebar-container a:hover,
 .nextra-mobile-nav a:hover,
 .nextra-mobile-nav button:hover,
-.nextra-toc a:hover,
-nav a:hover {
+.nextra-toc a:hover {
   color: var(--verity-accent) !important;
   background: color-mix(in srgb, var(--verity-accent-soft) 34%, transparent) !important;
 }
@@ -547,22 +544,39 @@ a[role="button"] {
   display: inline-flex;
   min-height: 2.55rem;
   align-items: center;
-  border: 1px solid var(--verity-rule);
+  border: 1px solid var(--verity-rule) !important;
   border-radius: 0.25rem;
-  background: var(--verity-surface);
+  background: var(--verity-surface) !important;
   color: var(--verity-heading) !important;
   font-family: var(--verity-font-ui);
   font-size: 0.94rem;
   font-weight: 700;
   line-height: 1.1;
-  padding: 0.62rem 0.82rem;
+  padding: 0.62rem 0.95rem;
   text-decoration: none !important;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.verity-hero__links a:hover {
+  background: color-mix(in srgb, var(--verity-accent-soft) 34%, var(--verity-surface)) !important;
+  border-color: var(--verity-accent) !important;
 }
 
 .verity-hero__links a:first-child {
-  background: var(--verity-accent);
-  border-color: var(--verity-accent);
+  background: var(--verity-accent) !important;
+  border-color: var(--verity-accent) !important;
   color: var(--verity-accent-ink) !important;
+}
+
+.verity-hero__links a:first-child:hover {
+  background: var(--verity-heading) !important;
+  border-color: var(--verity-heading) !important;
+  color: var(--verity-accent-ink) !important;
+}
+
+.verity-hero__links a:focus-visible {
+  outline: 2px solid var(--verity-accent);
+  outline-offset: 2px;
 }
 
 .verity-hero__brief {

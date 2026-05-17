@@ -33,7 +33,7 @@ export function VerityHero() {
       <aside className="verity-hero__brief" aria-label="Verification brief">
         <div>
           <span>Proof surface</span>
-          <strong>Spec {'->'} EDSL {'->'} IR {'->'} Yul</strong>
+          <strong>Spec&nbsp;→ EDSL&nbsp;→ IR&nbsp;→ Yul</strong>
         </div>
         <div>
           <span>Contract shape</span>

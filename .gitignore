@@ -1,3 +1,6 @@
+
+# screenshots/snap script used during design iteration
+docs-site/snap.cjs
 build/
 .lake/
 lake-packages/
