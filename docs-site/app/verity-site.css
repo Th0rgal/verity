@@ -191,34 +191,30 @@ aside.nextra-sidebar-container,
   background: var(--verity-sidebar) !important;
   border-right: 1px solid var(--verity-rule) !important;
   font-family: var(--verity-font-ui);
-  position: relative;
 }
 
 /* Extend the sidebar tint to the viewport's left edge on wide screens
-   where the layout's max-w-(--nextra-content-width) leaves an empty
-   strip of page bg there. */
-aside.nextra-sidebar::before {
+   where the layout's max-w-(--nextra-content-width) container is
+   centered, leaving a strip of page bg to its left.
+
+   A fixed-position ::before on the body paints that strip in the
+   sidebar color from the bottom of the navbar to the viewport bottom.
+   Width clamps to 0 when the viewport is narrower than the content
+   width, so it has no effect on tablet/mobile layouts. */
+body::before {
   content: "";
-  position: absolute;
-  top: 0;
+  position: fixed;
+  top: var(--nextra-navbar-height);
+  left: 0;
   bottom: 0;
-  right: 100%;
-  width: 100vw;
+  width: max(0px, calc((100vw - var(--nextra-content-width)) / 2));
   background: var(--verity-sidebar);
   pointer-events: none;
   z-index: 0;
 }
 
-.dark aside.nextra-sidebar::before {
+.dark body::before {
   background: var(--verity-surface);
-}
-
-/* The aside is sticky, so its children paint over the ::before naturally,
-   but the masked scroll area would otherwise sit *under* it. Keep that
-   div above the faux background. */
-aside.nextra-sidebar > * {
-  position: relative;
-  z-index: 1;
 }
 
 html,
