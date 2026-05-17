@@ -72,7 +72,7 @@
     {
       "scope": ["entity.name.type.contract.verity", "storage.type.verity", "support.type"],
       "settings": {
-        "foreground": "#6d4b8f",
+        "foreground": "#715a36",
         "fontStyle": "bold"
       }
     },
@@ -85,7 +85,7 @@
     {
       "scope": ["entity.name.function.external.verity"],
       "settings": {
-        "foreground": "#285f91",
+        "foreground": "#6f5631",
         "fontStyle": "bold"
       }
     },
@@ -106,7 +106,7 @@
     {
       "scope": ["support.function.external-call.verity"],
       "settings": {
-        "foreground": "#285f91",
+        "foreground": "#6f5631",
         "fontStyle": "bold"
       }
     },
@@ -120,14 +120,14 @@
     {
       "scope": ["support.function.loop.verity"],
       "settings": {
-        "foreground": "#734f96",
+        "foreground": "#7b5b33",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["support.function.abi.verity"],
       "settings": {
-        "foreground": "#7b4c9a",
+        "foreground": "#7f5831",
         "fontStyle": "bold"
       }
     },
@@ -155,13 +155,13 @@
     {
       "scope": ["variable.other.storage.verity", "variable.language.verity", "variable.other"],
       "settings": {
-        "foreground": "#31475f"
+        "foreground": "#4f463b"
       }
     },
     {
       "scope": ["meta.block.linked-externals.verity"],
       "settings": {
-        "foreground": "#53616a"
+        "foreground": "#655b4d"
       }
     },
     {

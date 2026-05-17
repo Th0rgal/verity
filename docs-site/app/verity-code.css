@@ -60,8 +60,8 @@ figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:h
   background: linear-gradient(90deg, rgba(163, 69, 55, 0.08), rgba(163, 69, 55, 0));
 }
 
-figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#285f91" i]) {
-  background: linear-gradient(90deg, rgba(40, 95, 145, 0.07), rgba(40, 95, 145, 0));
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#6f5631" i]) {
+  background: linear-gradient(90deg, rgba(111, 86, 49, 0.08), rgba(111, 86, 49, 0));
 }
 
 figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#3f7456" i]) {

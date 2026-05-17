@@ -2,20 +2,20 @@
 
 :root {
   color-scheme: light;
-  --verity-bg: #F4EFE6;
-  --verity-page: #FBF8F1;
-  --verity-sidebar: #E8DECA;
-  --verity-sidebar-strong: #D8C6A9;
-  --verity-surface: #FFFDF7;
-  --verity-surface-strong: #E7D7BB;
-  --verity-ink: #2A1810;
-  --verity-heading: #1A0F08;
-  --verity-muted: #6D5D50;
-  --verity-rule: #C9BBA4;
-  --verity-code-bg: #F0E6D5;
-  --verity-code-surface: #FFFCF4;
-  --verity-accent: #6F3B13;
-  --verity-accent-soft: #D9C39B;
+  --verity-bg: #EDE5D6;
+  --verity-page: #FAF7EF;
+  --verity-sidebar: #DED2BD;
+  --verity-sidebar-strong: #CDBB9C;
+  --verity-surface: #FFFDF8;
+  --verity-surface-strong: #E5D7BF;
+  --verity-ink: #28190F;
+  --verity-heading: #160D07;
+  --verity-muted: #6A5A4A;
+  --verity-rule: #C5B69F;
+  --verity-code-bg: #EFE5D4;
+  --verity-code-surface: #FFF9EE;
+  --verity-accent: #65401F;
+  --verity-accent-soft: #D3BC92;
   --verity-accent-ink: #FFF9EE;
   --verity-shadow: 0 18px 44px rgba(42, 24, 16, 0.09);
   --verity-font-prose: "Source Serif 4", Georgia, serif;
@@ -70,7 +70,9 @@
   --nextra-bg: 0, 0, 0;
 }
 
-html {
+html,
+html:root,
+html[dir] {
   background: var(--verity-bg);
   font-family: var(--verity-font-prose);
   text-rendering: optimizeLegibility;
@@ -168,25 +170,42 @@ aside.nextra-sidebar-container,
 
 .nextra-sidebar > div,
 .nextra-sidebar ul,
-.nextra-sidebar-footer {
+.nextra-sidebar-footer,
+.nextra-sidebar .nextra-sidebar-footer {
   background: transparent !important;
 }
 
-.nextra-sidebar-footer {
+.nextra-sidebar-footer,
+.nextra-sidebar .nextra-sidebar-footer {
   width: 100% !important;
   min-width: 100% !important;
   align-self: stretch !important;
   box-sizing: border-box !important;
+  display: flex !important;
   margin-inline: 0 !important;
   padding-inline: 1rem !important;
+  background: var(--verity-sidebar) !important;
+  background-color: var(--verity-sidebar) !important;
   border-top: 1px solid color-mix(in srgb, var(--verity-rule) 82%, var(--verity-sidebar-strong)) !important;
+}
+
+.nextra-sidebar-footer > button:first-child {
+  flex: 1 1 auto !important;
+  justify-content: flex-start !important;
+}
+
+.nextra-sidebar-footer > button:last-child {
+  flex: 0 0 auto !important;
 }
 
 .dark aside.nextra-sidebar-container,
 .dark .nextra-sidebar-container,
 .dark .nextra-sidebar,
-.dark .nextra-mobile-nav {
+.dark .nextra-mobile-nav,
+.dark .nextra-sidebar-footer,
+.dark .nextra-sidebar .nextra-sidebar-footer {
   background: var(--verity-surface) !important;
+  background-color: var(--verity-surface) !important;
   border-right-color: var(--verity-rule) !important;
   box-shadow: 1px 0 0 rgba(201, 169, 97, 0.06) inset;
 }
