@@ -907,9 +907,8 @@ a[role="button"] {
 }
 
 .code-compare {
-  margin: 2rem 0 4rem;
-  padding: clamp(1.35rem, 3vw, 2.25rem) 0;
-  border-bottom: 1px solid var(--verity-rule);
+  margin: 1.5rem 0 2.5rem;
+  padding: clamp(1.35rem, 3vw, 2rem) 0 clamp(0.5rem, 1vw, 1rem);
 }
 
 .code-compare__intro {
