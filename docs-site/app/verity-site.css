@@ -668,8 +668,8 @@ a[role="button"] {
 .verity-hero {
   display: grid;
   grid-template-rows: auto auto;
-  gap: clamp(1.6rem, 3vw, 2.4rem);
-  padding: clamp(2rem, 5vw, 4.25rem) 0 clamp(1.75rem, 4vw, 3rem);
+  gap: clamp(1.4rem, 2.5vw, 2rem);
+  padding: clamp(1.75rem, 4vw, 3.25rem) 0 clamp(1.5rem, 3vw, 2.4rem);
   border-bottom: 1px solid var(--verity-rule);
 }
 
@@ -681,7 +681,7 @@ a[role="button"] {
   display: grid;
   grid-template-columns: minmax(20rem, 1fr) minmax(17rem, 0.5fr);
   gap: clamp(1.6rem, 4vw, 3.25rem);
-  align-items: start;
+  align-items: end;
 }
 
 .verity-hero__copy {
