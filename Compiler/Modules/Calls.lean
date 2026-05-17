@@ -26,7 +26,7 @@ namespace Compiler.Modules.Calls
 
 open Compiler.Yul
 open Compiler.ECM
-open Compiler.CompilationModel (Stmt Expr)
+open Compiler.CompilationModel (Stmt Expr freeMemoryPointer)
 
 private def bubblingValueCallYul
     (targetExpr valueExpr inputOffsetExpr inputSizeExpr outputOffsetExpr outputSizeExpr : YulExpr) :
@@ -76,25 +76,36 @@ def withReturnModule (resultVar : String) (selector : Nat) (numArgs : Nat) (isSt
       | none => throw "externalCallWithReturn expects at least 1 argument (target)"
     let argExprs := args.drop 1
     let selectorExpr := YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex selector]
-    let storeSelector := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, selectorExpr])
+    let ptrName := "__ecwr_ptr"
+    let ptrExpr := YulExpr.ident ptrName
+    let storeSelector := YulStmt.expr (YulExpr.call "mstore" [ptrExpr, selectorExpr])
     let storeArgs := argExprs.zipIdx.map fun (argExpr, i) =>
-      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (4 + i * 32), argExpr])
+      YulStmt.expr (YulExpr.call "mstore" [
+        YulExpr.call "add" [ptrExpr, YulExpr.lit (4 + i * 32)],
+        argExpr
+      ])
     let calldataSize := 4 + numArgs * 32
+    let frameSize := ((Nat.max calldataSize 32 + 31) / 32) * 32
+    let loadPtr := YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])
+    let advancePtr := YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit freeMemoryPointer,
+      YulExpr.call "add" [ptrExpr, YulExpr.lit frameSize]
+    ])
     let callExpr :=
       if isStatic then
         YulExpr.call "staticcall" [
           YulExpr.call "gas" [],
           targetExpr,
-          YulExpr.lit 0, YulExpr.lit calldataSize,
-          YulExpr.lit 0, YulExpr.lit 32
+          ptrExpr, YulExpr.lit calldataSize,
+          ptrExpr, YulExpr.lit 32
         ]
       else
         YulExpr.call "call" [
           YulExpr.call "gas" [],
           targetExpr,
           YulExpr.lit 0,
-          YulExpr.lit 0, YulExpr.lit calldataSize,
-          YulExpr.lit 0, YulExpr.lit 32
+          ptrExpr, YulExpr.lit calldataSize,
+          ptrExpr, YulExpr.lit 32
         ]
     let letSuccess := YulStmt.let_ "__ecwr_success" callExpr
     let revertBlock := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__ecwr_success"]) [
@@ -105,9 +116,10 @@ def withReturnModule (resultVar : String) (selector : Nat) (numArgs : Nat) (isSt
     let sizeCheck := YulStmt.if_ (YulExpr.call "lt" [YulExpr.call "returndatasize" [], YulExpr.lit 32]) [
       YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
     ]
-    let callBlock := YulStmt.block ([storeSelector] ++ storeArgs ++ [letSuccess, revertBlock, sizeCheck])
-    let bindResult := YulStmt.let_ resultVar (YulExpr.call "mload" [YulExpr.lit 0])
-    pure [callBlock, bindResult]
+    let bindResult := YulStmt.let_ resultVar (YulExpr.lit 0)
+    let assignResult := YulStmt.assign resultVar (YulExpr.call "mload" [ptrExpr])
+    let callBlock := YulStmt.block ([loadPtr, storeSelector] ++ storeArgs ++ [advancePtr, letSuccess, revertBlock, sizeCheck, assignResult])
+    pure [bindResult, callBlock]
 
 /-- Convenience: create a `Stmt.ecm` for an external call with return.
     Replaces the former `Stmt.externalCallWithReturn` variant. -/

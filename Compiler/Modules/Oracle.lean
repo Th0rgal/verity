@@ -16,7 +16,7 @@ namespace Compiler.Modules.Oracle
 
 open Compiler.Yul
 open Compiler.ECM
-open Compiler.CompilationModel (Stmt Expr)
+open Compiler.CompilationModel (Stmt Expr freeMemoryPointer)
 
 /-- Read-only oracle module that ABI-encodes `selector(staticArgs...)`, performs
     a `staticcall`, forwards revert returndata on failure, requires exactly one
@@ -39,17 +39,28 @@ def oracleReadUint256Module (resultVar : String) (selector : Nat) (numStaticArgs
       | none => throw "oracleReadUint256 expects at least 1 argument (target)"
     let staticArgExprs := args.drop 1
     let calldataSize := 4 + numStaticArgs * 32
+    let frameSize := ((Nat.max calldataSize 32 + 31) / 32) * 32
+    let ptrName := "__oracle_ptr"
+    let ptrExpr := YulExpr.ident ptrName
+    let loadPtr := YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])
     let storeSelector := YulStmt.expr (YulExpr.call "mstore" [
-      YulExpr.lit 0,
+      ptrExpr,
       YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex selector]
     ])
     let storeArgs := staticArgExprs.zipIdx.map fun (argExpr, idx) =>
-      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (4 + idx * 32), argExpr])
+      YulStmt.expr (YulExpr.call "mstore" [
+        YulExpr.call "add" [ptrExpr, YulExpr.lit (4 + idx * 32)],
+        argExpr
+      ])
+    let advancePtr := YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit freeMemoryPointer,
+      YulExpr.call "add" [ptrExpr, YulExpr.lit frameSize]
+    ])
     let callExpr := YulExpr.call "staticcall" [
       YulExpr.call "gas" [],
       targetExpr,
-      YulExpr.lit 0, YulExpr.lit calldataSize,
-      YulExpr.lit 0, YulExpr.lit 32
+      ptrExpr, YulExpr.lit calldataSize,
+      ptrExpr, YulExpr.lit 32
     ]
     let revertOnFailure := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__oracle_success"]) [
       YulStmt.let_ "__oracle_rds" (YulExpr.call "returndatasize" []),
@@ -63,11 +74,12 @@ def oracleReadUint256Module (resultVar : String) (selector : Nat) (numStaticArgs
     ]) [
       YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
     ]
-    let bindResult := YulStmt.let_ resultVar (YulExpr.call "mload" [YulExpr.lit 0])
-    pure [YulStmt.block (
-      [storeSelector] ++ storeArgs ++
-      [YulStmt.let_ "__oracle_success" callExpr, revertOnFailure, requireSingleWord]
-    ), bindResult]
+    let bindResult := YulStmt.let_ resultVar (YulExpr.lit 0)
+    let assignResult := YulStmt.assign resultVar (YulExpr.call "mload" [ptrExpr])
+    pure [bindResult, YulStmt.block (
+      [loadPtr, storeSelector] ++ storeArgs ++ [advancePtr] ++
+      [YulStmt.let_ "__oracle_success" callExpr, revertOnFailure, requireSingleWord, assignResult]
+    )]
 
 /-- Convenience: create a `Stmt.ecm` for a read-only `uint256` oracle call. -/
 def oracleReadUint256 (resultVar : String) (target : Expr) (selector : Nat) (staticArgs : List Expr) :

@@ -3638,6 +3638,31 @@ private def oracleReadSmokeSpec : CompilationModel := {
   ]
 }
 
+private def externalCallWithReturnSmokeSpec : CompilationModel := {
+  name := "ExternalCallWithReturnSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "peek"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "asset", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.Calls.withReturn
+          "answer"
+          (Expr.param "target")
+          0x70a08231
+          [Expr.param "asset"]
+          true,
+        Stmt.returnValues [Expr.localVar "answer"]
+      ]
+    }
+  ]
+}
+
 private def bubblingValueCallSmokeSpec : CompilationModel := {
   name := "BubblingValueCallSmoke"
   fields := []
@@ -4940,13 +4965,25 @@ set_option maxRecDepth 4096 in
   let oracleReadYul ←
     expectCompileToYul "oracle read smoke spec" oracleReadSmokeSpec
   expectTrue "oracle read ECM lowers to staticcall"
-    (contains oracleReadYul "staticcall(gas(), oracle, 0, 36, 0, 32)")
+    (contains oracleReadYul "staticcall(gas(), oracle, __oracle_ptr, 36, __oracle_ptr, 32)")
   expectTrue "oracle read ECM forwards revert returndata"
     (contains oracleReadYul "returndatacopy(0, 0, __oracle_rds)")
   expectTrue "oracle read ECM rejects non-32-byte returndata"
     (contains oracleReadYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "oracle read ECM ABI-encodes the selector"
-    (contains oracleReadYul "mstore(0, shl(224, 0xfeaf968c))")
+  expectTrue "oracle read ECM ABI-encodes the selector at free memory"
+    (contains oracleReadYul "let __oracle_ptr := mload(64)" &&
+      contains oracleReadYul "mstore(__oracle_ptr, shl(224, 0xfeaf968c))" &&
+      contains oracleReadYul "mstore(add(__oracle_ptr, 4), asset)" &&
+      contains oracleReadYul "mstore(64, add(__oracle_ptr, 64))")
+  let externalCallWithReturnYul ←
+    expectCompileToYul "external call with return smoke spec" externalCallWithReturnSmokeSpec
+  expectTrue "externalCallWithReturn ECM uses free memory for ABI calldata and returndata"
+    (contains externalCallWithReturnYul "let __ecwr_ptr := mload(64)" &&
+      contains externalCallWithReturnYul "mstore(__ecwr_ptr, shl(224, 0x70a08231))" &&
+      contains externalCallWithReturnYul "mstore(add(__ecwr_ptr, 4), asset)" &&
+      contains externalCallWithReturnYul "mstore(64, add(__ecwr_ptr, 64))" &&
+      contains externalCallWithReturnYul "staticcall(gas(), target, __ecwr_ptr, 36, __ecwr_ptr, 32)" &&
+      contains externalCallWithReturnYul "answer := mload(__ecwr_ptr)")
   let bubblingValueCallYul ←
     expectCompileToYul "bubbling value call smoke spec" bubblingValueCallSmokeSpec
   expectTrue "bubbling value call ECM lowers to call, not staticcall"
