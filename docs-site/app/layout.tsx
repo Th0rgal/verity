@@ -26,7 +26,7 @@ const navbar = (
         <strong>Verity</strong>
       </span>
     }
-    projectLink="https://github.com/Th0rgal/verity"
+    projectLink="https://github.com/lfglabs-dev/verity"
   />
 )
 
@@ -38,7 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Layout
           navbar={navbar}
           pageMap={await getPageMap()}
-          docsRepositoryBase="https://github.com/Th0rgal/verity/tree/main/docs-site"
+          docsRepositoryBase="https://github.com/lfglabs-dev/verity/tree/main/docs-site"
           sidebar={{ defaultMenuCollapseLevel: 1 }}
           toc={{ backToTop: true }}
         >
