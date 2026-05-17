@@ -977,29 +977,38 @@ a[role="button"] {
 
 @media (max-width: 767px) {
   body {
-    background: var(--verity-bg);
+    background: var(--verity-page);
   }
 
   article main {
-    font-size: 1rem;
+    font-size: 1rem !important;
   }
 
   .verity-hero {
     padding-top: 1.75rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .verity-hero__head {
+    max-width: 100%;
   }
 
   .verity-hero h1 {
-    font-size: clamp(3.8rem, 21vw, 5.1rem);
+    font-size: clamp(3.6rem, 18vw, 4.6rem);
   }
 
-  .verity-hero__links {
-    display: grid;
-    grid-template-columns: 1fr;
+  .verity-hero__dek {
+    font-size: 1.15rem;
   }
 
-  .verity-hero__links a {
-    justify-content: center;
+  .verity-hero__cta {
     width: 100%;
+    justify-content: center;
+  }
+
+  .verity-hero__more {
+    flex-direction: column;
+    gap: 0.4rem;
   }
 
   .code-compare {
