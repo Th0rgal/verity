@@ -198,7 +198,9 @@ header kbd {
 /* Search results popover and its inner items */
 [class*="x:absolute"][class*="rounded"]:has(.nextra-search-results),
 .nextra-search ul,
-.nextra-search [role="listbox"] {
+.nextra-search [role="listbox"],
+.nextra-search a[class*="x:rounded-md"],
+[role="listbox"] a {
   border-radius: 0 !important;
 }
 
