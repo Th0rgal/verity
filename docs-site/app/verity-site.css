@@ -472,37 +472,58 @@ a[role="button"] {
 
 .verity-hero {
   display: grid;
-  grid-template-columns: minmax(20rem, 1fr) minmax(16rem, 0.58fr);
-  gap: clamp(1.2rem, 3vw, 2.75rem);
-  align-items: end;
-  min-height: calc(92vh - var(--nextra-navbar-height));
-  padding: clamp(2.5rem, 6vw, 5.5rem) 0 clamp(2rem, 4vw, 3.5rem);
+  grid-template-rows: auto auto;
+  gap: clamp(1.6rem, 3vw, 2.4rem);
+  padding: clamp(2rem, 5vw, 4.25rem) 0 clamp(1.75rem, 4vw, 3rem);
   border-bottom: 1px solid var(--verity-rule);
 }
 
+.verity-hero__head {
+  max-width: 58rem;
+}
+
+.verity-hero__body {
+  display: grid;
+  grid-template-columns: minmax(20rem, 1fr) minmax(17rem, 0.5fr);
+  gap: clamp(1.6rem, 4vw, 3.25rem);
+  align-items: start;
+}
+
 .verity-hero__copy {
-  max-width: 49rem;
+  max-width: 42rem;
 }
 
 .verity-hero h1 {
-  margin: 0.35rem 0 0;
+  margin: 0.45rem 0 0;
   color: var(--verity-heading);
   font-family: var(--verity-font-display);
-  font-size: clamp(4rem, 10vw, 7.5rem);
-  font-weight: 820;
-  line-height: 0.88;
+  font-size: clamp(3.6rem, 9vw, 6.4rem);
+  font-weight: 760;
+  letter-spacing: -0.012em;
+  line-height: 0.92;
   overflow-wrap: normal;
   word-break: normal;
 }
 
+.verity-hero__terminal {
+  color: var(--verity-accent);
+  margin-left: -0.05em;
+}
+
 .verity-hero__dek {
-  max-width: 38rem;
-  margin: 1.4rem 0 0;
+  max-width: 44rem;
+  margin: 1.1rem 0 0;
   color: var(--verity-heading) !important;
   font-family: var(--verity-font-display);
-  font-size: clamp(1.55rem, 4vw, 3.2rem);
-  font-weight: 620;
-  line-height: 1.04;
+  font-size: clamp(1.3rem, 2.4vw, 1.85rem);
+  font-weight: 420;
+  letter-spacing: -0.005em;
+  line-height: 1.32;
+}
+
+.verity-hero__dek em {
+  font-style: italic;
+  font-weight: 500;
 }
 
 .verity-claim-list {
@@ -535,87 +556,139 @@ a[role="button"] {
 
 .verity-hero__links {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  margin-top: 1.9rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-top: 1.75rem;
 }
 
-.verity-hero__links a {
+.verity-hero__cta {
   display: inline-flex;
-  min-height: 2.55rem;
   align-items: center;
-  border: 1px solid var(--verity-rule) !important;
-  border-radius: 0.25rem;
-  background: var(--verity-surface) !important;
-  color: var(--verity-heading) !important;
+  gap: 0.55rem;
+  min-height: 2.6rem;
+  padding: 0.65rem 1.05rem;
+  border: 1px solid var(--verity-accent) !important;
+  border-radius: 0.3rem;
+  background: var(--verity-accent) !important;
+  color: var(--verity-accent-ink) !important;
   font-family: var(--verity-font-ui);
-  font-size: 0.94rem;
-  font-weight: 700;
+  font-size: 0.97rem;
+  font-weight: 600;
+  letter-spacing: 0.005em;
   line-height: 1.1;
-  padding: 0.62rem 0.95rem;
   text-decoration: none !important;
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 
-.verity-hero__links a:hover {
-  background: color-mix(in srgb, var(--verity-accent-soft) 34%, var(--verity-surface)) !important;
-  border-color: var(--verity-accent) !important;
+.verity-hero__cta span {
+  display: inline-block;
+  font-size: 1.05em;
+  transition: transform 0.18s ease;
 }
 
-.verity-hero__links a:first-child {
-  background: var(--verity-accent) !important;
-  border-color: var(--verity-accent) !important;
-  color: var(--verity-accent-ink) !important;
-}
-
-.verity-hero__links a:first-child:hover {
+.verity-hero__cta:hover {
   background: var(--verity-heading) !important;
   border-color: var(--verity-heading) !important;
   color: var(--verity-accent-ink) !important;
 }
 
-.verity-hero__links a:focus-visible {
+.verity-hero__cta:hover span {
+  transform: translateX(0.18rem);
+}
+
+.verity-hero__cta:focus-visible,
+.verity-hero__more a:focus-visible {
   outline: 2px solid var(--verity-accent);
   outline-offset: 2px;
 }
 
-.verity-hero__brief {
-  display: grid;
-  gap: 0;
-  border-top: 1px solid var(--verity-rule);
-  border-bottom: 1px solid var(--verity-rule);
-  background: color-mix(in srgb, var(--verity-surface) 72%, transparent);
+.verity-hero__more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.verity-hero__brief div {
-  padding: 1rem 0;
-  border-top: 1px solid var(--verity-rule);
-}
-
-.verity-hero__brief div:first-child {
-  border-top: 0;
-}
-
-.verity-hero__brief span,
-.verity-hero__brief strong {
-  display: block;
-}
-
-.verity-hero__brief span {
-  color: var(--verity-muted);
+.verity-hero__more a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  color: var(--verity-accent) !important;
   font-family: var(--verity-font-ui);
-  font-size: 0.76rem;
+  font-size: 0.94rem;
+  font-weight: 500;
+  text-decoration: none !important;
+  transition: color 0.15s ease;
+}
+
+.verity-hero__more a span {
+  font-size: 0.85em;
+  opacity: 0.7;
+  transition: transform 0.18s ease;
+}
+
+.verity-hero__more a:hover {
+  color: var(--verity-heading) !important;
+}
+
+.verity-hero__more a:hover span {
+  transform: translate(0.12rem, -0.12rem);
+}
+
+.verity-hero__brief {
+  position: relative;
+  padding: 0.4rem 0 0;
+  border-top: 1px solid var(--verity-rule);
+  background: transparent;
+  font-family: var(--verity-font-prose);
+}
+
+.verity-hero__brief-label {
+  margin: 0 0 0.65rem;
+  color: var(--verity-accent);
+  font-family: var(--verity-font-ui);
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
-.verity-hero__brief strong {
-  margin-top: 0.35rem;
+.verity-hero__brief dl {
+  margin: 0;
+  display: grid;
+  gap: 0;
+}
+
+.verity-hero__brief dl > div {
+  padding: 0.85rem 0;
+  border-top: 1px solid color-mix(in srgb, var(--verity-rule) 70%, transparent);
+}
+
+.verity-hero__brief dl > div:first-child {
+  border-top: 0;
+  padding-top: 0.15rem;
+}
+
+.verity-hero__brief dt {
+  margin: 0;
+  color: var(--verity-muted);
+  font-family: var(--verity-font-ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.verity-hero__brief dd {
+  margin: 0.3rem 0 0;
   color: var(--verity-heading);
-  font-family: var(--verity-font-caption);
-  font-size: 1.12rem;
-  line-height: 1.28;
+  font-family: var(--verity-font-prose);
+  font-size: 1.02rem;
+  font-weight: 500;
+  line-height: 1.36;
 }
 
 .code-compare {
@@ -794,9 +867,8 @@ a[role="button"] {
 }
 
 @media (max-width: 1024px) {
-  .verity-hero {
+  .verity-hero__body {
     grid-template-columns: 1fr;
-    min-height: auto;
   }
 
   .code-compare__intro,
