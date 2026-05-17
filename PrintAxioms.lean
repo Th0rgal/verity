@@ -902,8 +902,6 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_nonpayable_withSwitchIds_generated_prefix_atFuel  -- private
   -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds_atFuel  -- private
   -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds_atFuel_forall  -- private
-  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds_atFuel_forall_finalMatched  -- private
-  -- Compiler.Proofs.EndToEnd.nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_atFuel_forall_finalMatched  -- private
   -- Compiler.Proofs.EndToEnd.compileFunctionSpec_noFuncDefs_of_static_params_and_body  -- private
   -- Compiler.Proofs.EndToEnd.compileFunctionSpec_noFuncDefs_of_safe_static_params  -- private
   -- Compiler.Proofs.EndToEnd.compileFunctionSpec_bridged_of_safe_static_params  -- private
@@ -970,6 +968,7 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.switchCases_bridged_local  -- private
   -- Compiler.Proofs.EndToEnd.buildSwitch_bridged_local  -- private
   -- Compiler.Proofs.EndToEnd.mappingSlotFuncAt_bridged_local  -- private
+  -- Compiler.Proofs.EndToEnd.initFreeMemoryPointer_bridged_local  -- private
   -- Compiler.Proofs.EndToEnd.runtimeCode_bridged_local  -- private
   Compiler.Proofs.EndToEnd.switchCaseBody_bridged_of_body
   Compiler.Proofs.EndToEnd.generatedRuntimeSwitchCaseBodiesBridged_of_compile_ok_supported
@@ -1158,7 +1157,6 @@ end Verity.AxiomAudit
   Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_error_matchesIR_exists_of_compile_ok_supported
   -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_of_compile_ok_supported  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_forall_of_compile_ok_supported  -- private
-  -- Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_forall_of_compile_ok_supported_finalMatched  -- private
   Compiler.Proofs.EndToEnd.nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_exists_of_compile_ok_supported
   -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitLoweredArtifacts_of_compile_ok_supported  -- private
   -- Compiler.Proofs.EndToEnd.nativeGeneratedSelectorHitSuccessUserBodyLoweredArtifacts_of_compile_ok_supported  -- private
@@ -1523,7 +1521,7 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.simpleStorageNativeStoreHitMatchBridge_proved  -- private
   -- Compiler.Proofs.EndToEnd.simpleStorageNativeSelectorMissMatchBridge_proved  -- private
   -- Compiler.Proofs.EndToEnd.simpleStorageNativeCallDispatcherMatchBridge_of_per_case  -- private
-  Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean
+  -- Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean  -- sorry'd
   Compiler.Proofs.EndToEnd.simpleStorage_source_endToEnd_native_evmYulLean_of_sourceIR
 
   -- Compiler/Proofs/EventSemantics.lean
@@ -4129,7 +4127,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNativeAux_single_stmt_eq_lowerStmtsNativeWithSwitchIds
-  Compiler.Proofs.YulGeneration.Backends.Native.emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive
+  -- Compiler.Proofs.YulGeneration.Backends.Native.emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive  -- sorry'd
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher
   Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNative_single_block_ok_singleton
@@ -4164,22 +4162,22 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_none_of_find_function
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_funcDef_prefix_append
-  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive
+  -- Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive  -- sorry'd
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_emitYul_runtimeCode_noFallback_noReceive
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_append_nonFunc_suffix
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_buildSwitch_append
-  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_runtimeCode
+  -- Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_runtimeCode  -- sorry'd
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_emitYul_runtimeCode
   Compiler.Proofs.YulGeneration.Backends.Native.mappingSlotFuncAt_body_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.Native.lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero
   Compiler.Proofs.YulGeneration.Backends.Native.lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero_body
   Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition_body
-  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved
+  -- Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved  -- sorry'd
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_internalFunctions
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_buildSwitch
-  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_runtimeCode
+  -- Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_runtimeCode  -- sorry'd
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_emitYul_runtimeCode
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment_emitYul_runtimeCode_noFallback_noReceive
   Compiler.Proofs.YulGeneration.Backends.Native.validateGeneratedRuntimeNativeFragment_ok
@@ -4639,7 +4637,6 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_miss_ok
   Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_miss_ok_fuel
   -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_land_zero_left  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_land_zero_right  -- private
   Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_matched_ok
   Compiler.Proofs.YulGeneration.Backends.Native.eval_nativeSwitchGuardedMatch_matched_ok_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.exec_if_nativeSwitchGuardedMatch_hit
@@ -4669,8 +4666,6 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.reviveJump_Leave_eq
   Compiler.Proofs.YulGeneration.Backends.Native.reviveJump_Continue_eq
   Compiler.Proofs.YulGeneration.Backends.Native.reviveJump_Break_eq
-  Compiler.Proofs.YulGeneration.Backends.Native.reviveJump_eq_ok_ne_outOfFuel
-  Compiler.Proofs.YulGeneration.Backends.Native.selected_body_ok_reviveJump_ne_outOfFuel
   Compiler.Proofs.YulGeneration.Backends.Native.state_lookup_insert_of_ne
   Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_insert_of_ne
   Compiler.Proofs.YulGeneration.Backends.Native.state_getElem_insert_self_ok
@@ -5097,9 +5092,6 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_unmatched_caseTail_nonempty_error_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_with_default_matched_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_checkpoint_matched_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchDefaultIf_checkpoint_matched_caseTail_fuel
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_with_default_checkpoint_matched_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_with_default_preserved_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_hit_with_default_error_fuel
   Compiler.Proofs.YulGeneration.Backends.Native.exec_nativeSwitchCaseIfs_find_none_with_default_nonempty_fuel
@@ -5283,7 +5275,6 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.exec_lowerNativeSwitchBlock_selector_find_hit_ok_store_projectResult_eq
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_preserved
-  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_finalMatched
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_payable_generated_prefix
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_ok_projectResult_eq_nonpayable_generated_prefix
   Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_lowerNativeSwitchBlock_selector_find_hit_error_projectResult_eq
@@ -5321,7 +5312,6 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_atFuel_projectResult_eq
   Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_atFuel_projectResult_eq_preserved
   Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_atFuel_projectResult_eq_preserved_forall
-  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_atFuel_projectResult_eq_finalMatched_forall
   Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_withSwitchIds_projectResult_eq
   Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_withSwitchIds_atFuel_projectResult_eq
   Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_error_withSwitchIds_atFuel_artifact_projectResult_eq
@@ -5330,7 +5320,6 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_atFuel_projectResult_eq
   Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_atFuel_projectResult_eq_preserved
   Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_atFuel_projectResult_eq_preserved_forall
-  Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_ok_withSwitchIds_atFuel_projectResult_eq_finalMatched_forall
   Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_withSwitchIds_projectResult_eq
   Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_none_withSwitchIds_atFuel_projectResult_eq
   -- Compiler.Proofs.YulGeneration.Backends.Native.simpleStorageSelectors_tagsRange  -- private
@@ -5359,6 +5348,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_eq_callDispatcher_of_lowerRuntimeContractNative
   Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_succ_eq_contractDispatcherBlockResult_of_lowerRuntimeContractNative
   Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative_succ_eq_contractDispatcherExecResult_of_lowerRuntimeContractNative
+  Compiler.Proofs.YulGeneration.Backends.Native.exec_block_append_eq_of_continue
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerStmtsNativeWithSwitchIds_with_leave_ok_eq_of_NativeBlockPreservesWord
   Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerStmtsNativeWithSwitchIds_ok_eq_of_NativeBlockPreservesWord
 
@@ -5575,4 +5565,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5289 theorems/lemmas (3601 public, 1688 private, 0 sorry'd)
+-- Total: 5279 theorems/lemmas (3588 public, 1685 private, 6 sorry'd)
