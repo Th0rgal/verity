@@ -968,7 +968,6 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.switchCases_bridged_local  -- private
   -- Compiler.Proofs.EndToEnd.buildSwitch_bridged_local  -- private
   -- Compiler.Proofs.EndToEnd.mappingSlotFuncAt_bridged_local  -- private
-  -- Compiler.Proofs.EndToEnd.initFreeMemoryPointer_bridged_local  -- private
   -- Compiler.Proofs.EndToEnd.runtimeCode_bridged_local  -- private
   Compiler.Proofs.EndToEnd.switchCaseBody_bridged_of_body
   Compiler.Proofs.EndToEnd.generatedRuntimeSwitchCaseBodiesBridged_of_compile_ok_supported
@@ -1521,7 +1520,7 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.simpleStorageNativeStoreHitMatchBridge_proved  -- private
   -- Compiler.Proofs.EndToEnd.simpleStorageNativeSelectorMissMatchBridge_proved  -- private
   -- Compiler.Proofs.EndToEnd.simpleStorageNativeCallDispatcherMatchBridge_of_per_case  -- private
-  -- Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean  -- sorry'd
+  Compiler.Proofs.EndToEnd.simpleStorage_endToEnd_native_evmYulLean
   Compiler.Proofs.EndToEnd.simpleStorage_source_endToEnd_native_evmYulLean_of_sourceIR
 
   -- Compiler/Proofs/EventSemantics.lean
@@ -4127,7 +4126,7 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNativeAux_single_stmt_eq_lowerStmtsNativeWithSwitchIds
-  -- Compiler.Proofs.YulGeneration.Backends.Native.emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive  -- sorry'd
+  Compiler.Proofs.YulGeneration.Backends.Native.emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher
   Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNative_single_block_ok_singleton
@@ -4162,22 +4161,22 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_none_of_find_function
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_funcDef_prefix_append
-  -- Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive  -- sorry'd
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeDispatcherHasNoFuncDefs_emitYul_runtimeCode_noFallback_noReceive
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_append_nonFunc_suffix
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_buildSwitch_append
-  -- Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_runtimeCode  -- sorry'd
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_runtimeCode
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionNamesUnique_emitYul_runtimeCode
   Compiler.Proofs.YulGeneration.Backends.Native.mappingSlotFuncAt_body_noFuncDefs
   Compiler.Proofs.YulGeneration.Backends.Native.lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero
   Compiler.Proofs.YulGeneration.Backends.Native.lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero_body
   Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition_body
-  -- Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved  -- sorry'd
+  Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_internalFunctions
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_buildSwitch
-  -- Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_runtimeCode  -- sorry'd
+  Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_runtimeCode
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_emitYul_runtimeCode
   Compiler.Proofs.YulGeneration.Backends.Native.generatedRuntimeNativeFragment_emitYul_runtimeCode_noFallback_noReceive
   Compiler.Proofs.YulGeneration.Backends.Native.validateGeneratedRuntimeNativeFragment_ok
@@ -5565,4 +5564,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5279 theorems/lemmas (3588 public, 1685 private, 6 sorry'd)
+-- Total: 5278 theorems/lemmas (3594 public, 1684 private, 0 sorry'd)

@@ -860,7 +860,9 @@ theorem emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFall
     (hNoReceive : contract.receiveEntrypoint = none) :
     (Compiler.emitYul contract).runtimeCode =
       [Compiler.CodegenCommon.buildSwitch contract.functions none none] := by
-  sorry
+  simp [Compiler.emitYul, Compiler.CodegenCommon.emitYul,
+    Compiler.CodegenCommon.runtimeCode, hNoMapping, hInternals, hNoFallback,
+    hNoReceive]
 
 /-- In the helper-free, no-fallback/no-receive generated case, native runtime
 lowering reduces to lowering the single dispatcher shell. -/
@@ -1972,7 +1974,29 @@ theorem generatedRuntimeDispatcherHasNoFuncDefs_runtimeCode_noFallback_noReceive
     (hNoFallback : contract.fallbackEntrypoint = none)
     (hNoReceive : contract.receiveEntrypoint = none) :
     generatedRuntimeDispatcherHasNoFuncDefs (Compiler.runtimeCode contract) = true := by
-  sorry
+  let runtimePrefix :=
+    (if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+      contract.internalFunctions
+  have hPrefix :
+      ∀ stmt, stmt ∈ runtimePrefix →
+        ∃ name params rets body, stmt = YulStmt.funcDef name params rets body := by
+    intro stmt hmem
+    simp only [runtimePrefix, List.mem_append] at hmem
+    rcases hmem with hMapping | hInternal
+    · split at hMapping <;> simp at hMapping
+      subst hMapping
+      exact ⟨"mappingSlot", ["baseSlot", "key"], ["slot"], _, rfl⟩
+    · exact hInternals stmt hInternal
+  rw [Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode]
+  simp [hNoFallback, hNoReceive]
+  rw [← List.append_assoc]
+  change generatedRuntimeDispatcherHasNoFuncDefs
+      (runtimePrefix ++ [Compiler.CodegenCommon.buildSwitch contract.functions none none]) =
+    true
+  rw [generatedRuntimeDispatcherHasNoFuncDefs_funcDef_prefix_append runtimePrefix
+    [Compiler.CodegenCommon.buildSwitch contract.functions none none] hPrefix]
+  exact generatedRuntimeDispatcherHasNoFuncDefs_buildSwitch_noFallback_noReceive
+    contract.functions hBodies
 
 theorem generatedRuntimeDispatcherHasNoFuncDefs_emitYul_runtimeCode_noFallback_noReceive
     (contract : IRContract)
@@ -2018,7 +2042,15 @@ theorem generatedRuntimeFunctionNamesUnique_runtimeCode
       ((if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
         contract.internalFunctions) = true) :
     generatedRuntimeFunctionNamesUnique (Compiler.runtimeCode contract) = true := by
-  sorry
+  let runtimePrefix :=
+    (if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []) ++
+      contract.internalFunctions
+  rw [Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode]
+  change generatedRuntimeFunctionNamesUnique
+      (runtimePrefix ++ [Compiler.CodegenCommon.buildSwitch contract.functions
+        contract.fallbackEntrypoint contract.receiveEntrypoint]) = true
+  rw [generatedRuntimeFunctionNamesUnique_buildSwitch_append]
+  exact hPrefixUnique
 
 theorem generatedRuntimeFunctionNamesUnique_emitYul_runtimeCode
     (contract : IRContract)
@@ -2121,7 +2153,18 @@ theorem lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noRece
                 functions := ((∅ : Backends.NativeFunctionMap).insert
                   "mappingSlot" nativeMappingSlotFunctionDefinition) }
       | .error err => .error err := by
-  sorry
+  unfold Backends.lowerRuntimeContractNative
+  simp only [Compiler.emitYul, Compiler.CodegenCommon.emitYul,
+    Compiler.CodegenCommon.runtimeCode, hMapping, hInternals, hNoFallback,
+    hNoReceive, if_true]
+  simp only [List.singleton_append, List.append_nil]
+  simp only [Compiler.CodegenCommon.mappingSlotFuncAt]
+  rw [Backends.lowerRuntimeContractNativeAux_funcDef_cons_empty_of_lowerFunctionDefinition
+    (definition := nativeMappingSlotFunctionDefinition)]
+  · rw [lowerRuntimeContractNativeAux_single_stmt_eq_lowerStmtsNativeWithSwitchIds]
+    intro name params rets body h
+    simp [Compiler.CodegenCommon.buildSwitch] at h
+  · exact lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero_body _
 
 /-- If mapping-helper emitted runtime lowering succeeds, the successful
 contract is exactly the native dispatcher shell plus the generated native
@@ -2214,7 +2257,41 @@ theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_runtimeCode
         yulStmtsContainFuncDef body = false) :
     generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
       (Compiler.runtimeCode contract) = true := by
-  sorry
+  let mapping := if contract.usesMapping then [Compiler.mappingSlotFuncAt 0] else []
+  have hMapping :
+      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs mapping = true := by
+    by_cases hUsesMapping : contract.usesMapping
+    · simp [mapping, hUsesMapping, generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs,
+        Compiler.mappingSlotFuncAt, Compiler.CodegenCommon.mappingSlotFuncAt,
+        yulFunctionBodies, yulStmtContainsFuncDef, yulStmtsContainFuncDef]
+    · simp [mapping, hUsesMapping, generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs]
+  have hInternals :
+      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+        contract.internalFunctions = true :=
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_internalFunctions
+      contract.internalFunctions hInternalBodies
+  have hSwitch :
+      generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+        [Compiler.CodegenCommon.buildSwitch contract.functions
+          contract.fallbackEntrypoint contract.receiveEntrypoint] = true :=
+    generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_buildSwitch
+      contract.functions contract.fallbackEntrypoint contract.receiveEntrypoint
+  rw [Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode]
+  change generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs
+      (mapping ++ contract.internalFunctions ++
+        [Compiler.CodegenCommon.buildSwitch contract.functions
+          contract.fallbackEntrypoint contract.receiveEntrypoint]) = true
+  rw [List.append_assoc]
+  exact generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
+    mapping (contract.internalFunctions ++
+      [Compiler.CodegenCommon.buildSwitch contract.functions
+        contract.fallbackEntrypoint contract.receiveEntrypoint])
+    hMapping
+    (generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_append
+      contract.internalFunctions
+      [Compiler.CodegenCommon.buildSwitch contract.functions
+        contract.fallbackEntrypoint contract.receiveEntrypoint]
+      hInternals hSwitch)
 
 theorem generatedRuntimeFunctionBodiesHaveNoNestedFuncDefs_emitYul_runtimeCode
     (contract : IRContract)

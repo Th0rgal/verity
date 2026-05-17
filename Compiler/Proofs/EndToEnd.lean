@@ -920,7 +920,7 @@ private theorem sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
   simp only [hMapping, hInternals, hNoFallback, hNoReceive, if_true,
     List.singleton_append, List.append_nil]
   simp only [Compiler.CodegenCommon.mappingSlotFuncAt]
-  sorry
+  simp
 
 private theorem sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
@@ -973,7 +973,7 @@ private theorem sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus2
   simp only [hMapping, hInternals, hNoFallback, hNoReceive, if_true,
     List.singleton_append, List.append_nil]
   simp only [Compiler.CodegenCommon.mappingSlotFuncAt]
-  sorry
+  simp
 
 /-- Projected native dispatcher-exec result equality used by the public native
 EndToEnd theorems.
@@ -5591,15 +5591,6 @@ private theorem mappingSlotFuncAt_bridged_local (scratchBase : Nat) :
   unfold Compiler.CodegenCommon.mappingSlotFuncAt
   exact bridgedStmt_funcDef "mappingSlot" ["baseSlot", "key"] ["slot"] _
 
-private theorem initFreeMemoryPointer_bridged_local :
-    BridgedStmt Compiler.CodegenCommon.initFreeMemoryPointer := by
-  unfold Compiler.CodegenCommon.initFreeMemoryPointer
-  exact bridgedStmt_mstore_of_bridged_args
-    (Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer)
-    (Yul.YulExpr.lit 128)
-    (BridgedExpr.lit Compiler.Constants.freeMemoryPointer)
-    (BridgedExpr.lit 128)
-
 private theorem runtimeCode_bridged_local
     (contract : Compiler.IRContract)
     (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
@@ -5611,20 +5602,16 @@ private theorem runtimeCode_bridged_local
     BridgedStmts (Compiler.CodegenCommon.runtimeCode contract) := by
   unfold Compiler.CodegenCommon.runtimeCode
   cases contract.usesMapping
-  · exact BridgedStmts_append hInternals
-      (BridgedStmts_cons initFreeMemoryPointer_bridged_local
-        (BridgedStmts_singleton
-          (buildSwitch_bridged_local contract.functions
-            contract.fallbackEntrypoint contract.receiveEntrypoint hFunctions
-            hFallback hReceive)))
+  · exact BridgedStmts_snoc hInternals
+      (buildSwitch_bridged_local contract.functions
+        contract.fallbackEntrypoint contract.receiveEntrypoint hFunctions
+        hFallback hReceive)
   · simp only [ite_true]
     exact BridgedStmts_cons (mappingSlotFuncAt_bridged_local 0)
-      (BridgedStmts_append hInternals
-        (BridgedStmts_cons initFreeMemoryPointer_bridged_local
-          (BridgedStmts_singleton
-            (buildSwitch_bridged_local contract.functions
-              contract.fallbackEntrypoint contract.receiveEntrypoint hFunctions
-              hFallback hReceive))))
+      (BridgedStmts_snoc hInternals
+        (buildSwitch_bridged_local contract.functions
+          contract.fallbackEntrypoint contract.receiveEntrypoint hFunctions
+          hFallback hReceive))
 
 /-- The selected native-harness switch case for a compiled external function is
 bridged whenever the compiled function body is bridged. This packages the
@@ -29868,8 +29855,7 @@ This pins down the outer runtime layer that the native dispatcher bridge must
 peel before applying the concrete lowered selector-switch lemmas. -/
 private theorem simpleStorage_runtimeCode_eq_single_dispatcher :
     (Compiler.emitYul simpleStorageIRContract).runtimeCode =
-      [Compiler.CodegenCommon.initFreeMemoryPointer,
-       Compiler.CodegenCommon.buildSwitch
+      [Compiler.CodegenCommon.buildSwitch
         simpleStorageIRContract.functions none none] := by
   dsimp [Compiler.emitYul, Compiler.CodegenCommon.emitYul,
     Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode,
@@ -29907,7 +29893,19 @@ computed native witness in later selector-case proofs. -/
 private theorem simpleStorageNativeContract_dispatcher_eq_lowered_stmts :
     Compiler.SimpleStorageNativeWitness.nativeContract.dispatcher =
       .Block simpleStorageNativeDispatcherStmts := by
-  sorry
+  unfold Compiler.SimpleStorageNativeWitness.nativeContract
+  rw [simpleStorage_runtimeCode_eq_single_dispatcher]
+  rw [lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative]
+  · cases hLower :
+        Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch
+            simpleStorageIRContract.functions none none] with
+    | ok stmts =>
+        simp [simpleStorageNativeDispatcherStmts, hLower]
+    | error err =>
+        simp [simpleStorageNativeDispatcherStmts, hLower]
+  · intro name params rets body h
+    cases h
 
 /-- A `.block` head in the native lowering surfaces as a singleton `.Block`
 output when the lowering succeeds.
@@ -29936,7 +29934,19 @@ private theorem simpleStorageNativeDispatcherStmts_lowering_ok :
         [Compiler.CodegenCommon.buildSwitch
           simpleStorageIRContract.functions none none] =
       .ok simpleStorageNativeDispatcherStmts := by
-  sorry
+  have hOuter := Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq
+  rw [simpleStorage_runtimeCode_eq_single_dispatcher] at hOuter
+  rw [lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative] at hOuter
+  · cases hL : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+        [Compiler.CodegenCommon.buildSwitch
+          simpleStorageIRContract.functions none none] with
+    | ok stmts =>
+        simp [simpleStorageNativeDispatcherStmts, hL]
+    | error err =>
+        rw [hL] at hOuter
+        simp at hOuter
+  · intro name params rets body h'
+    cases h'
 
 /-- The SimpleStorage native dispatcher statement list is a singleton `.Block`.
 
@@ -37489,7 +37499,8 @@ theorem simpleStorage_endToEnd_native_evmYulLean
     Compiler.Proofs.YulGeneration.Backends.Native.callDispatcherBlockResult_initialState_eq_contractDispatcherBlockResult,
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherBlockResult_eq_execResult
   ]
-  sorry
+  simpa [simpleStorageNativeDispatcherFuel, simpleStorage_runtimeCode_eq_single_dispatcher]
+    using hConcrete
 
 /-- Source-level SimpleStorage native theorem from any already established
 source-to-IR result match.

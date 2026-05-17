@@ -48,7 +48,7 @@ private def yulReturnRuntime : YulStmt :=
     YulExpr.call "datasize" [YulExpr.str "runtime"]
   ])
 
-def initFreeMemoryPointer : YulStmt :=
+private def initFreeMemoryPointer : YulStmt :=
   YulStmt.expr (YulExpr.call "mstore" [
     YulExpr.lit Compiler.Constants.freeMemoryPointer,
     YulExpr.lit 128
@@ -140,9 +140,7 @@ def buildSwitch
 def runtimeCode (contract : IRContract) : List YulStmt :=
   let mapping := if contract.usesMapping then [mappingSlotFuncAt 0] else []
   let internals := contract.internalFunctions
-  mapping ++ internals ++
-    [initFreeMemoryPointer,
-     buildSwitch contract.functions contract.fallbackEntrypoint contract.receiveEntrypoint]
+  mapping ++ internals ++ [buildSwitch contract.functions contract.fallbackEntrypoint contract.receiveEntrypoint]
 
 private def profileSortsOutput (profile : BackendProfile) : Bool :=
   match profile with

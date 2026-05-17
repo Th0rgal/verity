@@ -2205,7 +2205,7 @@ private def expectCompileErrorContains (label : String)
 
 private def compileToYul (spec : CompilationModel) : Except String String := do
   let contract ← Compiler.CompilationModel.compile spec (selectorsFor spec)
-  pure <| Compiler.Yul.render (Compiler.emitYul contract)
+  pure <| Compiler.Yul.render (Compiler.emitYulWithOptions contract {})
 
 private def expectCompile (label : String) (spec : CompilationModel) : IO Compiler.IRContract := do
   match Compiler.CompilationModel.compile spec (selectorsFor spec) with
