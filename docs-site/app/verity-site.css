@@ -1081,6 +1081,12 @@ a[role="button"] {
   transition: opacity 0.35s ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .code-switcher__panels .code-panel {
+    transition: none;
+  }
+}
+
 .code-switcher__panels .code-panel[data-active="true"] {
   position: relative;
   opacity: 1;
