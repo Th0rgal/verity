@@ -330,6 +330,17 @@ body {
   font-family: var(--verity-font-ui);
 }
 
+/* "On This Page" heading — quieter, kicker-like */
+.nextra-toc p.x\:font-semibold,
+.nextra-toc p[class*="font-semibold"] {
+  color: var(--verity-accent) !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  margin-bottom: 0.5rem !important;
+}
+
 .dark .nextra-toc {
   background: color-mix(in srgb, var(--verity-bg) 84%, var(--verity-surface)) !important;
   border-left-color: var(--verity-rule) !important;
