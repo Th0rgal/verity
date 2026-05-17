@@ -1098,25 +1098,31 @@ a[role="button"] {
 .code-compare__notes {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  margin: 1rem 0 0;
+  gap: 0 2rem;
+  margin: 1.25rem 0 0;
   padding: 0;
-  border-top: 1px solid var(--verity-rule);
-  border-bottom: 1px solid var(--verity-rule);
-  list-style: none;
 }
 
-.code-compare__notes li {
-  padding: 0.9rem 1rem;
-  border-left: 1px solid var(--verity-rule);
-  color: var(--verity-muted) !important;
+.code-compare__notes > div {
+  padding: 0;
+}
+
+.code-compare__notes dt {
+  margin: 0 0 0.2rem;
+  color: var(--verity-accent);
   font-family: var(--verity-font-ui);
-  font-size: 0.93rem;
-  line-height: 1.42;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.code-compare__notes li:first-child {
-  border-left: 0;
+.code-compare__notes dd {
+  margin: 0;
+  color: var(--verity-ink);
+  font-family: var(--verity-font-prose);
+  font-size: 0.97rem;
+  line-height: 1.45;
 }
 
 .report-callout {

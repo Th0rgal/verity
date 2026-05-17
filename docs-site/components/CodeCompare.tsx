@@ -66,9 +66,9 @@ const solidityCode = `contract Escrow {
 }`
 
 const notes = [
-  'Reusable modifiers are ordinary verified helpers, not compiler magic.',
-  'Typed external calls expose oracle and ABI assumptions at the language boundary.',
-  'Event definitions and storage slots stay visible to specs, proofs, and compiler reports.',
+  { label: 'Modifiers', text: 'Plain verified helpers, no compiler magic.' },
+  { label: 'External calls', text: 'Typed at the boundary; oracle assumptions are explicit.' },
+  { label: 'Storage & events', text: 'Visible to specs, proofs, and compiler reports.' },
 ]
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
@@ -113,22 +113,25 @@ export async function CodeCompare() {
   return (
     <section className="code-compare" aria-labelledby="code-compare-title">
       <div className="code-compare__intro">
-        <p className="verity-kicker">Semantic contract surface</p>
-        <h2 id="code-compare-title">Solidity patterns, lifted into proof-carrying code.</h2>
+        <p className="verity-kicker">Side by side</p>
+        <h2 id="code-compare-title">The same contract, lifted into Lean.</h2>
         <p>
-          Verity keeps production smart-contract structure recognizable while exposing guards,
-          ABI projection, event emission, and external calls to Lean proofs.
+          Recognizable Solidity structure — guards, ABI, events, external calls —
+          all visible to proofs.
         </p>
       </div>
       <CodeCompareSwitcher
         verityHtml={verityHtml}
         solidityHtml={solidityHtml}
       />
-      <ul className="code-compare__notes">
+      <dl className="code-compare__notes">
         {notes.map((note) => (
-          <li key={note}>{note}</li>
+          <div key={note.label}>
+            <dt>{note.label}</dt>
+            <dd>{note.text}</dd>
+          </div>
         ))}
-      </ul>
+      </dl>
     </section>
   )
 }

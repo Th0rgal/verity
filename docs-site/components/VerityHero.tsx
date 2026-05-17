@@ -1,9 +1,3 @@
-const claims = [
-  'Lean proofs live next to executable contract code.',
-  'Compiler models preserve typed storage, guards, and ABI surfaces.',
-  'Generated EVM artifacts carry explicit proof and trust boundaries.',
-]
-
 const primaryLink = { href: '/guides/first-contract', label: 'Start with a contract' }
 
 const secondaryLinks = [
@@ -13,9 +7,9 @@ const secondaryLinks = [
 ]
 
 const brief = [
-  { label: 'Proof surface', value: <>Spec&nbsp;→ EDSL&nbsp;→ IR&nbsp;→ Yul</> },
-  { label: 'Contract shape', value: 'Storage, guards, events, typed externals' },
-  { label: 'Audit posture', value: 'Machine-checked claims plus explicit assumptions' },
+  { label: 'Pipeline', value: <>Spec&nbsp;→ EDSL&nbsp;→ IR&nbsp;→ Yul</> },
+  { label: 'Surface', value: 'Storage, guards, events, typed externals' },
+  { label: 'Assurance', value: 'Machine-checked claims, explicit assumptions' },
 ]
 
 export function VerityHero() {
@@ -27,18 +21,13 @@ export function VerityHero() {
           Verity<span aria-hidden="true" className="verity-hero__terminal">.</span>
         </h1>
         <p className="verity-hero__dek">
-          A Lean-native language for{' '}
-          <em>verified&nbsp;smart contracts</em>.
+          Write smart contracts in Lean. Compile to EVM.{' '}
+          <em>Prove&nbsp;them correct</em>.
         </p>
       </header>
 
       <div className="verity-hero__body">
         <div className="verity-hero__copy">
-          <ul className="verity-claim-list" aria-label="Verification claims">
-            {claims.map((claim) => (
-              <li key={claim}>{claim}</li>
-            ))}
-          </ul>
           <nav className="verity-hero__links" aria-label="Primary documentation links">
             <a className="verity-hero__cta" href={primaryLink.href}>
               {primaryLink.label}
@@ -58,7 +47,7 @@ export function VerityHero() {
         </div>
 
         <aside className="verity-hero__brief" aria-label="Verification brief">
-          <p className="verity-hero__brief-label">Abstract</p>
+          <p className="verity-hero__brief-label">At a glance</p>
           <dl>
             {brief.map((item) => (
               <div key={item.label}>

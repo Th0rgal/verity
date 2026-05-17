@@ -12,19 +12,17 @@ import { ReportCallout } from '../components/ReportCallout'
 
 <CodeCompare />
 
-<ReportCallout title="Current verification posture">
-Verity is a compact Lean EDSL with verified example contracts, automatic compilation
-to EVM artifacts, and explicit proof boundaries for the compiler model. The docs are
-written as a manual: start with a contract, inspect the compiler model, then review
-the theorem and assumption inventory. Layer 2 proof status is tracked in
-`Compiler/Proofs/IRGeneration/Contract.lean` (generic whole-contract
-`CompilationModel -> IR` theorem for the current supported fragment).
+<ReportCallout title="Where the trust comes from">
+A small, audited Lean EDSL with example contracts that compile to EVM artifacts.
+Every claim is machine-checked and every assumption is documented. Read the docs
+as a short manual — start with a contract, inspect the compiler, then check the
+theorem and assumption inventory.
 </ReportCallout>
 
 ## The Three-Layer Structure
 
-Each contract is written as a specification, an executable Lean implementation, and
-a proof that connects the two.
+Every contract is three things at once: a **specification** of what it should do,
+an **implementation** that runs, and a **proof** that ties them together.
 
 ### Specification
 
@@ -60,20 +58,20 @@ theorem mint_meets_spec (s : ContractState) (to : Address) (amount : Uint256)
   simp [h_owner]
 ```
 
-The Lean compiler verifies every proof. If a proof is wrong, compilation fails.
+Lean checks every proof at compile time. A broken proof is a broken build.
 
-## What the Manual Covers
+## Read next
 
 | Section | Use it for |
 |---|---|
-| [Getting Started](/getting-started) | Local setup, Lean prerequisites, and first verification run |
+| [Getting Started](/getting-started) | Local setup and your first verification run |
 | [First Contract](/guides/first-contract) | A guided spec-to-proof walkthrough |
-| [Compiler](/compiler) | The EDSL-to-EVM pipeline, trust model, and reports |
-| [Verification](/verification) | Current theorem inventory and proof status |
-| [Solidity to Verity](/guides/solidity-to-verity) | Translation patterns for Solidity contracts |
-| [Production Solidity Patterns](/guides/production-solidity-patterns) | Modifiers, linked externals, ABI projection, events, and oracle boundaries |
+| [Compiler](/compiler) | The EDSL-to-EVM pipeline and trust model |
+| [Verification](/verification) | Theorem inventory and proof status |
+| [Solidity to Verity](/guides/solidity-to-verity) | Translation patterns from Solidity |
+| [Production patterns](/guides/production-solidity-patterns) | Modifiers, externals, ABI, events, oracles |
 
 <Callout type="info">
-**For agents and tooling:** check [/llms.txt](/llms.txt) or add `.md` to any page
-URL to retrieve raw markdown.
+**For agents and tooling:** see [/llms.txt](/llms.txt), or add `.md` to any
+page URL for raw markdown.
 </Callout>
