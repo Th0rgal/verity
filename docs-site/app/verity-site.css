@@ -491,11 +491,36 @@ figure[data-rehype-pretty-code-figure] pre {
   color: var(--verity-ink) !important;
 }
 
-article main :not(pre) > code,
+article :not(pre) > code,
 code.nextra-code:not(pre code) {
-  background: color-mix(in srgb, var(--verity-sidebar) 34%, var(--verity-surface)) !important;
-  border: 1px solid color-mix(in srgb, var(--verity-rule) 74%, transparent) !important;
+  background: color-mix(in srgb, var(--verity-sidebar) 28%, var(--verity-surface)) !important;
+  border: 1px solid color-mix(in srgb, var(--verity-rule) 55%, transparent) !important;
+  border-radius: 0.22rem !important;
   color: var(--verity-heading) !important;
+  font-family: var(--verity-font-code) !important;
+  font-size: 0.88em !important;
+  font-weight: 500 !important;
+  padding: 0.05em 0.36em !important;
+}
+
+.dark article :not(pre) > code,
+.dark code.nextra-code:not(pre code) {
+  background: color-mix(in srgb, var(--verity-surface-strong) 80%, transparent) !important;
+  border-color: var(--verity-rule) !important;
+  color: var(--verity-heading) !important;
+}
+
+/* When an inline code chip sits in a heading or strong, drop the chip
+   chrome so the heading keeps its serif rhythm. */
+article h1 :not(pre) > code,
+article h2 :not(pre) > code,
+article h3 :not(pre) > code,
+article h4 :not(pre) > code {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  font-size: 0.86em !important;
+  color: inherit !important;
 }
 
 article main blockquote,
