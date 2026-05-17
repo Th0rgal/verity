@@ -52,22 +52,27 @@
 
 .dark {
   color-scheme: dark;
-  --verity-bg: #000000;
-  --verity-surface: #0B0A07;
-  --verity-surface-strong: #15140F;
-  --verity-ink: #E6E1D5;
-  --verity-heading: #F5F1E8;
-  --verity-muted: #B8AA95;
-  --verity-rule: #373126;
-  --verity-code-bg: #15140F;
-  --verity-code-surface: #0F0E0A;
-  --verity-accent: #C9A961;
-  --verity-accent-ink: #000000;
+  /* Warmer "vellum at night" instead of pure black */
+  --verity-bg: #0B0908;
+  --verity-page: #0B0908;
+  --verity-sidebar: #100D0A;
+  --verity-sidebar-strong: #18130E;
+  --verity-surface: #14110D;
+  --verity-surface-strong: #1B1813;
+  --verity-ink: #E8E2D2;
+  --verity-heading: #F6F1E5;
+  --verity-muted: #B7A993;
+  --verity-rule: #2E281E;
+  --verity-code-bg: #14110D;
+  --verity-code-surface: #100D0A;
+  --verity-accent: #CFA968;
+  --verity-accent-soft: #6B501F;
+  --verity-accent-ink: #0B0908;
   --verity-shadow: none;
-  --nextra-primary-hue: 44deg;
-  --nextra-primary-saturation: 49%;
-  --nextra-primary-lightness: 58%;
-  --nextra-bg: 0, 0, 0;
+  --nextra-primary-hue: 39deg;
+  --nextra-primary-saturation: 54%;
+  --nextra-primary-lightness: 60%;
+  --nextra-bg: 11, 9, 8;
 }
 
 html,
@@ -116,7 +121,7 @@ body {
 }
 
 .dark body {
-  background: #000000;
+  background: var(--verity-bg);
 }
 
 ::selection {
