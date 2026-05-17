@@ -41,7 +41,7 @@ namespace Compiler.Modules.ERC4626
 open Compiler.Yul
 open Compiler.ECM
 open Compiler.Constants (addressMask)
-open Compiler.CompilationModel (Stmt Expr)
+open Compiler.CompilationModel (Stmt Expr freeMemoryPointer)
 
 /-- Shared implementation for read-only ERC-4626 calls that return one
     ABI-encoded `uint256` word. -/
@@ -64,17 +64,29 @@ private def readUint256Module
     let argExprs := args.drop 1
     if argExprs.length != argNames.length then
       throw s!"{moduleName} expects {1 + argNames.length} arguments (vault{if argNames.isEmpty then "" else s!", {String.intercalate ", " argNames}"})"
+    let calldataSize := 4 + argNames.length * 32
+    let frameSize := ((Nat.max calldataSize 32 + 31) / 32) * 32
+    let ptrName := s!"__erc4626_{moduleName}_ptr"
+    let ptrExpr := YulExpr.ident ptrName
+    let loadPtr := YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])
     let storeSelector := YulStmt.expr (YulExpr.call "mstore" [
-      YulExpr.lit 0,
+      ptrExpr,
       YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex selector]
     ])
     let storeArgs := argExprs.zipIdx.map fun (argExpr, idx) =>
-      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (4 + idx * 32), argExpr])
+      YulStmt.expr (YulExpr.call "mstore" [
+        YulExpr.call "add" [ptrExpr, YulExpr.lit (4 + idx * 32)],
+        argExpr
+      ])
+    let advancePtr := YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit freeMemoryPointer,
+      YulExpr.call "add" [ptrExpr, YulExpr.lit frameSize]
+    ])
     let callExpr := YulExpr.call "staticcall" [
       YulExpr.call "gas" [],
       vaultExpr,
-      YulExpr.lit 0, YulExpr.lit (4 + argNames.length * 32),
-      YulExpr.lit 0, YulExpr.lit 32
+      ptrExpr, YulExpr.lit calldataSize,
+      ptrExpr, YulExpr.lit 32
     ]
     let revertOnFailure := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__erc4626_success"]) [
       YulStmt.let_ "__erc4626_rds" (YulExpr.call "returndatasize" []),
@@ -88,11 +100,12 @@ private def readUint256Module
     ]) [
       YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
     ]
-    let bindResult := YulStmt.let_ resultVar (YulExpr.call "mload" [YulExpr.lit 0])
-    pure [YulStmt.block (
-      [storeSelector] ++ storeArgs ++
-      [YulStmt.let_ "__erc4626_success" callExpr, revertOnFailure, requireSingleWord]
-    ), bindResult]
+    let bindResult := YulStmt.let_ resultVar (YulExpr.lit 0)
+    let assignResult := YulStmt.assign resultVar (YulExpr.call "mload" [ptrExpr])
+    pure [bindResult, YulStmt.block (
+      [loadPtr, storeSelector] ++ storeArgs ++ [advancePtr] ++
+      [YulStmt.let_ "__erc4626_success" callExpr, revertOnFailure, requireSingleWord, assignResult]
+    )]
 
 /-- Shared implementation for state-changing ERC-4626 calls that return one
     ABI-encoded `uint256` word. -/
@@ -115,18 +128,30 @@ private def writeUint256Module
     let argExprs := args.drop 1
     if argExprs.length != argNames.length then
       throw s!"{moduleName} expects {1 + argNames.length} arguments (vault{if argNames.isEmpty then "" else s!", {String.intercalate ", " argNames}"})"
+    let calldataSize := 4 + argNames.length * 32
+    let frameSize := ((Nat.max calldataSize 32 + 31) / 32) * 32
+    let ptrName := s!"__erc4626_{moduleName}_ptr"
+    let ptrExpr := YulExpr.ident ptrName
+    let loadPtr := YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])
     let storeSelector := YulStmt.expr (YulExpr.call "mstore" [
-      YulExpr.lit 0,
+      ptrExpr,
       YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex selector]
     ])
     let storeArgs := argExprs.zipIdx.map fun (argExpr, idx) =>
-      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (4 + idx * 32), argExpr])
+      YulStmt.expr (YulExpr.call "mstore" [
+        YulExpr.call "add" [ptrExpr, YulExpr.lit (4 + idx * 32)],
+        argExpr
+      ])
+    let advancePtr := YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit freeMemoryPointer,
+      YulExpr.call "add" [ptrExpr, YulExpr.lit frameSize]
+    ])
     let callExpr := YulExpr.call "call" [
       YulExpr.call "gas" [],
       vaultExpr,
       YulExpr.lit 0,
-      YulExpr.lit 0, YulExpr.lit (4 + argNames.length * 32),
-      YulExpr.lit 0, YulExpr.lit 32
+      ptrExpr, YulExpr.lit calldataSize,
+      ptrExpr, YulExpr.lit 32
     ]
     let revertOnFailure := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__erc4626_success"]) [
       YulStmt.let_ "__erc4626_rds" (YulExpr.call "returndatasize" []),
@@ -140,11 +165,12 @@ private def writeUint256Module
     ]) [
       YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
     ]
-    let bindResult := YulStmt.let_ resultVar (YulExpr.call "mload" [YulExpr.lit 0])
-    pure [YulStmt.block (
-      [storeSelector] ++ storeArgs ++
-      [YulStmt.let_ "__erc4626_success" callExpr, revertOnFailure, requireSingleWord]
-    ), bindResult]
+    let bindResult := YulStmt.let_ resultVar (YulExpr.lit 0)
+    let assignResult := YulStmt.assign resultVar (YulExpr.call "mload" [ptrExpr])
+    pure [bindResult, YulStmt.block (
+      [loadPtr, storeSelector] ++ storeArgs ++ [advancePtr] ++
+      [YulStmt.let_ "__erc4626_success" callExpr, revertOnFailure, requireSingleWord, assignResult]
+    )]
 
 /-- Read-only ERC-4626 `previewDeposit(uint256)` module.
 
@@ -303,15 +329,22 @@ def assetModule (resultVar : String) : ExternalCallModule where
     let vaultExpr ← match args with
       | [vault] => pure vault
       | _ => throw "asset expects 1 argument (vault)"
+    let ptrName := "__erc4626_asset_ptr"
+    let ptrExpr := YulExpr.ident ptrName
+    let loadPtr := YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])
     let storeSelector := YulStmt.expr (YulExpr.call "mstore" [
-      YulExpr.lit 0,
+      ptrExpr,
       YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex 0x38d52e0f]
+    ])
+    let advancePtr := YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit freeMemoryPointer,
+      YulExpr.call "add" [ptrExpr, YulExpr.lit 32]
     ])
     let callExpr := YulExpr.call "staticcall" [
       YulExpr.call "gas" [],
       vaultExpr,
-      YulExpr.lit 0, YulExpr.lit 4,
-      YulExpr.lit 0, YulExpr.lit 32
+      ptrExpr, YulExpr.lit 4,
+      ptrExpr, YulExpr.lit 32
     ]
     let revertOnFailure := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__erc4626_success"]) [
       YulStmt.let_ "__erc4626_rds" (YulExpr.call "returndatasize" []),
@@ -325,11 +358,13 @@ def assetModule (resultVar : String) : ExternalCallModule where
     ]) [
       YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
     ]
-    let bindResult := YulStmt.let_ resultVar
-      (YulExpr.call "and" [YulExpr.call "mload" [YulExpr.lit 0], YulExpr.hex addressMask])
-    pure [YulStmt.block (
-      [storeSelector, YulStmt.let_ "__erc4626_success" callExpr, revertOnFailure, requireSingleWord]
-    ), bindResult]
+    let bindResult := YulStmt.let_ resultVar (YulExpr.lit 0)
+    let assignResult := YulStmt.assign resultVar
+      (YulExpr.call "and" [YulExpr.call "mload" [ptrExpr], YulExpr.hex addressMask])
+    pure [bindResult, YulStmt.block (
+      [loadPtr, storeSelector, advancePtr,
+        YulStmt.let_ "__erc4626_success" callExpr, revertOnFailure, requireSingleWord, assignResult]
+    )]
 
 /-- Convenience: create a `Stmt.ecm` for a read-only `asset()` call. -/
 def asset (resultVar : String) (vault : Expr) : Stmt :=

@@ -25,7 +25,7 @@ namespace Compiler.Modules.ERC20
 
 open Compiler.Yul
 open Compiler.ECM
-open Compiler.CompilationModel (Stmt Expr)
+open Compiler.CompilationModel (Stmt Expr freeMemoryPointer)
 
 /-- Shared implementation for read-only ERC-20 calls that return one
     ABI-encoded `uint256` word. -/
@@ -47,17 +47,29 @@ private def readUint256Module
       | none => throw s!"{moduleName} expects at least 1 argument (token)"
     let argExprs := args.drop 1
     if argExprs.length = argNames.length then
+      let calldataSize := 4 + argNames.length * 32
+      let frameSize := ((Nat.max calldataSize 32 + 31) / 32) * 32
+      let ptrName := s!"__{moduleName}_ptr"
+      let ptrExpr := YulExpr.ident ptrName
+      let loadPtr := YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])
       let storeSelector := YulStmt.expr (YulExpr.call "mstore" [
-        YulExpr.lit 0,
+        ptrExpr,
         YulExpr.call "shl" [YulExpr.lit 224, YulExpr.hex selector]
       ])
       let storeArgs := argExprs.zipIdx.map fun (argExpr, idx) =>
-        YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit (4 + idx * 32), argExpr])
+        YulStmt.expr (YulExpr.call "mstore" [
+          YulExpr.call "add" [ptrExpr, YulExpr.lit (4 + idx * 32)],
+          argExpr
+        ])
+      let advancePtr := YulStmt.expr (YulExpr.call "mstore" [
+        YulExpr.lit freeMemoryPointer,
+        YulExpr.call "add" [ptrExpr, YulExpr.lit frameSize]
+      ])
       let callExpr := YulExpr.call "staticcall" [
         YulExpr.call "gas" [],
         tokenExpr,
-        YulExpr.lit 0, YulExpr.lit (4 + argNames.length * 32),
-        YulExpr.lit 0, YulExpr.lit 32
+        ptrExpr, YulExpr.lit calldataSize,
+        ptrExpr, YulExpr.lit 32
       ]
       let revertOnFailure := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident s!"__{moduleName}_success"]) [
         YulStmt.let_ s!"__{moduleName}_rds" (YulExpr.call "returndatasize" []),
@@ -71,11 +83,12 @@ private def readUint256Module
       ]) [
         YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
       ]
-      let bindResult := YulStmt.let_ resultVar (YulExpr.call "mload" [YulExpr.lit 0])
-      pure [YulStmt.block (
-        [storeSelector] ++ storeArgs ++
-        [YulStmt.let_ s!"__{moduleName}_success" callExpr, revertOnFailure, requireSingleWord]
-      ), bindResult]
+      let bindResult := YulStmt.let_ resultVar (YulExpr.lit 0)
+      let assignResult := YulStmt.assign resultVar (YulExpr.call "mload" [ptrExpr])
+      pure [bindResult, YulStmt.block (
+        [loadPtr, storeSelector] ++ storeArgs ++ [advancePtr] ++
+        [YulStmt.let_ s!"__{moduleName}_success" callExpr, revertOnFailure, requireSingleWord, assignResult]
+      )]
     else
       throw s!"{moduleName} expects {1 + argNames.length} arguments (token, {String.intercalate ", " argNames})"
 
@@ -100,7 +113,7 @@ def safeTransferModule : ExternalCallModule where
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__st_ptr", YulExpr.lit 36], amountExpr]),
       YulStmt.let_ "__st_success" (YulExpr.call "call" [
         YulExpr.call "gas" [], tokenExpr, YulExpr.lit 0,
-        YulExpr.ident "__st_ptr", YulExpr.lit 68, YulExpr.lit 0, YulExpr.lit 32
+        YulExpr.ident "__st_ptr", YulExpr.lit 68, YulExpr.ident "__st_ptr", YulExpr.lit 32
       ]),
       YulStmt.expr (YulExpr.call "mstore" [
         YulExpr.lit 64,
@@ -118,7 +131,7 @@ def safeTransferModule : ExternalCallModule where
         YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__st_rds"])
       ],
       YulStmt.if_ (YulExpr.call "eq" [YulExpr.call "returndatasize" [], YulExpr.lit 32]) [
-        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.call "mload" [YulExpr.lit 0]])
+        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.call "mload" [YulExpr.ident "__st_ptr"]])
           (revertWithMessage "transfer returned false")
       ]
     ])]
@@ -149,7 +162,7 @@ def safeTransferFromModule : ExternalCallModule where
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__stf_ptr", YulExpr.lit 68], amountExpr]),
       YulStmt.let_ "__stf_success" (YulExpr.call "call" [
         YulExpr.call "gas" [], tokenExpr, YulExpr.lit 0,
-        YulExpr.ident "__stf_ptr", YulExpr.lit 100, YulExpr.lit 0, YulExpr.lit 32
+        YulExpr.ident "__stf_ptr", YulExpr.lit 100, YulExpr.ident "__stf_ptr", YulExpr.lit 32
       ]),
       YulStmt.expr (YulExpr.call "mstore" [
         YulExpr.lit 64,
@@ -167,7 +180,7 @@ def safeTransferFromModule : ExternalCallModule where
         YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__stf_rds"])
       ],
       YulStmt.if_ (YulExpr.call "eq" [YulExpr.call "returndatasize" [], YulExpr.lit 32]) [
-        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.call "mload" [YulExpr.lit 0]])
+        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.call "mload" [YulExpr.ident "__stf_ptr"]])
           (revertWithMessage "transferFrom returned false")
       ]
     ])]
@@ -191,17 +204,31 @@ def safeApproveModule : ExternalCallModule where
       | _ => throw "safeApprove expects 3 arguments (token, spender, amount)"
     let selectorWord := 0x095ea7b300000000000000000000000000000000000000000000000000000000
     pure [YulStmt.block ([
-      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.hex selectorWord]),
-      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 4, spenderExpr]),
-      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 36, amountExpr]),
+      YulStmt.let_ "__sa_ptr" (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]),
+      YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__sa_ptr", YulExpr.hex selectorWord]),
+      YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__sa_ptr", YulExpr.lit 4], spenderExpr]),
+      YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__sa_ptr", YulExpr.lit 36], amountExpr]),
       YulStmt.let_ "__sa_success" (YulExpr.call "call" [
         YulExpr.call "gas" [], tokenExpr, YulExpr.lit 0,
-        YulExpr.lit 0, YulExpr.lit 68, YulExpr.lit 0, YulExpr.lit 32
+        YulExpr.ident "__sa_ptr", YulExpr.lit 68, YulExpr.ident "__sa_ptr", YulExpr.lit 32
       ]),
-      YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__sa_success"])
-        (revertWithMessage "approve reverted"),
+      YulStmt.expr (YulExpr.call "mstore" [
+        YulExpr.lit freeMemoryPointer,
+        YulExpr.call "and" [
+          YulExpr.call "add" [
+            YulExpr.call "add" [YulExpr.ident "__sa_ptr", YulExpr.lit 68],
+            YulExpr.lit 31
+          ],
+          YulExpr.call "not" [YulExpr.lit 31]
+        ]
+      ]),
+      YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__sa_success"]) [
+        YulStmt.let_ "__sa_rds" (YulExpr.call "returndatasize" []),
+        YulStmt.expr (YulExpr.call "returndatacopy" [YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__sa_rds"]),
+        YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__sa_rds"])
+      ],
       YulStmt.if_ (YulExpr.call "eq" [YulExpr.call "returndatasize" [], YulExpr.lit 32]) [
-        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.call "mload" [YulExpr.lit 0]])
+        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.call "mload" [YulExpr.ident "__sa_ptr"]])
           (revertWithMessage "approve returned false")
       ]
     ])]

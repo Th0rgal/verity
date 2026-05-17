@@ -5030,19 +5030,22 @@ set_option maxRecDepth 4096 in
   let erc20BalanceOfYul ←
     expectCompileToYul "erc20 balanceOf smoke spec" erc20BalanceOfSmokeSpec
   expectTrue "erc20 balanceOf ECM lowers to staticcall"
-    (contains erc20BalanceOfYul "staticcall(gas(), token, 0, 36, 0, 32)")
+    (contains erc20BalanceOfYul "staticcall(gas(), token, __balanceOf_ptr, 36, __balanceOf_ptr, 32)")
   expectTrue "erc20 balanceOf ECM forwards revert returndata"
     (contains erc20BalanceOfYul "returndatacopy(0, 0, __balanceOf_rds)")
   expectTrue "erc20 balanceOf ECM rejects non-32-byte returndata"
     (contains erc20BalanceOfYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc20 balanceOf ECM ABI-encodes the selector"
-    (contains erc20BalanceOfYul "mstore(0, shl(224, 0x70a08231))")
+  expectTrue "erc20 balanceOf ECM ABI-encodes the selector at free memory"
+    (contains erc20BalanceOfYul "let __balanceOf_ptr := mload(64)" &&
+      contains erc20BalanceOfYul "mstore(__balanceOf_ptr, shl(224, 0x70a08231))" &&
+      contains erc20BalanceOfYul "mstore(add(__balanceOf_ptr, 4), owner)" &&
+      contains erc20BalanceOfYul "mstore(64, add(__balanceOf_ptr, 64))")
   let erc20SafeTransferYul ←
     expectCompileToYul "erc20 safeTransfer smoke spec" erc20SafeTransferSmokeSpec
   expectTrue "erc20 safeTransfer ECM allocates calldata from the free-memory pointer"
     (contains erc20SafeTransferYul "let __st_ptr := mload(64)" &&
       contains erc20SafeTransferYul "mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)" &&
-      contains erc20SafeTransferYul "call(gas(), token, 0, __st_ptr, 68, 0, 32)")
+      contains erc20SafeTransferYul "call(gas(), token, 0, __st_ptr, 68, __st_ptr, 32)")
   expectTrue "erc20 safeTransfer ECM advances the free-memory pointer"
     (contains erc20SafeTransferYul "mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))")
   expectTrue "erc20 safeTransfer ECM forwards revert returndata"
@@ -5053,7 +5056,7 @@ set_option maxRecDepth 4096 in
   expectTrue "erc20 safeTransferFrom ECM allocates calldata from the free-memory pointer"
     (contains erc20SafeTransferFromYul "let __stf_ptr := mload(64)" &&
       contains erc20SafeTransferFromYul "mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)" &&
-      contains erc20SafeTransferFromYul "call(gas(), token, 0, __stf_ptr, 100, 0, 32)")
+      contains erc20SafeTransferFromYul "call(gas(), token, 0, __stf_ptr, 100, __stf_ptr, 32)")
   expectTrue "erc20 safeTransferFrom ECM advances the free-memory pointer"
     (contains erc20SafeTransferFromYul "mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))")
   expectTrue "erc20 safeTransferFrom ECM forwards revert returndata"
@@ -5097,155 +5100,161 @@ set_option maxRecDepth 4096 in
   let erc20AllowanceYul ←
     expectCompileToYul "erc20 allowance smoke spec" erc20AllowanceSmokeSpec
   expectTrue "erc20 allowance ECM lowers to staticcall"
-    (contains erc20AllowanceYul "staticcall(gas(), token, 0, 68, 0, 32)")
+    (contains erc20AllowanceYul "staticcall(gas(), token, __allowance_ptr, 68, __allowance_ptr, 32)")
   expectTrue "erc20 allowance ECM forwards revert returndata"
     (contains erc20AllowanceYul "returndatacopy(0, 0, __allowance_rds)")
   expectTrue "erc20 allowance ECM rejects non-32-byte returndata"
     (contains erc20AllowanceYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc20 allowance ECM ABI-encodes the selector"
-    (contains erc20AllowanceYul "mstore(0, shl(224, 0xdd62ed3e))")
+  expectTrue "erc20 allowance ECM ABI-encodes the selector at free memory"
+    (contains erc20AllowanceYul "let __allowance_ptr := mload(64)" &&
+      contains erc20AllowanceYul "mstore(__allowance_ptr, shl(224, 0xdd62ed3e))" &&
+      contains erc20AllowanceYul "mstore(add(__allowance_ptr, 4), owner)" &&
+      contains erc20AllowanceYul "mstore(add(__allowance_ptr, 36), spender)" &&
+      contains erc20AllowanceYul "mstore(64, add(__allowance_ptr, 96))")
   let erc20TotalSupplyYul ←
     expectCompileToYul "erc20 totalSupply smoke spec" erc20TotalSupplySmokeSpec
   expectTrue "erc20 totalSupply ECM lowers to staticcall"
-    (contains erc20TotalSupplyYul "staticcall(gas(), token, 0, 4, 0, 32)")
+    (contains erc20TotalSupplyYul "staticcall(gas(), token, __totalSupply_ptr, 4, __totalSupply_ptr, 32)")
   expectTrue "erc20 totalSupply ECM forwards revert returndata"
     (contains erc20TotalSupplyYul "returndatacopy(0, 0, __totalSupply_rds)")
   expectTrue "erc20 totalSupply ECM rejects non-32-byte returndata"
     (contains erc20TotalSupplyYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc20 totalSupply ECM ABI-encodes the selector"
-    (contains erc20TotalSupplyYul "mstore(0, shl(224, 0x18160ddd))")
+  expectTrue "erc20 totalSupply ECM ABI-encodes the selector at free memory"
+    (contains erc20TotalSupplyYul "let __totalSupply_ptr := mload(64)" &&
+      contains erc20TotalSupplyYul "mstore(__totalSupply_ptr, shl(224, 0x18160ddd))" &&
+      contains erc20TotalSupplyYul "mstore(64, add(__totalSupply_ptr, 32))")
   let erc4626PreviewDepositYul ←
     expectCompileToYul "erc4626 previewDeposit smoke spec" erc4626PreviewDepositSmokeSpec
   expectTrue "erc4626 previewDeposit ECM lowers to staticcall"
-    (contains erc4626PreviewDepositYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626PreviewDepositYul "staticcall(gas(), vault, __erc4626_previewDeposit_ptr, 36, __erc4626_previewDeposit_ptr, 32)")
   expectTrue "erc4626 previewDeposit ECM forwards revert returndata"
     (contains erc4626PreviewDepositYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 previewDeposit ECM rejects non-32-byte returndata"
     (contains erc4626PreviewDepositYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 previewDeposit ECM ABI-encodes the selector"
-    (contains erc4626PreviewDepositYul "mstore(0, shl(224, 0xef8b30f7))")
+  expectTrue "erc4626 previewDeposit ECM ABI-encodes the selector at free memory"
+    (contains erc4626PreviewDepositYul "mstore(__erc4626_previewDeposit_ptr, shl(224, 0xef8b30f7))")
   let erc4626PreviewMintYul ←
     expectCompileToYul "erc4626 previewMint smoke spec" erc4626PreviewMintSmokeSpec
   expectTrue "erc4626 previewMint ECM lowers to staticcall"
-    (contains erc4626PreviewMintYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626PreviewMintYul "staticcall(gas(), vault, __erc4626_previewMint_ptr, 36, __erc4626_previewMint_ptr, 32)")
   expectTrue "erc4626 previewMint ECM forwards revert returndata"
     (contains erc4626PreviewMintYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 previewMint ECM rejects non-32-byte returndata"
     (contains erc4626PreviewMintYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 previewMint ECM ABI-encodes the selector"
-    (contains erc4626PreviewMintYul "mstore(0, shl(224, 0xb3d7f6b9))")
+  expectTrue "erc4626 previewMint ECM ABI-encodes the selector at free memory"
+    (contains erc4626PreviewMintYul "mstore(__erc4626_previewMint_ptr, shl(224, 0xb3d7f6b9))")
   let erc4626PreviewWithdrawYul ←
     expectCompileToYul "erc4626 previewWithdraw smoke spec" erc4626PreviewWithdrawSmokeSpec
   expectTrue "erc4626 previewWithdraw ECM lowers to staticcall"
-    (contains erc4626PreviewWithdrawYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626PreviewWithdrawYul "staticcall(gas(), vault, __erc4626_previewWithdraw_ptr, 36, __erc4626_previewWithdraw_ptr, 32)")
   expectTrue "erc4626 previewWithdraw ECM forwards revert returndata"
     (contains erc4626PreviewWithdrawYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 previewWithdraw ECM rejects non-32-byte returndata"
     (contains erc4626PreviewWithdrawYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 previewWithdraw ECM ABI-encodes the selector"
-    (contains erc4626PreviewWithdrawYul "mstore(0, shl(224, 0x0a28a477))")
+  expectTrue "erc4626 previewWithdraw ECM ABI-encodes the selector at free memory"
+    (contains erc4626PreviewWithdrawYul "mstore(__erc4626_previewWithdraw_ptr, shl(224, 0x0a28a477))")
   let erc4626PreviewRedeemYul ←
     expectCompileToYul "erc4626 previewRedeem smoke spec" erc4626PreviewRedeemSmokeSpec
   expectTrue "erc4626 previewRedeem ECM lowers to staticcall"
-    (contains erc4626PreviewRedeemYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626PreviewRedeemYul "staticcall(gas(), vault, __erc4626_previewRedeem_ptr, 36, __erc4626_previewRedeem_ptr, 32)")
   expectTrue "erc4626 previewRedeem ECM forwards revert returndata"
     (contains erc4626PreviewRedeemYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 previewRedeem ECM rejects non-32-byte returndata"
     (contains erc4626PreviewRedeemYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 previewRedeem ECM ABI-encodes the selector"
-    (contains erc4626PreviewRedeemYul "mstore(0, shl(224, 0x4cdad506))")
+  expectTrue "erc4626 previewRedeem ECM ABI-encodes the selector at free memory"
+    (contains erc4626PreviewRedeemYul "mstore(__erc4626_previewRedeem_ptr, shl(224, 0x4cdad506))")
   let erc4626ConvertToAssetsYul ←
     expectCompileToYul "erc4626 convertToAssets smoke spec" erc4626ConvertToAssetsSmokeSpec
   expectTrue "erc4626 convertToAssets ECM lowers to staticcall"
-    (contains erc4626ConvertToAssetsYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626ConvertToAssetsYul "staticcall(gas(), vault, __erc4626_convertToAssets_ptr, 36, __erc4626_convertToAssets_ptr, 32)")
   expectTrue "erc4626 convertToAssets ECM forwards revert returndata"
     (contains erc4626ConvertToAssetsYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 convertToAssets ECM rejects non-32-byte returndata"
     (contains erc4626ConvertToAssetsYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 convertToAssets ECM ABI-encodes the selector"
-    (contains erc4626ConvertToAssetsYul "mstore(0, shl(224, 0x07a2d13a))")
+  expectTrue "erc4626 convertToAssets ECM ABI-encodes the selector at free memory"
+    (contains erc4626ConvertToAssetsYul "mstore(__erc4626_convertToAssets_ptr, shl(224, 0x07a2d13a))")
   let erc4626ConvertToSharesYul ←
     expectCompileToYul "erc4626 convertToShares smoke spec" erc4626ConvertToSharesSmokeSpec
   expectTrue "erc4626 convertToShares ECM lowers to staticcall"
-    (contains erc4626ConvertToSharesYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626ConvertToSharesYul "staticcall(gas(), vault, __erc4626_convertToShares_ptr, 36, __erc4626_convertToShares_ptr, 32)")
   expectTrue "erc4626 convertToShares ECM forwards revert returndata"
     (contains erc4626ConvertToSharesYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 convertToShares ECM rejects non-32-byte returndata"
     (contains erc4626ConvertToSharesYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 convertToShares ECM ABI-encodes the selector"
-    (contains erc4626ConvertToSharesYul "mstore(0, shl(224, 0xc6e6f592))")
+  expectTrue "erc4626 convertToShares ECM ABI-encodes the selector at free memory"
+    (contains erc4626ConvertToSharesYul "mstore(__erc4626_convertToShares_ptr, shl(224, 0xc6e6f592))")
   let erc4626TotalAssetsYul ←
     expectCompileToYul "erc4626 totalAssets smoke spec" erc4626TotalAssetsSmokeSpec
   expectTrue "erc4626 totalAssets ECM lowers to staticcall"
-    (contains erc4626TotalAssetsYul "staticcall(gas(), vault, 0, 4, 0, 32)")
+    (contains erc4626TotalAssetsYul "staticcall(gas(), vault, __erc4626_totalAssets_ptr, 4, __erc4626_totalAssets_ptr, 32)")
   expectTrue "erc4626 totalAssets ECM forwards revert returndata"
     (contains erc4626TotalAssetsYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 totalAssets ECM rejects non-32-byte returndata"
     (contains erc4626TotalAssetsYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 totalAssets ECM ABI-encodes the selector"
-    (contains erc4626TotalAssetsYul "mstore(0, shl(224, 0x01e1d114))")
+  expectTrue "erc4626 totalAssets ECM ABI-encodes the selector at free memory"
+    (contains erc4626TotalAssetsYul "mstore(__erc4626_totalAssets_ptr, shl(224, 0x01e1d114))")
   let erc4626AssetYul ←
     expectCompileToYul "erc4626 asset smoke spec" erc4626AssetSmokeSpec
   expectTrue "erc4626 asset ECM lowers to staticcall"
-    (contains erc4626AssetYul "staticcall(gas(), vault, 0, 4, 0, 32)")
+    (contains erc4626AssetYul "staticcall(gas(), vault, __erc4626_asset_ptr, 4, __erc4626_asset_ptr, 32)")
   expectTrue "erc4626 asset ECM forwards revert returndata"
     (contains erc4626AssetYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 asset ECM rejects non-32-byte returndata"
     (contains erc4626AssetYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 asset ECM ABI-encodes the selector"
-    (contains erc4626AssetYul "mstore(0, shl(224, 0x38d52e0f))")
+  expectTrue "erc4626 asset ECM ABI-encodes the selector at free memory"
+    (contains erc4626AssetYul "mstore(__erc4626_asset_ptr, shl(224, 0x38d52e0f))")
   expectTrue "erc4626 asset ECM masks the returned address"
-    (contains erc4626AssetYul "let assetAddr := and(mload(0), 0xffffffffffffffffffffffffffffffffffffffff)")
+    (contains erc4626AssetYul "assetAddr := and(mload(__erc4626_asset_ptr), 0xffffffffffffffffffffffffffffffffffffffff)")
   let erc4626MaxDepositYul ←
     expectCompileToYul "erc4626 maxDeposit smoke spec" erc4626MaxDepositSmokeSpec
   expectTrue "erc4626 maxDeposit ECM lowers to staticcall"
-    (contains erc4626MaxDepositYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626MaxDepositYul "staticcall(gas(), vault, __erc4626_maxDeposit_ptr, 36, __erc4626_maxDeposit_ptr, 32)")
   expectTrue "erc4626 maxDeposit ECM forwards revert returndata"
     (contains erc4626MaxDepositYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 maxDeposit ECM rejects non-32-byte returndata"
     (contains erc4626MaxDepositYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 maxDeposit ECM ABI-encodes the selector"
-    (contains erc4626MaxDepositYul "mstore(0, shl(224, 0x402d267d))")
+  expectTrue "erc4626 maxDeposit ECM ABI-encodes the selector at free memory"
+    (contains erc4626MaxDepositYul "mstore(__erc4626_maxDeposit_ptr, shl(224, 0x402d267d))")
   let erc4626MaxMintYul ←
     expectCompileToYul "erc4626 maxMint smoke spec" erc4626MaxMintSmokeSpec
   expectTrue "erc4626 maxMint ECM lowers to staticcall"
-    (contains erc4626MaxMintYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626MaxMintYul "staticcall(gas(), vault, __erc4626_maxMint_ptr, 36, __erc4626_maxMint_ptr, 32)")
   expectTrue "erc4626 maxMint ECM forwards revert returndata"
     (contains erc4626MaxMintYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 maxMint ECM rejects non-32-byte returndata"
     (contains erc4626MaxMintYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 maxMint ECM ABI-encodes the selector"
-    (contains erc4626MaxMintYul "mstore(0, shl(224, 0xc63d75b6))")
+  expectTrue "erc4626 maxMint ECM ABI-encodes the selector at free memory"
+    (contains erc4626MaxMintYul "mstore(__erc4626_maxMint_ptr, shl(224, 0xc63d75b6))")
   let erc4626MaxWithdrawYul ←
     expectCompileToYul "erc4626 maxWithdraw smoke spec" erc4626MaxWithdrawSmokeSpec
   expectTrue "erc4626 maxWithdraw ECM lowers to staticcall"
-    (contains erc4626MaxWithdrawYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626MaxWithdrawYul "staticcall(gas(), vault, __erc4626_maxWithdraw_ptr, 36, __erc4626_maxWithdraw_ptr, 32)")
   expectTrue "erc4626 maxWithdraw ECM forwards revert returndata"
     (contains erc4626MaxWithdrawYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 maxWithdraw ECM rejects non-32-byte returndata"
     (contains erc4626MaxWithdrawYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 maxWithdraw ECM ABI-encodes the selector"
-    (contains erc4626MaxWithdrawYul "mstore(0, shl(224, 0xce96cb77))")
+  expectTrue "erc4626 maxWithdraw ECM ABI-encodes the selector at free memory"
+    (contains erc4626MaxWithdrawYul "mstore(__erc4626_maxWithdraw_ptr, shl(224, 0xce96cb77))")
   let erc4626MaxRedeemYul ←
     expectCompileToYul "erc4626 maxRedeem smoke spec" erc4626MaxRedeemSmokeSpec
   expectTrue "erc4626 maxRedeem ECM lowers to staticcall"
-    (contains erc4626MaxRedeemYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626MaxRedeemYul "staticcall(gas(), vault, __erc4626_maxRedeem_ptr, 36, __erc4626_maxRedeem_ptr, 32)")
   expectTrue "erc4626 maxRedeem ECM forwards revert returndata"
     (contains erc4626MaxRedeemYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 maxRedeem ECM rejects non-32-byte returndata"
     (contains erc4626MaxRedeemYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 maxRedeem ECM ABI-encodes the selector"
-    (contains erc4626MaxRedeemYul "mstore(0, shl(224, 0xd905777e))")
+  expectTrue "erc4626 maxRedeem ECM ABI-encodes the selector at free memory"
+    (contains erc4626MaxRedeemYul "mstore(__erc4626_maxRedeem_ptr, shl(224, 0xd905777e))")
   let erc4626DepositYul ←
     expectCompileToYul "erc4626 deposit smoke spec" erc4626DepositSmokeSpec
   expectTrue "erc4626 deposit ECM lowers to call"
-    (contains erc4626DepositYul "call(gas(), vault, 0, 0, 68, 0, 32)")
+    (contains erc4626DepositYul "call(gas(), vault, 0, __erc4626_deposit_ptr, 68, __erc4626_deposit_ptr, 32)")
   expectTrue "erc4626 deposit ECM forwards revert returndata"
     (contains erc4626DepositYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 deposit ECM rejects non-32-byte returndata"
     (contains erc4626DepositYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 deposit ECM ABI-encodes the selector"
-    (contains erc4626DepositYul "mstore(0, shl(224, 0x6e553f65))")
+  expectTrue "erc4626 deposit ECM ABI-encodes the selector at free memory"
+    (contains erc4626DepositYul "mstore(__erc4626_deposit_ptr, shl(224, 0x6e553f65))")
   let macroEcrecoverYul ←
     expectCompileToYul "macro ecrecover smoke spec" MacroEcrecoverSmoke.MacroEcrecover.spec
   expectTrue "macro ecrecover bind elaborates to the same ECM lowering"
