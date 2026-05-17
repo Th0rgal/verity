@@ -147,9 +147,10 @@ body {
   align-items: center;
   gap: 0.55rem;
   color: var(--verity-heading);
-  font-family: var(--verity-font-ui);
-  font-size: 0.95rem;
-  letter-spacing: 0.02em;
+  font-family: var(--verity-font-display);
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
 }
 
 .verity-brand img {
@@ -157,12 +158,31 @@ body {
   height: 1.35rem;
 }
 
+.verity-brand strong {
+  font-weight: inherit;
+}
+
 .nextra-search input,
 input[type="search"] {
   background: var(--verity-surface) !important;
   border: 1px solid var(--verity-rule) !important;
+  border-radius: 0.3rem !important;
   color: var(--verity-ink) !important;
   font-family: var(--verity-font-ui) !important;
+  font-size: 0.9rem !important;
+}
+
+.nextra-search input:focus,
+input[type="search"]:focus {
+  outline: 2px solid var(--verity-accent) !important;
+  outline-offset: 1px !important;
+  border-color: var(--verity-accent) !important;
+}
+
+.nextra-search input::placeholder,
+input[type="search"]::placeholder {
+  color: var(--verity-muted) !important;
+  opacity: 0.85;
 }
 
 aside.nextra-sidebar-container,
