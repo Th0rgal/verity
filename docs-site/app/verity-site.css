@@ -814,8 +814,8 @@ a[role="button"] {
 }
 
 .verity-hero__cta:hover {
-  background: var(--verity-heading) !important;
-  border-color: var(--verity-heading) !important;
+  background: color-mix(in srgb, var(--verity-accent) 84%, var(--verity-heading)) !important;
+  border-color: color-mix(in srgb, var(--verity-accent) 84%, var(--verity-heading)) !important;
   color: var(--verity-accent-ink) !important;
 }
 
