@@ -21,16 +21,25 @@ Compiler.Proofs.IRGeneration.SupportedSpec
 #
 # Yul generation proofs
 Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
 Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanCallClosure
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeSignedArithLemmas
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanPureBuiltinLemmas
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSignedArithSpec
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanSourceExprClosure
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanStateBridge
+Compiler.Proofs.YulGeneration.Calldata
+Compiler.Proofs.YulGeneration.IRFuel
+Compiler.Proofs.YulGeneration.LogNames
 Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
-Compiler.Proofs.YulGeneration.Codegen
-Compiler.Proofs.YulGeneration.Equivalence
-Compiler.Proofs.YulGeneration.Lemmas
+Compiler.Proofs.YulGeneration.ReferenceOracle.State
 Compiler.Proofs.YulGeneration.PatchRulesProofs
-Compiler.Proofs.YulGeneration.Preservation
-Compiler.Proofs.YulGeneration.ReferenceOracle.Semantics
-Compiler.Proofs.YulGeneration.StatementEquivalence
+Compiler.Proofs.YulGeneration.RuntimeTypes
 #
 # Non-proof integration targets
 Compiler.TypedIRCompilerCorrectness
