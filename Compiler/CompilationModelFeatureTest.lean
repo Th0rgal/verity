@@ -5077,9 +5077,11 @@ set_option maxRecDepth 4096 in
   let callWithValueBytesYul ←
     expectCompileToYul "generic callWithValue bytes smoke spec" callWithValueBytesSmokeSpec
   expectTrue "callWithValue bytes ECM copies calldata bytes payload to memory"
-    (contains callWithValueBytesYul "calldatacopy(0, data_data_offset, data_length)")
+    (contains callWithValueBytesYul "let __cwv_bytes_ptr := mload(64)" &&
+      contains callWithValueBytesYul "calldatacopy(__cwv_bytes_ptr, data_data_offset, data_length)" &&
+      contains callWithValueBytesYul "mstore(64, add(__cwv_bytes_ptr, __cwv_bytes_padded))")
   expectTrue "callWithValue bytes ECM lowers to an ETH-aware generic bytes call"
-    (contains callWithValueBytesYul "call(gas(), target, amount, 0, data_length, 0, 0)")
+    (contains callWithValueBytesYul "call(gas(), target, amount, __cwv_bytes_ptr, data_length, 0, 0)")
   expectCompileErrorContains
     "state-changing callWithValue bytes ECM is rejected in view functions"
     callWithValueBytesViewRejectedSpec
@@ -5089,9 +5091,9 @@ set_option maxRecDepth 4096 in
   expectTrue "macro callWithValue surface elaborates to the generic call ECM"
     (contains macroCallWithValueYul "call(gas(), target, value, dataOffset, dataSize, 0, 0)")
   expectTrue "macro callWithValue bytes surface copies calldata bytes payload to memory"
-    (contains macroCallWithValueYul "calldatacopy(0, data_data_offset, data_length)")
+    (contains macroCallWithValueYul "calldatacopy(__cwv_bytes_ptr, data_data_offset, data_length)")
   expectTrue "macro callWithValue bytes surface elaborates to the generic bytes call ECM"
-    (contains macroCallWithValueYul "call(gas(), target, value, 0, data_length, 0, 0)")
+    (contains macroCallWithValueYul "call(gas(), target, value, __cwv_bytes_ptr, data_length, 0, 0)")
   let macroCallWithValueTrustReport := emitTrustReportJson [Contracts.Smoke.CallWithValueSmoke.spec]
   expectTrue "macro callWithValue trust report surfaces the generic call assumption"
     (contains macroCallWithValueTrustReport "\"module\":\"callWithValue\"" &&

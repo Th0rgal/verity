@@ -242,9 +242,9 @@ def callWithValue (target value inOffset inSize : Expr) : Stmt :=
 
     Arguments passed to compile: [target, value].
     The module reads `{bytesParam}_data_offset` and `{bytesParam}_length` from
-    the function decoder, copies that bytes payload to memory offset 0, emits
-    `call(gas(), target, value, 0, {bytesParam}_length, 0, 0)`, bubbles revert
-    returndata on failure, and ignores successful returndata.
+    the function decoder, copies that bytes payload to the free-memory region,
+    emits `call(gas(), target, value, ptr, {bytesParam}_length, 0, 0)`, bubbles
+    revert returndata on failure, and ignores successful returndata.
 
     This is the higher-level `(target, value, data)` surface for adapter/router
     patterns. The raw-slice `callWithValueModule` remains available when callers
@@ -263,12 +263,24 @@ def callWithValueBytesModule (bytesParam : String) : ExternalCallModule where
     | [targetExpr, valueExpr] =>
         let dataOffsetExpr := YulExpr.ident s!"{bytesParam}_data_offset"
         let dataSizeExpr := YulExpr.ident s!"{bytesParam}_length"
-        let copyData := dynamicCopyData ctx (YulExpr.lit 0) dataOffsetExpr dataSizeExpr
+        let ptrName := "__cwv_bytes_ptr"
+        let ptrExpr := YulExpr.ident ptrName
+        let paddedName := "__cwv_bytes_padded"
+        let loadPtr := YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])
+        let copyData := dynamicCopyData ctx ptrExpr dataOffsetExpr dataSizeExpr
+        let computePadded := YulStmt.let_ paddedName (YulExpr.call "and" [
+          YulExpr.call "add" [dataSizeExpr, YulExpr.lit 31],
+          YulExpr.call "not" [YulExpr.lit 31]
+        ])
+        let advancePtr := YulStmt.expr (YulExpr.call "mstore" [
+          YulExpr.lit freeMemoryPointer,
+          YulExpr.call "add" [ptrExpr, YulExpr.ident paddedName]
+        ])
         let callExpr := YulExpr.call "call" [
           YulExpr.call "gas" [],
           targetExpr,
           valueExpr,
-          YulExpr.lit 0, dataSizeExpr,
+          ptrExpr, dataSizeExpr,
           YulExpr.lit 0, YulExpr.lit 0
         ]
         let letSuccess := YulStmt.let_ "__cwv_success" callExpr
@@ -279,7 +291,7 @@ def callWithValueBytesModule (bytesParam : String) : ExternalCallModule where
           ]),
           YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__cwv_rds"])
         ]
-        pure [YulStmt.block (copyData ++ [letSuccess, revertBlock])]
+        pure [YulStmt.block ([loadPtr] ++ copyData ++ [computePadded, advancePtr, letSuccess, revertBlock])]
     | _ =>
         throw "callWithValueBytes expects 2 arguments (target, value)"
 
