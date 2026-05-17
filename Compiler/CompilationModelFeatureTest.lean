@@ -4394,6 +4394,8 @@ set_option maxRecDepth 4096 in
   expectTrue "macro payable constructor removes one deploy-time callvalue guard from rendered Yul"
     (countOccurrences nonPayableCtorYul "callvalue()" ==
       countOccurrences payableCtorYul "callvalue()" + 1)
+  expectTrue "runtime and deploy Yul initialize Solidity free-memory pointer"
+    (countOccurrences payableCtorYul "mstore(64, 128)" == 2)
   expectTrue
     "macro initializer prepends a single-run storage guard in the model"
     MacroInitializerSmoke.initializeModelPrependsSingleRunGuard
