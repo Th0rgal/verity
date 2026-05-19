@@ -21,7 +21,7 @@ namespace Compiler.Modules.Precompiles
 open Compiler.Yul
 open Compiler.ECM
 open Compiler.Constants (addressMask)
-open Compiler.CompilationModel (Stmt Expr)
+open Compiler.CompilationModel (Stmt Expr freeMemoryPointer)
 
 /-- Ecrecover precompile module.
     Performs ECDSA recovery via staticcall to precompile address 0x01.
@@ -39,30 +39,39 @@ def ecrecoverModule (resultVar : String) : ExternalCallModule where
     let (hashExpr, vExpr, rExpr, sExpr) ← match args with
       | [h, v, r, s] => pure (h, v, r, s)
       | _ => throw "ecrecover expects 4 arguments (hash, v, r, s)"
-    let storeHash := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, hashExpr])
-    let storeV := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, vExpr])
-    let storeR := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 64, rExpr])
-    let storeS := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 96, sExpr])
+    let ptrName := "__ecr_ptr"
+    let ptrExpr := YulExpr.ident ptrName
+    let loadPtr := YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])
+    let storeHash := YulStmt.expr (YulExpr.call "mstore" [ptrExpr, hashExpr])
+    let storeV := YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptrExpr, YulExpr.lit 32], vExpr])
+    let storeR := YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptrExpr, YulExpr.lit 64], rExpr])
+    let storeS := YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptrExpr, YulExpr.lit 96], sExpr])
+    let advancePtr := YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit freeMemoryPointer,
+      YulExpr.call "add" [ptrExpr, YulExpr.lit 128]
+    ])
     let callExpr := YulExpr.call "staticcall" [
       YulExpr.call "gas" [],
       YulExpr.lit 1,
-      YulExpr.lit 0, YulExpr.lit 128,
-      YulExpr.lit 0, YulExpr.lit 32
+      ptrExpr, YulExpr.lit 128,
+      ptrExpr, YulExpr.lit 32
     ]
     let revertBlock := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__ecr_success"]) [
       YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
     ]
     let guardStale := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.call "returndatasize" []]) [
-      YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.lit 0])
+      YulStmt.expr (YulExpr.call "mstore" [ptrExpr, YulExpr.lit 0])
     ]
-    let bindResult := YulStmt.let_ resultVar
-      (YulExpr.call "and" [YulExpr.call "mload" [YulExpr.lit 0], YulExpr.hex addressMask])
-    pure [YulStmt.block (
-      [storeHash, storeV, storeR, storeS,
+    let bindResult := YulStmt.let_ resultVar (YulExpr.lit 0)
+    let assignResult := YulStmt.assign resultVar
+      (YulExpr.call "and" [YulExpr.call "mload" [ptrExpr], YulExpr.hex addressMask])
+    pure [bindResult, YulStmt.block (
+      [loadPtr, storeHash, storeV, storeR, storeS, advancePtr,
        YulStmt.let_ "__ecr_success" callExpr,
        revertBlock,
-       guardStale]
-    ), bindResult]
+       guardStale,
+       assignResult]
+    )]
 
 /-- Convenience: create a `Stmt.ecm` for ecrecover. -/
 def ecrecover (resultVar : String) (hash v r s : Expr) : Stmt :=
@@ -141,28 +150,35 @@ def bn256AddModule (resultXVar resultYVar : String) : ExternalCallModule where
     let (x1, y1, x2, y2) ← match args with
       | [x1, y1, x2, y2] => pure (x1, y1, x2, y2)
       | _ => throw "bn256Add expects 4 arguments (x1, y1, x2, y2)"
-    let storeX1 := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0,  x1])
-    let storeY1 := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, y1])
-    let storeX2 := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 64, x2])
-    let storeY2 := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 96, y2])
+    let ptrName := "__bn256_add_ptr"
+    let ptrExpr := YulExpr.ident ptrName
+    let loadPtr := YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])
+    let storeX1 := YulStmt.expr (YulExpr.call "mstore" [ptrExpr, x1])
+    let storeY1 := YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptrExpr, YulExpr.lit 32], y1])
+    let storeX2 := YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptrExpr, YulExpr.lit 64], x2])
+    let storeY2 := YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptrExpr, YulExpr.lit 96], y2])
+    let advancePtr := YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit freeMemoryPointer,
+      YulExpr.call "add" [ptrExpr, YulExpr.lit 128]
+    ])
     let callExpr := YulExpr.call "staticcall" [
       YulExpr.call "gas" [],
       YulExpr.lit 6,
-      YulExpr.lit 0, YulExpr.lit 128,
-      YulExpr.lit 0, YulExpr.lit 64
+      ptrExpr, YulExpr.lit 128,
+      ptrExpr, YulExpr.lit 64
     ]
     let revertBlock := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__bn256_add_success"]) [
       YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
     ]
     let bindX := YulStmt.let_ resultXVar (YulExpr.lit 0)
     let bindY := YulStmt.let_ resultYVar (YulExpr.lit 0)
-    let assignX := YulStmt.assign resultXVar (YulExpr.call "mload" [YulExpr.lit 0])
-    let assignY := YulStmt.assign resultYVar (YulExpr.call "mload" [YulExpr.lit 32])
+    let assignX := YulStmt.assign resultXVar (YulExpr.call "mload" [ptrExpr])
+    let assignY := YulStmt.assign resultYVar (YulExpr.call "mload" [YulExpr.call "add" [ptrExpr, YulExpr.lit 32]])
     pure [
       bindX,
       bindY,
       YulStmt.block [
-        storeX1, storeY1, storeX2, storeY2,
+        loadPtr, storeX1, storeY1, storeX2, storeY2, advancePtr,
         YulStmt.let_ "__bn256_add_success" callExpr,
         revertBlock,
         assignX, assignY
@@ -188,27 +204,34 @@ def bn256ScalarMulModule (resultXVar resultYVar : String) : ExternalCallModule w
     let (x, y, scalar) ← match args with
       | [x, y, s] => pure (x, y, s)
       | _ => throw "bn256ScalarMul expects 3 arguments (x, y, scalar)"
-    let storeX := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0,  x])
-    let storeY := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 32, y])
-    let storeS := YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 64, scalar])
+    let ptrName := "__bn256_mul_ptr"
+    let ptrExpr := YulExpr.ident ptrName
+    let loadPtr := YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])
+    let storeX := YulStmt.expr (YulExpr.call "mstore" [ptrExpr, x])
+    let storeY := YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptrExpr, YulExpr.lit 32], y])
+    let storeS := YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [ptrExpr, YulExpr.lit 64], scalar])
+    let advancePtr := YulStmt.expr (YulExpr.call "mstore" [
+      YulExpr.lit freeMemoryPointer,
+      YulExpr.call "add" [ptrExpr, YulExpr.lit 96]
+    ])
     let callExpr := YulExpr.call "staticcall" [
       YulExpr.call "gas" [],
       YulExpr.lit 7,
-      YulExpr.lit 0, YulExpr.lit 96,
-      YulExpr.lit 0, YulExpr.lit 64
+      ptrExpr, YulExpr.lit 96,
+      ptrExpr, YulExpr.lit 64
     ]
     let revertBlock := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__bn256_mul_success"]) [
       YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
     ]
     let bindX := YulStmt.let_ resultXVar (YulExpr.lit 0)
     let bindY := YulStmt.let_ resultYVar (YulExpr.lit 0)
-    let assignX := YulStmt.assign resultXVar (YulExpr.call "mload" [YulExpr.lit 0])
-    let assignY := YulStmt.assign resultYVar (YulExpr.call "mload" [YulExpr.lit 32])
+    let assignX := YulStmt.assign resultXVar (YulExpr.call "mload" [ptrExpr])
+    let assignY := YulStmt.assign resultYVar (YulExpr.call "mload" [YulExpr.call "add" [ptrExpr, YulExpr.lit 32]])
     pure [
       bindX,
       bindY,
       YulStmt.block [
-        storeX, storeY, storeS,
+        loadPtr, storeX, storeY, storeS, advancePtr,
         YulStmt.let_ "__bn256_mul_success" callExpr,
         revertBlock,
         assignX, assignY

@@ -25,10 +25,10 @@ private def packedWordBindings (words : List YulExpr) : List YulStmt :=
   words.zipIdx.map fun (word, idx) =>
     YulStmt.let_ (packedWordTempName idx) word
 
-private def packedWordTempStores (wordCount : Nat) : List YulStmt :=
+private def packedWordTempStoresAt (base : YulExpr) (wordCount : Nat) : List YulStmt :=
   (List.range wordCount).map fun idx =>
     YulStmt.expr (YulExpr.call "mstore" [
-      YulExpr.lit (idx * 32),
+      YulExpr.call "add" [base, YulExpr.lit (idx * 32)],
       YulExpr.ident (packedWordTempName idx)
     ])
 
@@ -38,7 +38,7 @@ private def alignUp32 (n : Nat) : Nat :=
 private def packedSegmentMask (width : Nat) : Nat :=
   2 ^ (width * 8) - 1
 
-private def packedSegmentTempStore (offset width idx : Nat) : YulStmt :=
+private def packedSegmentTempStoreAt (base : YulExpr) (offset width idx : Nat) : YulStmt :=
   let value := YulExpr.ident (packedWordTempName idx)
   let stored :=
     if width == 32 then
@@ -48,16 +48,19 @@ private def packedSegmentTempStore (offset width idx : Nat) : YulStmt :=
         YulExpr.lit ((32 - width) * 8),
         YulExpr.call "and" [value, YulExpr.hex (packedSegmentMask width)]
       ]
-  YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit offset, stored])
+  YulStmt.expr (YulExpr.call "mstore" [
+    YulExpr.call "add" [base, YulExpr.lit offset],
+    stored
+  ])
 
-private def packedSegmentTempStoresAux (offset : Nat) : List Nat → Nat → List YulStmt
+private def packedSegmentTempStoresAtAux (base : YulExpr) (offset : Nat) : List Nat → Nat → List YulStmt
   | [], _ => []
   | width :: widths, idx =>
-      packedSegmentTempStore offset width idx ::
-        packedSegmentTempStoresAux (offset + width) widths (idx + 1)
+      packedSegmentTempStoreAt base offset width idx ::
+        packedSegmentTempStoresAtAux base (offset + width) widths (idx + 1)
 
-private def packedSegmentTempStores (widths : List Nat) : List YulStmt :=
-  packedSegmentTempStoresAux 0 widths 0
+private def packedSegmentTempStoresAt (base : YulExpr) (widths : List Nat) : List YulStmt :=
+  packedSegmentTempStoresAtAux base 0 widths 0
 
 private def validatePackedSegmentWidths (moduleName : String) (widths : List Nat) : Except String Unit :=
   widths.forM fun width =>
@@ -66,7 +69,7 @@ private def validatePackedSegmentWidths (moduleName : String) (widths : List Nat
     else
       pure ()
 
-/-- Keccak-256 over packed static 32-byte words stored at scratch memory offset 0.
+/-- Keccak-256 over packed static 32-byte words stored at free memory.
     This is the static-word subset of Solidity `abi.encodePacked(...)` followed
     by `keccak256`. -/
 def abiEncodePackedWordsModule (resultVar : String) (wordCount : Nat) : ExternalCallModule where
@@ -80,9 +83,21 @@ def abiEncodePackedWordsModule (resultVar : String) (wordCount : Nat) : External
     if args.length != wordCount then
       throw s!"abiEncodePackedWords expects {wordCount} static word argument(s)"
     let size := wordCount * 32
+    let ptrName := s!"__{resultVar}_packed_words_ptr"
+    let ptr := YulExpr.ident ptrName
     pure [
-      YulStmt.block (packedWordBindings args ++ packedWordTempStores wordCount),
-      YulStmt.let_ resultVar (YulExpr.call "keccak256" [YulExpr.lit 0, YulExpr.lit size])
+      YulStmt.let_ resultVar (YulExpr.lit 0),
+      YulStmt.block (
+        packedWordBindings args ++
+        [YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])] ++
+        packedWordTempStoresAt ptr wordCount ++
+        [
+      YulStmt.expr (YulExpr.call "mstore" [
+        YulExpr.lit freeMemoryPointer,
+        YulExpr.call "add" [ptr, YulExpr.lit (alignUp32 size)]
+      ]),
+      YulStmt.assign resultVar (YulExpr.call "keccak256" [ptr, YulExpr.lit size])
+      ])
     ]
 
 /-- Convenience constructor for static-word packed Keccak hashing. -/
@@ -165,7 +180,7 @@ def abiEncodeStaticArray
     (resultVar arrayParam : String) (elementWords : Nat) (arrayLength : Expr) : Stmt :=
   .ecm (abiEncodeStaticArrayModule resultVar arrayParam elementWords) [arrayLength]
 
-/-- Keccak-256 over packed static byte-width segments.
+/-- Keccak-256 over packed static byte-width segments stored at free memory.
     Each argument is encoded as exactly the matching byte width from `widths`,
     using Solidity's left-aligned memory representation for sub-word static
     values. Sub-word values are masked to their requested width before being
@@ -182,9 +197,21 @@ def abiEncodePackedStaticSegmentsModule (resultVar : String) (widths : List Nat)
       throw s!"abiEncodePackedStaticSegments expects {widths.length} static segment argument(s)"
     validatePackedSegmentWidths "abiEncodePackedStaticSegments" widths
     let size := widths.foldl (· + ·) 0
+    let ptrName := s!"__{resultVar}_packed_segments_ptr"
+    let ptr := YulExpr.ident ptrName
     pure [
-      YulStmt.block (packedWordBindings args ++ packedSegmentTempStores widths),
-      YulStmt.let_ resultVar (YulExpr.call "keccak256" [YulExpr.lit 0, YulExpr.lit size])
+      YulStmt.let_ resultVar (YulExpr.lit 0),
+      YulStmt.block (
+        packedWordBindings args ++
+        [YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer])] ++
+        packedSegmentTempStoresAt ptr widths ++
+        [
+          YulStmt.expr (YulExpr.call "mstore" [
+            YulExpr.lit freeMemoryPointer,
+            YulExpr.call "add" [ptr, YulExpr.lit (alignUp32 size)]
+          ]),
+          YulStmt.assign resultVar (YulExpr.call "keccak256" [ptr, YulExpr.lit size])
+        ])
     ]
 
 /-- Convenience constructor for static byte-width packed Keccak hashing. -/
@@ -192,7 +219,7 @@ def abiEncodePackedStaticSegments (resultVar : String) (segments : List (Expr ×
   .ecm (abiEncodePackedStaticSegmentsModule resultVar (segments.map Prod.snd))
     (segments.map Prod.fst)
 
-/-- SHA-256 over packed static 32-byte words stored at scratch memory offset 0.
+/-- SHA-256 over packed static 32-byte words stored at free memory.
     The digest is written after the packed input words and then bound from
     memory, avoiding overlap with the preimage. -/
 def sha256PackedWordsModule (resultVar : String) (wordCount : Nat) : ExternalCallModule where
@@ -206,22 +233,33 @@ def sha256PackedWordsModule (resultVar : String) (wordCount : Nat) : ExternalCal
     if args.length != wordCount then
       throw s!"sha256PackedWords expects {wordCount} static word argument(s)"
     let size := wordCount * 32
-    let outputOffset := size
+    let ptrName := s!"__{resultVar}_sha256_packed_words_ptr"
+    let outputOffsetName := s!"__{resultVar}_sha256_packed_words_output"
+    let ptr := YulExpr.ident ptrName
+    let outputOffset := YulExpr.ident outputOffsetName
     let callExpr := YulExpr.call "staticcall" [
       YulExpr.call "gas" [],
       YulExpr.lit 2,
-      YulExpr.lit 0, YulExpr.lit size,
-      YulExpr.lit outputOffset, YulExpr.lit 32
+      ptr, YulExpr.lit size,
+      outputOffset, YulExpr.lit 32
     ]
     let revertBlock := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__sha256_packed_success"]) [
       YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
     ]
     pure [
-      YulStmt.block (packedWordBindings args ++ packedWordTempStores wordCount ++ [
+      YulStmt.let_ resultVar (YulExpr.lit 0),
+      YulStmt.block (packedWordBindings args ++ [
+        YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]),
+        YulStmt.let_ outputOffsetName (YulExpr.call "add" [ptr, YulExpr.lit (alignUp32 size)])
+      ] ++ packedWordTempStoresAt ptr wordCount ++ [
         YulStmt.let_ "__sha256_packed_success" callExpr,
-        revertBlock
-      ]),
-      YulStmt.let_ resultVar (YulExpr.call "mload" [YulExpr.lit outputOffset])
+        revertBlock,
+        YulStmt.assign resultVar (YulExpr.call "mload" [outputOffset]),
+        YulStmt.expr (YulExpr.call "mstore" [
+          YulExpr.lit freeMemoryPointer,
+          YulExpr.call "add" [outputOffset, YulExpr.lit 32]
+        ])
+      ])
     ]
 
 /-- Convenience constructor for static-word packed SHA-256 hashing. -/
@@ -249,22 +287,33 @@ def sha256PackedStaticSegmentsModule (resultVar : String) (widths : List Nat) : 
       throw s!"sha256PackedStaticSegments expects {widths.length} static segment argument(s)"
     validatePackedSegmentWidths "sha256PackedStaticSegments" widths
     let size := widths.foldl (· + ·) 0
-    let outputOffset := alignUp32 size
+    let ptrName := s!"__{resultVar}_sha256_packed_segments_ptr"
+    let outputOffsetName := s!"__{resultVar}_sha256_packed_segments_output"
+    let ptr := YulExpr.ident ptrName
+    let outputOffset := YulExpr.ident outputOffsetName
     let callExpr := YulExpr.call "staticcall" [
       YulExpr.call "gas" [],
       YulExpr.lit 2,
-      YulExpr.lit 0, YulExpr.lit size,
-      YulExpr.lit outputOffset, YulExpr.lit 32
+      ptr, YulExpr.lit size,
+      outputOffset, YulExpr.lit 32
     ]
     let revertBlock := YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__sha256_packed_segments_success"]) [
       YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 0])
     ]
     pure [
-      YulStmt.block (packedWordBindings args ++ packedSegmentTempStores widths ++ [
+      YulStmt.let_ resultVar (YulExpr.lit 0),
+      YulStmt.block (packedWordBindings args ++ [
+        YulStmt.let_ ptrName (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]),
+        YulStmt.let_ outputOffsetName (YulExpr.call "add" [ptr, YulExpr.lit (alignUp32 size)])
+      ] ++ packedSegmentTempStoresAt ptr widths ++ [
         YulStmt.let_ "__sha256_packed_segments_success" callExpr,
-        revertBlock
-      ]),
-      YulStmt.let_ resultVar (YulExpr.call "mload" [YulExpr.lit outputOffset])
+        revertBlock,
+        YulStmt.assign resultVar (YulExpr.call "mload" [outputOffset]),
+        YulStmt.expr (YulExpr.call "mstore" [
+          YulExpr.lit freeMemoryPointer,
+          YulExpr.call "add" [outputOffset, YulExpr.lit 32]
+        ])
+      ])
     ]
 
 /-- Convenience constructor for static byte-width packed SHA-256 hashing. -/

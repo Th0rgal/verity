@@ -2205,7 +2205,7 @@ private def expectCompileErrorContains (label : String)
 
 private def compileToYul (spec : CompilationModel) : Except String String := do
   let contract ← Compiler.CompilationModel.compile spec (selectorsFor spec)
-  pure <| Compiler.Yul.render (Compiler.emitYul contract)
+  pure <| Compiler.Yul.render (Compiler.emitYulWithOptions contract {})
 
 private def expectCompile (label : String) (spec : CompilationModel) : IO Compiler.IRContract := do
   match Compiler.CompilationModel.compile spec (selectorsFor spec) with
@@ -3638,6 +3638,31 @@ private def oracleReadSmokeSpec : CompilationModel := {
   ]
 }
 
+private def externalCallWithReturnSmokeSpec : CompilationModel := {
+  name := "ExternalCallWithReturnSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "peek"
+      params := [
+        { name := "target", ty := ParamType.address }
+        , { name := "asset", ty := ParamType.address }
+      ]
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Compiler.Modules.Calls.withReturn
+          "answer"
+          (Expr.param "target")
+          0x70a08231
+          [Expr.param "asset"]
+          true,
+        Stmt.returnValues [Expr.localVar "answer"]
+      ]
+    }
+  ]
+}
+
 private def bubblingValueCallSmokeSpec : CompilationModel := {
   name := "BubblingValueCallSmoke"
   fields := []
@@ -3810,6 +3835,56 @@ private def erc20BalanceOfSmokeSpec : CompilationModel := {
           (Expr.param "token")
           (Expr.param "owner"),
         Stmt.returnValues [Expr.localVar "balance"]
+      ]
+    }
+  ]
+}
+
+private def erc20SafeTransferSmokeSpec : CompilationModel := {
+  name := "ERC20SafeTransferSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "send"
+      params := [
+        { name := "token", ty := ParamType.address }
+        , { name := "recipient", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := []
+      body := [
+        Compiler.Modules.ERC20.safeTransfer
+          (Expr.param "token")
+          (Expr.param "recipient")
+          (Expr.param "amount"),
+        Stmt.stop
+      ]
+    }
+  ]
+}
+
+private def erc20SafeTransferFromSmokeSpec : CompilationModel := {
+  name := "ERC20SafeTransferFromSmoke"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "pull"
+      params := [
+        { name := "token", ty := ParamType.address }
+        , { name := "owner", ty := ParamType.address }
+        , { name := "recipient", ty := ParamType.address }
+        , { name := "amount", ty := ParamType.uint256 }
+      ]
+      returnType := none
+      returns := []
+      body := [
+        Compiler.Modules.ERC20.safeTransferFrom
+          (Expr.param "token")
+          (Expr.param "owner")
+          (Expr.param "recipient")
+          (Expr.param "amount"),
+        Stmt.stop
       ]
     }
   ]
@@ -4344,6 +4419,8 @@ set_option maxRecDepth 4096 in
   expectTrue "macro payable constructor removes one deploy-time callvalue guard from rendered Yul"
     (countOccurrences nonPayableCtorYul "callvalue()" ==
       countOccurrences payableCtorYul "callvalue()" + 1)
+  expectTrue "runtime and deploy Yul initialize Solidity free-memory pointer"
+    (countOccurrences payableCtorYul "mstore(64, 128)" == 2)
   expectTrue
     "macro initializer prepends a single-run storage guard in the model"
     MacroInitializerSmoke.initializeModelPrependsSingleRunGuard
@@ -4659,13 +4736,15 @@ set_option maxRecDepth 4096 in
   let ecrecoverYul ←
     expectCompileToYul "ecrecover smoke spec" ecrecoverSmokeSpec
   expectTrue "ecrecover ECM lowers to precompile staticcall"
-    (contains ecrecoverYul "staticcall(gas(), 1, 0, 128, 0, 32)")
+    (contains ecrecoverYul "staticcall(gas(), 1, __ecr_ptr, 128, __ecr_ptr, 32)")
   expectTrue "ecrecover ECM reverts when the precompile call fails"
     (contains ecrecoverYul "if iszero(__ecr_success) {")
-  expectTrue "ecrecover ECM zeroes scratch memory on empty returndata"
-    (contains ecrecoverYul "if iszero(returndatasize()) {")
+  expectTrue "ecrecover ECM zeroes free-memory output on empty returndata"
+    (contains ecrecoverYul "let __ecr_ptr := mload(64)" &&
+      contains ecrecoverYul "mstore(64, add(__ecr_ptr, 128))" &&
+      contains ecrecoverYul "if iszero(returndatasize()) {")
   expectTrue "ecrecover ECM masks recovered address to 160 bits"
-    (contains ecrecoverYul "let signer := and(mload(0), 0xffffffffffffffffffffffffffffffffffffffff)")
+    (contains ecrecoverYul "signer := and(mload(__ecr_ptr), 0xffffffffffffffffffffffffffffffffffffffff)")
   let sha256MemoryYul ←
     expectCompileToYul "sha256 memory smoke spec" sha256MemorySmokeSpec
   expectTrue "sha256Memory ECM binds output offset once before the precompile call"
@@ -4698,19 +4777,21 @@ set_option maxRecDepth 4096 in
   let bn256AddYul ←
     expectCompileToYul "bn256Add smoke spec" bn256AddSmokeSpec
   expectTrue "bn256Add ECM stores 4 input words contiguously"
-    (contains bn256AddYul "mstore(0, x1)" &&
-      contains bn256AddYul "mstore(32, y1)" &&
-      contains bn256AddYul "mstore(64, x2)" &&
-      contains bn256AddYul "mstore(96, y2)")
+    (contains bn256AddYul "let __bn256_add_ptr := mload(64)" &&
+      contains bn256AddYul "mstore(__bn256_add_ptr, x1)" &&
+      contains bn256AddYul "mstore(add(__bn256_add_ptr, 32), y1)" &&
+      contains bn256AddYul "mstore(add(__bn256_add_ptr, 64), x2)" &&
+      contains bn256AddYul "mstore(add(__bn256_add_ptr, 96), y2)" &&
+      contains bn256AddYul "mstore(64, add(__bn256_add_ptr, 128))")
   expectTrue "bn256Add ECM lowers to precompile 0x06 staticcall"
-    (contains bn256AddYul "staticcall(gas(), 6, 0, 128, 0, 64)")
+    (contains bn256AddYul "staticcall(gas(), 6, __bn256_add_ptr, 128, __bn256_add_ptr, 64)")
   expectTrue "bn256Add ECM reverts when the precompile call fails"
     (contains bn256AddYul "if iszero(__bn256_add_success) {")
-  expectTrue "bn256Add ECM binds two output result variables from scratch memory"
+  expectTrue "bn256Add ECM binds two output result variables from free memory"
     (contains bn256AddYul "let x3 := 0" &&
       contains bn256AddYul "let y3 := 0" &&
-      contains bn256AddYul "x3 := mload(0)" &&
-      contains bn256AddYul "y3 := mload(32)")
+      contains bn256AddYul "x3 := mload(__bn256_add_ptr)" &&
+      contains bn256AddYul "y3 := mload(add(__bn256_add_ptr, 32))")
   expectCompileErrorContains
     "bn256Add ECM rejects invalid argument counts"
     bn256AddBadAritySpec
@@ -4723,18 +4804,20 @@ set_option maxRecDepth 4096 in
   let bn256ScalarMulYul ←
     expectCompileToYul "bn256ScalarMul smoke spec" bn256ScalarMulSmokeSpec
   expectTrue "bn256ScalarMul ECM stores 3 input words contiguously"
-    (contains bn256ScalarMulYul "mstore(0, x)" &&
-      contains bn256ScalarMulYul "mstore(32, y)" &&
-      contains bn256ScalarMulYul "mstore(64, k)")
+    (contains bn256ScalarMulYul "let __bn256_mul_ptr := mload(64)" &&
+      contains bn256ScalarMulYul "mstore(__bn256_mul_ptr, x)" &&
+      contains bn256ScalarMulYul "mstore(add(__bn256_mul_ptr, 32), y)" &&
+      contains bn256ScalarMulYul "mstore(add(__bn256_mul_ptr, 64), k)" &&
+      contains bn256ScalarMulYul "mstore(64, add(__bn256_mul_ptr, 96))")
   expectTrue "bn256ScalarMul ECM lowers to precompile 0x07 staticcall"
-    (contains bn256ScalarMulYul "staticcall(gas(), 7, 0, 96, 0, 64)")
+    (contains bn256ScalarMulYul "staticcall(gas(), 7, __bn256_mul_ptr, 96, __bn256_mul_ptr, 64)")
   expectTrue "bn256ScalarMul ECM reverts when the precompile call fails"
     (contains bn256ScalarMulYul "if iszero(__bn256_mul_success) {")
-  expectTrue "bn256ScalarMul ECM binds two output result variables from scratch memory"
+  expectTrue "bn256ScalarMul ECM binds two output result variables from free memory"
     (contains bn256ScalarMulYul "let x2 := 0" &&
       contains bn256ScalarMulYul "let y2 := 0" &&
-      contains bn256ScalarMulYul "x2 := mload(0)" &&
-      contains bn256ScalarMulYul "y2 := mload(32)")
+      contains bn256ScalarMulYul "x2 := mload(__bn256_mul_ptr)" &&
+      contains bn256ScalarMulYul "y2 := mload(add(__bn256_mul_ptr, 32))")
   expectCompileErrorContains
     "bn256ScalarMul ECM rejects invalid argument counts"
     bn256ScalarMulBadAritySpec
@@ -4767,16 +4850,18 @@ set_option maxRecDepth 4096 in
       contains bn256PairingTrustReport "\"status\":\"assumed\"")
   let abiEncodePackedWordsYul ←
     expectCompileToYul "abiEncodePackedWords smoke spec" abiEncodePackedWordsSmokeSpec
-  expectTrue "abiEncodePackedWords evaluates source words before clobbering scratch memory"
+  expectTrue "abiEncodePackedWords evaluates source words before writing the hash preimage"
     (contains abiEncodePackedWordsYul "let __packed_word_0 := a" &&
       contains abiEncodePackedWordsYul "let __packed_word_1 := b" &&
       contains abiEncodePackedWordsYul "let __packed_word_2 := c")
-  expectTrue "abiEncodePackedWords stores static words contiguously"
-    (contains abiEncodePackedWordsYul "mstore(0, __packed_word_0)" &&
-      contains abiEncodePackedWordsYul "mstore(32, __packed_word_1)" &&
-      contains abiEncodePackedWordsYul "mstore(64, __packed_word_2)")
+  expectTrue "abiEncodePackedWords stores static words contiguously without clobbering the free-memory pointer"
+    (contains abiEncodePackedWordsYul "let __digest_packed_words_ptr := mload(64)" &&
+      contains abiEncodePackedWordsYul "mstore(add(__digest_packed_words_ptr, 0), __packed_word_0)" &&
+      contains abiEncodePackedWordsYul "mstore(add(__digest_packed_words_ptr, 32), __packed_word_1)" &&
+      contains abiEncodePackedWordsYul "mstore(add(__digest_packed_words_ptr, 64), __packed_word_2)" &&
+      contains abiEncodePackedWordsYul "mstore(64, add(__digest_packed_words_ptr, 96))")
   expectTrue "abiEncodePackedWords hashes the exact packed byte length"
-    (contains abiEncodePackedWordsYul "let digest := keccak256(0, 96)")
+    (contains abiEncodePackedWordsYul "digest := keccak256(__digest_packed_words_ptr, 96)")
   let abiEncodeStaticArrayYul ←
     expectCompileToYul "abiEncodeStaticArray smoke spec" abiEncodeStaticArraySmokeSpec
   expectTrue "abiEncodeStaticArray writes the single dynamic argument head and length"
@@ -4805,18 +4890,23 @@ set_option maxRecDepth 4096 in
       contains abiEncodeStaticArrayTrustReport "\"assumption\":\"keccak256_memory_slice_matches_evm\"")
   let sha256PackedWordsYul ←
     expectCompileToYul "sha256PackedWords smoke spec" sha256PackedWordsSmokeSpec
-  expectTrue "sha256PackedWords evaluates source words before clobbering scratch memory"
+  expectTrue "sha256PackedWords evaluates source words before writing the hash preimage"
     (contains sha256PackedWordsYul "let __packed_word_0 := root" &&
       contains sha256PackedWordsYul "let __packed_word_1 := context")
   expectTrue "sha256PackedWords stores static words contiguously"
-    (contains sha256PackedWordsYul "mstore(0, __packed_word_0)" &&
-      contains sha256PackedWordsYul "mstore(32, __packed_word_1)")
+    (contains sha256PackedWordsYul "let __digest_sha256_packed_words_ptr := mload(64)" &&
+      contains sha256PackedWordsYul
+        "mstore(add(__digest_sha256_packed_words_ptr, 0), __packed_word_0)" &&
+      contains sha256PackedWordsYul
+        "mstore(add(__digest_sha256_packed_words_ptr, 32), __packed_word_1)")
   expectTrue "sha256PackedWords hashes the exact packed byte length through precompile 0x02"
-    (contains sha256PackedWordsYul "staticcall(gas(), 2, 0, 64, 64, 32)")
+    (contains sha256PackedWordsYul
+      "staticcall(gas(), 2, __digest_sha256_packed_words_ptr, 64, __digest_sha256_packed_words_output, 32)")
   expectTrue "sha256PackedWords reverts when the precompile call fails"
     (contains sha256PackedWordsYul "if iszero(__sha256_packed_success) {")
-  expectTrue "sha256PackedWords returns the digest word from non-overlapping output memory"
-    (contains sha256PackedWordsYul "let digest := mload(64)")
+  expectTrue "sha256PackedWords returns the digest word and advances free memory"
+    (contains sha256PackedWordsYul "digest := mload(__digest_sha256_packed_words_output)" &&
+      contains sha256PackedWordsYul "mstore(64, add(__digest_sha256_packed_words_output, 32))")
   expectCompileErrorContains
     "sha256PackedWords ECM rejects invalid argument counts"
     sha256PackedWordsBadAritySpec
@@ -4831,11 +4921,11 @@ set_option maxRecDepth 4096 in
     expectCompileToYul "abiEncodePackedStaticSegments smoke spec" abiEncodePackedStaticSegmentsSmokeSpec
   expectTrue "abiEncodePackedStaticSegments masks and left-aligns sub-word static values"
     (contains abiEncodePackedStaticSegmentsYul
-      "mstore(0, shl(96, and(__packed_word_0, 0xffffffffffffffffffffffffffffffffffffffff)))")
+      "mstore(add(__digest_packed_segments_ptr, 0), shl(96, and(__packed_word_0, 0xffffffffffffffffffffffffffffffffffffffff)))")
   expectTrue "abiEncodePackedStaticSegments places the next segment at the byte-precise offset"
-    (contains abiEncodePackedStaticSegmentsYul "mstore(20, __packed_word_1)")
+    (contains abiEncodePackedStaticSegmentsYul "mstore(add(__digest_packed_segments_ptr, 20), __packed_word_1)")
   expectTrue "abiEncodePackedStaticSegments hashes the exact byte length"
-    (contains abiEncodePackedStaticSegmentsYul "let digest := keccak256(0, 52)")
+    (contains abiEncodePackedStaticSegmentsYul "digest := keccak256(__digest_packed_segments_ptr, 52)")
   expectCompileErrorContains
     "abiEncodePackedStaticSegments rejects invalid segment widths"
     abiEncodePackedStaticSegmentsBadWidthSpec
@@ -4854,11 +4944,13 @@ set_option maxRecDepth 4096 in
     expectCompileToYul "sha256PackedStaticSegments smoke spec" sha256PackedStaticSegmentsSmokeSpec
   expectTrue "sha256PackedStaticSegments masks and left-aligns sub-word static values"
     (contains sha256PackedStaticSegmentsYul
-      "mstore(0, shl(96, and(__packed_word_0, 0xffffffffffffffffffffffffffffffffffffffff)))")
+      "mstore(add(__digest_sha256_packed_segments_ptr, 0), shl(96, and(__packed_word_0, 0xffffffffffffffffffffffffffffffffffffffff)))")
   expectTrue "sha256PackedStaticSegments hashes the exact byte length through precompile 0x02"
-    (contains sha256PackedStaticSegmentsYul "staticcall(gas(), 2, 0, 52, 64, 32)")
-  expectTrue "sha256PackedStaticSegments returns the digest from aligned non-overlapping output memory"
-    (contains sha256PackedStaticSegmentsYul "let digest := mload(64)")
+    (contains sha256PackedStaticSegmentsYul
+      "staticcall(gas(), 2, __digest_sha256_packed_segments_ptr, 52, __digest_sha256_packed_segments_output, 32)")
+  expectTrue "sha256PackedStaticSegments returns the digest and advances free memory"
+    (contains sha256PackedStaticSegmentsYul "digest := mload(__digest_sha256_packed_segments_output)" &&
+      contains sha256PackedStaticSegmentsYul "mstore(64, add(__digest_sha256_packed_segments_output, 32))")
   expectCompileErrorContains
     "sha256PackedStaticSegments rejects invalid segment widths"
     sha256PackedStaticSegmentsBadWidthSpec
@@ -4886,13 +4978,25 @@ set_option maxRecDepth 4096 in
   let oracleReadYul ←
     expectCompileToYul "oracle read smoke spec" oracleReadSmokeSpec
   expectTrue "oracle read ECM lowers to staticcall"
-    (contains oracleReadYul "staticcall(gas(), oracle, 0, 36, 0, 32)")
+    (contains oracleReadYul "staticcall(gas(), oracle, __oracle_ptr, 36, __oracle_ptr, 32)")
   expectTrue "oracle read ECM forwards revert returndata"
     (contains oracleReadYul "returndatacopy(0, 0, __oracle_rds)")
   expectTrue "oracle read ECM rejects non-32-byte returndata"
     (contains oracleReadYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "oracle read ECM ABI-encodes the selector"
-    (contains oracleReadYul "mstore(0, shl(224, 0xfeaf968c))")
+  expectTrue "oracle read ECM ABI-encodes the selector at free memory"
+    (contains oracleReadYul "let __oracle_ptr := mload(64)" &&
+      contains oracleReadYul "mstore(__oracle_ptr, shl(224, 0xfeaf968c))" &&
+      contains oracleReadYul "mstore(add(__oracle_ptr, 4), asset)" &&
+      contains oracleReadYul "mstore(64, add(__oracle_ptr, 64))")
+  let externalCallWithReturnYul ←
+    expectCompileToYul "external call with return smoke spec" externalCallWithReturnSmokeSpec
+  expectTrue "externalCallWithReturn ECM uses free memory for ABI calldata and returndata"
+    (contains externalCallWithReturnYul "let __ecwr_ptr := mload(64)" &&
+      contains externalCallWithReturnYul "mstore(__ecwr_ptr, shl(224, 0x70a08231))" &&
+      contains externalCallWithReturnYul "mstore(add(__ecwr_ptr, 4), asset)" &&
+      contains externalCallWithReturnYul "mstore(64, add(__ecwr_ptr, 64))" &&
+      contains externalCallWithReturnYul "staticcall(gas(), target, __ecwr_ptr, 36, __ecwr_ptr, 32)" &&
+      contains externalCallWithReturnYul "answer := mload(__ecwr_ptr)")
   let bubblingValueCallYul ←
     expectCompileToYul "bubbling value call smoke spec" bubblingValueCallSmokeSpec
   expectTrue "bubbling value call ECM lowers to call, not staticcall"
@@ -4939,13 +5043,38 @@ set_option maxRecDepth 4096 in
   let erc20BalanceOfYul ←
     expectCompileToYul "erc20 balanceOf smoke spec" erc20BalanceOfSmokeSpec
   expectTrue "erc20 balanceOf ECM lowers to staticcall"
-    (contains erc20BalanceOfYul "staticcall(gas(), token, 0, 36, 0, 32)")
+    (contains erc20BalanceOfYul "staticcall(gas(), token, __balanceOf_ptr, 36, __balanceOf_ptr, 32)")
   expectTrue "erc20 balanceOf ECM forwards revert returndata"
     (contains erc20BalanceOfYul "returndatacopy(0, 0, __balanceOf_rds)")
   expectTrue "erc20 balanceOf ECM rejects non-32-byte returndata"
     (contains erc20BalanceOfYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc20 balanceOf ECM ABI-encodes the selector"
-    (contains erc20BalanceOfYul "mstore(0, shl(224, 0x70a08231))")
+  expectTrue "erc20 balanceOf ECM ABI-encodes the selector at free memory"
+    (contains erc20BalanceOfYul "let __balanceOf_ptr := mload(64)" &&
+      contains erc20BalanceOfYul "mstore(__balanceOf_ptr, shl(224, 0x70a08231))" &&
+      contains erc20BalanceOfYul "mstore(add(__balanceOf_ptr, 4), owner)" &&
+      contains erc20BalanceOfYul "mstore(64, add(__balanceOf_ptr, 64))")
+  let erc20SafeTransferYul ←
+    expectCompileToYul "erc20 safeTransfer smoke spec" erc20SafeTransferSmokeSpec
+  expectTrue "erc20 safeTransfer ECM allocates calldata from the free-memory pointer"
+    (contains erc20SafeTransferYul "let __st_ptr := mload(64)" &&
+      contains erc20SafeTransferYul "mstore(__st_ptr, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)" &&
+      contains erc20SafeTransferYul "call(gas(), token, 0, __st_ptr, 68, __st_ptr, 32)")
+  expectTrue "erc20 safeTransfer ECM advances the free-memory pointer"
+    (contains erc20SafeTransferYul "mstore(64, and(add(add(__st_ptr, 68), 31), not(31)))")
+  expectTrue "erc20 safeTransfer ECM forwards revert returndata"
+    (contains erc20SafeTransferYul "returndatacopy(0, 0, __st_rds)" &&
+      contains erc20SafeTransferYul "revert(0, __st_rds)")
+  let erc20SafeTransferFromYul ←
+    expectCompileToYul "erc20 safeTransferFrom smoke spec" erc20SafeTransferFromSmokeSpec
+  expectTrue "erc20 safeTransferFrom ECM allocates calldata from the free-memory pointer"
+    (contains erc20SafeTransferFromYul "let __stf_ptr := mload(64)" &&
+      contains erc20SafeTransferFromYul "mstore(__stf_ptr, 0x23b872dd00000000000000000000000000000000000000000000000000000000)" &&
+      contains erc20SafeTransferFromYul "call(gas(), token, 0, __stf_ptr, 100, __stf_ptr, 32)")
+  expectTrue "erc20 safeTransferFrom ECM advances the free-memory pointer"
+    (contains erc20SafeTransferFromYul "mstore(64, and(add(add(__stf_ptr, 100), 31), not(31)))")
+  expectTrue "erc20 safeTransferFrom ECM forwards revert returndata"
+    (contains erc20SafeTransferFromYul "returndatacopy(0, 0, __stf_rds)" &&
+      contains erc20SafeTransferFromYul "revert(0, __stf_rds)")
   let callWithValueYul ←
     expectCompileToYul "generic callWithValue smoke spec" callWithValueSmokeSpec
   expectTrue "callWithValue ECM lowers to an ETH-aware generic call"
@@ -4961,9 +5090,11 @@ set_option maxRecDepth 4096 in
   let callWithValueBytesYul ←
     expectCompileToYul "generic callWithValue bytes smoke spec" callWithValueBytesSmokeSpec
   expectTrue "callWithValue bytes ECM copies calldata bytes payload to memory"
-    (contains callWithValueBytesYul "calldatacopy(0, data_data_offset, data_length)")
+    (contains callWithValueBytesYul "let __cwv_bytes_ptr := mload(64)" &&
+      contains callWithValueBytesYul "calldatacopy(__cwv_bytes_ptr, data_data_offset, data_length)" &&
+      contains callWithValueBytesYul "mstore(64, add(__cwv_bytes_ptr, __cwv_bytes_padded))")
   expectTrue "callWithValue bytes ECM lowers to an ETH-aware generic bytes call"
-    (contains callWithValueBytesYul "call(gas(), target, amount, 0, data_length, 0, 0)")
+    (contains callWithValueBytesYul "call(gas(), target, amount, __cwv_bytes_ptr, data_length, 0, 0)")
   expectCompileErrorContains
     "state-changing callWithValue bytes ECM is rejected in view functions"
     callWithValueBytesViewRejectedSpec
@@ -4973,9 +5104,9 @@ set_option maxRecDepth 4096 in
   expectTrue "macro callWithValue surface elaborates to the generic call ECM"
     (contains macroCallWithValueYul "call(gas(), target, value, dataOffset, dataSize, 0, 0)")
   expectTrue "macro callWithValue bytes surface copies calldata bytes payload to memory"
-    (contains macroCallWithValueYul "calldatacopy(0, data_data_offset, data_length)")
+    (contains macroCallWithValueYul "calldatacopy(__cwv_bytes_ptr, data_data_offset, data_length)")
   expectTrue "macro callWithValue bytes surface elaborates to the generic bytes call ECM"
-    (contains macroCallWithValueYul "call(gas(), target, value, 0, data_length, 0, 0)")
+    (contains macroCallWithValueYul "call(gas(), target, value, __cwv_bytes_ptr, data_length, 0, 0)")
   let macroCallWithValueTrustReport := emitTrustReportJson [Contracts.Smoke.CallWithValueSmoke.spec]
   expectTrue "macro callWithValue trust report surfaces the generic call assumption"
     (contains macroCallWithValueTrustReport "\"module\":\"callWithValue\"" &&
@@ -4984,159 +5115,165 @@ set_option maxRecDepth 4096 in
   let erc20AllowanceYul ←
     expectCompileToYul "erc20 allowance smoke spec" erc20AllowanceSmokeSpec
   expectTrue "erc20 allowance ECM lowers to staticcall"
-    (contains erc20AllowanceYul "staticcall(gas(), token, 0, 68, 0, 32)")
+    (contains erc20AllowanceYul "staticcall(gas(), token, __allowance_ptr, 68, __allowance_ptr, 32)")
   expectTrue "erc20 allowance ECM forwards revert returndata"
     (contains erc20AllowanceYul "returndatacopy(0, 0, __allowance_rds)")
   expectTrue "erc20 allowance ECM rejects non-32-byte returndata"
     (contains erc20AllowanceYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc20 allowance ECM ABI-encodes the selector"
-    (contains erc20AllowanceYul "mstore(0, shl(224, 0xdd62ed3e))")
+  expectTrue "erc20 allowance ECM ABI-encodes the selector at free memory"
+    (contains erc20AllowanceYul "let __allowance_ptr := mload(64)" &&
+      contains erc20AllowanceYul "mstore(__allowance_ptr, shl(224, 0xdd62ed3e))" &&
+      contains erc20AllowanceYul "mstore(add(__allowance_ptr, 4), owner)" &&
+      contains erc20AllowanceYul "mstore(add(__allowance_ptr, 36), spender)" &&
+      contains erc20AllowanceYul "mstore(64, add(__allowance_ptr, 96))")
   let erc20TotalSupplyYul ←
     expectCompileToYul "erc20 totalSupply smoke spec" erc20TotalSupplySmokeSpec
   expectTrue "erc20 totalSupply ECM lowers to staticcall"
-    (contains erc20TotalSupplyYul "staticcall(gas(), token, 0, 4, 0, 32)")
+    (contains erc20TotalSupplyYul "staticcall(gas(), token, __totalSupply_ptr, 4, __totalSupply_ptr, 32)")
   expectTrue "erc20 totalSupply ECM forwards revert returndata"
     (contains erc20TotalSupplyYul "returndatacopy(0, 0, __totalSupply_rds)")
   expectTrue "erc20 totalSupply ECM rejects non-32-byte returndata"
     (contains erc20TotalSupplyYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc20 totalSupply ECM ABI-encodes the selector"
-    (contains erc20TotalSupplyYul "mstore(0, shl(224, 0x18160ddd))")
+  expectTrue "erc20 totalSupply ECM ABI-encodes the selector at free memory"
+    (contains erc20TotalSupplyYul "let __totalSupply_ptr := mload(64)" &&
+      contains erc20TotalSupplyYul "mstore(__totalSupply_ptr, shl(224, 0x18160ddd))" &&
+      contains erc20TotalSupplyYul "mstore(64, add(__totalSupply_ptr, 32))")
   let erc4626PreviewDepositYul ←
     expectCompileToYul "erc4626 previewDeposit smoke spec" erc4626PreviewDepositSmokeSpec
   expectTrue "erc4626 previewDeposit ECM lowers to staticcall"
-    (contains erc4626PreviewDepositYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626PreviewDepositYul "staticcall(gas(), vault, __erc4626_previewDeposit_ptr, 36, __erc4626_previewDeposit_ptr, 32)")
   expectTrue "erc4626 previewDeposit ECM forwards revert returndata"
     (contains erc4626PreviewDepositYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 previewDeposit ECM rejects non-32-byte returndata"
     (contains erc4626PreviewDepositYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 previewDeposit ECM ABI-encodes the selector"
-    (contains erc4626PreviewDepositYul "mstore(0, shl(224, 0xef8b30f7))")
+  expectTrue "erc4626 previewDeposit ECM ABI-encodes the selector at free memory"
+    (contains erc4626PreviewDepositYul "mstore(__erc4626_previewDeposit_ptr, shl(224, 0xef8b30f7))")
   let erc4626PreviewMintYul ←
     expectCompileToYul "erc4626 previewMint smoke spec" erc4626PreviewMintSmokeSpec
   expectTrue "erc4626 previewMint ECM lowers to staticcall"
-    (contains erc4626PreviewMintYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626PreviewMintYul "staticcall(gas(), vault, __erc4626_previewMint_ptr, 36, __erc4626_previewMint_ptr, 32)")
   expectTrue "erc4626 previewMint ECM forwards revert returndata"
     (contains erc4626PreviewMintYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 previewMint ECM rejects non-32-byte returndata"
     (contains erc4626PreviewMintYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 previewMint ECM ABI-encodes the selector"
-    (contains erc4626PreviewMintYul "mstore(0, shl(224, 0xb3d7f6b9))")
+  expectTrue "erc4626 previewMint ECM ABI-encodes the selector at free memory"
+    (contains erc4626PreviewMintYul "mstore(__erc4626_previewMint_ptr, shl(224, 0xb3d7f6b9))")
   let erc4626PreviewWithdrawYul ←
     expectCompileToYul "erc4626 previewWithdraw smoke spec" erc4626PreviewWithdrawSmokeSpec
   expectTrue "erc4626 previewWithdraw ECM lowers to staticcall"
-    (contains erc4626PreviewWithdrawYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626PreviewWithdrawYul "staticcall(gas(), vault, __erc4626_previewWithdraw_ptr, 36, __erc4626_previewWithdraw_ptr, 32)")
   expectTrue "erc4626 previewWithdraw ECM forwards revert returndata"
     (contains erc4626PreviewWithdrawYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 previewWithdraw ECM rejects non-32-byte returndata"
     (contains erc4626PreviewWithdrawYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 previewWithdraw ECM ABI-encodes the selector"
-    (contains erc4626PreviewWithdrawYul "mstore(0, shl(224, 0x0a28a477))")
+  expectTrue "erc4626 previewWithdraw ECM ABI-encodes the selector at free memory"
+    (contains erc4626PreviewWithdrawYul "mstore(__erc4626_previewWithdraw_ptr, shl(224, 0x0a28a477))")
   let erc4626PreviewRedeemYul ←
     expectCompileToYul "erc4626 previewRedeem smoke spec" erc4626PreviewRedeemSmokeSpec
   expectTrue "erc4626 previewRedeem ECM lowers to staticcall"
-    (contains erc4626PreviewRedeemYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626PreviewRedeemYul "staticcall(gas(), vault, __erc4626_previewRedeem_ptr, 36, __erc4626_previewRedeem_ptr, 32)")
   expectTrue "erc4626 previewRedeem ECM forwards revert returndata"
     (contains erc4626PreviewRedeemYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 previewRedeem ECM rejects non-32-byte returndata"
     (contains erc4626PreviewRedeemYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 previewRedeem ECM ABI-encodes the selector"
-    (contains erc4626PreviewRedeemYul "mstore(0, shl(224, 0x4cdad506))")
+  expectTrue "erc4626 previewRedeem ECM ABI-encodes the selector at free memory"
+    (contains erc4626PreviewRedeemYul "mstore(__erc4626_previewRedeem_ptr, shl(224, 0x4cdad506))")
   let erc4626ConvertToAssetsYul ←
     expectCompileToYul "erc4626 convertToAssets smoke spec" erc4626ConvertToAssetsSmokeSpec
   expectTrue "erc4626 convertToAssets ECM lowers to staticcall"
-    (contains erc4626ConvertToAssetsYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626ConvertToAssetsYul "staticcall(gas(), vault, __erc4626_convertToAssets_ptr, 36, __erc4626_convertToAssets_ptr, 32)")
   expectTrue "erc4626 convertToAssets ECM forwards revert returndata"
     (contains erc4626ConvertToAssetsYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 convertToAssets ECM rejects non-32-byte returndata"
     (contains erc4626ConvertToAssetsYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 convertToAssets ECM ABI-encodes the selector"
-    (contains erc4626ConvertToAssetsYul "mstore(0, shl(224, 0x07a2d13a))")
+  expectTrue "erc4626 convertToAssets ECM ABI-encodes the selector at free memory"
+    (contains erc4626ConvertToAssetsYul "mstore(__erc4626_convertToAssets_ptr, shl(224, 0x07a2d13a))")
   let erc4626ConvertToSharesYul ←
     expectCompileToYul "erc4626 convertToShares smoke spec" erc4626ConvertToSharesSmokeSpec
   expectTrue "erc4626 convertToShares ECM lowers to staticcall"
-    (contains erc4626ConvertToSharesYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626ConvertToSharesYul "staticcall(gas(), vault, __erc4626_convertToShares_ptr, 36, __erc4626_convertToShares_ptr, 32)")
   expectTrue "erc4626 convertToShares ECM forwards revert returndata"
     (contains erc4626ConvertToSharesYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 convertToShares ECM rejects non-32-byte returndata"
     (contains erc4626ConvertToSharesYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 convertToShares ECM ABI-encodes the selector"
-    (contains erc4626ConvertToSharesYul "mstore(0, shl(224, 0xc6e6f592))")
+  expectTrue "erc4626 convertToShares ECM ABI-encodes the selector at free memory"
+    (contains erc4626ConvertToSharesYul "mstore(__erc4626_convertToShares_ptr, shl(224, 0xc6e6f592))")
   let erc4626TotalAssetsYul ←
     expectCompileToYul "erc4626 totalAssets smoke spec" erc4626TotalAssetsSmokeSpec
   expectTrue "erc4626 totalAssets ECM lowers to staticcall"
-    (contains erc4626TotalAssetsYul "staticcall(gas(), vault, 0, 4, 0, 32)")
+    (contains erc4626TotalAssetsYul "staticcall(gas(), vault, __erc4626_totalAssets_ptr, 4, __erc4626_totalAssets_ptr, 32)")
   expectTrue "erc4626 totalAssets ECM forwards revert returndata"
     (contains erc4626TotalAssetsYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 totalAssets ECM rejects non-32-byte returndata"
     (contains erc4626TotalAssetsYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 totalAssets ECM ABI-encodes the selector"
-    (contains erc4626TotalAssetsYul "mstore(0, shl(224, 0x01e1d114))")
+  expectTrue "erc4626 totalAssets ECM ABI-encodes the selector at free memory"
+    (contains erc4626TotalAssetsYul "mstore(__erc4626_totalAssets_ptr, shl(224, 0x01e1d114))")
   let erc4626AssetYul ←
     expectCompileToYul "erc4626 asset smoke spec" erc4626AssetSmokeSpec
   expectTrue "erc4626 asset ECM lowers to staticcall"
-    (contains erc4626AssetYul "staticcall(gas(), vault, 0, 4, 0, 32)")
+    (contains erc4626AssetYul "staticcall(gas(), vault, __erc4626_asset_ptr, 4, __erc4626_asset_ptr, 32)")
   expectTrue "erc4626 asset ECM forwards revert returndata"
     (contains erc4626AssetYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 asset ECM rejects non-32-byte returndata"
     (contains erc4626AssetYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 asset ECM ABI-encodes the selector"
-    (contains erc4626AssetYul "mstore(0, shl(224, 0x38d52e0f))")
+  expectTrue "erc4626 asset ECM ABI-encodes the selector at free memory"
+    (contains erc4626AssetYul "mstore(__erc4626_asset_ptr, shl(224, 0x38d52e0f))")
   expectTrue "erc4626 asset ECM masks the returned address"
-    (contains erc4626AssetYul "let assetAddr := and(mload(0), 0xffffffffffffffffffffffffffffffffffffffff)")
+    (contains erc4626AssetYul "assetAddr := and(mload(__erc4626_asset_ptr), 0xffffffffffffffffffffffffffffffffffffffff)")
   let erc4626MaxDepositYul ←
     expectCompileToYul "erc4626 maxDeposit smoke spec" erc4626MaxDepositSmokeSpec
   expectTrue "erc4626 maxDeposit ECM lowers to staticcall"
-    (contains erc4626MaxDepositYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626MaxDepositYul "staticcall(gas(), vault, __erc4626_maxDeposit_ptr, 36, __erc4626_maxDeposit_ptr, 32)")
   expectTrue "erc4626 maxDeposit ECM forwards revert returndata"
     (contains erc4626MaxDepositYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 maxDeposit ECM rejects non-32-byte returndata"
     (contains erc4626MaxDepositYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 maxDeposit ECM ABI-encodes the selector"
-    (contains erc4626MaxDepositYul "mstore(0, shl(224, 0x402d267d))")
+  expectTrue "erc4626 maxDeposit ECM ABI-encodes the selector at free memory"
+    (contains erc4626MaxDepositYul "mstore(__erc4626_maxDeposit_ptr, shl(224, 0x402d267d))")
   let erc4626MaxMintYul ←
     expectCompileToYul "erc4626 maxMint smoke spec" erc4626MaxMintSmokeSpec
   expectTrue "erc4626 maxMint ECM lowers to staticcall"
-    (contains erc4626MaxMintYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626MaxMintYul "staticcall(gas(), vault, __erc4626_maxMint_ptr, 36, __erc4626_maxMint_ptr, 32)")
   expectTrue "erc4626 maxMint ECM forwards revert returndata"
     (contains erc4626MaxMintYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 maxMint ECM rejects non-32-byte returndata"
     (contains erc4626MaxMintYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 maxMint ECM ABI-encodes the selector"
-    (contains erc4626MaxMintYul "mstore(0, shl(224, 0xc63d75b6))")
+  expectTrue "erc4626 maxMint ECM ABI-encodes the selector at free memory"
+    (contains erc4626MaxMintYul "mstore(__erc4626_maxMint_ptr, shl(224, 0xc63d75b6))")
   let erc4626MaxWithdrawYul ←
     expectCompileToYul "erc4626 maxWithdraw smoke spec" erc4626MaxWithdrawSmokeSpec
   expectTrue "erc4626 maxWithdraw ECM lowers to staticcall"
-    (contains erc4626MaxWithdrawYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626MaxWithdrawYul "staticcall(gas(), vault, __erc4626_maxWithdraw_ptr, 36, __erc4626_maxWithdraw_ptr, 32)")
   expectTrue "erc4626 maxWithdraw ECM forwards revert returndata"
     (contains erc4626MaxWithdrawYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 maxWithdraw ECM rejects non-32-byte returndata"
     (contains erc4626MaxWithdrawYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 maxWithdraw ECM ABI-encodes the selector"
-    (contains erc4626MaxWithdrawYul "mstore(0, shl(224, 0xce96cb77))")
+  expectTrue "erc4626 maxWithdraw ECM ABI-encodes the selector at free memory"
+    (contains erc4626MaxWithdrawYul "mstore(__erc4626_maxWithdraw_ptr, shl(224, 0xce96cb77))")
   let erc4626MaxRedeemYul ←
     expectCompileToYul "erc4626 maxRedeem smoke spec" erc4626MaxRedeemSmokeSpec
   expectTrue "erc4626 maxRedeem ECM lowers to staticcall"
-    (contains erc4626MaxRedeemYul "staticcall(gas(), vault, 0, 36, 0, 32)")
+    (contains erc4626MaxRedeemYul "staticcall(gas(), vault, __erc4626_maxRedeem_ptr, 36, __erc4626_maxRedeem_ptr, 32)")
   expectTrue "erc4626 maxRedeem ECM forwards revert returndata"
     (contains erc4626MaxRedeemYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 maxRedeem ECM rejects non-32-byte returndata"
     (contains erc4626MaxRedeemYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 maxRedeem ECM ABI-encodes the selector"
-    (contains erc4626MaxRedeemYul "mstore(0, shl(224, 0xd905777e))")
+  expectTrue "erc4626 maxRedeem ECM ABI-encodes the selector at free memory"
+    (contains erc4626MaxRedeemYul "mstore(__erc4626_maxRedeem_ptr, shl(224, 0xd905777e))")
   let erc4626DepositYul ←
     expectCompileToYul "erc4626 deposit smoke spec" erc4626DepositSmokeSpec
   expectTrue "erc4626 deposit ECM lowers to call"
-    (contains erc4626DepositYul "call(gas(), vault, 0, 0, 68, 0, 32)")
+    (contains erc4626DepositYul "call(gas(), vault, 0, __erc4626_deposit_ptr, 68, __erc4626_deposit_ptr, 32)")
   expectTrue "erc4626 deposit ECM forwards revert returndata"
     (contains erc4626DepositYul "returndatacopy(0, 0, __erc4626_rds)")
   expectTrue "erc4626 deposit ECM rejects non-32-byte returndata"
     (contains erc4626DepositYul "if iszero(eq(returndatasize(), 32)) {")
-  expectTrue "erc4626 deposit ECM ABI-encodes the selector"
-    (contains erc4626DepositYul "mstore(0, shl(224, 0x6e553f65))")
+  expectTrue "erc4626 deposit ECM ABI-encodes the selector at free memory"
+    (contains erc4626DepositYul "mstore(__erc4626_deposit_ptr, shl(224, 0x6e553f65))")
   let macroEcrecoverYul ←
     expectCompileToYul "macro ecrecover smoke spec" MacroEcrecoverSmoke.MacroEcrecover.spec
   expectTrue "macro ecrecover bind elaborates to the same ECM lowering"
-    (contains macroEcrecoverYul "staticcall(gas(), 1, 0, 128, 0, 32)")
+    (contains macroEcrecoverYul "staticcall(gas(), 1, __ecr_ptr, 128, __ecr_ptr, 32)")
   let macroTrustReport := emitTrustReportJson [MacroEcrecoverSmoke.MacroEcrecover.spec]
   expectTrue "macro ecrecover trust report surfaces the precompile assumption"
     (contains macroTrustReport "\"module\":\"ecrecover\"" &&
