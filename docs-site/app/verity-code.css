@@ -31,7 +31,7 @@ figure[data-rehype-pretty-code-figure] pre[data-language="verity"] {
   color: #A3E1D4 !important;
 }
 
-.dark figure[data-rehype-pretty-code-figure] span[style*="#A7E39B"] {
+.dark figure[data-rehype-pretty-code-figure] span[style*="#A3E1D4"] {
   color: #82E0CC !important;
 }
 
@@ -56,19 +56,19 @@ figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span::
   pointer-events: none;
 }
 
-figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#7b3f32" i]:first-child),
-figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#875c24" i]) {
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#0B6E62" i]:first-child),
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#3D8579" i]) {
   background: linear-gradient(90deg, rgba(15, 142, 126, 0.08), rgba(15, 142, 126, 0));
 }
 
-figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#a34537" i]) {
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#B14A3A" i]) {
   background: linear-gradient(90deg, rgba(15, 142, 126, 0.06), rgba(15, 142, 126, 0));
 }
 
-figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#6f5631" i]) {
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#1F5F58" i]) {
   background: linear-gradient(90deg, rgba(11, 110, 98, 0.05), rgba(11, 110, 98, 0));
 }
 
-figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#3f7456" i]) {
+figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#0F8E7E" i]) {
   background: linear-gradient(90deg, rgba(11, 110, 98, 0.08), rgba(11, 110, 98, 0));
 }
