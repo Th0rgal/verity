@@ -1304,6 +1304,15 @@ input:focus-visible,
   font-feature-settings: "kern", "liga", "calt", "ss01";
 }
 
+/* In dark mode the accent-strong is the same bright mint we use for
+   code keywords. The italic phrase reads as the same "hot" token in
+   the hero, which is fine — it's a single short phrase, not a wall
+   of code — but soften the saturation a touch so the hero feels
+   inviting rather than electric. */
+.dark .verity-hero__dek em {
+  color: #7CD4C0;
+}
+
 .verity-hero__links {
   display: flex;
   flex-direction: column;
