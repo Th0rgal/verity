@@ -1986,6 +1986,13 @@ input:focus-visible,
     min-height: 2.85rem;
   }
 
+  /* Slightly bigger paper icon on phones so the CTA reads as
+     "open this PDF" rather than "view a tiny outline of paper". */
+  .verity-hero__paper svg {
+    width: 1rem;
+    height: 1.25rem;
+  }
+
   .verity-hero__more {
     flex-direction: column;
     gap: 0.45rem;
