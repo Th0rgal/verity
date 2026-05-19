@@ -873,6 +873,54 @@ private theorem sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plu
   simp [Compiler.CodegenCommon.initFreeMemoryPointer] at hSize ⊢
   omega
 
+private theorem sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus25
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    {reservedNames : List String} {n0 : Nat}
+    {cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)} {midN : Nat}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hNoMapping : irContract.usesMapping = false)
+    (hLowerCases :
+      Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames n0 + 1)
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          irContract.functions) = .ok (cases', midN)) :
+    cases'.length + 25 ≤
+      sizeOf (Compiler.emitYul irContract).runtimeCode := by
+  have hRuntime :
+      (Compiler.emitYul irContract).runtimeCode =
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none] :=
+    Compiler.Proofs.YulGeneration.Backends.Native.emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive
+      irContract hNoMapping
+      (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_internalFunctions_nil
+        (model := spec) (selectors := selectors) (hSupported := hSupported)
+        (ir := irContract) (hcompile := hCompile))
+      (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noFallbackEntrypoint
+        spec selectors hSupported irContract hCompile)
+      (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noReceiveEntrypoint
+        spec selectors hSupported irContract hCompile)
+  have hLen :
+      cases'.length =
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          irContract.functions).length :=
+    Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_length_eq
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames n0 + 1)
+      midN
+      (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+        irContract.functions) cases' hLowerCases
+  have hSize :=
+    sizeOf_buildSwitch_noFallback_noReceive_ge_source_cases_length_plus24
+      irContract.functions
+  rw [hRuntime, hLen]
+  simp [Compiler.CodegenCommon.initFreeMemoryPointer] at hSize ⊢
+  omega
+
 private theorem sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
@@ -978,7 +1026,61 @@ private theorem sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus2
   simp only [hMapping, hInternals, hNoFallback, hNoReceive, if_true,
     List.singleton_append, List.append_nil]
   simp only [Compiler.CodegenCommon.mappingSlotFuncAt]
+  simp [Compiler.CodegenCommon.initFreeMemoryPointer]
+  omega
+
+private theorem sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus25
+    {spec : CompilationModel.CompilationModel} {selectors : List Nat}
+    {irContract : IRContract}
+    {reservedNames : List String} {switchStart : Nat}
+    {cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)} {midN : Nat}
+    (hCompile : CompilationModel.compile spec selectors = .ok irContract)
+    (hSupported : SupportedSpec spec selectors)
+    (hMapping : irContract.usesMapping = true)
+    (hLowerCases :
+      Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          irContract.functions) = .ok (cases', midN)) :
+    cases'.length + 25 ≤
+      sizeOf (Compiler.emitYul irContract).runtimeCode := by
+  have hInternals :
+      irContract.internalFunctions = [] :=
+    Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_internalFunctions_nil
+      (model := spec) (selectors := selectors) (hSupported := hSupported)
+      (ir := irContract) (hcompile := hCompile)
+  have hNoFallback :
+      irContract.fallbackEntrypoint = none :=
+    Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noFallbackEntrypoint
+      spec selectors hSupported irContract hCompile
+  have hNoReceive :
+      irContract.receiveEntrypoint = none :=
+    Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_noReceiveEntrypoint
+      spec selectors hSupported irContract hCompile
+  have hLen :
+      cases'.length =
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          irContract.functions).length :=
+    Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_length_eq
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN
+      (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+        irContract.functions) cases' hLowerCases
+  have hSize :=
+    sizeOf_buildSwitch_noFallback_noReceive_ge_source_cases_length_plus24
+      irContract.functions
+  rw [hLen]
+  unfold Compiler.emitYul Compiler.CodegenCommon.emitYul
+    Compiler.CodegenCommon.runtimeCode
+  simp only [hMapping, hInternals, hNoFallback, hNoReceive, if_true,
+    List.singleton_append, List.append_nil]
+  simp only [Compiler.CodegenCommon.mappingSlotFuncAt]
   simp [Compiler.CodegenCommon.initFreeMemoryPointer] at hSize ⊢
+  have hExtra : 1 ≤ sizeOf "mappingSlot" := by decide
   omega
 
 /-- Projected native dispatcher-exec result equality used by the public native
@@ -1264,7 +1366,11 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_mi
     (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
       Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds
@@ -1294,10 +1400,10 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_mi
       (YulTransaction.ofIR tx) state.storage state.events materializedSlots
       hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange with
-    ⟨reservedNames, n0, cases', midN, hLowerCases, hCont⟩
+    ⟨reservedNames, n0, cases', midN, hLowerCases, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', midN, hLowerCases, ?_⟩
   intro hFuel
-  rcases hCont hFuel with ⟨hExec, hProject⟩
+  rcases hDispatcherContinuation hFuel with ⟨hExec, hProject⟩
   unfold nativeDispatcherExecMatchesIRPositive
   dsimp [nativeContract, materializedSlots] at hExec hProject ⊢
   rw [hExec, hProject]
@@ -1322,7 +1428,10 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_mi
     (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        .ok ()) :
     ∃ (switchStart : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
       Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds
@@ -1377,7 +1486,10 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_mi
     (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        .ok ()) :
     ∃ (switchStart : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
       Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds
@@ -1407,14 +1519,488 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_mi
       functions (YulTransaction.ofIR tx) state.storage state.events materializedSlots
       hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange with
-    ⟨switchStart, cases', midN, hLowerCases, hCont⟩
+    ⟨switchStart, cases', midN, hLowerCases, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', midN, hLowerCases, ?_⟩
   intro hFuel
-  rcases hCont hFuel with ⟨hExec, hProject⟩
+  rcases hDispatcherContinuation hFuel with ⟨hExec, hProject⟩
   unfold nativeDispatcherExecMatchesIRPositive
   dsimp [nativeContract, materializedSlots] at hExec hProject ⊢
   rw [hExec, hProject]
   simp [nativeResultsMatchOn,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn,
+    Compiler.Proofs.IRGeneration.interpretIR, hFind]
+
+private theorem nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_atFuel
+    (fuel' : Nat) (irContract : IRContract) (tx : IRTransaction)
+    (state : IRState) (observableSlots : List Nat)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+    (hLower :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [.Block inner])
+    (hFind :
+      irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+        none)
+    (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds
+          reservedNames
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames n0 + 1)
+          (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+            irContract.functions) = .ok (cases', midN) ∧
+      (cases'.length + 20 ≤ fuel' →
+        nativeDispatcherExecMatchesIRPositive fuel'
+          irContract tx state observableSlots
+          { dispatcher := .Block
+              [.ExprStmtCall
+                (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+                  (Yul.YulExpr.call "mstore"
+                    [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                     Yul.YulExpr.lit 128])),
+               .Block inner],
+            functions := functions }) := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, hInner, hLowerCases⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered
+      irContract.functions inner hLower
+  refine ⟨reservedNames, n0, cases', midN, hLowerCases, ?_⟩
+  intro hFuel
+  let fuel := fuel' - (cases'.length + 20)
+  have hFuelShape : fuel' = fuel + cases'.length + 20 := by
+    dsimp [fuel]
+    exact (Nat.sub_add_cancel hFuel).symm
+  let nativeContract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block
+        [.ExprStmtCall
+          (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+            (Yul.YulExpr.call "mstore"
+              [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+               Yul.YulExpr.lit 128])),
+         .Block inner],
+      functions := functions }
+  let materializedSlots :=
+    Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+      (Compiler.runtimeCode irContract) observableSlots
+  have hSelector :
+      tx.functionSelector =
+        tx.functionSelector % Compiler.Constants.selectorModulus := by
+    exact (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hLowerFind :
+      cases'.find? (fun entry => entry.1 == tx.functionSelector) = none :=
+    Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0 + 1)
+      midN tx.functionSelector irContract.functions cases' hLowerCases hFind
+  have hTagsEq :
+      cases'.map (·.1) =
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          irContract.functions).map (·.1) :=
+    Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0 + 1)
+      midN
+      (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+        irContract.functions) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) :=
+      List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases] at hTagMem
+    rcases hTagMem with ⟨fn, hFn, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange fn hFn
+  have hExec :
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+          fuel' nativeContract
+          (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            nativeContract (YulTransaction.ofIR tx) state.storage
+            materializedSlots) =
+        .error EvmYul.Yul.Exception.Revert := by
+    rw [hFuelShape]
+    have hPeel :=
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+        fuel reservedNames n0 cases' body1 inner functions
+        (YulTransaction.ofIR tx) state.storage materializedSlots hInner
+        (by simpa [YulTransaction.ofIR] using hNoWrap)
+    have hEndpoint :=
+      Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_revert_default_postInitFreeMemory_hasSelectorState_projectResult_eq
+        fuel tx.functionSelector
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0)
+        cases' nativeContract (YulTransaction.ofIR tx) state.storage state.events
+        materializedSlots (by simpa [YulTransaction.ofIR] using hSelector)
+        hLowerFind hSelectorRangeNative hTagsRange
+    dsimp [nativeContract, materializedSlots] at hPeel hEndpoint ⊢
+    rw [hPeel]
+    exact hEndpoint.1
+  unfold nativeDispatcherExecMatchesIRPositive
+  dsimp [nativeContract, materializedSlots] at hExec ⊢
+  rw [hExec]
+  simp [Compiler.Proofs.YulGeneration.Backends.Native.projectResult,
+    nativeResultsMatchOn,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn,
+    Compiler.Proofs.IRGeneration.interpretIR, hFind]
+
+private theorem nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive
+    (fuel : Nat) (irContract : IRContract) (tx : IRTransaction)
+    (state : IRState) (observableSlots : List Nat)
+    (inner : List EvmYul.Yul.Ast.Stmt)
+    (functions : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+    (hLower :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [.Block inner])
+    (hFind :
+      irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+        none)
+    (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
+    ∃ (reservedNames : List String) (n0 : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds
+          reservedNames
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames n0 + 1)
+          (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+            irContract.functions) = .ok (cases', midN) ∧
+      nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 20)
+        irContract tx state observableSlots
+        { dispatcher := .Block
+            [.ExprStmtCall
+              (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+                (Yul.YulExpr.call "mstore"
+                  [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                   Yul.YulExpr.lit 128])),
+             .Block inner],
+          functions := functions } := by
+  obtain ⟨body1, reservedNames, n0, cases', midN, hInner, hLowerCases⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered
+      irContract.functions inner hLower
+  refine ⟨reservedNames, n0, cases', midN, hLowerCases, ?_⟩
+  let nativeContract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block
+        [.ExprStmtCall
+          (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+            (Yul.YulExpr.call "mstore"
+              [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+               Yul.YulExpr.lit 128])),
+         .Block inner],
+      functions := functions }
+  let materializedSlots :=
+    Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+      (Compiler.runtimeCode irContract) observableSlots
+  have hSelector :
+      tx.functionSelector =
+        tx.functionSelector % Compiler.Constants.selectorModulus := by
+    exact (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hLowerFind :
+      cases'.find? (fun entry => entry.1 == tx.functionSelector) = none :=
+    Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0 + 1)
+      midN tx.functionSelector irContract.functions cases' hLowerCases hFind
+  have hTagsEq :
+      cases'.map (·.1) =
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          irContract.functions).map (·.1) :=
+    Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0 + 1)
+      midN
+      (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+        irContract.functions) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) :=
+      List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases] at hTagMem
+    rcases hTagMem with ⟨fn, hFn, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange fn hFn
+  have hExec :
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+          (fuel + cases'.length + 20) nativeContract
+          (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            nativeContract (YulTransaction.ofIR tx) state.storage
+            materializedSlots) =
+        .error EvmYul.Yul.Exception.Revert := by
+    have hPeel :=
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+        fuel reservedNames n0 cases' body1 inner functions
+        (YulTransaction.ofIR tx) state.storage materializedSlots hInner
+        (by simpa [YulTransaction.ofIR] using hNoWrap)
+    have hEndpoint :=
+      Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_revert_default_postInitFreeMemory_hasSelectorState_projectResult_eq
+        fuel tx.functionSelector
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0)
+        cases' nativeContract (YulTransaction.ofIR tx) state.storage state.events
+        materializedSlots (by simpa [YulTransaction.ofIR] using hSelector)
+        hLowerFind hSelectorRangeNative hTagsRange
+    dsimp [nativeContract, materializedSlots] at hPeel hEndpoint ⊢
+    rw [hPeel]
+    exact hEndpoint.1
+  unfold nativeDispatcherExecMatchesIRPositive
+  dsimp [nativeContract, materializedSlots] at hExec ⊢
+  rw [hExec]
+  simp [Compiler.Proofs.YulGeneration.Backends.Native.projectResult,
+    nativeResultsMatchOn,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn,
+    Compiler.Proofs.IRGeneration.interpretIR, hFind]
+
+private theorem nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds_atFuel
+    (fuel' : Nat) (reservedNames : List String) (n0 : Nat)
+    (irContract : IRContract) (tx : IRTransaction)
+    (state : IRState) (observableSlots : List Nat)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+    (hLower :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+          reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([.Block inner], next))
+    (hFind :
+      irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+        none)
+    (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds
+          reservedNames
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames switchStart + 1)
+          (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+            irContract.functions) = .ok (cases', midN) ∧
+      (cases'.length + 20 ≤ fuel' →
+        nativeDispatcherExecMatchesIRPositive fuel'
+          irContract tx state observableSlots
+          { dispatcher := .Block
+              [.ExprStmtCall
+                (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+                  (Yul.YulExpr.call "mstore"
+                    [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                     Yul.YulExpr.lit 128])),
+               .Block inner],
+            functions := functions }) := by
+  obtain ⟨body1, switchStart, cases', midN, hInner, hLowerCases⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered_withSwitchIds
+      reservedNames n0 irContract.functions inner next hLower
+  refine ⟨switchStart, cases', midN, hLowerCases, ?_⟩
+  intro hFuel
+  let fuel := fuel' - (cases'.length + 20)
+  have hFuelShape : fuel' = fuel + cases'.length + 20 := by
+    dsimp [fuel]
+    exact (Nat.sub_add_cancel hFuel).symm
+  let nativeContract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block
+        [.ExprStmtCall
+          (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+            (Yul.YulExpr.call "mstore"
+              [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+               Yul.YulExpr.lit 128])),
+         .Block inner],
+      functions := functions }
+  let materializedSlots :=
+    Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+      (Compiler.runtimeCode irContract) observableSlots
+  have hSelector :
+      tx.functionSelector =
+        tx.functionSelector % Compiler.Constants.selectorModulus := by
+    exact (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hLowerFind :
+      cases'.find? (fun entry => entry.1 == tx.functionSelector) = none :=
+    Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart + 1)
+      midN tx.functionSelector irContract.functions cases' hLowerCases hFind
+  have hTagsEq :
+      cases'.map (·.1) =
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          irContract.functions).map (·.1) :=
+    Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart + 1)
+      midN
+      (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+        irContract.functions) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) :=
+      List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases] at hTagMem
+    rcases hTagMem with ⟨fn, hFn, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange fn hFn
+  have hExec :
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+          fuel' nativeContract
+          (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            nativeContract (YulTransaction.ofIR tx) state.storage
+            materializedSlots) =
+        .error EvmYul.Yul.Exception.Revert := by
+    rw [hFuelShape]
+    have hPeel :=
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+        fuel reservedNames switchStart cases' body1 inner functions
+        (YulTransaction.ofIR tx) state.storage materializedSlots hInner
+        (by simpa [YulTransaction.ofIR] using hNoWrap)
+    have hEndpoint :=
+      Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_revert_default_postInitFreeMemory_hasSelectorState_projectResult_eq
+        fuel tx.functionSelector
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+        cases' nativeContract (YulTransaction.ofIR tx) state.storage state.events
+        materializedSlots (by simpa [YulTransaction.ofIR] using hSelector)
+        hLowerFind hSelectorRangeNative hTagsRange
+    dsimp [nativeContract, materializedSlots] at hPeel hEndpoint ⊢
+    rw [hPeel]
+    exact hEndpoint.1
+  unfold nativeDispatcherExecMatchesIRPositive
+  dsimp [nativeContract, materializedSlots] at hExec ⊢
+  rw [hExec]
+  simp [Compiler.Proofs.YulGeneration.Backends.Native.projectResult,
+    nativeResultsMatchOn,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn,
+    Compiler.Proofs.IRGeneration.interpretIR, hFind]
+
+private theorem nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds
+    (fuel : Nat) (reservedNames : List String) (n0 : Nat)
+    (irContract : IRContract) (tx : IRTransaction)
+    (state : IRState) (observableSlots : List Nat)
+    (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat)
+    (functions : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+    (hLower :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+          reservedNames n0
+          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([.Block inner], next))
+    (hFind :
+      irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
+        none)
+    (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+    ∃ (switchStart : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
+      Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds
+          reservedNames
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames switchStart + 1)
+          (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+            irContract.functions) = .ok (cases', midN) ∧
+      nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 20)
+        irContract tx state observableSlots
+        { dispatcher := .Block
+            [.ExprStmtCall
+              (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+                (Yul.YulExpr.call "mstore"
+                  [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                   Yul.YulExpr.lit 128])),
+             .Block inner],
+          functions := functions } := by
+  obtain ⟨body1, switchStart, cases', midN, hInner, hLowerCases⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered_withSwitchIds
+      reservedNames n0 irContract.functions inner next hLower
+  refine ⟨switchStart, cases', midN, hLowerCases, ?_⟩
+  let nativeContract : EvmYul.Yul.Ast.YulContract :=
+    { dispatcher := .Block
+        [.ExprStmtCall
+          (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+            (Yul.YulExpr.call "mstore"
+              [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+               Yul.YulExpr.lit 128])),
+         .Block inner],
+      functions := functions }
+  let materializedSlots :=
+    Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+      (Compiler.runtimeCode irContract) observableSlots
+  have hSelector :
+      tx.functionSelector =
+        tx.functionSelector % Compiler.Constants.selectorModulus := by
+    exact (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hLowerFind :
+      cases'.find? (fun entry => entry.1 == tx.functionSelector) = none :=
+    Compiler.Proofs.YulGeneration.Backends.Native.lowerSwitchCasesNativeWithSwitchIds_buildSwitch_find?_none_of_find_function
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart + 1)
+      midN tx.functionSelector irContract.functions cases' hLowerCases hFind
+  have hTagsEq :
+      cases'.map (·.1) =
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          irContract.functions).map (·.1) :=
+    Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart + 1)
+      midN
+      (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+        irContract.functions) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) :=
+      List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases] at hTagMem
+    rcases hTagMem with ⟨fn, hFn, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange fn hFn
+  have hExec :
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+          (fuel + cases'.length + 20) nativeContract
+          (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+            nativeContract (YulTransaction.ofIR tx) state.storage
+            materializedSlots) =
+        .error EvmYul.Yul.Exception.Revert := by
+    have hPeel :=
+      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+        fuel reservedNames switchStart cases' body1 inner functions
+        (YulTransaction.ofIR tx) state.storage materializedSlots hInner
+        (by simpa [YulTransaction.ofIR] using hNoWrap)
+    have hEndpoint :=
+      Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_revert_default_postInitFreeMemory_hasSelectorState_projectResult_eq
+        fuel tx.functionSelector
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+        cases' nativeContract (YulTransaction.ofIR tx) state.storage state.events
+        materializedSlots (by simpa [YulTransaction.ofIR] using hSelector)
+        hLowerFind hSelectorRangeNative hTagsRange
+    dsimp [nativeContract, materializedSlots] at hPeel hEndpoint ⊢
+    rw [hPeel]
+    exact hEndpoint.1
+  unfold nativeDispatcherExecMatchesIRPositive
+  dsimp [nativeContract, materializedSlots] at hExec ⊢
+  rw [hExec]
+  simp [Compiler.Proofs.YulGeneration.Backends.Native.projectResult,
+    nativeResultsMatchOn,
     Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn,
     Compiler.Proofs.IRGeneration.interpretIR, hFind]
 
@@ -1481,7 +2067,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       err nativeYul hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange with
     ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower, hCont⟩
+      hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
     hCase, hBodyLower, ?_⟩
   intro hBody hProject hMatch
@@ -1497,7 +2083,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .error err := by
     simpa [materializedSlots] using hBody
-  rcases hCont hBody' hProject with ⟨hExec, hProject'⟩
+  rcases hDispatcherContinuation hBody' hProject with ⟨hExec, hProject'⟩
   exact nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -1576,7 +2162,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       err nativeYul hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange with
     ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hCont⟩
+      hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
     hLowerCases, hCase, hBodyLower, ?_⟩
   intro hFuel hBody hProject hMatch
@@ -1593,7 +2179,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .error err := by
     simpa [materializedSlots] using hBody
-  rcases hCont hFuel hBody' hProject with ⟨hExec, hProject'⟩
+  rcases hDispatcherContinuation hFuel hBody' hProject with ⟨hExec, hProject'⟩
   exact nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -1679,7 +2265,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange with
     ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hCont⟩
+      hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
     hLowerCases, hCase, hBodyLower, ?_⟩
   intro err nativeYul hFuel hBody hProject hMatch
@@ -1696,7 +2282,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .error err := by
     simpa [materializedSlots] using hBody
-  rcases hCont err nativeYul hFuel hBody' hProject with ⟨hExec, hProject'⟩
+  rcases hDispatcherContinuation err nativeYul hFuel hBody' hProject with ⟨hExec, hProject'⟩
   exact nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -1768,7 +2354,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       materializedSlots err nativeYul hLower hSelector hFind hNoWrap
       hSelectorRangeNative hFunctionSelectorsRange with
     ⟨switchStart, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower, hCont⟩
+      hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', body', bodyStart, bodyEnd,
     hCase, hBodyLower, ?_⟩
   intro hBody hProject hMatch
@@ -1784,7 +2370,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .error err := by
     simpa [materializedSlots] using hBody
-  rcases hCont hBody' hProject with ⟨hExec, hProject'⟩
+  rcases hDispatcherContinuation hBody' hProject with ⟨hExec, hProject'⟩
   exact nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -1864,7 +2450,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       materializedSlots err nativeYul hLower hSelector hFind hNoWrap
       hSelectorRangeNative hFunctionSelectorsRange with
     ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hCont⟩
+      hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
     hLowerCases, hCase, hBodyLower, ?_⟩
   intro hFuel hBody hProject hMatch
@@ -1881,7 +2467,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .error err := by
     simpa [materializedSlots] using hBody
-  rcases hCont hFuel hBody' hProject with ⟨hExec, hProject'⟩
+  rcases hDispatcherContinuation hFuel hBody' hProject with ⟨hExec, hProject'⟩
   exact nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -1969,7 +2555,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       materializedSlots hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange with
     ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hCont⟩
+      hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
     hLowerCases, hCase, hBodyLower, ?_⟩
   intro err nativeYul hFuel hBody hProject hMatch
@@ -1986,7 +2572,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .error err := by
     simpa [materializedSlots] using hBody
-  rcases hCont err nativeYul hFuel hBody' hProject with ⟨hExec, hProject'⟩
+  rcases hDispatcherContinuation err nativeYul hFuel hBody' hProject with ⟨hExec, hProject'⟩
   exact nativeDispatcherExecMatchesIRPositive_of_exec_error_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -2079,7 +2665,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       final nativeYulRaw hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange with
     ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower, hCont⟩
+      hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
     hCase, hBodyLower, ?_⟩
   intro hBody hPreservesMatched hProject hMatch
@@ -2095,7 +2681,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
+  rcases hDispatcherContinuation hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -2206,7 +2792,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       hSelector hFind hNoWrap hSelectorRangeNative hFunctionSelectorsRange
       hPayable hguards hArgs with
     ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hCont⟩
+      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart,
     bodyEnd, userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
   intro hBody hPreservesMatched hProject hMatch
@@ -2222,7 +2808,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
+  rcases hDispatcherContinuation hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -2333,7 +2919,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       hSelector hFind hNoWrap hSelectorRangeNative hFunctionSelectorsRange
       hNonPayable hguards hArgs with
     ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hCont⟩
+      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart,
     bodyEnd, userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
   intro hBody hPreservesMatched hProject hMatch
@@ -2349,7 +2935,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
+  rcases hDispatcherContinuation hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -2461,7 +3047,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       hSelector hFind hNoWrap hSelectorRangeNative hFunctionSelectorsRange
       hPayable hguards hArgs with
     ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hCont⟩
+      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart,
     bodyEnd, userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
   intro hFuel hBody hPreservesMatched hProject hMatch
@@ -2478,7 +3064,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont hFuel hBody' hPreservesMatched rfl with
+  rcases hDispatcherContinuation hFuel hBody' hPreservesMatched rfl with
     ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
@@ -2591,7 +3177,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       hSelector hFind hNoWrap hSelectorRangeNative hFunctionSelectorsRange
       hNonPayable hguards hArgs with
     ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hCont⟩
+      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart,
     bodyEnd, userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
   intro hFuel hBody hPreservesMatched hProject hMatch
@@ -2608,7 +3194,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont hFuel hBody' hPreservesMatched rfl with
+  rcases hDispatcherContinuation hFuel hBody' hPreservesMatched rfl with
     ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
@@ -2712,7 +3298,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       final nativeYulRaw hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange with
     ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hCont⟩
+      hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
     hLowerCases, hCase, hBodyLower, ?_⟩
   intro hFuel hBody hPreservesMatched hProject hMatch
@@ -2729,7 +3315,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont hFuel hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
+  rcases hDispatcherContinuation hFuel hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -2830,7 +3416,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange with
     ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hCont⟩
+      hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
     hLowerCases, hCase, hBodyLower, ?_⟩
   intro final nativeYul hFuel hBody hPreservesMatched hProject hMatch
@@ -2850,7 +3436,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont final nativeYulRaw hFuel hBody' hPreservesMatched rfl with
+  rcases hDispatcherContinuation final nativeYulRaw hFuel hBody' hPreservesMatched rfl with
     ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
@@ -2947,7 +3533,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       materializedSlots final nativeYulRaw hLower hSelector hFind hNoWrap
       hSelectorRangeNative hFunctionSelectorsRange with
     ⟨switchStart, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower, hCont⟩
+      hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', body', bodyStart, bodyEnd,
     hCase, hBodyLower, ?_⟩
   intro hBody hPreservesMatched hProject hMatch
@@ -2963,7 +3549,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
+  rcases hDispatcherContinuation hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -3071,7 +3657,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       nativeYulRaw hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange hPayable hguards hArgs with
     ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hCont⟩
+      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
     userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
   intro hBody hPreservesMatched hProject hMatch
@@ -3087,7 +3673,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
+  rcases hDispatcherContinuation hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -3195,7 +3781,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       nativeYulRaw hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange hNonPayable hguards hArgs with
     ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hCont⟩
+      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
     userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
   intro hBody hPreservesMatched hProject hMatch
@@ -3211,7 +3797,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
+  rcases hDispatcherContinuation hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -3321,7 +3907,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       nativeYulRaw hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange hPayable hguards hArgs with
     ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hCont⟩
+      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
     userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
   intro hFuel hBody hPreservesMatched hProject hMatch
@@ -3338,7 +3924,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont hFuel hBody' hPreservesMatched rfl with
+  rcases hDispatcherContinuation hFuel hBody' hPreservesMatched rfl with
     ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
@@ -3449,7 +4035,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       nativeYulRaw hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange hNonPayable hguards hArgs with
     ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hCont⟩
+      userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
     userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, ?_⟩
   intro hFuel hBody hPreservesMatched hProject hMatch
@@ -3466,7 +4052,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont hFuel hBody' hPreservesMatched rfl with
+  rcases hDispatcherContinuation hFuel hBody' hPreservesMatched rfl with
     ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
@@ -3571,7 +4157,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       materializedSlots final nativeYulRaw hLower hSelector hFind hNoWrap
       hSelectorRangeNative hFunctionSelectorsRange with
     ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hCont⟩
+      hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
     hLowerCases, hCase, hBodyLower, ?_⟩
   intro hFuel hBody hPreservesMatched hProject hMatch
@@ -3588,7 +4174,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont hFuel hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
+  rcases hDispatcherContinuation hFuel hBody' hPreservesMatched rfl with ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
     (observableSlots := observableSlots)
@@ -3690,7 +4276,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       materializedSlots hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange with
     ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hCont⟩
+      hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
     hLowerCases, hCase, hBodyLower, ?_⟩
   intro final nativeYul hFuel hBody hPreservesMatched hProject hMatch
@@ -3710,7 +4296,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont final nativeYulRaw hFuel hBody' hPreservesMatched rfl with
+  rcases hDispatcherContinuation final nativeYulRaw hFuel hBody' hPreservesMatched rfl with
     ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
@@ -3811,7 +4397,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       materializedSlots hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange with
     ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hCont⟩
+      hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
     hLowerCases, hCase, hBodyLower, ?_⟩
   intro final nativeYul hFuel hBody hFinalMatched hProject hMatch
@@ -3831,7 +4417,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont final nativeYulRaw hFuel hBody' hFinalMatched rfl with
+  rcases hDispatcherContinuation final nativeYulRaw hFuel hBody' hFinalMatched rfl with
     ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
@@ -3932,7 +4518,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
       hLower hSelector hFind hNoWrap hSelectorRangeNative
       hFunctionSelectorsRange with
     ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hCont⟩
+      hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
     hLowerCases, hCase, hBodyLower, ?_⟩
   intro final nativeYul hFuel hBody hFinalMatched hProject hMatch
@@ -3952,7 +4538,7 @@ private theorem nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hi
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
           .ok final := by
     simpa [materializedSlots] using hBody
-  rcases hCont final nativeYulRaw hFuel hBody' hFinalMatched rfl with
+  rcases hDispatcherContinuation final nativeYulRaw hFuel hBody' hFinalMatched rfl with
     ⟨hExec, _hProjectRaw⟩
   refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
     (contract := irContract) (tx := tx) (state := state)
@@ -3969,12 +4555,40 @@ private abbrev nativeContractOfDispatcher
     functions :=
       (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap) }
 
+/-- Native statement emitted by generated runtime initialization. -/
+private abbrev nativeInitFreeMemoryPointerStmt : EvmYul.Yul.Ast.Stmt :=
+  .ExprStmtCall
+    (Backends.lowerExprNative
+      (Yul.YulExpr.call "mstore"
+        [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+         Yul.YulExpr.lit 128]))
+
+/-- Helper-free generated-runtime contract with the init prefix followed by
+the dispatcher lowering. -/
+private abbrev nativeContractOfInitPrefixedDispatcher
+    (dispatcher : List EvmYul.Yul.Ast.Stmt) :
+    EvmYul.Yul.Ast.YulContract :=
+  { dispatcher := .Block (nativeInitFreeMemoryPointerStmt :: dispatcher)
+    functions :=
+      (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap) }
+
 /-- Native contract value produced by dispatcher lowering when the generated
 runtime also includes the native `mappingSlot` helper. -/
 private abbrev nativeContractOfDispatcherWithMapping
     (dispatcher : List EvmYul.Yul.Ast.Stmt) :
     EvmYul.Yul.Ast.YulContract :=
   { dispatcher := .Block dispatcher
+    functions :=
+      ((∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap).insert
+        "mappingSlot"
+        Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition) }
+
+/-- Mapping-helper generated-runtime contract with the init prefix followed by
+the dispatcher lowering. -/
+private abbrev nativeContractOfInitPrefixedDispatcherWithMapping
+    (dispatcher : List EvmYul.Yul.Ast.Stmt) :
+    EvmYul.Yul.Ast.YulContract :=
+  { dispatcher := .Block (nativeInitFreeMemoryPointerStmt :: dispatcher)
     functions :=
       ((∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap).insert
         "mappingSlot"
@@ -6533,7 +7147,7 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
     Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
         (Compiler.emitYul irContract).runtimeCode =
       match Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-          (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
           0 [Compiler.CodegenCommon.initFreeMemoryPointer,
             Compiler.CodegenCommon.buildSwitch irContract.functions none none] with
@@ -6758,14 +7372,17 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_exists
       irContract.functions hBodies
   have hDispatcherNoFunc :
       Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef
-        [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
           false := by
     simp [Compiler.Proofs.YulGeneration.Backends.Native.yulStmtsContainFuncDef,
-      hSwitchNoFunc]
+      Compiler.Proofs.YulGeneration.Backends.Native.yulStmtContainsFuncDef,
+      Compiler.CodegenCommon.initFreeMemoryPointer, hSwitchNoFunc]
   cases hMapping : irContract.usesMapping
   · rcases
       Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNative_ok_of_yulStmtsContainFuncDef_false
-        [Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none]
         hDispatcherNoFunc with
       ⟨dispatcher, hLowerDispatcher⟩
     refine ⟨nativeContractOfDispatcher dispatcher, ?_⟩
@@ -6776,7 +7393,8 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_exists
       Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_ok_of_yulStmtsContainFuncDef_false
         (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
           (Compiler.emitYul irContract).runtimeCode)
-        0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+        0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none]
         hDispatcherNoFunc with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher⟩
     refine ⟨nativeContractOfDispatcherWithMapping dispatcher, ?_⟩
@@ -6833,7 +7451,8 @@ private theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_pu
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) ∧
       nativeContract =
         nativeGeneratedDispatcherContractWithMappingOf dispatcher := by
@@ -6861,7 +7480,8 @@ private theorem lowerRuntimeContractNative_of_compile_ok_supported_ok_public_dis
     (irContract.usesMapping = false ∧
       ∃ dispatcher : List EvmYul.Yul.Ast.Stmt,
         Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-            [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+            [Compiler.CodegenCommon.initFreeMemoryPointer,
+              Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
           .ok dispatcher ∧
         nativeContract = nativeGeneratedDispatcherContractOf dispatcher) ∨
     (irContract.usesMapping = true ∧
@@ -6869,7 +7489,8 @@ private theorem lowerRuntimeContractNative_of_compile_ok_supported_ok_public_dis
         Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
             (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
               (Compiler.emitYul irContract).runtimeCode)
-            0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+            0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+              Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
           .ok (dispatcher, nextSwitchId) ∧
         nativeContract =
           nativeGeneratedDispatcherContractWithMappingOf dispatcher) := by
@@ -6900,7 +7521,8 @@ private theorem compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -6956,7 +7578,8 @@ private theorem compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -7013,7 +7636,8 @@ private theorem compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -7072,7 +7696,8 @@ private theorem compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -7248,6 +7873,190 @@ private theorem lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_o
           simp only [
             Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_nil,
             Bind.bind, Except.bind, Pure.pure, Except.pure, List.append_nil]
+
+private theorem lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+    (funcs : List IRFunction) (dispatcher : List EvmYul.Yul.Ast.Stmt)
+    (h :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok dispatcher) :
+    ∃ (inner : List EvmYul.Yul.Ast.Stmt) (nextSwitchId : Nat),
+      dispatcher =
+        [.ExprStmtCall
+          (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+            (Yul.YulExpr.call "mstore"
+              [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                Yul.YulExpr.lit 128])),
+         .Block inner] ∧
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+          (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+            [Compiler.CodegenCommon.initFreeMemoryPointer,
+              Compiler.CodegenCommon.buildSwitch funcs none none])
+          0 [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], nextSwitchId) := by
+  unfold Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative at h
+  dsimp at h
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons]
+    at h
+  simp [Compiler.CodegenCommon.initFreeMemoryPointer] at h
+  simp only [Bind.bind, Except.bind] at h
+  cases hTail :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+          [Yul.YulStmt.expr
+            (Yul.YulExpr.call "mstore"
+              [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                Yul.YulExpr.lit 128]),
+            Compiler.CodegenCommon.buildSwitch funcs none none])
+        0 [Compiler.CodegenCommon.buildSwitch funcs none none] with
+  | error err =>
+      rw [hTail] at h
+      simp at h
+  | ok pair =>
+      cases pair with
+      | mk tail next =>
+          rw [hTail] at h
+          simp at h
+          subst h
+          rcases
+            lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+              (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+                [Yul.YulStmt.expr
+                  (Yul.YulExpr.call "mstore"
+                    [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                      Yul.YulExpr.lit 128]),
+                  Compiler.CodegenCommon.buildSwitch funcs none none])
+              0 funcs tail next hTail with
+            ⟨inner, hTailEq, hLowerBlock⟩
+          subst hTailEq
+          refine ⟨inner, next, ?_, ?_⟩
+          · rfl
+          · simpa [Compiler.CodegenCommon.initFreeMemoryPointer] using hLowerBlock
+
+private theorem lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+    (reservedNames : List String) (nextSwitchId : Nat)
+    (funcs : List IRFunction) (dispatcher : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (h :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+          reservedNames nextSwitchId
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok (dispatcher, finalSwitchId)) :
+    ∃ inner,
+      dispatcher =
+        [.ExprStmtCall
+          (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+            (Yul.YulExpr.call "mstore"
+              [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                Yul.YulExpr.lit 128])),
+         .Block inner] ∧
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+          reservedNames nextSwitchId
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], finalSwitchId) := by
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons]
+    at h
+  simp [Compiler.CodegenCommon.initFreeMemoryPointer] at h
+  simp only [Bind.bind, Except.bind] at h
+  cases hTail :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        reservedNames nextSwitchId
+        [Compiler.CodegenCommon.buildSwitch funcs none none] with
+  | error err =>
+      rw [hTail] at h
+      simp at h
+  | ok pair =>
+      cases pair with
+      | mk tail next =>
+          rw [hTail] at h
+          simp at h
+          rcases h with ⟨hDispatcher, hFinal⟩
+          subst hDispatcher
+          subst hFinal
+          rcases lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+              reservedNames nextSwitchId funcs tail next hTail with
+            ⟨inner, hTailEq, hLowerBlock⟩
+          subst hTailEq
+          exact ⟨inner, rfl, rfl⟩
+
+private theorem lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_of_tail
+    (reservedNames : List String) (nextSwitchId : Nat)
+    (funcs : List IRFunction) (inner : List EvmYul.Yul.Ast.Stmt)
+    (finalSwitchId : Nat)
+    (hTail :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+          reservedNames nextSwitchId
+          [Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok ([.Block inner], finalSwitchId)) :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+          reservedNames nextSwitchId
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch funcs none none] =
+        .ok
+          ([.ExprStmtCall
+            (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+              (Yul.YulExpr.call "mstore"
+                [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                  Yul.YulExpr.lit 128])),
+           .Block inner], finalSwitchId) := by
+  rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons]
+  simp only [Compiler.CodegenCommon.initFreeMemoryPointer,
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_expr]
+  change
+    (do
+      let restAndNext ←
+        Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+          reservedNames nextSwitchId
+          [Compiler.CodegenCommon.buildSwitch funcs none none]
+      match restAndNext with
+      | (rest, next) =>
+          pure
+            ([EvmYul.Yul.Ast.Stmt.ExprStmtCall
+              (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+                (Yul.YulExpr.call "mstore"
+                  [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                    Yul.YulExpr.lit 128]))] ++ rest, next)) =
+      .ok
+        ([.ExprStmtCall
+          (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+            (Yul.YulExpr.call "mstore"
+              [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                Yul.YulExpr.lit 128])),
+         .Block inner], finalSwitchId)
+  rw [hTail]
+  rfl
+
+private theorem lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+    (reservedNames : List String) (nextSwitchId finalSwitchId : Nat)
+    (funcs : List IRFunction)
+    (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
+    (hLowerCases :
+      Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds
+        reservedNames nextSwitchId
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          funcs) = .ok (cases', finalSwitchId))
+    (hFunctionSelectorsRange :
+      ∀ fn, fn ∈ funcs → fn.selector < EvmYul.UInt256.size) :
+    ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+  intro tag body hmem
+  have hTagsEq :
+      cases'.map (·.1) =
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          funcs).map (·.1) :=
+    Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq
+      reservedNames nextSwitchId finalSwitchId
+      (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases funcs)
+      cases' hLowerCases
+  have hTagMem : tag ∈ cases'.map (·.1) :=
+    List.mem_map_of_mem (f := Prod.fst) hmem
+  rw [hTagsEq] at hTagMem
+  simp [Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases]
+    at hTagMem
+  rcases hTagMem with ⟨fnTag, hFnTag, hTag⟩
+  subst hTag
+  exact hFunctionSelectorsRange fnTag hFnTag
 
 private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_match
     {fuel' : Nat} {spec : CompilationModel.CompilationModel}
@@ -7477,7 +8286,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
@@ -7504,7 +8314,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
@@ -7537,7 +8348,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
@@ -7567,7 +8379,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
@@ -7594,7 +8407,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hSupported : SupportedSpec spec selectors)
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
@@ -7616,7 +8430,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hSupported : SupportedSpec spec selectors)
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
@@ -7643,7 +8458,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
@@ -7668,7 +8484,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
@@ -7704,7 +8521,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hMatch : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx state
         observableSlots (nativeContractOfDispatcher dispatcher)) :
@@ -7736,7 +8554,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hProject : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeProjectedDispatcherResultEq fuel' irContract tx state
         observableSlots (nativeContractOfDispatcher dispatcher) nativeYul)
@@ -7774,7 +8593,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx state
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
@@ -7809,7 +8629,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeProjectedDispatcherResultEq fuel' irContract tx state
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)
@@ -7839,7 +8660,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hMatch : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx state
         observableSlots (nativeContractOfDispatcher dispatcher)) :
@@ -7865,7 +8687,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hProject : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeProjectedDispatcherResultEq fuel' irContract tx state
         observableSlots (nativeContractOfDispatcher dispatcher) nativeYul)
@@ -7896,7 +8719,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx state
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
@@ -7924,7 +8748,8 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeProjectedDispatcherResultEq fuel' irContract tx state
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)
@@ -7962,7 +8787,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
         false)
     (hMatch : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx state
         observableSlots (nativeContractOfDispatcher dispatcher)) :
@@ -7992,7 +8817,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
         false)
     (hMatch : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx state
         observableSlots (nativeContractOfDispatcher dispatcher)) :
@@ -8026,7 +8851,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
         false)
     (hProject : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeProjectedDispatcherResultEq fuel' irContract tx state
         observableSlots (nativeContractOfDispatcher dispatcher) nativeYul)
@@ -8059,7 +8884,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
         false)
     (hProject : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeProjectedDispatcherResultEq fuel' irContract tx state
         observableSlots (nativeContractOfDispatcher dispatcher) nativeYul)
@@ -8098,7 +8923,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx state
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
@@ -8130,7 +8955,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx state
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
@@ -8166,7 +8991,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeProjectedDispatcherResultEq fuel' irContract tx state
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)
@@ -8202,7 +9027,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_runtime_d
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeProjectedDispatcherResultEq fuel' irContract tx state
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)
@@ -8231,7 +9056,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -8266,7 +9091,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -8297,7 +9122,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -8335,7 +9160,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -8371,7 +9196,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -8408,7 +9233,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -8442,7 +9267,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -8483,7 +9308,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -8513,7 +9338,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hSupported : SupportedSpec spec selectors)
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -8544,7 +9369,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hSupported : SupportedSpec spec selectors)
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -8571,7 +9396,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hSupported : SupportedSpec spec selectors)
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -8605,7 +9430,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hSupported : SupportedSpec spec selectors)
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -8637,7 +9462,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -8670,7 +9495,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -8705,7 +9530,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_positive_noMa
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -8764,7 +9589,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_positive_noMa
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -8823,7 +9648,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_positive_mapp
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -8885,7 +9710,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_positive_mapp
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -8936,7 +9761,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -8973,7 +9798,7 @@ private theorem nativeIRRuntimeMatchesIR_of_compiled_generated_dispatcherStmts_p
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -9012,7 +9837,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_project_noMap
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -9078,7 +9903,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_project_noMap
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -9142,7 +9967,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_project_mappi
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -9212,7 +10037,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_project_mappi
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -9458,7 +10283,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -9496,7 +10321,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -9531,7 +10356,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -9573,7 +10398,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -9609,7 +10434,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -9647,7 +10472,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -9681,7 +10506,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -9721,7 +10546,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -9749,7 +10574,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
     (hSupported : SupportedSpec spec selectors)
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -9779,7 +10604,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
     (hSupported : SupportedSpec spec selectors)
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -9806,7 +10631,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
     (hSupported : SupportedSpec spec selectors)
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -9839,7 +10664,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
     (hSupported : SupportedSpec spec selectors)
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -9870,7 +10695,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -9903,7 +10728,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -9932,7 +10757,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -9967,7 +10792,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -10007,7 +10832,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hNativeDispatcherExec : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher)) :
@@ -10040,7 +10865,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hProject : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher) nativeYul)
@@ -10077,7 +10902,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
@@ -10112,7 +10937,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)
@@ -10140,7 +10965,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hNativeDispatcherExec : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher)) :
@@ -10164,7 +10989,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hProject : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher) nativeYul)
@@ -10192,7 +11017,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
@@ -10218,7 +11043,7 @@ private theorem layer3_contract_preserves_semantics_native_of_compiled_generated
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)
@@ -10327,8 +11152,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_noMapping_stru
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -10350,24 +11176,40 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_noMapping_stru
       sourceResultMatchesNativeOn observableSlots
         (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
         (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-          (Nat.succ (fuel + cases'.length + 19)) irContract tx
+          (Nat.succ (fuel + cases'.length + 20)) irContract tx
           (FunctionBody.initialIRStateForTx model tx initialWorld)
           observableSlots) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcher [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
       hcompile hSupported hNoMapping]
+    unfold nativeContractOfInitPrefixedDispatcher nativeInitFreeMemoryPointerStmt
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_miss_noFallback_noReceive
-      fuel irContract tx initialState observableSlots inner
+    lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      irContract.functions [nativeInitFreeMemoryPointerStmt, .Block inner]
+      hLowerDispatcher with
+    ⟨inner', nextSwitchId, hDispatcherEq, hLowerBlock⟩
+  simp [nativeInitFreeMemoryPointerStmt] at hDispatcherEq
+  subst inner'
+  rcases
+    nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds
+      fuel
+      (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none])
+      0 irContract tx initialState observableSlots inner nextSwitchId
       (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-    ⟨reservedNames, n0, cases', midN, hLowerCases, hNativeDispatcherExec⟩
-  refine ⟨reservedNames, n0, cases', midN, hLowerCases, ?_⟩
+      hLowerBlock hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
+    ⟨n0, cases', midN, hLowerCases, hNativeDispatcherExec⟩
+  refine ⟨
+    (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none]),
+    n0, cases', midN, hLowerCases, ?_⟩
   exact
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
       (hSourceIR :=
@@ -10378,7 +11220,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_noMapping_stru
         nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_supported
           hcompile hSupported hLowerRuntime hEnv
           (by
-            simpa [nativeContractOfDispatcher] using hNativeDispatcherExec))
+            simpa [nativeContractOfInitPrefixedDispatcher,
+              nativeInitFreeMemoryPointerStmt] using
+              hNativeDispatcherExec))
 
 /-- Supported no-mapping selector-miss source theorem at canonical generated
 runtime fuel. This discharges the native dispatcher-match premise for the
@@ -10397,8 +11241,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_noMapping_cano
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -10419,23 +11264,34 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_noMapping_cano
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcher [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
       hcompile hSupported hNoMapping]
+    unfold nativeContractOfInitPrefixedDispatcher nativeInitFreeMemoryPointerStmt
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_miss_noFallback_noReceive_atFuel
-      (nativeRuntimeDispatcherFuel irContract) irContract tx initialState
-      observableSlots inner
+    lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      irContract.functions [nativeInitFreeMemoryPointerStmt, .Block inner]
+      hLowerDispatcher with
+    ⟨inner', nextSwitchId, hDispatcherEq, hLowerBlock⟩
+  simp [nativeInitFreeMemoryPointerStmt] at hDispatcherEq
+  subst inner'
+  rcases
+    nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds_atFuel
+      (nativeRuntimeDispatcherFuel irContract)
+      (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none])
+      0 irContract tx initialState observableSlots inner nextSwitchId
       (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-    ⟨reservedNames, n0, cases', midN, hLowerCases, hNativeDispatcherExec⟩
+      hLowerBlock hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
+    ⟨n0, cases', midN, hLowerCases, hNativeDispatcherExec⟩
   have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+      cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
     dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
-        hcompile hSupported hNoMapping hLowerCases
+    have h := sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
+      hcompile hSupported hNoMapping hLowerCases
+    omega
   exact
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
       (hSourceIR :=
@@ -10448,10 +11304,11 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_noMapping_cano
           (spec := model) (selectors := selectors) (irContract := irContract)
           (tx := tx) (state := initialState)
           (observableSlots := observableSlots)
-          (nativeContract := nativeContractOfDispatcher [.Block inner])
+          (nativeContract := nativeContractOfInitPrefixedDispatcher [.Block inner])
           hcompile hSupported hLowerRuntime hEnv
           (by
-            simpa [nativeContractOfDispatcher]
+            simpa [nativeContractOfInitPrefixedDispatcher,
+              nativeInitFreeMemoryPointerStmt]
               using hNativeDispatcherExec hFuel))
 
 /-- Direct `callDispatcher` no-mapping selector-miss theorem at canonical
@@ -10475,8 +11332,9 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_miss
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -10488,28 +11346,39 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_miss
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (nativeGeneratedCallDispatcherResultOf irContract tx
         (FunctionBody.initialIRStateForTx model tx initialWorld)
-        observableSlots (nativeContractOfDispatcher [.Block inner])) := by
+        observableSlots (nativeContractOfInitPrefixedDispatcher [.Block inner])) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_miss_noFallback_noReceive_atFuel
-      (nativeRuntimeDispatcherFuel irContract) irContract tx initialState
-      observableSlots inner
+    lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      irContract.functions [nativeInitFreeMemoryPointerStmt, .Block inner]
+      hLowerDispatcher with
+    ⟨inner', nextSwitchId, hDispatcherEq, hLowerBlock⟩
+  simp [nativeInitFreeMemoryPointerStmt] at hDispatcherEq
+  subst inner'
+  rcases
+    nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds_atFuel
+      (nativeRuntimeDispatcherFuel irContract)
+      (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none])
+      0 irContract tx initialState observableSlots inner nextSwitchId
       (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-    ⟨reservedNames, n0, cases', midN, hLowerCases, hNativeDispatcherExec⟩
+      hLowerBlock hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
+    ⟨n0, cases', midN, hLowerCases, hNativeDispatcherExec⟩
   have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+      cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
     dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
-        hcompile hSupported hNoMapping hLowerCases
+    have h := sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
+      hcompile hSupported hNoMapping hLowerCases
+    omega
   have hGeneratedMatch :
       nativeGeneratedCallDispatcherMatchesIROn irContract tx initialState
-        observableSlots (nativeContractOfDispatcher [.Block inner]) := by
+        observableSlots (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
     apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
     simpa [nativeGeneratedDispatcherExecMatchesIROn,
       nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-      nativeContractOfDispatcher] using hNativeDispatcherExec hFuel
+      nativeContractOfInitPrefixedDispatcher, nativeInitFreeMemoryPointerStmt]
+      using hNativeDispatcherExec hFuel
   exact
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
       (hSourceIR :=
@@ -10539,8 +11408,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_mapping_struct
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -10565,7 +11435,7 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_mapping_struct
       sourceResultMatchesNativeOn observableSlots
         (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
         (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-          (Nat.succ (fuel + cases'.length + 19)) irContract tx
+          (Nat.succ (fuel + cases'.length + 20)) irContract tx
           (FunctionBody.initialIRStateForTx model tx initialWorld)
           observableSlots) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
@@ -10579,14 +11449,24 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_mapping_struct
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcherWithMapping [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
       hcompile hSupported hMapping]
+    unfold nativeContractOfInitPrefixedDispatcherWithMapping
+      nativeInitFreeMemoryPointerStmt
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds
+    lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      reservedNames 0 irContract.functions
+      [nativeInitFreeMemoryPointerStmt, .Block inner] nextSwitchId
+      hLowerDispatcher with
+    ⟨inner', hDispatcherEq, hLowerBlock⟩
+  simp [nativeInitFreeMemoryPointerStmt] at hDispatcherEq
+  subst inner'
+  rcases
+    nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds
       fuel reservedNames 0 irContract tx initialState observableSlots inner
-      nextSwitchId functions hLowerDispatcher hFind hSelectorRange hNoWrap
+      nextSwitchId functions hLowerBlock hFind hSelectorRange hNoWrap
       hFunctionSelectorsRange with
     ⟨switchStart, cases', midN, hLowerCases, hNativeDispatcherExec⟩
   refine ⟨switchStart, cases', midN, ?_, ?_⟩
@@ -10601,7 +11481,8 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_mapping_struct
           nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_supported
             hcompile hSupported hLowerRuntime hEnv
             (by
-              simpa [nativeContractOfDispatcherWithMapping, functions]
+              simpa [nativeContractOfInitPrefixedDispatcherWithMapping,
+                nativeInitFreeMemoryPointerStmt, functions]
                 using hNativeDispatcherExec))
 
 /-- Supported mapping-helper selector-miss source theorem at canonical
@@ -10623,8 +11504,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_mapping_canoni
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -10652,22 +11534,32 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_mapping_canoni
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcherWithMapping [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
       hcompile hSupported hMapping]
+    unfold nativeContractOfInitPrefixedDispatcherWithMapping
+      nativeInitFreeMemoryPointerStmt
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds_atFuel
+    lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      reservedNames 0 irContract.functions
+      [nativeInitFreeMemoryPointerStmt, .Block inner] nextSwitchId
+      hLowerDispatcher with
+    ⟨inner', hDispatcherEq, hLowerBlock⟩
+  simp [nativeInitFreeMemoryPointerStmt] at hDispatcherEq
+  subst inner'
+  rcases
+    nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds_atFuel
       (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
       initialState observableSlots inner nextSwitchId functions
-      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
+      hLowerBlock hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
     ⟨switchStart, cases', midN, hLowerCases, hNativeDispatcherExec⟩
   have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+      cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
     dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
-        hcompile hSupported hMapping hLowerCases
+    have h := sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
+      hcompile hSupported hMapping hLowerCases
+    omega
   exact
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
       (hSourceIR :=
@@ -10680,10 +11572,12 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_mapping_canoni
           (spec := model) (selectors := selectors) (irContract := irContract)
           (tx := tx) (state := initialState)
           (observableSlots := observableSlots)
-          (nativeContract := nativeContractOfDispatcherWithMapping [.Block inner])
+          (nativeContract := nativeContractOfInitPrefixedDispatcherWithMapping
+            [.Block inner])
           hcompile hSupported hLowerRuntime hEnv
           (by
-            simpa [nativeContractOfDispatcherWithMapping, functions]
+            simpa [nativeContractOfInitPrefixedDispatcherWithMapping,
+              nativeInitFreeMemoryPointerStmt, functions]
               using hNativeDispatcherExec hFuel))
 
 /-- Direct `callDispatcher` mapping-helper selector-miss theorem at canonical
@@ -10708,8 +11602,9 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_miss
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -10721,7 +11616,8 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_miss
       (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
       (nativeGeneratedCallDispatcherResultOf irContract tx
         (FunctionBody.initialIRStateForTx model tx initialWorld)
-        observableSlots (nativeContractOfDispatcherWithMapping [.Block inner])) := by
+        observableSlots
+          (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
   let reservedNames :=
     Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
@@ -10731,24 +11627,34 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_miss
       "mappingSlot"
       Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition)
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds_atFuel
+    lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      reservedNames 0 irContract.functions
+      [nativeInitFreeMemoryPointerStmt, .Block inner] nextSwitchId
+      hLowerDispatcher with
+    ⟨inner', hDispatcherEq, hLowerBlock⟩
+  simp [nativeInitFreeMemoryPointerStmt] at hDispatcherEq
+  subst inner'
+  rcases
+    nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds_atFuel
       (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
       initialState observableSlots inner nextSwitchId functions
-      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
+      hLowerBlock hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
     ⟨switchStart, cases', midN, hLowerCases, hNativeDispatcherExec⟩
   have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+      cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
     dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
-        hcompile hSupported hMapping hLowerCases
+    have h := sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
+      hcompile hSupported hMapping hLowerCases
+    omega
   have hGeneratedMatch :
       nativeGeneratedCallDispatcherMatchesIROn irContract tx initialState
-        observableSlots (nativeContractOfDispatcherWithMapping [.Block inner]) := by
+        observableSlots
+          (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
     apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
     simpa [nativeGeneratedDispatcherExecMatchesIROn,
       nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-      nativeContractOfDispatcherWithMapping, functions]
+      nativeContractOfInitPrefixedDispatcherWithMapping,
+      nativeInitFreeMemoryPointerStmt, functions]
       using hNativeDispatcherExec hFuel
   exact
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
@@ -10797,7 +11703,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_miss
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
           (Compiler.emitYul irContract).runtimeCode)
         0 irContract.functions dispatcher nextSwitchId hLowerDispatcher with
@@ -10808,22 +11714,24 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_miss
       compile_preserves_native_evmYulLean_callDispatcher_selector_miss_mapping_canonical
         model selectors hSupported irContract tx initialWorld observableSlots
         inner nextSwitchId htxNormalized hcalldataSizeFits hcompile hMapping
-        hLowerBlock hFind hSelectorRange hNoWrap hFunctionSelectorsRange
+        (by simpa [nativeInitFreeMemoryPointerStmt] using hLowerDispatcher)
+        hFind hSelectorRange hNoWrap hFunctionSelectorsRange
   · have hNoMapping : irContract.usesMapping = false := by
       exact Bool.eq_false_iff.2 hUsesMapping
     rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
     exact
       compile_preserves_native_evmYulLean_callDispatcher_selector_miss_noMapping_canonical
         model selectors hSupported irContract tx initialWorld observableSlots
-        inner htxNormalized hcalldataSizeFits hcompile hNoMapping hLowerBlock
+        inner htxNormalized hcalldataSizeFits hcompile hNoMapping
+        (by simpa [nativeInitFreeMemoryPointerStmt] using hLowerDispatcher)
         hFind hSelectorRange hNoWrap hFunctionSelectorsRange
 
 /-- Native-vs-IR selector-miss theorem for a supported generated runtime.
@@ -10874,31 +11782,33 @@ private theorem nativeGeneratedCallDispatcherResult_selector_miss_matchesIR_of_c
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         reservedNames 0 irContract.functions dispatcher nextSwitchId
         hLowerDispatcher with
       ⟨inner, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
     rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds_atFuel
+      nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds_atFuel
         (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
         state observableSlots inner nextSwitchId functions
         (by simpa [reservedNames] using hLowerBlock)
         hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
       ⟨switchStart, cases', midN, hLowerCases, hNativeDispatcherExec⟩
     have hFuel :
-        cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+        cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
-      exact
-        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
-          hcompile hSupported hMapping hLowerCases
+      have h := sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
+        hcompile hSupported hMapping hLowerCases
+      omega
     change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-      observableSlots (nativeContractOfDispatcherWithMapping [.Block inner])
+      observableSlots
+        (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
     apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
     simpa [nativeGeneratedDispatcherExecMatchesIROn,
       nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-      nativeContractOfDispatcherWithMapping, functions]
+      nativeContractOfInitPrefixedDispatcherWithMapping,
+      nativeInitFreeMemoryPointerStmt, functions]
       using hNativeDispatcherExec hFuel
   · have hNoMapping : irContract.usesMapping = false :=
       Bool.eq_false_iff.2 hUsesMapping
@@ -10906,30 +11816,34 @@ private theorem nativeGeneratedCallDispatcherResult_selector_miss_matchesIR_of_c
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
     rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_miss_noFallback_noReceive_atFuel
-        (nativeRuntimeDispatcherFuel irContract) irContract tx state
-        observableSlots inner
+      nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds_atFuel
+        (nativeRuntimeDispatcherFuel irContract)
+        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none])
+        0 irContract tx state observableSlots inner nextSwitchId
         (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
         hLowerBlock hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-      ⟨reservedNames, n0, cases', midN, hLowerCases, hNativeDispatcherExec⟩
+      ⟨n0, cases', midN, hLowerCases, hNativeDispatcherExec⟩
     have hFuel :
-        cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+        cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
-      exact
-        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
-          hcompile hSupported hNoMapping hLowerCases
+      have h := sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
+        hcompile hSupported hNoMapping hLowerCases
+      omega
     change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-      observableSlots (nativeContractOfDispatcher [.Block inner])
+      observableSlots (nativeContractOfInitPrefixedDispatcher [.Block inner])
     apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
     simpa [nativeGeneratedDispatcherExecMatchesIROn,
       nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-      nativeContractOfDispatcher] using hNativeDispatcherExec hFuel
+      nativeContractOfInitPrefixedDispatcher, nativeInitFreeMemoryPointerStmt]
+      using hNativeDispatcherExec hFuel
 
 /-- Selector-miss native-vs-IR theorem with native lowering produced from
 `SupportedSpec + compile`. -/
@@ -10948,7 +11862,10 @@ theorem nativeGeneratedCallDispatcherResult_selector_miss_matchesIR_exists_of_co
     (hSelectorsRange :
       ∀ selector, selector ∈ selectors →
         selector < Compiler.Constants.selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        .ok ()) :
     ∃ nativeContract : EvmYul.Yul.Ast.YulContract,
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
         (Compiler.emitYul irContract).runtimeCode = .ok nativeContract ∧
@@ -11030,73 +11947,270 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_nonpayable_nonz
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         reservedNames 0 irContract.functions dispatcher nextSwitchId
         hLowerDispatcher with
       ⟨inner, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn hLowerBlock hFind
     rcases
-      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_nonpayable_callvalue_revert_withSwitchIds_atFuel_projectResult_eq
-        (nativeRuntimeDispatcherFuel irContract) tx.functionSelector
-        reservedNames 0 irContract.functions fn inner nextSwitchId functions
-        tx state.storage state.events
-        (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-          (Compiler.runtimeCode irContract) observableSlots)
-        (by simpa [reservedNames] using hLowerBlock)
-        hSelector hFind hNoWrap hSelectorRangeNative hFunctionSelectorsRange
-        hNonPayable hNonzero with
-      ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
-        userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, hCont⟩
+      Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_revert_eq
+        reservedNames bodyStart fn body' bodyEnd hNonPayable hBodyLower with
+      ⟨bodyNative, _userBodyStart, hBodyShape, _hUserBodyLower⟩
+    have hTagsEq :
+        cases'.map (·.1) =
+          (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+            irContract.functions).map (·.1) :=
+      Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          irContract.functions) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) :=
+        List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases]
+        at hTagMem
+      rcases hTagMem with ⟨fnTag, hFnTag, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fnTag hFnTag
     have hFuel :
         cases'.length + 24 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
       exact
         sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
           hcompile hSupported hMapping hLowerCases
-    rcases hCont hFuel with ⟨hExec, _hProject⟩
+    let fuel := nativeRuntimeDispatcherFuel irContract - (cases'.length + 24)
+    have hFuelShape :
+        nativeRuntimeDispatcherFuel irContract = fuel + cases'.length + 24 := by
+      dsimp [fuel]
+      exact (Nat.sub_add_cancel hFuel).symm
+    let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+    have hExec :
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+            (nativeRuntimeDispatcherFuel irContract) contract
+            (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+              (YulTransaction.ofIR tx) state.storage
+              (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                (Compiler.runtimeCode irContract) observableSlots)) =
+          .error EvmYul.Yul.Exception.Revert := by
+      rw [hFuelShape]
+      have hPeel :=
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+          (fuel + 4) reservedNames switchStart cases' body1 inner functions
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode irContract) observableSlots)
+          hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+      have hBody :
+          ∀ pre suffix, cases' = pre ++ (tx.functionSelector, body') :: suffix →
+            EvmYul.Yul.exec (((fuel + 4) + 1) + suffix.length + 7)
+              (.Block body') (some contract)
+              ((((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
+                    contract (YulTransaction.ofIR tx) state.storage
+                    (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                      (Compiler.runtimeCode irContract) observableSlots)
+                    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore).insert
+                  (Compiler.Proofs.YulGeneration.Backends.nativeSwitchDiscrTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                  (EvmYul.UInt256.ofNat
+                    ((YulTransaction.ofIR tx).functionSelector %
+                      Compiler.Constants.selectorModulus))).insert
+                (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                (EvmYul.UInt256.ofNat 0)).insert
+                (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                (EvmYul.UInt256.ofNat 1)) =
+            .error EvmYul.Yul.Exception.Revert := by
+        intro pre suffix _hCases
+        rw [hBodyShape]
+        rw [show (((fuel + 4) + 1) + suffix.length + 7) =
+          (fuel + suffix.length) + 12 by omega]
+        exact
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_callvalue_revert_postInitFreeMemory_fuel
+            (fuel + suffix.length) [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            bodyNative contract (YulTransaction.ofIR tx) state.storage
+            (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+              (Compiler.runtimeCode irContract) observableSlots)
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+            (4 + fn.params.length * 32)
+            (by simpa [YulTransaction.ofIR] using hNonzero)
+      have hSwitch :=
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+          (fuel + 4) tx.functionSelector
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+          tx.functionSelector cases'
+          [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+          body' contract (YulTransaction.ofIR tx) state.storage state.events
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode irContract) observableSlots)
+          EvmYul.Yul.Exception.Revert
+              (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+                (YulTransaction.ofIR tx) state.storage state.events
+                (.error EvmYul.Yul.Exception.Revert))
+            hSelector hCase hSelectorRangeNative hTagsRange hBody rfl
+      have hTotal :
+          fuel + cases'.length + 24 = (fuel + 4) + cases'.length + 20 := by
+        omega
+      rw [hTotal]
+      simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+        nativeInitFreeMemoryPointerStmt,
+        Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
     change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-      observableSlots (nativeContractOfDispatcherWithMapping [.Block inner])
+      observableSlots (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
     apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
     simpa [nativeGeneratedDispatcherExecMatchesIROn,
-      nativeRuntimeDispatcherFuel, nativeContractOfDispatcherWithMapping,
-      functions, hExec] using hIRRevert
+      nativeRuntimeDispatcherFuel, nativeContractOfInitPrefixedDispatcherWithMapping,
+      nativeInitFreeMemoryPointerStmt, functions, hExec, contract] using hIRRevert
   · have hNoMapping : irContract.usesMapping = false :=
       Bool.eq_false_iff.2 hUsesMapping
     rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
+    let reservedNames :=
+      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock) hFind
     rcases
-      Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_nonpayable_callvalue_revert_atFuel_projectResult_eq
-        (nativeRuntimeDispatcherFuel irContract) tx.functionSelector
-        irContract.functions fn inner
-        (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-        tx state.storage state.events
-        (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-          (Compiler.runtimeCode irContract) observableSlots)
-        hLowerBlock hSelector hFind hNoWrap hSelectorRangeNative
-        hFunctionSelectorsRange hNonPayable hNonzero with
-      ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart,
-        bodyEnd, userBodyStart, hLowerCases, hCase, hBodyLower,
-        hUserBodyLower, hCont⟩
+      Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_revert_eq
+        reservedNames bodyStart fn body' bodyEnd hNonPayable hBodyLower with
+      ⟨bodyNative, _userBodyStart, hBodyShape, _hUserBodyLower⟩
+    have hTagsEq :
+        cases'.map (·.1) =
+          (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+            irContract.functions).map (·.1) :=
+      Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          irContract.functions) cases' hLowerCases
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+      intro tag body hmem
+      have hTagMem : tag ∈ cases'.map (·.1) :=
+        List.mem_map_of_mem (f := Prod.fst) hmem
+      rw [hTagsEq] at hTagMem
+      simp [Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases]
+        at hTagMem
+      rcases hTagMem with ⟨fnTag, hFnTag, hTag⟩
+      subst hTag
+      exact hFunctionSelectorsRange fnTag hFnTag
     have hFuel :
         cases'.length + 24 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
       exact
         sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
           hcompile hSupported hNoMapping hLowerCases
-    rcases hCont hFuel with ⟨hExec, _hProject⟩
+    let fuel := nativeRuntimeDispatcherFuel irContract - (cases'.length + 24)
+    have hFuelShape :
+        nativeRuntimeDispatcherFuel irContract = fuel + cases'.length + 24 := by
+      dsimp [fuel]
+      exact (Nat.sub_add_cancel hFuel).symm
+    let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+    have hExec :
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+            (nativeRuntimeDispatcherFuel irContract) contract
+            (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+              (YulTransaction.ofIR tx) state.storage
+              (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                (Compiler.runtimeCode irContract) observableSlots)) =
+          .error EvmYul.Yul.Exception.Revert := by
+      rw [hFuelShape]
+      have hPeel :=
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+          (fuel + 4) reservedNames switchStart cases' body1 inner
+          (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+          (YulTransaction.ofIR tx) state.storage
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode irContract) observableSlots)
+          hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+      have hBody :
+          ∀ pre suffix, cases' = pre ++ (tx.functionSelector, body') :: suffix →
+            EvmYul.Yul.exec (((fuel + 4) + 1) + suffix.length + 7)
+              (.Block body') (some contract)
+              ((((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
+                    contract (YulTransaction.ofIR tx) state.storage
+                    (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                      (Compiler.runtimeCode irContract) observableSlots)
+                    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore).insert
+                  (Compiler.Proofs.YulGeneration.Backends.nativeSwitchDiscrTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                  (EvmYul.UInt256.ofNat
+                    ((YulTransaction.ofIR tx).functionSelector %
+                      Compiler.Constants.selectorModulus))).insert
+                (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                (EvmYul.UInt256.ofNat 0)).insert
+                (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                (EvmYul.UInt256.ofNat 1)) =
+            .error EvmYul.Yul.Exception.Revert := by
+        intro pre suffix _hCases
+        rw [hBodyShape]
+        rw [show (((fuel + 4) + 1) + suffix.length + 7) =
+          (fuel + suffix.length) + 12 by omega]
+        exact
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_callvalue_revert_postInitFreeMemory_fuel
+            (fuel + suffix.length) [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            bodyNative contract (YulTransaction.ofIR tx) state.storage
+            (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+              (Compiler.runtimeCode irContract) observableSlots)
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+            (4 + fn.params.length * 32)
+            (by simpa [YulTransaction.ofIR] using hNonzero)
+      have hSwitch :=
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+          (fuel + 4) tx.functionSelector
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+          tx.functionSelector cases'
+          [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+          body' contract (YulTransaction.ofIR tx) state.storage state.events
+          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode irContract) observableSlots)
+          EvmYul.Yul.Exception.Revert
+          (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+            (YulTransaction.ofIR tx) state.storage state.events
+            (.error EvmYul.Yul.Exception.Revert))
+          hSelector hCase hSelectorRangeNative hTagsRange hBody rfl
+      have hTotal :
+          fuel + cases'.length + 24 = (fuel + 4) + cases'.length + 20 := by
+        omega
+      rw [hTotal]
+      simpa [contract, nativeContractOfInitPrefixedDispatcher,
+        nativeInitFreeMemoryPointerStmt,
+        Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
     change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-      observableSlots (nativeContractOfDispatcher [.Block inner])
+      observableSlots (nativeContractOfInitPrefixedDispatcher [.Block inner])
     apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
     simpa [nativeGeneratedDispatcherExecMatchesIROn,
-      nativeRuntimeDispatcherFuel, nativeContractOfDispatcher, hExec]
+      nativeRuntimeDispatcherFuel, nativeContractOfInitPrefixedDispatcher,
+      nativeInitFreeMemoryPointerStmt, hExec, contract]
       using hIRRevert
 
 /-- Native-vs-IR selector-hit theorem for the generated calldata-size guard.
@@ -11168,26 +12282,30 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_args_short_reve
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         reservedNames 0 irContract.functions dispatcher nextSwitchId
         hLowerDispatcher with
       ⟨inner, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
     by_cases hPayable : fn.payable = true
-    · rcases
-        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_payable_args_short_revert_withSwitchIds_atFuel_projectResult_eq
-          (nativeRuntimeDispatcherFuel irContract) tx.functionSelector
-          reservedNames 0 irContract.functions fn inner nextSwitchId functions
-          tx state.storage state.events
-          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-            (Compiler.runtimeCode irContract) observableSlots)
-          (by simpa [reservedNames] using hLowerBlock)
-          hSelector hFind hNoWrap hSelectorRangeNative hFunctionSelectorsRange
-          hPayable hguards hArgsShort with
-        ⟨_switchStart, cases', _midN, _body', _bodyNative, _bodyStart,
-          _bodyEnd, _userBodyStart, hLowerCases, _hCase, _hBodyLower,
-          _hUserBodyLower, hCont⟩
+    · obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+          hInner, hLowerCases, hCase, hBodyLower⟩ :=
+        Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+          reservedNames 0 irContract.functions inner nextSwitchId
+          tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+          hFind
+      rcases
+        Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_revert_eq
+          reservedNames bodyStart fn body' bodyEnd hPayable hBodyLower with
+        ⟨bodyNative, _userBodyStart', hBodyShape, _hUserBodyLower'⟩
+      have hTagsRange :
+          ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+        lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+          reservedNames
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames switchStart + 1)
+          midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
       have hFuel24 :
           cases'.length + 24 ≤ nativeRuntimeDispatcherFuel irContract := by
         dsimp [nativeRuntimeDispatcherFuel]
@@ -11197,70 +12315,257 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_args_short_reve
       have hFuel23 :
           cases'.length + 23 ≤ nativeRuntimeDispatcherFuel irContract := by
         omega
-      rcases hCont hFuel23 with ⟨hExec, _hProject⟩
+      let fuel := nativeRuntimeDispatcherFuel irContract - (cases'.length + 23)
+      have hFuelShape :
+          nativeRuntimeDispatcherFuel irContract = fuel + cases'.length + 23 := by
+        dsimp [fuel]
+        exact (Nat.sub_add_cancel hFuel23).symm
+      let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (nativeRuntimeDispatcherFuel irContract) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) state.storage
+                (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                  (Compiler.runtimeCode irContract) observableSlots)) =
+            .error EvmYul.Yul.Exception.Revert := by
+        rw [hFuelShape]
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            (fuel + 3) reservedNames switchStart cases' body1 inner functions
+            (YulTransaction.ofIR tx) state.storage
+            (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+              (Compiler.runtimeCode irContract) observableSlots)
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hCalldataLt :
+            4 + (YulTransaction.ofIR tx).args.length * 32 <
+              4 + fn.params.length * 32 := by
+          have hArgLt : tx.args.length < fn.params.length := by omega
+          simpa [YulTransaction.ofIR_args] using
+            (by omega :
+              4 + tx.args.length * 32 < 4 + fn.params.length * 32)
+        have hBody :
+            ∀ pre suffix, cases' = pre ++ (tx.functionSelector, body') :: suffix →
+              EvmYul.Yul.exec (((fuel + 3) + 1) + suffix.length + 7)
+                (.Block body') (some contract)
+                ((((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
+                      contract (YulTransaction.ofIR tx) state.storage
+                      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                        (Compiler.runtimeCode irContract) observableSlots)
+                      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore).insert
+                    (Compiler.Proofs.YulGeneration.Backends.nativeSwitchDiscrTempName
+                      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                    (EvmYul.UInt256.ofNat
+                      ((YulTransaction.ofIR tx).functionSelector %
+                        Compiler.Constants.selectorModulus))).insert
+                  (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                  (EvmYul.UInt256.ofNat 0)).insert
+                  (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                  (EvmYul.UInt256.ofNat 1)) =
+              .error EvmYul.Yul.Exception.Revert := by
+          intro pre suffix _hCases
+          rw [hBodyShape]
+          rw [show (((fuel + 3) + 1) + suffix.length + 7) =
+            (fuel + suffix.length) + 11 by omega]
+          exact
+            Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_calldata_revert_postInitFreeMemory_fuel
+              (fuel + suffix.length) bodyNative contract (YulTransaction.ofIR tx)
+              state.storage
+              (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                (Compiler.runtimeCode irContract) observableSlots)
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (4 + fn.params.length * 32)
+              (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+              (Compiler.Proofs.YulGeneration.Backends.Native.DispatchGuardsSafe_calldata_threshold_lt
+                fn tx hguards)
+              hCalldataLt
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+            (fuel + 3) tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) state.storage state.events
+            (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+              (Compiler.runtimeCode irContract) observableSlots)
+            EvmYul.Yul.Exception.Revert
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) state.storage state.events
+              (.error EvmYul.Yul.Exception.Revert))
+            hSelector hCase hSelectorRangeNative hTagsRange hBody rfl
+        have hTotal :
+            fuel + cases'.length + 23 = (fuel + 3) + cases'.length + 20 := by
+          omega
+        rw [hTotal]
+        simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+          nativeInitFreeMemoryPointerStmt,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
       change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-        observableSlots (nativeContractOfDispatcherWithMapping [.Block inner])
+        observableSlots (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
       apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
       simpa [nativeGeneratedDispatcherExecMatchesIROn,
-        nativeRuntimeDispatcherFuel, nativeContractOfDispatcherWithMapping,
-        functions, hExec] using hIRRevert
+        nativeRuntimeDispatcherFuel, nativeContractOfInitPrefixedDispatcherWithMapping,
+        nativeInitFreeMemoryPointerStmt, functions, hExec, contract] using hIRRevert
     · have hNonPayable : fn.payable = false := Bool.eq_false_iff.2 hPayable
       have hZero : tx.msgValue % Compiler.Constants.evmModulus = 0 := by
         rcases hValue with hPayable' | hZero
         · rw [hNonPayable] at hPayable'
           simp at hPayable'
         · exact hZero
+      obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+          hInner, hLowerCases, hCase, hBodyLower⟩ :=
+        Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+          reservedNames 0 irContract.functions inner nextSwitchId
+          tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+          hFind
       rcases
-        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_nonpayable_args_short_revert_withSwitchIds_atFuel_projectResult_eq
-          (nativeRuntimeDispatcherFuel irContract) tx.functionSelector
-          reservedNames 0 irContract.functions fn inner nextSwitchId functions
-          tx state.storage state.events
-          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-            (Compiler.runtimeCode irContract) observableSlots)
-          (by simpa [reservedNames] using hLowerBlock)
-          hSelector hFind hNoWrap hSelectorRangeNative hFunctionSelectorsRange
-          hNonPayable hguards hZero hArgsShort with
-        ⟨_switchStart, cases', _midN, _body', _bodyNative, _bodyStart,
-          _bodyEnd, _userBodyStart, hLowerCases, _hCase, _hBodyLower,
-          _hUserBodyLower, hCont⟩
+        Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_revert_eq
+          reservedNames bodyStart fn body' bodyEnd hNonPayable hBodyLower with
+        ⟨bodyNative, _userBodyStart', hBodyShape, _hUserBodyLower'⟩
+      have hTagsRange :
+          ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+        lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+          reservedNames
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames switchStart + 1)
+          midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
       have hFuel :
           cases'.length + 24 ≤ nativeRuntimeDispatcherFuel irContract := by
         dsimp [nativeRuntimeDispatcherFuel]
         exact
           sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
             hcompile hSupported hMapping hLowerCases
-      rcases hCont hFuel with ⟨hExec, _hProject⟩
+      let fuel := nativeRuntimeDispatcherFuel irContract - (cases'.length + 24)
+      have hFuelShape :
+          nativeRuntimeDispatcherFuel irContract = fuel + cases'.length + 24 := by
+        dsimp [fuel]
+        exact (Nat.sub_add_cancel hFuel).symm
+      let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (nativeRuntimeDispatcherFuel irContract) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) state.storage
+                (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                  (Compiler.runtimeCode irContract) observableSlots)) =
+            .error EvmYul.Yul.Exception.Revert := by
+        rw [hFuelShape]
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            (fuel + 4) reservedNames switchStart cases' body1 inner functions
+            (YulTransaction.ofIR tx) state.storage
+            (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+              (Compiler.runtimeCode irContract) observableSlots)
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hCalldataLt :
+            4 + (YulTransaction.ofIR tx).args.length * 32 <
+              4 + fn.params.length * 32 := by
+          have hArgLt : tx.args.length < fn.params.length := by omega
+          simpa [YulTransaction.ofIR_args] using
+            (by omega :
+              4 + tx.args.length * 32 < 4 + fn.params.length * 32)
+        have hBody :
+            ∀ pre suffix, cases' = pre ++ (tx.functionSelector, body') :: suffix →
+              EvmYul.Yul.exec (((fuel + 4) + 1) + suffix.length + 7)
+                (.Block body') (some contract)
+                ((((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
+                      contract (YulTransaction.ofIR tx) state.storage
+                      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                        (Compiler.runtimeCode irContract) observableSlots)
+                      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore).insert
+                    (Compiler.Proofs.YulGeneration.Backends.nativeSwitchDiscrTempName
+                      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                    (EvmYul.UInt256.ofNat
+                      ((YulTransaction.ofIR tx).functionSelector %
+                        Compiler.Constants.selectorModulus))).insert
+                  (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                  (EvmYul.UInt256.ofNat 0)).insert
+                  (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                  (EvmYul.UInt256.ofNat 1)) =
+              .error EvmYul.Yul.Exception.Revert := by
+          intro pre suffix _hCases
+          rw [hBodyShape]
+          rw [show (((fuel + 4) + 1) + suffix.length + 7) =
+            (fuel + suffix.length) + 12 by omega]
+          exact
+            Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_calldata_revert_postInitFreeMemory_fuel
+              (fuel + suffix.length) bodyNative contract (YulTransaction.ofIR tx)
+              state.storage
+              (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                (Compiler.runtimeCode irContract) observableSlots)
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (4 + fn.params.length * 32)
+              (by simpa [YulTransaction.ofIR] using hZero)
+              (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+              (Compiler.Proofs.YulGeneration.Backends.Native.DispatchGuardsSafe_calldata_threshold_lt
+                fn tx hguards)
+              hCalldataLt
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+            (fuel + 4) tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) state.storage state.events
+            (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+              (Compiler.runtimeCode irContract) observableSlots)
+            EvmYul.Yul.Exception.Revert
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) state.storage state.events
+              (.error EvmYul.Yul.Exception.Revert))
+            hSelector hCase hSelectorRangeNative hTagsRange hBody rfl
+        have hTotal :
+            fuel + cases'.length + 24 = (fuel + 4) + cases'.length + 20 := by
+          omega
+        rw [hTotal]
+        simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+          nativeInitFreeMemoryPointerStmt,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
       change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-        observableSlots (nativeContractOfDispatcherWithMapping [.Block inner])
+        observableSlots (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
       apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
       simpa [nativeGeneratedDispatcherExecMatchesIROn,
-        nativeRuntimeDispatcherFuel, nativeContractOfDispatcherWithMapping,
-        functions, hExec] using hIRRevert
+        nativeRuntimeDispatcherFuel, nativeContractOfInitPrefixedDispatcherWithMapping,
+        nativeInitFreeMemoryPointerStmt, functions, hExec, contract] using hIRRevert
   · have hNoMapping : irContract.usesMapping = false :=
       Bool.eq_false_iff.2 hUsesMapping
     rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
+    let reservedNames :=
+      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none]
     by_cases hPayable : fn.payable = true
-    · rcases
-        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_payable_args_short_revert_atFuel_projectResult_eq
-          (nativeRuntimeDispatcherFuel irContract) tx.functionSelector
-          irContract.functions fn inner
-          (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-          tx state.storage state.events
-          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-            (Compiler.runtimeCode irContract) observableSlots)
-          hLowerBlock hSelector hFind hNoWrap hSelectorRangeNative
-          hFunctionSelectorsRange hPayable hguards hArgsShort with
-        ⟨_reservedNames, _n0, cases', _midN, _body', _bodyNative,
-          _bodyStart, _bodyEnd, _userBodyStart, hLowerCases, _hCase,
-          _hBodyLower, _hUserBodyLower, hCont⟩
+    · obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+          hInner, hLowerCases, hCase, hBodyLower⟩ :=
+        Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+          reservedNames 0 irContract.functions inner nextSwitchId
+          tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+          hFind
+      rcases
+        Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_revert_eq
+          reservedNames bodyStart fn body' bodyEnd hPayable hBodyLower with
+        ⟨bodyNative, _userBodyStart, hBodyShape, _hUserBodyLower⟩
+      have hTagsRange :
+          ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+        lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+          reservedNames
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames switchStart + 1)
+          midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
       have hFuel24 :
           cases'.length + 24 ≤ nativeRuntimeDispatcherFuel irContract := by
         dsimp [nativeRuntimeDispatcherFuel]
@@ -11270,12 +12575,101 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_args_short_reve
       have hFuel23 :
           cases'.length + 23 ≤ nativeRuntimeDispatcherFuel irContract := by
         omega
-      rcases hCont hFuel23 with ⟨hExec, _hProject⟩
+      let fuel := nativeRuntimeDispatcherFuel irContract - (cases'.length + 23)
+      have hFuelShape :
+          nativeRuntimeDispatcherFuel irContract = fuel + cases'.length + 23 := by
+        dsimp [fuel]
+        exact (Nat.sub_add_cancel hFuel23).symm
+      let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (nativeRuntimeDispatcherFuel irContract) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) state.storage
+                (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                  (Compiler.runtimeCode irContract) observableSlots)) =
+            .error EvmYul.Yul.Exception.Revert := by
+        rw [hFuelShape]
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            (fuel + 3) reservedNames switchStart cases' body1 inner
+            (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+            (YulTransaction.ofIR tx) state.storage
+            (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+              (Compiler.runtimeCode irContract) observableSlots)
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hCalldataLt :
+            4 + (YulTransaction.ofIR tx).args.length * 32 <
+              4 + fn.params.length * 32 := by
+          have hArgLt : tx.args.length < fn.params.length := by omega
+          simpa [YulTransaction.ofIR_args] using
+            (by omega :
+              4 + tx.args.length * 32 < 4 + fn.params.length * 32)
+        have hBody :
+            ∀ pre suffix, cases' = pre ++ (tx.functionSelector, body') :: suffix →
+              EvmYul.Yul.exec (((fuel + 3) + 1) + suffix.length + 7)
+                (.Block body') (some contract)
+                ((((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
+                      contract (YulTransaction.ofIR tx) state.storage
+                      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                        (Compiler.runtimeCode irContract) observableSlots)
+                      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore).insert
+                    (Compiler.Proofs.YulGeneration.Backends.nativeSwitchDiscrTempName
+                      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                    (EvmYul.UInt256.ofNat
+                      ((YulTransaction.ofIR tx).functionSelector %
+                        Compiler.Constants.selectorModulus))).insert
+                  (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                  (EvmYul.UInt256.ofNat 0)).insert
+                  (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                  (EvmYul.UInt256.ofNat 1)) =
+              .error EvmYul.Yul.Exception.Revert := by
+          intro pre suffix _hCases
+          rw [hBodyShape]
+          rw [show (((fuel + 3) + 1) + suffix.length + 7) =
+            (fuel + suffix.length) + 11 by omega]
+          exact
+            Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_calldata_revert_postInitFreeMemory_fuel
+              (fuel + suffix.length) bodyNative contract (YulTransaction.ofIR tx)
+              state.storage
+              (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                (Compiler.runtimeCode irContract) observableSlots)
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (4 + fn.params.length * 32)
+              (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+              (Compiler.Proofs.YulGeneration.Backends.Native.DispatchGuardsSafe_calldata_threshold_lt
+                fn tx hguards)
+              hCalldataLt
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+            (fuel + 3) tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) state.storage state.events
+            (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+              (Compiler.runtimeCode irContract) observableSlots)
+            EvmYul.Yul.Exception.Revert
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) state.storage state.events
+              (.error EvmYul.Yul.Exception.Revert))
+            hSelector hCase hSelectorRangeNative hTagsRange hBody rfl
+        have hTotal :
+            fuel + cases'.length + 23 = (fuel + 3) + cases'.length + 20 := by
+          omega
+        rw [hTotal]
+        simpa [contract, nativeContractOfInitPrefixedDispatcher,
+          nativeInitFreeMemoryPointerStmt,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
       change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-        observableSlots (nativeContractOfDispatcher [.Block inner])
+        observableSlots (nativeContractOfInitPrefixedDispatcher [.Block inner])
       apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
       simpa [nativeGeneratedDispatcherExecMatchesIROn,
-        nativeRuntimeDispatcherFuel, nativeContractOfDispatcher, hExec]
+        nativeRuntimeDispatcherFuel, nativeContractOfInitPrefixedDispatcher,
+        nativeInitFreeMemoryPointerStmt, hExec, contract]
         using hIRRevert
     · have hNonPayable : fn.payable = false := Bool.eq_false_iff.2 hPayable
       have hZero : tx.msgValue % Compiler.Constants.evmModulus = 0 := by
@@ -11283,31 +12677,125 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_args_short_reve
         · rw [hNonPayable] at hPayable'
           simp at hPayable'
         · exact hZero
+      obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+          hInner, hLowerCases, hCase, hBodyLower⟩ :=
+        Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+          reservedNames 0 irContract.functions inner nextSwitchId
+          tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+          hFind
       rcases
-        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_buildSwitch_noFallback_noReceive_selector_find_some_nonpayable_args_short_revert_atFuel_projectResult_eq
-          (nativeRuntimeDispatcherFuel irContract) tx.functionSelector
-          irContract.functions fn inner
-          (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-          tx state.storage state.events
-          (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-            (Compiler.runtimeCode irContract) observableSlots)
-          hLowerBlock hSelector hFind hNoWrap hSelectorRangeNative
-          hFunctionSelectorsRange hNonPayable hguards hZero hArgsShort with
-        ⟨_reservedNames, _n0, cases', _midN, _body', _bodyNative,
-          _bodyStart, _bodyEnd, _userBodyStart, hLowerCases, _hCase,
-          _hBodyLower, _hUserBodyLower, hCont⟩
+        Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_revert_eq
+          reservedNames bodyStart fn body' bodyEnd hNonPayable hBodyLower with
+        ⟨bodyNative, _userBodyStart, hBodyShape, _hUserBodyLower⟩
+      have hTagsRange :
+          ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+        lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+          reservedNames
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames switchStart + 1)
+          midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
       have hFuel :
           cases'.length + 24 ≤ nativeRuntimeDispatcherFuel irContract := by
         dsimp [nativeRuntimeDispatcherFuel]
         exact
           sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
             hcompile hSupported hNoMapping hLowerCases
-      rcases hCont hFuel with ⟨hExec, _hProject⟩
+      let fuel := nativeRuntimeDispatcherFuel irContract - (cases'.length + 24)
+      have hFuelShape :
+          nativeRuntimeDispatcherFuel irContract = fuel + cases'.length + 24 := by
+        dsimp [fuel]
+        exact (Nat.sub_add_cancel hFuel).symm
+      let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (nativeRuntimeDispatcherFuel irContract) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) state.storage
+                (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                  (Compiler.runtimeCode irContract) observableSlots)) =
+            .error EvmYul.Yul.Exception.Revert := by
+        rw [hFuelShape]
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            (fuel + 4) reservedNames switchStart cases' body1 inner
+            (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+            (YulTransaction.ofIR tx) state.storage
+            (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+              (Compiler.runtimeCode irContract) observableSlots)
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hCalldataLt :
+            4 + (YulTransaction.ofIR tx).args.length * 32 <
+              4 + fn.params.length * 32 := by
+          have hArgLt : tx.args.length < fn.params.length := by omega
+          simpa [YulTransaction.ofIR_args] using
+            (by omega :
+              4 + tx.args.length * 32 < 4 + fn.params.length * 32)
+        have hBody :
+            ∀ pre suffix, cases' = pre ++ (tx.functionSelector, body') :: suffix →
+              EvmYul.Yul.exec (((fuel + 4) + 1) + suffix.length + 7)
+                (.Block body') (some contract)
+                ((((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
+                      contract (YulTransaction.ofIR tx) state.storage
+                      (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                        (Compiler.runtimeCode irContract) observableSlots)
+                      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore).insert
+                    (Compiler.Proofs.YulGeneration.Backends.nativeSwitchDiscrTempName
+                      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                    (EvmYul.UInt256.ofNat
+                      ((YulTransaction.ofIR tx).functionSelector %
+                        Compiler.Constants.selectorModulus))).insert
+                  (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                  (EvmYul.UInt256.ofNat 0)).insert
+                  (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart))
+                  (EvmYul.UInt256.ofNat 1)) =
+              .error EvmYul.Yul.Exception.Revert := by
+          intro pre suffix _hCases
+          rw [hBodyShape]
+          rw [show (((fuel + 4) + 1) + suffix.length + 7) =
+            (fuel + suffix.length) + 12 by omega]
+          exact
+            Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_calldata_revert_postInitFreeMemory_fuel
+              (fuel + suffix.length) bodyNative contract (YulTransaction.ofIR tx)
+              state.storage
+              (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                (Compiler.runtimeCode irContract) observableSlots)
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (4 + fn.params.length * 32)
+              (by simpa [YulTransaction.ofIR] using hZero)
+              (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+              (Compiler.Proofs.YulGeneration.Backends.Native.DispatchGuardsSafe_calldata_threshold_lt
+                fn tx hguards)
+              hCalldataLt
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+            (fuel + 4) tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) state.storage state.events
+            (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+              (Compiler.runtimeCode irContract) observableSlots)
+            EvmYul.Yul.Exception.Revert
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) state.storage state.events
+              (.error EvmYul.Yul.Exception.Revert))
+            hSelector hCase hSelectorRangeNative hTagsRange hBody rfl
+        have hTotal :
+            fuel + cases'.length + 24 = (fuel + 4) + cases'.length + 20 := by
+          omega
+        rw [hTotal]
+        simpa [contract, nativeContractOfInitPrefixedDispatcher,
+          nativeInitFreeMemoryPointerStmt,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
       change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-        observableSlots (nativeContractOfDispatcher [.Block inner])
+        observableSlots (nativeContractOfInitPrefixedDispatcher [.Block inner])
       apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
       simpa [nativeGeneratedDispatcherExecMatchesIROn,
-        nativeRuntimeDispatcherFuel, nativeContractOfDispatcher, hExec]
+        nativeRuntimeDispatcherFuel, nativeContractOfInitPrefixedDispatcher,
+        nativeInitFreeMemoryPointerStmt, hExec, contract]
         using hIRRevert
 
 /-- Selector-hit non-payable value-guard revert theorem with native lowering
@@ -11500,12 +12988,15 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_of_compile_ok_
     let reservedNames :=
       Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode
+    rcases lowerRuntimeContractNative_of_compile_ok_supported_exists
+        hcompile hSupported with
+      ⟨nativeContract, hLowerRuntime⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_exists_of_compile_ok_supported
-        reservedNames 0 hcompile hSupported with
-      ⟨dispatcher, nextSwitchId, hLowerDispatcher⟩
+      lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved
+        hcompile hSupported hMapping hLowerRuntime with
+      ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         reservedNames 0 irContract.functions dispatcher nextSwitchId
         hLowerDispatcher with
       ⟨inner, hDispatcher, hLowerBlock⟩
@@ -11514,23 +13005,28 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_of_compile_ok_
       compile_preserves_native_evmYulLean_selector_miss_mapping_canonical
         model selectors hSupported irContract tx initialWorld observableSlots
         inner nextSwitchId htxNormalized hcalldataSizeFits hcompile hMapping
-        (by simpa [reservedNames] using hLowerBlock)
+        (by simpa [reservedNames, nativeInitFreeMemoryPointerStmt] using
+          hLowerDispatcher)
         hFind hSelectorRange hNoWrap hFunctionSelectorsRange hEnv
   · have hNoMapping : irContract.usesMapping = false :=
       Bool.eq_false_iff.2 hUsesMapping
-    rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_exists_of_compile_ok_supported
+    rcases lowerRuntimeContractNative_of_compile_ok_supported_exists
         hcompile hSupported with
-      ⟨dispatcher, hLowerDispatcher⟩
+      ⟨nativeContract, hLowerRuntime⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
+        hcompile hSupported hNoMapping hLowerRuntime with
+      ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
+    rcases
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst dispatcher
     exact
       compile_preserves_native_evmYulLean_selector_miss_noMapping_canonical
         model selectors hSupported irContract tx initialWorld observableSlots
-        inner htxNormalized hcalldataSizeFits hcompile hNoMapping hLowerBlock
+        inner htxNormalized hcalldataSizeFits hcompile hNoMapping
+        (by simpa [nativeInitFreeMemoryPointerStmt] using hLowerDispatcher)
         hFind hSelectorRange hNoWrap hFunctionSelectorsRange hEnv
 
 /-- Supported no-mapping selector-hit source theorem at the structural fuel
@@ -11553,8 +13049,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -11581,9 +13078,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -11602,7 +13099,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
               (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
                 reservedNames n0))
             (EvmYul.UInt256.ofNat 1) stmt
-            (some (nativeContractOfDispatcher [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -11610,13 +13107,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -11629,46 +13126,158 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
         sourceResultMatchesNativeOn observableSlots
           (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
           (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-            (Nat.succ (fuel + cases'.length + 19)) irContract tx
+            (Nat.succ (fuel + cases'.length + 20)) irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
             observableSlots)) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcher [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
       hcompile hSupported hNoMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive
-      fuel irContract tx initialState observableSlots inner
-      (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-      fn final nativeYul hLowerDispatcher hFind hSelectorRange hNoWrap
-      hFunctionSelectorsRange with
-    ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower, hNativeDispatcherExec⟩
-  refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
+    lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      irContract.functions [nativeInitFreeMemoryPointerStmt, .Block inner]
+      hLowerDispatcher with
+    ⟨inner', nextSwitchId, hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  let reservedNames :=
+    Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsEq :
+      cases'.map (·.1) =
+        (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+          irContract.functions).map (·.1) :=
+    Compiler.Proofs.YulGeneration.Backends.lowerSwitchCasesNativeWithSwitchIds_tags_eq
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart + 1)
+      midN (Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases
+        irContract.functions) cases' hLowerCases
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size := by
+    intro tag body hmem
+    have hTagMem : tag ∈ cases'.map (·.1) :=
+      List.mem_map_of_mem (f := Prod.fst) hmem
+    rw [hTagsEq] at hTagMem
+    simp [Compiler.Proofs.YulGeneration.Backends.Native.buildSwitchSourceCases]
+      at hTagMem
+    rcases hTagMem with ⟨fnTag, hFnTag, hTag⟩
+    subst hTag
+    exact hFunctionSelectorsRange fnTag hFnTag
+  refine ⟨reservedNames, switchStart, cases', body', bodyStart, bodyEnd,
     hCase, hBodyLower, ?_⟩
   intro hFresh hBody hStmtPreserves hProject hMatch
   have hNativeDispatcherExec' :
-      nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 19)
+      nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 20)
         irContract tx initialState observableSlots
-        (nativeContractOfDispatcher [.Block inner]) := by
-    refine hNativeDispatcherExec ?_ ?_ ?_ hMatch
-    · simpa [initialState, nativeContractOfDispatcher] using hBody
-    · intro pre suffix hcases
-      exact
-        Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
-          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
-            reservedNames n0)
-          tx.functionSelector tx.functionSelector body'
+        (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+    let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+    let materializedSlots :=
+      Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode irContract) observableSlots
+    have hExec :
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+            (fuel + cases'.length + 20) contract
+            (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+              (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+          .ok final := by
+      have hPeel :=
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+          fuel reservedNames switchStart cases' body1 inner
+          (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+          (YulTransaction.ofIR tx) initialState.storage materializedSlots
+          hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+      have hFinalMatched :
+          ∀ matchedName : EvmYul.Identifier,
+            matchedName =
+                Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                    reservedNames switchStart) →
+              final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+        intro matchedName hMatchedName
+        subst matchedName
+        rcases
+          Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+            tx.functionSelector cases' tx.functionSelector body' hCase with
+          ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+        exact
+          (Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector tx.functionSelector body'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            cases' (EvmYul.UInt256.ofNat 1)
+            (some contract)
+            (by simpa using hFresh) hCase
+            (by
+              simpa [contract, nativeContractOfInitPrefixedDispatcher] using
+                hStmtPreserves))
+            ((fuel + 1) + suffix.length + 7)
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+            final
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+              contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)) rfl)
+            (by
+              simpa [initialState, contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcher] using hBody pre suffix hCases)
+      have hSwitch :=
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+          fuel tx.functionSelector
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames switchStart)
+          tx.functionSelector cases'
           [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
-          cases' (EvmYul.UInt256.ofNat 1)
-          (some (nativeContractOfDispatcher [.Block inner]))
-          (by simpa using hFresh) hCase
-          (by simpa [nativeContractOfDispatcher] using hStmtPreserves)
-    · simpa [initialState, nativeContractOfDispatcher] using hProject
+          body' contract (YulTransaction.ofIR tx) initialState.storage
+          initialState.events materializedSlots final
+          (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+            (YulTransaction.ofIR tx) initialState.storage initialState.events
+            (.ok (final, [])))
+          hSelector hCase hSelectorRangeNative hTagsRange
+          (by
+            intro pre suffix hCases
+            simpa [initialState, contract, materializedSlots,
+              nativeContractOfInitPrefixedDispatcher] using
+              hBody pre suffix hCases)
+          hFinalMatched rfl
+      simpa [contract, nativeContractOfInitPrefixedDispatcher,
+        nativeInitFreeMemoryPointerStmt,
+        Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+    refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+      (contract := irContract) (tx := tx) (state := initialState)
+      (observableSlots := observableSlots)
+      (nativeContract := contract) ?_ hMatch
+    simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+      contract, initialState] using hProject
   exact
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
       (hSourceIR :=
@@ -11699,8 +13308,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -11729,9 +13339,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -11747,7 +13357,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
               (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
                 reservedNames n0))
             (EvmYul.UInt256.ofNat 1) bodyNative
-            (some (nativeContractOfDispatcher [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -11755,13 +13365,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -11774,37 +13384,167 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
         sourceResultMatchesNativeOn observableSlots
           (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
           (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-            (Nat.succ (fuel + cases'.length + 23)) irContract tx
+            (Nat.succ (fuel + cases'.length + 24)) irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
             observableSlots)) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcher [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
       hcompile hSupported hNoMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_payable_generated_prefix
-      fuel irContract tx initialState observableSlots inner
-      (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-      fn final nativeYul hLowerDispatcher hFind hSelectorRange hNoWrap
-      hFunctionSelectorsRange hPayable hguards hArgs with
-    ⟨reservedNames, n0, cases', _midN, body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, _hLowerCases, hCase, hBodyLower, hUserBodyLower,
-      hNativeDispatcherExec⟩
-  refine ⟨reservedNames, n0, cases', body', bodyNative, bodyStart, bodyEnd,
+    lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      irContract.functions [nativeInitFreeMemoryPointerStmt, .Block inner]
+      hLowerDispatcher with
+    ⟨inner', nextSwitchId, hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  let reservedNames :=
+    Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
+  rcases
+    Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq
+      reservedNames bodyStart fn body' bodyEnd hPayable hBodyLower with
+    ⟨guardBody, bodyNative, userBodyStart, hBodyShape, hUserBodyLower⟩
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
+  refine ⟨reservedNames, switchStart, cases', body', bodyNative, bodyStart, bodyEnd,
     userBodyStart, hCase, hBodyLower, hUserBodyLower, ?_⟩
   intro hBody hPreservesMatched hProject hMatch
   have hNativeDispatcherExec' :
-      nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 23)
+      nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 24)
         irContract tx initialState observableSlots
-        (nativeContractOfDispatcher [.Block inner]) := by
-    refine hNativeDispatcherExec ?_ ?_ ?_ hMatch
-    · simpa [initialState, nativeContractOfDispatcher] using hBody
-    · simpa [nativeContractOfDispatcher] using hPreservesMatched
-    · simpa [initialState, nativeContractOfDispatcher] using hProject
+        (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+    let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+    let materializedSlots :=
+      Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode irContract) observableSlots
+    have hExec :
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+            (fuel + cases'.length + 24) contract
+            (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+              (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+          .ok final := by
+      have hPeel :=
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+          (fuel + 4) reservedNames switchStart cases' body1 inner
+          (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+          (YulTransaction.ofIR tx) initialState.storage materializedSlots
+          hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+      have hBodyWhole :
+          ∀ pre suffix, cases' = pre ++ (tx.functionSelector, body') :: suffix →
+            EvmYul.Yul.exec (((fuel + 4) + 1) + suffix.length + 7)
+              (.Block body') (some contract)
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+                contract (YulTransaction.ofIR tx) initialState.storage
+                materializedSlots
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)
+                Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
+              .ok final := by
+        intro pre suffix hCases
+        rw [hBodyShape]
+        have hPrefix :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_postInitFreeMemory_eq
+            (fuel + suffix.length + 1) guardBody bodyNative contract
+            (YulTransaction.ofIR tx) initialState.storage materializedSlots
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+            (4 + fn.params.length * 32)
+            (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+            (Compiler.Proofs.YulGeneration.Backends.Native.DispatchGuardsSafe_calldata_threshold_lt
+              fn tx hguards)
+            (by simp; omega)
+        simpa [initialState, contract, materializedSlots,
+          nativeContractOfInitPrefixedDispatcher, Nat.add_assoc, Nat.add_comm,
+          Nat.add_left_comm] using hPrefix.trans (hBody pre suffix hCases)
+      have hFinalMatched :
+          ∀ matchedName : EvmYul.Identifier,
+            matchedName =
+                Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                    reservedNames switchStart) →
+              final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+        intro matchedName hMatchedName
+        subst matchedName
+        rcases
+          Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+            tx.functionSelector cases' tx.functionSelector body' hCase with
+          ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+        exact hPreservesMatched pre suffix hCases
+          (fuel + suffix.length + 10)
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+            contract (YulTransaction.ofIR tx) initialState.storage
+            materializedSlots
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+          final
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+            contract (YulTransaction.ofIR tx) initialState.storage
+            materializedSlots
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+            (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)) rfl)
+          (by
+            simpa [initialState, contract, materializedSlots,
+              nativeContractOfInitPrefixedDispatcher] using
+              hBody pre suffix hCases)
+      have hSwitch :=
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+          (fuel + 4) tx.functionSelector
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames switchStart)
+          tx.functionSelector cases'
+          [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+          body' contract (YulTransaction.ofIR tx) initialState.storage
+          initialState.events materializedSlots final
+          (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+            (YulTransaction.ofIR tx) initialState.storage initialState.events
+            (.ok (final, [])))
+          hSelector hCase hSelectorRangeNative hTagsRange hBodyWhole
+          hFinalMatched rfl
+      have hFuelShape :
+          fuel + cases'.length + 24 = (fuel + 4) + cases'.length + 20 := by
+        omega
+      rw [hFuelShape]
+      simpa [contract, nativeContractOfInitPrefixedDispatcher,
+        nativeInitFreeMemoryPointerStmt,
+        Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+    refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+      (contract := irContract) (tx := tx) (state := initialState)
+      (observableSlots := observableSlots)
+      (nativeContract := contract) ?_ hMatch
+    simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+      contract, initialState] using hProject
   exact
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
       (hSourceIR :=
@@ -11831,11 +13571,12 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
     (htxNormalized : Function.TxContextNormalized tx)
     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hcompile : CompilationModel.compile model selectors = Except.ok irContract)
-    (hNoMapping : irContract.usesMapping = false)
-    (hLowerDispatcher :
-      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+      (hNoMapping : irContract.usesMapping = false)
+      (hLowerDispatcher :
+        Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+            [Compiler.CodegenCommon.initFreeMemoryPointer,
+              Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -11861,15 +13602,15 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
           .ok (body', bodyEnd) ∧
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
         reservedNames userBodyStart fn.body = .ok (bodyNative, bodyEnd) ∧
-      ((∀ pre suffix,
-          cases' = pre ++ (tx.functionSelector, body') :: suffix →
-          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
-              (YulTransaction.ofIR tx)
-              (FunctionBody.initialIRStateForTx model tx initialWorld).storage
-              (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        ((∀ pre suffix,
+            cases' = pre ++ (tx.functionSelector, body') :: suffix →
+            EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
+              (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
+                (YulTransaction.ofIR tx)
+                (FunctionBody.initialIRStateForTx model tx initialWorld).storage
+                (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                 (Compiler.runtimeCode irContract) observableSlots)
               (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
                 reservedNames n0)
@@ -11878,28 +13619,28 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord
-            (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
-              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
-                reservedNames n0))
-            (EvmYul.UInt256.ofNat 1) bodyNative
-            (some (nativeContractOfDispatcher [.Block inner]))) →
-        Compiler.Proofs.YulGeneration.Backends.Native.projectResult
-          (YulTransaction.ofIR tx)
-          (FunctionBody.initialIRStateForTx model tx initialWorld).storage
+              (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames n0))
+              (EvmYul.UInt256.ofNat 1) bodyNative
+              (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))) →
+          Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+            (YulTransaction.ofIR tx)
+            (FunctionBody.initialIRStateForTx model tx initialWorld).storage
           (FunctionBody.initialIRStateForTx model tx initialWorld).events
           (.ok
-            (((final.reviveJump.overwrite?
-              (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
-                (YulTransaction.ofIR tx)
-                (FunctionBody.initialIRStateForTx model tx initialWorld).storage
-                (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-                  (Compiler.runtimeCode irContract) observableSlots))).setStore
-              (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
-                (YulTransaction.ofIR tx)
-                (FunctionBody.initialIRStateForTx model tx initialWorld).storage
-                (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+              (((final.reviveJump.overwrite?
+                (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+                  (nativeContractOfInitPrefixedDispatcher [.Block inner])
+                  (YulTransaction.ofIR tx)
+                  (FunctionBody.initialIRStateForTx model tx initialWorld).storage
+                  (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+                    (Compiler.runtimeCode irContract) observableSlots))).setStore
+                (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+                  (nativeContractOfInitPrefixedDispatcher [.Block inner])
+                  (YulTransaction.ofIR tx)
+                  (FunctionBody.initialIRStateForTx model tx initialWorld).storage
+                  (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))), [])) =
           nativeYul →
         nativeResultsMatchOn observableSlots
@@ -11907,41 +13648,178 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_st
             (FunctionBody.initialIRStateForTx model tx initialWorld))
           (.ok nativeYul) →
         sourceResultMatchesNativeOn observableSlots
-          (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-          (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-            (Nat.succ (fuel + cases'.length + 24)) irContract tx
-            (FunctionBody.initialIRStateForTx model tx initialWorld)
-            observableSlots)) := by
-  let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
-  have hLowerRuntime :
-      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-          (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcher [.Block inner]) := by
-    rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
-      hcompile hSupported hNoMapping]
-    rw [hLowerDispatcher]
-  rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_nonpayable_generated_prefix
-      fuel irContract tx initialState observableSlots inner
-      (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-      fn final nativeYul hLowerDispatcher hFind hSelectorRange hNoWrap
-      hFunctionSelectorsRange hNonPayable hguards hArgs with
-    ⟨reservedNames, n0, cases', _midN, body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, _hLowerCases, hCase, hBodyLower, hUserBodyLower,
-      hNativeDispatcherExec⟩
-  refine ⟨reservedNames, n0, cases', body', bodyNative, bodyStart, bodyEnd,
-    userBodyStart, hCase, hBodyLower, hUserBodyLower, ?_⟩
-  intro hBody hPreservesMatched hProject hMatch
-  have hNativeDispatcherExec' :
-      nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 24)
-        irContract tx initialState observableSlots
-        (nativeContractOfDispatcher [.Block inner]) := by
-    refine hNativeDispatcherExec ?_ ?_ ?_ hMatch
-    · simpa [initialState, nativeContractOfDispatcher] using hBody
-    · simpa [nativeContractOfDispatcher] using hPreservesMatched
-    · simpa [initialState, nativeContractOfDispatcher] using hProject
-  exact
-    sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
+            (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
+            (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
+              (Nat.succ (fuel + cases'.length + 25)) irContract tx
+              (FunctionBody.initialIRStateForTx model tx initialWorld)
+              observableSlots)) := by
+    let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
+    have hLowerRuntime :
+        Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+            (Compiler.emitYul irContract).runtimeCode =
+          .ok (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+      rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
+        hcompile hSupported hNoMapping]
+      rw [hLowerDispatcher]
+    rcases
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+        irContract.functions [nativeInitFreeMemoryPointerStmt, .Block inner]
+        hLowerDispatcher with
+      ⟨inner', nextSwitchId, hDispatcher, hLowerBlock⟩
+    have hInnerEq : inner = inner' := by
+      simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+    subst inner'
+    let reservedNames :=
+      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+        hFind
+    rcases
+      Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq
+        reservedNames bodyStart fn body' bodyEnd hNonPayable hBodyLower with
+      ⟨callvalueGuardBody, calldataGuardBody, bodyNative, userBodyStart,
+        hBodyShape, hUserBodyLower⟩
+    have hSelector :
+        tx.functionSelector =
+          (YulTransaction.ofIR tx).functionSelector %
+            Compiler.Constants.selectorModulus := by
+      simpa [YulTransaction.ofIR] using
+        (Nat.mod_eq_of_lt hSelectorRange).symm
+    have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+      exact Nat.lt_trans hSelectorRange (by decide)
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
+    refine ⟨reservedNames, switchStart, cases', body', bodyNative, bodyStart, bodyEnd,
+      userBodyStart, hCase, hBodyLower, hUserBodyLower, ?_⟩
+    intro hBody hPreservesMatched hProject hMatch
+    have hNativeDispatcherExec' :
+        nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 25)
+          irContract tx initialState observableSlots
+          (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+      let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (fuel + cases'.length + 25) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+            .ok final := by
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            (fuel + 5) reservedNames switchStart cases' body1 inner
+            (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+            (YulTransaction.ofIR tx) initialState.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hBodyWhole :
+            ∀ pre suffix, cases' = pre ++ (tx.functionSelector, body') :: suffix →
+              EvmYul.Yul.exec (((fuel + 5) + 1) + suffix.length + 7)
+                (.Block body') (some contract)
+                (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+                  contract (YulTransaction.ofIR tx) initialState.storage
+                  materializedSlots
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                    reservedNames switchStart)
+                  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
+                .ok final := by
+          intro pre suffix hCases
+          rw [hBodyShape]
+          have hPrefix :=
+            Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_postInitFreeMemory_eq
+              (fuel + suffix.length + 1) callvalueGuardBody calldataGuardBody
+              bodyNative contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (4 + fn.params.length * 32)
+              (Compiler.Proofs.YulGeneration.Backends.Native.DispatchGuardsSafe_msgValue_zero_mod_of_nonpayable
+                fn tx hguards hNonPayable)
+              (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+              (Compiler.Proofs.YulGeneration.Backends.Native.DispatchGuardsSafe_calldata_threshold_lt
+                fn tx hguards)
+              (by
+                have hMul : fn.params.length * 32 ≤ tx.args.length * 32 :=
+                  Nat.mul_le_mul_right 32 hArgs
+                exact Nat.add_le_add_left hMul 4)
+          simpa [initialState, contract, materializedSlots,
+            nativeContractOfInitPrefixedDispatcher, Nat.add_assoc, Nat.add_comm,
+            Nat.add_left_comm] using hPrefix.trans (hBody pre suffix hCases)
+        have hFinalMatched :
+            ∀ matchedName : EvmYul.Identifier,
+              matchedName =
+                  Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                      reservedNames switchStart) →
+                final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+          intro matchedName hMatchedName
+          subst matchedName
+          rcases
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+              tx.functionSelector cases' tx.functionSelector body' hCase with
+            ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+          exact hPreservesMatched pre suffix hCases
+            (fuel + suffix.length + 10)
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+            final
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+              contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)) rfl)
+            (by
+              simpa [initialState, contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcher] using
+                hBody pre suffix hCases)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+            (fuel + 5) tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) initialState.storage
+            initialState.events materializedSlots final
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) initialState.storage initialState.events
+              (.ok (final, [])))
+            hSelector hCase hSelectorRangeNative hTagsRange hBodyWhole
+            hFinalMatched rfl
+        have hFuelShape :
+            fuel + cases'.length + 25 = (fuel + 5) + cases'.length + 20 := by
+          omega
+        rw [hFuelShape]
+        simpa [contract, nativeContractOfInitPrefixedDispatcher,
+          nativeInitFreeMemoryPointerStmt,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := initialState)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract, initialState] using hProject
+    exact
+      sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
       (hSourceIR :=
         Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
           model selectors hSupported irContract tx initialWorld
@@ -11966,11 +13844,12 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
     (htxNormalized : Function.TxContextNormalized tx)
     (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
     (hcompile : CompilationModel.compile model selectors = Except.ok irContract)
-    (hNoMapping : irContract.usesMapping = false)
-    (hLowerDispatcher :
-      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+      (hNoMapping : irContract.usesMapping = false)
+      (hLowerDispatcher :
+        Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+            [Compiler.CodegenCommon.initFreeMemoryPointer,
+              Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -11997,11 +13876,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
-                1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+              (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
+                  1) + suffix.length + 7) (.Block body')
+              (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12016,25 +13895,25 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
                 reservedNames n0) ∉
             Compiler.Proofs.YulGeneration.Backends.nativeStmtWriteNames stmt →
           Compiler.Proofs.YulGeneration.Backends.Native.NativeStmtPreservesWord
-            (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
-              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
-                reservedNames n0))
-            (EvmYul.UInt256.ofNat 1) stmt
-            (some (nativeContractOfDispatcher [.Block inner]))) →
+              (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames n0))
+              (EvmYul.UInt256.ofNat 1) stmt
+              (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
           (FunctionBody.initialIRStateForTx model tx initialWorld).events
           (.ok
-            (((final.reviveJump.overwrite?
-              (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+              (((final.reviveJump.overwrite?
+                (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+                  (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
-              (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+                  (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12054,46 +13933,153 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcher [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
       hcompile hSupported hNoMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_atFuel
-      (nativeRuntimeDispatcherFuel irContract) irContract tx initialState
-      observableSlots inner
-      (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-      fn final nativeYul hLowerDispatcher hFind hSelectorRange hNoWrap
-      hFunctionSelectorsRange with
-    ⟨reservedNames, n0, cases', _midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      irContract.functions [nativeInitFreeMemoryPointerStmt, .Block inner]
+      hLowerDispatcher with
+    ⟨inner', nextSwitchId, hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  let reservedNames :=
+    Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
   have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+      cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
     dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
+    have hBig :=
+      sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
         hcompile hSupported hNoMapping hLowerCases
-  refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
+    omega
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
+  refine ⟨reservedNames, switchStart, cases', body', bodyStart, bodyEnd,
     hCase, hBodyLower, ?_⟩
   intro hFresh hBody hStmtPreserves hProject hMatch
   have hNativeDispatcherExec' :
       nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
         irContract tx initialState observableSlots
-        (nativeContractOfDispatcher [.Block inner]) := by
-    refine hNativeDispatcherExec hFuel ?_ ?_ ?_ hMatch
-    · simpa [initialState, nativeContractOfDispatcher] using hBody
-    · intro pre suffix hcases
-      exact
-        Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+        (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+    let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+    let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+    let materializedSlots :=
+      Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode irContract) observableSlots
+    have hFuelShape :
+        nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+      dsimp [fuel0]
+      exact (Nat.sub_add_cancel hFuel).symm
+    have hExec :
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+            (nativeRuntimeDispatcherFuel irContract) contract
+            (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+              (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+          .ok final := by
+      rw [hFuelShape]
+      have hPeel :=
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+          fuel0 reservedNames switchStart cases' body1 inner
+          (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+          (YulTransaction.ofIR tx) initialState.storage materializedSlots
+          hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+      have hFinalMatched :
+          ∀ matchedName : EvmYul.Identifier,
+            matchedName =
+                Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                    reservedNames switchStart) →
+              final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+        intro matchedName hMatchedName
+        subst matchedName
+        rcases
+          Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+            tx.functionSelector cases' tx.functionSelector body' hCase with
+          ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+        exact
+          (Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector tx.functionSelector body'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            cases' (EvmYul.UInt256.ofNat 1)
+            (some contract)
+            (by simpa using hFresh) hCase
+            (by
+              simpa [contract, nativeContractOfInitPrefixedDispatcher] using
+                hStmtPreserves))
+            ((fuel0 + 1) + suffix.length + 7)
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+            final
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+              contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)) rfl)
+            (by
+              simpa [initialState, contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcher, fuel0] using
+                hBody pre suffix hCases)
+      have hSwitch :=
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+          fuel0 tx.functionSelector
           (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
-            reservedNames n0)
-          tx.functionSelector tx.functionSelector body'
+            reservedNames switchStart)
+          tx.functionSelector cases'
           [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
-          cases' (EvmYul.UInt256.ofNat 1)
-          (some (nativeContractOfDispatcher [.Block inner]))
-          (by simpa using hFresh) hCase
-          (by simpa [nativeContractOfDispatcher] using hStmtPreserves)
-    · simpa [initialState, nativeContractOfDispatcher] using hProject
+          body' contract (YulTransaction.ofIR tx) initialState.storage
+          initialState.events materializedSlots final
+          (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+            (YulTransaction.ofIR tx) initialState.storage initialState.events
+            (.ok (final, [])))
+          hSelector hCase hSelectorRangeNative hTagsRange
+          (by
+            intro pre suffix hCases
+            simpa [initialState, contract, materializedSlots,
+              nativeContractOfInitPrefixedDispatcher, fuel0] using
+              hBody pre suffix hCases)
+          hFinalMatched rfl
+      simpa [contract, nativeContractOfInitPrefixedDispatcher,
+        nativeInitFreeMemoryPointerStmt,
+        Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+    refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+      (contract := irContract) (tx := tx) (state := initialState)
+      (observableSlots := observableSlots)
+      (nativeContract := contract) ?_ hMatch
+    simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+      contract, initialState] using hProject
   exact
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
       (hSourceIR :=
@@ -12103,13 +14089,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
       (hNativeIR :=
         nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_supported
           (fuel' := nativeRuntimeDispatcherFuel irContract)
-          (spec := model) (selectors := selectors) (irContract := irContract)
-          (tx := tx) (state := initialState)
-          (observableSlots := observableSlots)
-          (nativeContract := nativeContractOfDispatcher [.Block inner])
-          hcompile hSupported hLowerRuntime hEnv
-          (by
-            simpa [nativeContractOfDispatcher] using hNativeDispatcherExec'))
+            (spec := model) (selectors := selectors) (irContract := irContract)
+            (tx := tx) (state := initialState)
+            (observableSlots := observableSlots)
+            (nativeContract := nativeContractOfInitPrefixedDispatcher [.Block inner])
+            hcompile hSupported hLowerRuntime hEnv
+            (by
+              simpa [nativeContractOfInitPrefixedDispatcher] using hNativeDispatcherExec'))
 
 /-- Block-preservation variant of
 `compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_canonical`.
@@ -12132,8 +14118,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -12156,11 +14143,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12176,7 +14163,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
               (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
                 reservedNames n0))
             (EvmYul.UInt256.ofNat 1) body'
-            (some (nativeContractOfDispatcher [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -12184,13 +14171,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12210,36 +14197,142 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcher [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
       hcompile hSupported hNoMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_atFuel
-      (nativeRuntimeDispatcherFuel irContract) irContract tx initialState
-      observableSlots inner
-      (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-      fn final nativeYul hLowerDispatcher hFind hSelectorRange hNoWrap
-      hFunctionSelectorsRange with
-    ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      irContract.functions [nativeInitFreeMemoryPointerStmt, .Block inner]
+      hLowerDispatcher with
+    ⟨inner', nextSwitchId, hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  let reservedNames :=
+    Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
   have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+      cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
     dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
+    have hBig :=
+      sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
         hcompile hSupported hNoMapping hLowerCases
-  refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
+    omega
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
+  refine ⟨reservedNames, switchStart, cases', body', bodyStart, bodyEnd,
     hCase, hBodyLower, ?_⟩
   intro hBody hPreservesMatched hProject hMatch
   have hNativeDispatcherExec' :
       nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
         irContract tx initialState observableSlots
-        (nativeContractOfDispatcher [.Block inner]) := by
-    refine hNativeDispatcherExec hFuel ?_ ?_ ?_ hMatch
-    · simpa [initialState, nativeContractOfDispatcher] using hBody
-    · simpa [nativeContractOfDispatcher] using hPreservesMatched
-    · simpa [initialState, nativeContractOfDispatcher] using hProject
+        (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+    let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+    let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+    let materializedSlots :=
+      Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode irContract) observableSlots
+    have hFuelShape :
+        nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+      dsimp [fuel0]
+      exact (Nat.sub_add_cancel hFuel).symm
+    have hExec :
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+            (nativeRuntimeDispatcherFuel irContract) contract
+            (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+              (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+          .ok final := by
+      rw [hFuelShape]
+      have hPeel :=
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+          fuel0 reservedNames switchStart cases' body1 inner
+          (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+          (YulTransaction.ofIR tx) initialState.storage materializedSlots
+          hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+      have hFinalMatched :
+          ∀ matchedName : EvmYul.Identifier,
+            matchedName =
+                Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                    reservedNames switchStart) →
+              final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+        intro matchedName hMatchedName
+        subst matchedName
+        rcases
+          Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+            tx.functionSelector cases' tx.functionSelector body' hCase with
+          ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+        exact hPreservesMatched pre suffix hCases
+          ((fuel0 + 1) + suffix.length + 7)
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+            contract (YulTransaction.ofIR tx) initialState.storage
+            materializedSlots
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+          final
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+            contract (YulTransaction.ofIR tx) initialState.storage
+            materializedSlots
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+            (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)) rfl)
+          (by
+            simpa [initialState, contract, materializedSlots,
+              nativeContractOfInitPrefixedDispatcher, fuel0] using
+              hBody pre suffix hCases)
+      have hSwitch :=
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+          fuel0 tx.functionSelector
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames switchStart)
+          tx.functionSelector cases'
+          [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+          body' contract (YulTransaction.ofIR tx) initialState.storage
+          initialState.events materializedSlots final
+          (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+            (YulTransaction.ofIR tx) initialState.storage initialState.events
+            (.ok (final, [])))
+          hSelector hCase hSelectorRangeNative hTagsRange
+          (by
+            intro pre suffix hCases
+            simpa [initialState, contract, materializedSlots,
+              nativeContractOfInitPrefixedDispatcher, fuel0] using
+              hBody pre suffix hCases)
+          hFinalMatched rfl
+      simpa [contract, nativeContractOfInitPrefixedDispatcher,
+        nativeInitFreeMemoryPointerStmt,
+        Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+    refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+      (contract := irContract) (tx := tx) (state := initialState)
+      (observableSlots := observableSlots)
+      (nativeContract := contract) ?_ hMatch
+    simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+      contract, initialState] using hProject
   exact
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
       (hSourceIR :=
@@ -12252,10 +14345,10 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
           (spec := model) (selectors := selectors) (irContract := irContract)
           (tx := tx) (state := initialState)
           (observableSlots := observableSlots)
-          (nativeContract := nativeContractOfDispatcher [.Block inner])
+          (nativeContract := nativeContractOfInitPrefixedDispatcher [.Block inner])
           hcompile hSupported hLowerRuntime hEnv
           (by
-            simpa [nativeContractOfDispatcher] using hNativeDispatcherExec'))
+            simpa [nativeContractOfInitPrefixedDispatcher] using hNativeDispatcherExec'))
 
 /-- Direct `callDispatcher` no-mapping selector-hit success theorem at
 canonical generated-runtime fuel, using the block-preservation obligation for
@@ -12275,15 +14368,20 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
     (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -12296,11 +14394,11 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12316,7 +14414,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
               (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
                 reservedNames n0))
             (EvmYul.UInt256.ofNat 1) body'
-            (some (nativeContractOfDispatcher [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -12324,13 +14422,13 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12344,45 +14442,32 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
           (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
           (nativeGeneratedCallDispatcherResultOf irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
-            observableSlots (nativeContractOfDispatcher [.Block inner]))) := by
+            observableSlots (nativeContractOfInitPrefixedDispatcher [.Block inner]))) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
+  have hLowerRuntime :
+      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+          (Compiler.emitYul irContract).runtimeCode =
+        .ok (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+    rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
+      hcompile hSupported hNoMapping]
+    rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_atFuel
-      (nativeRuntimeDispatcherFuel irContract) irContract tx initialState
-      observableSlots inner
-      (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-      fn final nativeYul hLowerDispatcher hFind hSelectorRange hNoWrap
-      hFunctionSelectorsRange with
-    ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
-  have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
-    dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
-        hcompile hSupported hNoMapping hLowerCases
+    compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_canonical_preserved
+      model selectors hSupported irContract tx initialWorld observableSlots inner
+      fn final nativeYul htxNormalized hcalldataSizeFits hcompile hNoMapping
+      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange
+      hEnv with
+    ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd, hCase, hBodyLower,
+      hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
     hCase, hBodyLower, ?_⟩
   intro hBody hPreservesMatched hProject hMatch
-  have hGeneratedMatch :
-      nativeGeneratedCallDispatcherMatchesIROn irContract tx initialState
-        observableSlots (nativeContractOfDispatcher [.Block inner]) := by
-    apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
-    simpa [nativeGeneratedDispatcherExecMatchesIROn,
-      nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-      nativeContractOfDispatcher] using
-        hNativeDispatcherExec hFuel
-          (by simpa [initialState, nativeContractOfDispatcher] using hBody)
-          (by simpa [nativeContractOfDispatcher] using hPreservesMatched)
-          (by simpa [initialState, nativeContractOfDispatcher] using hProject)
-          hMatch
-  exact
-    sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
-      (hSourceIR :=
-        Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
-          model selectors hSupported irContract tx initialWorld
-          htxNormalized hcalldataSizeFits hcompile)
-      (hNativeIR := hGeneratedMatch)
+  have hSource := hDispatcherContinuation hBody hPreservesMatched hProject hMatch
+  rw [nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNative_of_lowerRuntimeContractNative_supported
+    tx initialState observableSlots
+    (nativeContractOfInitPrefixedDispatcher [.Block inner])
+    hcompile hSupported hLowerRuntime hEnv]
+  simpa [nativeRuntimeFuel, initialState] using hSource
 
 /-- Direct `callDispatcher` no-mapping selector-hit success theorem at
 canonical generated-runtime fuel, deriving selected-body block preservation from
@@ -12402,15 +14487,20 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
     (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -12427,11 +14517,11 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12450,7 +14540,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
               (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
                 reservedNames n0))
             (EvmYul.UInt256.ofNat 1) stmt
-            (some (nativeContractOfDispatcher [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -12458,13 +14548,13 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12478,12 +14568,13 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
           (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
           (nativeGeneratedCallDispatcherResultOf irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
-            observableSlots (nativeContractOfDispatcher [.Block inner]))) := by
+            observableSlots (nativeContractOfInitPrefixedDispatcher [.Block inner]))) := by
   rcases
     compile_preserves_native_evmYulLean_callDispatcher_selector_hit_ok_noMapping_canonical_preserved
       model selectors hSupported irContract tx initialWorld observableSlots inner
       fn final nativeYul htxNormalized hcalldataSizeFits hcompile hNoMapping
-      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
+      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange
+      hEnv with
     ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd, hCase, hBodyLower,
       hPreserved⟩
   refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
@@ -12497,9 +14588,9 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
         tx.functionSelector tx.functionSelector body'
         [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
         cases' (EvmYul.UInt256.ofNat 1)
-        (some (nativeContractOfDispatcher [.Block inner]))
+        (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
         (by simpa using hFresh) hCase
-        (by simpa [nativeContractOfDispatcher] using hStmtPreserves))
+        (by simpa [nativeContractOfInitPrefixedDispatcher] using hStmtPreserves))
     hProject hMatch
 
 /-- Supported mapping-helper selector-hit source theorem at the structural fuel
@@ -12522,8 +14613,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -12553,9 +14645,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12580,7 +14672,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
                   (Compiler.emitYul irContract).runtimeCode)
                 switchStart))
             (EvmYul.UInt256.ofNat 1) stmt
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -12588,13 +14680,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12607,7 +14699,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
         sourceResultMatchesNativeOn observableSlots
           (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
           (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-            (Nat.succ (fuel + cases'.length + 19)) irContract tx
+            (Nat.succ (fuel + cases'.length + 20)) irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
             observableSlots)) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
@@ -12621,43 +14713,138 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcherWithMapping [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
       hcompile hSupported hMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds
-      fuel reservedNames 0 irContract tx initialState observableSlots inner
-      nextSwitchId functions fn final nativeYul hLowerDispatcher hFind
-      hSelectorRange hNoWrap hFunctionSelectorsRange with
-    ⟨switchStart, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower, hNativeDispatcherExec⟩
+    lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      reservedNames 0 irContract.functions
+      [nativeInitFreeMemoryPointerStmt, .Block inner] nextSwitchId
+      (by simpa [reservedNames] using hLowerDispatcher) with
+    ⟨inner', hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
   refine ⟨switchStart, cases', body', bodyStart, bodyEnd,
     hCase, ?_, ?_⟩
   · simpa [reservedNames] using hBodyLower
   · intro hFresh hBody hStmtPreserves hProject hMatch
     have hNativeDispatcherExec' :
-        nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 19)
+        nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 20)
           irContract tx initialState observableSlots
-          (nativeContractOfDispatcherWithMapping [.Block inner]) := by
-      refine hNativeDispatcherExec ?_ ?_ ?_ hMatch
-      · simpa [initialState, reservedNames, nativeContractOfDispatcherWithMapping,
-          functions] using hBody
-      · intro pre suffix hcases
-        exact
-          Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+          (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+      let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (fuel + cases'.length + 20) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+            .ok final := by
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            fuel reservedNames switchStart cases' body1 inner functions
+            (YulTransaction.ofIR tx) initialState.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hFinalMatched :
+            ∀ matchedName : EvmYul.Identifier,
+              matchedName =
+                  Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                      reservedNames switchStart) →
+                final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+          intro matchedName hMatchedName
+          subst matchedName
+          rcases
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+              tx.functionSelector cases' tx.functionSelector body' hCase with
+            ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+          exact
+            (Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              tx.functionSelector tx.functionSelector body'
+              [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+              cases' (EvmYul.UInt256.ofNat 1)
+              (some contract)
+              (by simpa [reservedNames] using hFresh) hCase
+              (by
+                simpa [reservedNames, contract,
+                  nativeContractOfInitPrefixedDispatcherWithMapping, functions] using
+                  hStmtPreserves))
+              ((fuel + 1) + suffix.length + 7)
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+                contract (YulTransaction.ofIR tx) initialState.storage
+                materializedSlots
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)
+                Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+              final
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+                contract (YulTransaction.ofIR tx) initialState.storage
+                materializedSlots
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)
+                Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+                (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                    reservedNames switchStart)) rfl)
+              (by
+                simpa [initialState, reservedNames, contract, materializedSlots,
+                  nativeContractOfInitPrefixedDispatcherWithMapping, functions] using
+                  hBody pre suffix hCases)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+            fuel tx.functionSelector
             (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
               reservedNames switchStart)
-            tx.functionSelector tx.functionSelector body'
+            tx.functionSelector cases'
             [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
-            cases' (EvmYul.UInt256.ofNat 1)
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (by simpa [reservedNames] using hFresh) hCase
+            body' contract (YulTransaction.ofIR tx) initialState.storage
+            initialState.events materializedSlots final
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) initialState.storage initialState.events
+              (.ok (final, [])))
+            hSelector hCase hSelectorRangeNative hTagsRange
             (by
-              simpa [reservedNames, nativeContractOfDispatcherWithMapping, functions]
-                using hStmtPreserves)
-      · simpa [initialState, nativeContractOfDispatcherWithMapping, functions]
-          using hProject
+              intro pre suffix hCases
+              simpa [initialState, reservedNames, contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcherWithMapping, functions] using
+                hBody pre suffix hCases)
+            hFinalMatched rfl
+        simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+          nativeInitFreeMemoryPointerStmt, functions,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := initialState)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract, initialState, functions] using hProject
     exact
       sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
         (hSourceIR :=
@@ -12668,7 +14855,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
           nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_supported
             hcompile hSupported hLowerRuntime hEnv
             (by
-              simpa [nativeContractOfDispatcherWithMapping, functions]
+              simpa [nativeContractOfInitPrefixedDispatcherWithMapping, functions]
                 using hNativeDispatcherExec'))
 
 /-- Supported mapping-helper selector-hit source theorem for the payable
@@ -12693,8 +14880,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -12726,9 +14914,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12748,7 +14936,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
                   (Compiler.emitYul irContract).runtimeCode)
                 switchStart))
             (EvmYul.UInt256.ofNat 1) bodyNative
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -12756,13 +14944,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12775,7 +14963,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
         sourceResultMatchesNativeOn observableSlots
           (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
           (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-            (Nat.succ (fuel + cases'.length + 23)) irContract tx
+            (Nat.succ (fuel + cases'.length + 24)) irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
             observableSlots)) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
@@ -12789,34 +14977,159 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcherWithMapping [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
       hcompile hSupported hMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_payable_withSwitchIds_generated_prefix
-      fuel reservedNames 0 irContract tx initialState observableSlots inner
-      nextSwitchId functions fn final nativeYul hLowerDispatcher hFind
-      hSelectorRange hNoWrap hFunctionSelectorsRange hPayable hguards hArgs with
-    ⟨switchStart, cases', _midN, body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, _hLowerCases, hCase, hBodyLower, hUserBodyLower,
-      hNativeDispatcherExec⟩
+    lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      reservedNames 0 irContract.functions
+      [nativeInitFreeMemoryPointerStmt, .Block inner] nextSwitchId
+      (by simpa [reservedNames] using hLowerDispatcher) with
+    ⟨inner', hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
+  rcases
+    Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq
+      reservedNames bodyStart fn body' bodyEnd hPayable hBodyLower with
+    ⟨guardBody, bodyNative, userBodyStart, hBodyShape, hUserBodyLower⟩
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
   refine ⟨switchStart, cases', body', bodyNative, bodyStart, bodyEnd,
     userBodyStart, hCase, ?_, ?_, ?_⟩
   · simpa [reservedNames] using hBodyLower
   · simpa [reservedNames] using hUserBodyLower
   · intro hBody hPreservesMatched hProject hMatch
     have hNativeDispatcherExec' :
-        nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 23)
+        nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 24)
           irContract tx initialState observableSlots
-          (nativeContractOfDispatcherWithMapping [.Block inner]) := by
-      refine hNativeDispatcherExec ?_ ?_ ?_ hMatch
-      · simpa [initialState, reservedNames, nativeContractOfDispatcherWithMapping,
-          functions] using hBody
-      · simpa [reservedNames, nativeContractOfDispatcherWithMapping, functions]
-          using hPreservesMatched
-      · simpa [initialState, nativeContractOfDispatcherWithMapping, functions]
-          using hProject
+          (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+      let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (fuel + cases'.length + 24) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+            .ok final := by
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            (fuel + 4) reservedNames switchStart cases' body1 inner functions
+            (YulTransaction.ofIR tx) initialState.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hBodyWhole :
+            ∀ pre suffix, cases' = pre ++ (tx.functionSelector, body') :: suffix →
+              EvmYul.Yul.exec (((fuel + 4) + 1) + suffix.length + 7)
+                (.Block body') (some contract)
+                (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+                  contract (YulTransaction.ofIR tx) initialState.storage
+                  materializedSlots
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                    reservedNames switchStart)
+                  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
+                .ok final := by
+          intro pre suffix hCases
+          rw [hBodyShape]
+          have hPrefix :=
+            Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_postInitFreeMemory_eq
+              (fuel + suffix.length + 1) guardBody bodyNative contract
+              (YulTransaction.ofIR tx) initialState.storage materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (4 + fn.params.length * 32)
+              (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+              (Compiler.Proofs.YulGeneration.Backends.Native.DispatchGuardsSafe_calldata_threshold_lt
+                fn tx hguards)
+              (by simp; omega)
+          simpa [initialState, contract, materializedSlots,
+            nativeContractOfInitPrefixedDispatcherWithMapping, functions,
+            Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+            hPrefix.trans (hBody pre suffix hCases)
+        have hFinalMatched :
+            ∀ matchedName : EvmYul.Identifier,
+              matchedName =
+                  Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                      reservedNames switchStart) →
+                final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+          intro matchedName hMatchedName
+          subst matchedName
+          rcases
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+              tx.functionSelector cases' tx.functionSelector body' hCase with
+            ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+          exact hPreservesMatched pre suffix hCases
+            (fuel + suffix.length + 10)
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+            final
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+              contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)) rfl)
+            (by
+              simpa [initialState, reservedNames, contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcherWithMapping, functions] using
+                hBody pre suffix hCases)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+            (fuel + 4) tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) initialState.storage
+            initialState.events materializedSlots final
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) initialState.storage initialState.events
+              (.ok (final, [])))
+            hSelector hCase hSelectorRangeNative hTagsRange hBodyWhole
+            hFinalMatched rfl
+        have hFuelShape :
+            fuel + cases'.length + 24 = (fuel + 4) + cases'.length + 20 := by
+          omega
+        rw [hFuelShape]
+        simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+          nativeInitFreeMemoryPointerStmt, functions,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := initialState)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract, initialState, functions] using hProject
     exact
       sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
         (hSourceIR :=
@@ -12827,7 +15140,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
           nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_supported
             hcompile hSupported hLowerRuntime hEnv
             (by
-              simpa [nativeContractOfDispatcherWithMapping, functions]
+              simpa [nativeContractOfInitPrefixedDispatcherWithMapping, functions]
                 using hNativeDispatcherExec'))
 
 /-- Supported mapping-helper selector-hit source theorem for the non-payable
@@ -12851,8 +15164,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -12884,9 +15198,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12906,7 +15220,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
                   (Compiler.emitYul irContract).runtimeCode)
                 switchStart))
             (EvmYul.UInt256.ofNat 1) bodyNative
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -12914,13 +15228,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -12933,7 +15247,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
         sourceResultMatchesNativeOn observableSlots
           (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
           (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-            (Nat.succ (fuel + cases'.length + 24)) irContract tx
+            (Nat.succ (fuel + cases'.length + 25)) irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
             observableSlots)) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
@@ -12947,34 +15261,168 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcherWithMapping [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
       hcompile hSupported hMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_nonpayable_withSwitchIds_generated_prefix
-      fuel reservedNames 0 irContract tx initialState observableSlots inner
-      nextSwitchId functions fn final nativeYul hLowerDispatcher hFind
-      hSelectorRange hNoWrap hFunctionSelectorsRange hNonPayable hguards hArgs with
-    ⟨switchStart, cases', _midN, body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, _hLowerCases, hCase, hBodyLower, hUserBodyLower,
-      hNativeDispatcherExec⟩
+    lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      reservedNames 0 irContract.functions
+      [nativeInitFreeMemoryPointerStmt, .Block inner] nextSwitchId
+      (by simpa [reservedNames] using hLowerDispatcher) with
+    ⟨inner', hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
+  rcases
+    Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_nonpayable_eq
+      reservedNames bodyStart fn body' bodyEnd hNonPayable hBodyLower with
+    ⟨callvalueGuardBody, calldataGuardBody, bodyNative, userBodyStart,
+      hBodyShape, hUserBodyLower⟩
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
   refine ⟨switchStart, cases', body', bodyNative, bodyStart, bodyEnd,
     userBodyStart, hCase, ?_, ?_, ?_⟩
   · simpa [reservedNames] using hBodyLower
   · simpa [reservedNames] using hUserBodyLower
   · intro hBody hPreservesMatched hProject hMatch
     have hNativeDispatcherExec' :
-        nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 24)
+        nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 25)
           irContract tx initialState observableSlots
-          (nativeContractOfDispatcherWithMapping [.Block inner]) := by
-      refine hNativeDispatcherExec ?_ ?_ ?_ hMatch
-      · simpa [initialState, reservedNames, nativeContractOfDispatcherWithMapping,
-          functions] using hBody
-      · simpa [reservedNames, nativeContractOfDispatcherWithMapping, functions]
-          using hPreservesMatched
-      · simpa [initialState, nativeContractOfDispatcherWithMapping, functions]
-          using hProject
+          (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+      let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (fuel + cases'.length + 25) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+            .ok final := by
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            (fuel + 5) reservedNames switchStart cases' body1 inner functions
+            (YulTransaction.ofIR tx) initialState.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hBodyWhole :
+            ∀ pre suffix, cases' = pre ++ (tx.functionSelector, body') :: suffix →
+              EvmYul.Yul.exec (((fuel + 5) + 1) + suffix.length + 7)
+                (.Block body') (some contract)
+                (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+                  contract (YulTransaction.ofIR tx) initialState.storage
+                  materializedSlots
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                    reservedNames switchStart)
+                  Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
+                .ok final := by
+          intro pre suffix hCases
+          rw [hBodyShape]
+          have hGe :
+              4 + fn.params.length * 32 ≤ 4 + tx.args.length * 32 := by
+            have hMul : fn.params.length * 32 ≤ tx.args.length * 32 :=
+              Nat.mul_le_mul_right 32 hArgs
+            exact Nat.add_le_add_left hMul 4
+          have hPrefix :=
+            Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_postInitFreeMemory_eq
+              (fuel + suffix.length + 1) callvalueGuardBody calldataGuardBody
+              bodyNative contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (4 + fn.params.length * 32)
+              (Compiler.Proofs.YulGeneration.Backends.Native.DispatchGuardsSafe_msgValue_zero_mod_of_nonpayable
+                fn tx hguards hNonPayable)
+              (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+              (Compiler.Proofs.YulGeneration.Backends.Native.DispatchGuardsSafe_calldata_threshold_lt
+                fn tx hguards)
+              hGe
+          simpa [initialState, contract, materializedSlots,
+            nativeContractOfInitPrefixedDispatcherWithMapping, functions,
+            Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+            hPrefix.trans (hBody pre suffix hCases)
+        have hFinalMatched :
+            ∀ matchedName : EvmYul.Identifier,
+              matchedName =
+                  Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                      reservedNames switchStart) →
+                final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+          intro matchedName hMatchedName
+          subst matchedName
+          rcases
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+              tx.functionSelector cases' tx.functionSelector body' hCase with
+            ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+          exact hPreservesMatched pre suffix hCases
+            (fuel + suffix.length + 10)
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+            final
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+              contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)) rfl)
+            (by
+              simpa [initialState, reservedNames, contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcherWithMapping, functions] using
+                hBody pre suffix hCases)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+            (fuel + 5) tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) initialState.storage
+            initialState.events materializedSlots final
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) initialState.storage initialState.events
+              (.ok (final, [])))
+            hSelector hCase hSelectorRangeNative hTagsRange hBodyWhole
+            hFinalMatched rfl
+        have hFuelShape :
+            fuel + cases'.length + 25 = (fuel + 5) + cases'.length + 20 := by
+          omega
+        rw [hFuelShape]
+        simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+          nativeInitFreeMemoryPointerStmt, functions,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := initialState)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract, initialState, functions] using hProject
     exact
       sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
         (hSourceIR :=
@@ -12985,7 +15433,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_stru
           nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_supported
             hcompile hSupported hLowerRuntime hEnv
             (by
-              simpa [nativeContractOfDispatcherWithMapping, functions]
+              simpa [nativeContractOfInitPrefixedDispatcherWithMapping, functions]
                 using hNativeDispatcherExec'))
 
 /-- Lowered-runtime selector-hit source theorem for the payable generated
@@ -13037,154 +15485,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_lowered_runt
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              nativeContract
-              (YulTransaction.ofIR tx)
-              (FunctionBody.initialIRStateForTx model tx initialWorld).storage
-              (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-                (Compiler.runtimeCode irContract) observableSlots)
-              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
-                reservedNames n0)
-              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
-            .ok final) →
-        (∀ pre suffix,
-          cases' = pre ++ (tx.functionSelector, body') :: suffix →
-          Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord
-            (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
-              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
-                reservedNames n0))
-            (EvmYul.UInt256.ofNat 1) bodyNative
-            (some nativeContract)) →
-        Compiler.Proofs.YulGeneration.Backends.Native.projectResult
-          (YulTransaction.ofIR tx)
-          (FunctionBody.initialIRStateForTx model tx initialWorld).storage
-          (FunctionBody.initialIRStateForTx model tx initialWorld).events
-          (.ok
-            (((final.reviveJump.overwrite?
-              (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                nativeContract
-                (YulTransaction.ofIR tx)
-                (FunctionBody.initialIRStateForTx model tx initialWorld).storage
-                (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-                  (Compiler.runtimeCode irContract) observableSlots))).setStore
-              (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                nativeContract
-                (YulTransaction.ofIR tx)
-                (FunctionBody.initialIRStateForTx model tx initialWorld).storage
-                (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-                  (Compiler.runtimeCode irContract) observableSlots))), [])) =
-          nativeYul →
-        nativeResultsMatchOn observableSlots
-          (interpretIR irContract tx
-            (FunctionBody.initialIRStateForTx model tx initialWorld))
-          (.ok nativeYul) →
-        sourceResultMatchesNativeOn observableSlots
-          (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-          (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-            (Nat.succ (fuel + cases'.length + 23)) irContract tx
-            (FunctionBody.initialIRStateForTx model tx initialWorld)
-            observableSlots)) := by
-  by_cases hUsesMapping : irContract.usesMapping
-  · have hMapping : irContract.usesMapping = true := by
-      simpa using hUsesMapping
-    rcases lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved
-        hcompile hSupported hMapping hLowerRuntime with
-      ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
-    rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
-        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
-          (Compiler.emitYul irContract).runtimeCode)
-        0 irContract.functions dispatcher nextSwitchId hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
-    subst nativeContract
-    subst dispatcher
-    rcases
-      compile_preserves_native_evmYulLean_selector_hit_ok_mapping_structural_payable_generated_prefix
-        fuel model selectors hSupported irContract tx initialWorld
-        observableSlots inner nextSwitchId fn final nativeYul htxNormalized
-        hcalldataSizeFits hcompile hMapping hLowerBlock hFind hSelectorRange
-        hNoWrap hFunctionSelectorsRange hPayable hguards hArgs hEnv with
-      ⟨switchStart, cases', body', bodyNative, bodyStart, bodyEnd,
-        userBodyStart, hCase, hBodyLower, hUserBodyLower, hCont⟩
-    refine ⟨
-      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
-        (Compiler.emitYul irContract).runtimeCode,
-      switchStart, cases', body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hCase, hBodyLower, hUserBodyLower, ?_⟩
-    intro hBody hPreservesMatched hProject hMatch
-    exact hCont hBody hPreservesMatched hProject hMatch
-  · have hNoMapping : irContract.usesMapping = false := by
-      exact Bool.eq_false_iff.2 hUsesMapping
-    rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
-        hcompile hSupported hNoMapping hLowerRuntime with
-      ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
-    rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
-        irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
-    subst nativeContract
-    subst dispatcher
-    rcases
-      compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_structural_payable_generated_prefix
-        fuel model selectors hSupported irContract tx initialWorld
-        observableSlots inner fn final nativeYul htxNormalized
-        hcalldataSizeFits hcompile hNoMapping hLowerBlock hFind hSelectorRange
-        hNoWrap hFunctionSelectorsRange hPayable hguards hArgs hEnv with
-      ⟨reservedNames, n0, cases', body', bodyNative, bodyStart, bodyEnd,
-        userBodyStart, hCase, hBodyLower, hUserBodyLower, hCont⟩
-    exact ⟨reservedNames, n0, cases', body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hCase, hBodyLower, hUserBodyLower, hCont⟩
-
-/-- Lowered-runtime selector-hit source theorem for the non-payable generated
-prefix path. This hides the mapping-helper/no-mapping split while keeping the
-selected native execution and preservation obligations on the lowered user body
-`fn.body`. -/
-private theorem compile_preserves_native_evmYulLean_selector_hit_ok_lowered_runtime_nonpayable_generated_prefix
-    (fuel : Nat)
-    (model : CompilationModel.CompilationModel) (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (irContract : IRContract)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (observableSlots : List Nat)
-    (nativeContract : EvmYul.Yul.Ast.YulContract)
-    (fn : IRFunction) (final : EvmYul.Yul.State) (nativeYul : YulResult)
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompile : CompilationModel.compile model selectors = Except.ok irContract)
-    (hLowerRuntime :
-      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-        (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
-    (hFind :
-      irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
-        some fn)
-    (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
-    (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
-    (hNonPayable : fn.payable = false)
-    (hguards : DispatchGuardsSafe fn tx)
-    (hArgs : fn.params.length ≤ tx.args.length)
-    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
-        .ok ()) :
-    ∃ (reservedNames : List String) (n0 : Nat)
-      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
-      (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
-      (bodyStart bodyEnd userBodyStart : Nat),
-      cases'.find? (fun entry => entry.1 == tx.functionSelector) =
-        some (tx.functionSelector, body') ∧
-      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-        reservedNames bodyStart
-        (Compiler.Proofs.YulGeneration.Backends.Native.switchCaseBody fn) =
-          .ok (body', bodyEnd) ∧
-      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-        reservedNames userBodyStart fn.body = .ok (bodyNative, bodyEnd) ∧
-      ((∀ pre suffix,
-          cases' = pre ++ (tx.functionSelector, body') :: suffix →
-          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
-            (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -13238,248 +15539,56 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_lowered_runt
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
           (Compiler.emitYul irContract).runtimeCode)
         0 irContract.functions dispatcher nextSwitchId hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, hDispatcher, _hLowerBlock⟩
     subst nativeContract
     subst dispatcher
     rcases
-      compile_preserves_native_evmYulLean_selector_hit_ok_mapping_structural_nonpayable_generated_prefix
+      compile_preserves_native_evmYulLean_selector_hit_ok_mapping_structural_payable_generated_prefix
         fuel model selectors hSupported irContract tx initialWorld
         observableSlots inner nextSwitchId fn final nativeYul htxNormalized
-        hcalldataSizeFits hcompile hMapping hLowerBlock hFind hSelectorRange
-        hNoWrap hFunctionSelectorsRange hNonPayable hguards hArgs hEnv with
+        hcalldataSizeFits hcompile hMapping hLowerDispatcher hFind hSelectorRange
+        hNoWrap hFunctionSelectorsRange hPayable hguards hArgs hEnv with
       ⟨switchStart, cases', body', bodyNative, bodyStart, bodyEnd,
-        userBodyStart, hCase, hBodyLower, hUserBodyLower, hCont⟩
+        userBodyStart, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
     refine ⟨
       Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode,
       switchStart, cases', body', bodyNative, bodyStart, bodyEnd,
       userBodyStart, hCase, hBodyLower, hUserBodyLower, ?_⟩
     intro hBody hPreservesMatched hProject hMatch
-    exact hCont hBody hPreservesMatched hProject hMatch
+    exact hDispatcherContinuation hBody hPreservesMatched hProject hMatch
   · have hNoMapping : irContract.usesMapping = false := by
       exact Bool.eq_false_iff.2 hUsesMapping
     rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, _nextSwitchId, hDispatcher, _hLowerBlock⟩
     subst nativeContract
     subst dispatcher
     rcases
-      compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_structural_nonpayable_generated_prefix
+      compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_structural_payable_generated_prefix
         fuel model selectors hSupported irContract tx initialWorld
         observableSlots inner fn final nativeYul htxNormalized
-        hcalldataSizeFits hcompile hNoMapping hLowerBlock hFind hSelectorRange
-        hNoWrap hFunctionSelectorsRange hNonPayable hguards hArgs hEnv with
+        hcalldataSizeFits hcompile hNoMapping hLowerDispatcher hFind hSelectorRange
+        hNoWrap hFunctionSelectorsRange hPayable hguards hArgs hEnv with
       ⟨reservedNames, n0, cases', body', bodyNative, bodyStart, bodyEnd,
-        userBodyStart, hCase, hBodyLower, hUserBodyLower, hCont⟩
+        userBodyStart, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
     exact ⟨reservedNames, n0, cases', body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hCase, hBodyLower, hUserBodyLower, hCont⟩
+      userBodyStart, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
 
-/-- Exact-total-fuel lowered-runtime selector-hit source theorem for the
-payable generated prefix path. This hides the mapping-helper/no-mapping split
-while stating the native dispatcher result at the externally supplied `fuel'`. -/
-private theorem compile_preserves_native_evmYulLean_selector_hit_ok_lowered_runtime_payable_generated_prefix_atFuel
-    (fuel' : Nat)
-    (model : CompilationModel.CompilationModel) (selectors : List Nat)
-    (hSupported : SupportedSpec model selectors)
-    (irContract : IRContract)
-    (tx : IRTransaction)
-    (initialWorld : Verity.ContractState)
-    (observableSlots : List Nat)
-    (nativeContract : EvmYul.Yul.Ast.YulContract)
-    (fn : IRFunction) (final : EvmYul.Yul.State) (nativeYul : YulResult)
-    (htxNormalized : Function.TxContextNormalized tx)
-    (hcalldataSizeFits : Function.TxCalldataSizeFitsEvm tx)
-    (hcompile : CompilationModel.compile model selectors = Except.ok irContract)
-    (hLowerRuntime :
-      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
-        (Compiler.emitYul irContract).runtimeCode = .ok nativeContract)
-    (hFind :
-      irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
-        some fn)
-    (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
-    (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
-    (hPayable : fn.payable = true)
-    (hguards : DispatchGuardsSafe fn tx)
-    (hArgs : fn.params.length ≤ tx.args.length)
-    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
-      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
-        .ok ()) :
-    ∃ (reservedNames : List String) (n0 : Nat)
-      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
-      (body' bodyNative : List EvmYul.Yul.Ast.Stmt)
-      (bodyStart bodyEnd userBodyStart : Nat),
-      cases'.find? (fun entry => entry.1 == tx.functionSelector) =
-        some (tx.functionSelector, body') ∧
-      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-        reservedNames bodyStart
-        (Compiler.Proofs.YulGeneration.Backends.Native.switchCaseBody fn) =
-          .ok (body', bodyEnd) ∧
-      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
-        reservedNames userBodyStart fn.body = .ok (bodyNative, bodyEnd) ∧
-      (cases'.length + 23 ≤ fuel' →
-        (∀ pre suffix,
-          cases' = pre ++ (tx.functionSelector, body') :: suffix →
-          EvmYul.Yul.exec ((fuel' - (cases'.length + 23)) +
-              suffix.length + 10) (.Block bodyNative)
-            (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              nativeContract
-              (YulTransaction.ofIR tx)
-              (FunctionBody.initialIRStateForTx model tx initialWorld).storage
-              (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-                (Compiler.runtimeCode irContract) observableSlots)
-              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
-                reservedNames n0)
-              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore) =
-            .ok final) →
-        (∀ pre suffix,
-          cases' = pre ++ (tx.functionSelector, body') :: suffix →
-          Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord
-            (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
-              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
-                reservedNames n0))
-            (EvmYul.UInt256.ofNat 1) bodyNative
-            (some nativeContract)) →
-        Compiler.Proofs.YulGeneration.Backends.Native.projectResult
-          (YulTransaction.ofIR tx)
-          (FunctionBody.initialIRStateForTx model tx initialWorld).storage
-          (FunctionBody.initialIRStateForTx model tx initialWorld).events
-          (.ok
-            (((final.reviveJump.overwrite?
-              (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                nativeContract
-                (YulTransaction.ofIR tx)
-                (FunctionBody.initialIRStateForTx model tx initialWorld).storage
-                (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-                  (Compiler.runtimeCode irContract) observableSlots))).setStore
-              (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                nativeContract
-                (YulTransaction.ofIR tx)
-                (FunctionBody.initialIRStateForTx model tx initialWorld).storage
-                (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
-                  (Compiler.runtimeCode irContract) observableSlots))), [])) =
-          nativeYul →
-        nativeResultsMatchOn observableSlots
-          (interpretIR irContract tx
-            (FunctionBody.initialIRStateForTx model tx initialWorld))
-          (.ok nativeYul) →
-        sourceResultMatchesNativeOn observableSlots
-          (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
-          (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-            (Nat.succ fuel') irContract tx
-            (FunctionBody.initialIRStateForTx model tx initialWorld)
-            observableSlots)) := by
-  let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
-  by_cases hUsesMapping : irContract.usesMapping
-  · have hMapping : irContract.usesMapping = true := by
-      simpa using hUsesMapping
-    let reservedNames :=
-      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
-        (Compiler.emitYul irContract).runtimeCode
-    let functions :=
-      ((∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap).insert
-        "mappingSlot"
-        Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition)
-    rcases lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved
-        hcompile hSupported hMapping hLowerRuntime with
-      ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
-    rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
-        reservedNames 0 irContract.functions dispatcher nextSwitchId
-        hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
-    subst nativeContract
-    subst dispatcher
-    rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_payable_withSwitchIds_generated_prefix_atFuel
-        fuel' reservedNames 0 irContract tx initialState observableSlots
-        inner nextSwitchId functions fn final nativeYul hLowerBlock hFind
-        hSelectorRange hNoWrap hFunctionSelectorsRange hPayable hguards hArgs with
-      ⟨switchStart, cases', _midN, body', bodyNative, bodyStart, bodyEnd,
-        userBodyStart, _hLowerCases, hCase, hBodyLower, hUserBodyLower,
-        hNativeDispatcherExec⟩
-    refine ⟨reservedNames, switchStart, cases', body', bodyNative, bodyStart,
-      bodyEnd, userBodyStart, hCase, hBodyLower, hUserBodyLower, ?_⟩
-    intro hFuel hBody hPreservesMatched hProject hMatch
-    have hNativeDispatcherExec' :
-        nativeDispatcherExecMatchesIRPositive fuel'
-          irContract tx initialState observableSlots
-          (nativeContractOfDispatcherWithMapping [.Block inner]) := by
-      refine hNativeDispatcherExec hFuel ?_ ?_ ?_ hMatch
-      · simpa [initialState, reservedNames, nativeContractOfDispatcherWithMapping,
-          functions] using hBody
-      · simpa [reservedNames, nativeContractOfDispatcherWithMapping, functions]
-          using hPreservesMatched
-      · simpa [initialState, nativeContractOfDispatcherWithMapping, functions]
-          using hProject
-    exact
-      sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
-        (hSourceIR :=
-          Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
-            model selectors hSupported irContract tx initialWorld
-            htxNormalized hcalldataSizeFits hcompile)
-        (hNativeIR :=
-          nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_supported
-            (fuel' := fuel') hcompile hSupported hLowerRuntime hEnv
-            (by
-              simpa [nativeContractOfDispatcherWithMapping, functions]
-                using hNativeDispatcherExec'))
-  · have hNoMapping : irContract.usesMapping = false := by
-      exact Bool.eq_false_iff.2 hUsesMapping
-    rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
-        hcompile hSupported hNoMapping hLowerRuntime with
-      ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
-    rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
-        irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
-    subst nativeContract
-    subst dispatcher
-    rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_payable_generated_prefix_atFuel
-        fuel' irContract tx initialState observableSlots inner
-        (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-        fn final nativeYul hLowerBlock hFind hSelectorRange hNoWrap
-        hFunctionSelectorsRange hPayable hguards hArgs with
-      ⟨reservedNames, n0, cases', _midN, body', bodyNative, bodyStart, bodyEnd,
-        userBodyStart, _hLowerCases, hCase, hBodyLower, hUserBodyLower,
-        hNativeDispatcherExec⟩
-    refine ⟨reservedNames, n0, cases', body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hCase, hBodyLower, hUserBodyLower, ?_⟩
-    intro hFuel hBody hPreservesMatched hProject hMatch
-    have hNativeDispatcherExec' :
-        nativeDispatcherExecMatchesIRPositive fuel'
-          irContract tx initialState observableSlots
-          (nativeContractOfDispatcher [.Block inner]) := by
-      refine hNativeDispatcherExec hFuel ?_ ?_ ?_ hMatch
-      · simpa [initialState, nativeContractOfDispatcher] using hBody
-      · simpa [nativeContractOfDispatcher] using hPreservesMatched
-      · simpa [initialState, nativeContractOfDispatcher] using hProject
-    exact
-      sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
-        (hSourceIR :=
-          Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
-            model selectors hSupported irContract tx initialWorld
-            htxNormalized hcalldataSizeFits hcompile)
-        (hNativeIR :=
-          nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_supported
-            (fuel' := fuel') hcompile hSupported hLowerRuntime hEnv
-            (by simpa [nativeContractOfDispatcher] using hNativeDispatcherExec'))
-
-/-- Exact-total-fuel lowered-runtime selector-hit source theorem for the
-non-payable generated prefix path. -/
-private theorem compile_preserves_native_evmYulLean_selector_hit_ok_lowered_runtime_nonpayable_generated_prefix_atFuel
-    (fuel' : Nat)
+/-- Lowered-runtime selector-hit source theorem for the non-payable generated
+prefix path. This hides the mapping-helper/no-mapping split while keeping the
+selected native execution and preservation obligations on the lowered user body
+`fn.body`. -/
+private theorem compile_preserves_native_evmYulLean_selector_hit_ok_lowered_runtime_nonpayable_generated_prefix
+    (fuel : Nat)
     (model : CompilationModel.CompilationModel) (selectors : List Nat)
     (hSupported : SupportedSpec model selectors)
     (irContract : IRContract)
@@ -13519,13 +15628,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_lowered_runt
           .ok (body', bodyEnd) ∧
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
         reservedNames userBodyStart fn.body = .ok (bodyNative, bodyEnd) ∧
-      (cases'.length + 24 ≤ fuel' →
-        (∀ pre suffix,
+      ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
-          EvmYul.Yul.exec ((fuel' - (cases'.length + 24)) +
-              suffix.length + 10) (.Block bodyNative)
+          EvmYul.Yul.exec (fuel + suffix.length + 10) (.Block bodyNative)
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -13569,106 +15676,59 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_lowered_runt
         sourceResultMatchesNativeOn observableSlots
           (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
           (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-            (Nat.succ fuel') irContract tx
+            (Nat.succ (fuel + cases'.length + 25)) irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
             observableSlots)) := by
-  let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
   by_cases hUsesMapping : irContract.usesMapping
   · have hMapping : irContract.usesMapping = true := by
       simpa using hUsesMapping
-    let reservedNames :=
-      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
-        (Compiler.emitYul irContract).runtimeCode
-    let functions :=
-      ((∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap).insert
-        "mappingSlot"
-        Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition)
     rcases lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_dispatcher_reserved
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
-        reservedNames 0 irContract.functions dispatcher nextSwitchId
-        hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+          (Compiler.emitYul irContract).runtimeCode)
+        0 irContract.functions dispatcher nextSwitchId hLowerDispatcher with
+      ⟨inner, hDispatcher, _hLowerBlock⟩
     subst nativeContract
     subst dispatcher
     rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_nonpayable_withSwitchIds_generated_prefix_atFuel
-        fuel' reservedNames 0 irContract tx initialState observableSlots
-        inner nextSwitchId functions fn final nativeYul hLowerBlock hFind
-        hSelectorRange hNoWrap hFunctionSelectorsRange hNonPayable hguards
-        hArgs with
-      ⟨switchStart, cases', _midN, body', bodyNative, bodyStart, bodyEnd,
-        userBodyStart, _hLowerCases, hCase, hBodyLower, hUserBodyLower,
-        hNativeDispatcherExec⟩
-    refine ⟨reservedNames, switchStart, cases', body', bodyNative, bodyStart,
-      bodyEnd, userBodyStart, hCase, hBodyLower, hUserBodyLower, ?_⟩
-    intro hFuel hBody hPreservesMatched hProject hMatch
-    have hNativeDispatcherExec' :
-        nativeDispatcherExecMatchesIRPositive fuel'
-          irContract tx initialState observableSlots
-          (nativeContractOfDispatcherWithMapping [.Block inner]) := by
-      refine hNativeDispatcherExec hFuel ?_ ?_ ?_ hMatch
-      · simpa [initialState, reservedNames, nativeContractOfDispatcherWithMapping,
-          functions] using hBody
-      · simpa [reservedNames, nativeContractOfDispatcherWithMapping, functions]
-          using hPreservesMatched
-      · simpa [initialState, nativeContractOfDispatcherWithMapping, functions]
-          using hProject
-    exact
-      sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
-        (hSourceIR :=
-          Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
-            model selectors hSupported irContract tx initialWorld
-            htxNormalized hcalldataSizeFits hcompile)
-        (hNativeIR :=
-          nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_supported
-            (fuel' := fuel') hcompile hSupported hLowerRuntime hEnv
-            (by
-              simpa [nativeContractOfDispatcherWithMapping, functions]
-                using hNativeDispatcherExec'))
+      compile_preserves_native_evmYulLean_selector_hit_ok_mapping_structural_nonpayable_generated_prefix
+        fuel model selectors hSupported irContract tx initialWorld
+        observableSlots inner nextSwitchId fn final nativeYul htxNormalized
+        hcalldataSizeFits hcompile hMapping hLowerDispatcher hFind hSelectorRange
+        hNoWrap hFunctionSelectorsRange hNonPayable hguards hArgs hEnv with
+      ⟨switchStart, cases', body', bodyNative, bodyStart, bodyEnd,
+        userBodyStart, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
+    refine ⟨
+      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        (Compiler.emitYul irContract).runtimeCode,
+      switchStart, cases', body', bodyNative, bodyStart, bodyEnd,
+      userBodyStart, hCase, hBodyLower, hUserBodyLower, ?_⟩
+    intro hBody hPreservesMatched hProject hMatch
+    exact hDispatcherContinuation hBody hPreservesMatched hProject hMatch
   · have hNoMapping : irContract.usesMapping = false := by
       exact Bool.eq_false_iff.2 hUsesMapping
     rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, _nextSwitchId, hDispatcher, _hLowerBlock⟩
     subst nativeContract
     subst dispatcher
     rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_nonpayable_generated_prefix_atFuel
-        fuel' irContract tx initialState observableSlots inner
-        (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-        fn final nativeYul hLowerBlock hFind hSelectorRange hNoWrap
-        hFunctionSelectorsRange hNonPayable hguards hArgs with
-      ⟨reservedNames, n0, cases', _midN, body', bodyNative, bodyStart, bodyEnd,
-        userBodyStart, _hLowerCases, hCase, hBodyLower, hUserBodyLower,
-        hNativeDispatcherExec⟩
-    refine ⟨reservedNames, n0, cases', body', bodyNative, bodyStart, bodyEnd,
-      userBodyStart, hCase, hBodyLower, hUserBodyLower, ?_⟩
-    intro hFuel hBody hPreservesMatched hProject hMatch
-    have hNativeDispatcherExec' :
-        nativeDispatcherExecMatchesIRPositive fuel'
-          irContract tx initialState observableSlots
-          (nativeContractOfDispatcher [.Block inner]) := by
-      refine hNativeDispatcherExec hFuel ?_ ?_ ?_ hMatch
-      · simpa [initialState, nativeContractOfDispatcher] using hBody
-      · simpa [nativeContractOfDispatcher] using hPreservesMatched
-      · simpa [initialState, nativeContractOfDispatcher] using hProject
-    exact
-      sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
-        (hSourceIR :=
-          Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
-            model selectors hSupported irContract tx initialWorld
-            htxNormalized hcalldataSizeFits hcompile)
-        (hNativeIR :=
-          nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_supported
-            (fuel' := fuel') hcompile hSupported hLowerRuntime hEnv
-            (by simpa [nativeContractOfDispatcher] using hNativeDispatcherExec'))
+      compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_structural_nonpayable_generated_prefix
+        fuel model selectors hSupported irContract tx initialWorld
+        observableSlots inner fn final nativeYul htxNormalized
+        hcalldataSizeFits hcompile hNoMapping hLowerDispatcher hFind hSelectorRange
+        hNoWrap hFunctionSelectorsRange hNonPayable hguards hArgs hEnv with
+      ⟨reservedNames, n0, cases', body', bodyNative, bodyStart, bodyEnd,
+        userBodyStart, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
+    exact ⟨reservedNames, n0, cases', body', bodyNative, bodyStart, bodyEnd,
+      userBodyStart, hCase, hBodyLower, hUserBodyLower, hDispatcherContinuation⟩
 
 /-- Supported mapping-helper selector-hit source theorem at canonical generated
 runtime fuel for the native selector-hit normal-success path. This is the
@@ -13691,8 +15751,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -13722,11 +15783,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -13751,7 +15812,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
                   (Compiler.emitYul irContract).runtimeCode)
                 switchStart))
             (EvmYul.UInt256.ofNat 1) stmt
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -13759,13 +15820,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -13792,24 +15853,48 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcherWithMapping [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
       hcompile hSupported hMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds_atFuel
-      (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
-      initialState observableSlots inner nextSwitchId functions fn final nativeYul
-      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-    ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      reservedNames 0 irContract.functions
+      [nativeInitFreeMemoryPointerStmt, .Block inner] nextSwitchId
+      (by simpa [reservedNames] using hLowerDispatcher) with
+    ⟨inner', hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
   have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+      cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
     dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
+    have hBig :=
+      sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
         hcompile hSupported hMapping
         (by simpa [reservedNames] using hLowerCases)
+    omega
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
   refine ⟨switchStart, cases', body', bodyStart, bodyEnd,
     hCase, ?_, ?_⟩
   · simpa [reservedNames] using hBodyLower
@@ -13817,25 +15902,103 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
     have hNativeDispatcherExec' :
         nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
           irContract tx initialState observableSlots
-          (nativeContractOfDispatcherWithMapping [.Block inner]) := by
-      refine hNativeDispatcherExec hFuel ?_ ?_ ?_ hMatch
-      · simpa [initialState, reservedNames, nativeContractOfDispatcherWithMapping,
-          functions] using hBody
-      · intro pre suffix hcases
-        exact
-          Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+          (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+      let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+      let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hFuelShape :
+          nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+        dsimp [fuel0]
+        exact (Nat.sub_add_cancel hFuel).symm
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (nativeRuntimeDispatcherFuel irContract) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+            .ok final := by
+        rw [hFuelShape]
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            fuel0 reservedNames switchStart cases' body1 inner functions
+            (YulTransaction.ofIR tx) initialState.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hFinalMatched :
+            ∀ matchedName : EvmYul.Identifier,
+              matchedName =
+                  Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                      reservedNames switchStart) →
+                final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+          intro matchedName hMatchedName
+          subst matchedName
+          rcases
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+              tx.functionSelector cases' tx.functionSelector body' hCase with
+            ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+          exact
+            (Compiler.Proofs.YulGeneration.Backends.Native.NativeBlockPreservesWord_of_nativeSwitchFresh_find_hit_matched
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              tx.functionSelector tx.functionSelector body'
+              [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+              cases' (EvmYul.UInt256.ofNat 1)
+              (some contract)
+              (by simpa [reservedNames] using hFresh) hCase
+              (by
+                simpa [reservedNames, contract,
+                  nativeContractOfInitPrefixedDispatcherWithMapping, functions] using
+                  hStmtPreserves))
+              ((fuel0 + 1) + suffix.length + 7)
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+                contract (YulTransaction.ofIR tx) initialState.storage
+                materializedSlots
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)
+                Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+              final
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+                contract (YulTransaction.ofIR tx) initialState.storage
+                materializedSlots
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)
+                Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+                (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                    reservedNames switchStart)) rfl)
+              (by
+                simpa [initialState, reservedNames, contract, materializedSlots,
+                  nativeContractOfInitPrefixedDispatcherWithMapping, fuel0,
+                  functions] using hBody pre suffix hCases)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+            fuel0 tx.functionSelector
             (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
               reservedNames switchStart)
-            tx.functionSelector tx.functionSelector body'
+            tx.functionSelector cases'
             [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
-            cases' (EvmYul.UInt256.ofNat 1)
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (by simpa [reservedNames] using hFresh) hCase
+            body' contract (YulTransaction.ofIR tx) initialState.storage
+            initialState.events materializedSlots final
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) initialState.storage initialState.events
+              (.ok (final, [])))
+            hSelector hCase hSelectorRangeNative hTagsRange
             (by
-              simpa [reservedNames, nativeContractOfDispatcherWithMapping, functions]
-                using hStmtPreserves)
-      · simpa [initialState, nativeContractOfDispatcherWithMapping, functions]
-          using hProject
+              intro pre suffix hCases
+              simpa [initialState, reservedNames, contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcherWithMapping, fuel0,
+                functions] using hBody pre suffix hCases)
+            hFinalMatched rfl
+        simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+          nativeInitFreeMemoryPointerStmt, functions,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := initialState)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract, initialState, functions] using hProject
     exact
       sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
         (hSourceIR :=
@@ -13848,10 +16011,10 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
             (spec := model) (selectors := selectors) (irContract := irContract)
             (tx := tx) (state := initialState)
             (observableSlots := observableSlots)
-            (nativeContract := nativeContractOfDispatcherWithMapping [.Block inner])
+            (nativeContract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
             hcompile hSupported hLowerRuntime hEnv
             (by
-              simpa [nativeContractOfDispatcherWithMapping, functions]
+              simpa [nativeContractOfInitPrefixedDispatcherWithMapping, functions]
                 using hNativeDispatcherExec'))
 
 /-- Supported no-mapping selector-hit source theorem at the structural fuel
@@ -13874,8 +16037,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -13898,9 +16062,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -13922,35 +16086,98 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
         sourceResultMatchesNativeOn observableSlots
           (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
           (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-            (Nat.succ (fuel + cases'.length + 19)) irContract tx
+            (Nat.succ (fuel + cases'.length + 20)) irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
             observableSlots)) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcher [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
       hcompile hSupported hNoMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive
-      fuel irContract tx initialState observableSlots inner
-      (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-      fn err nativeYul hLowerDispatcher hFind hSelectorRange hNoWrap
-      hFunctionSelectorsRange with
-    ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower, hNativeDispatcherExec⟩
-  refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
+    lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      irContract.functions [nativeInitFreeMemoryPointerStmt, .Block inner]
+      hLowerDispatcher with
+    ⟨inner', nextSwitchId, hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  let reservedNames :=
+    Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
+  refine ⟨reservedNames, switchStart, cases', body', bodyStart, bodyEnd,
     hCase, hBodyLower, ?_⟩
   intro hBody hProject hMatch
   have hNativeDispatcherExec' :
-      nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 19)
+      nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 20)
         irContract tx initialState observableSlots
-        (nativeContractOfDispatcher [.Block inner]) := by
-    refine hNativeDispatcherExec ?_ ?_ hMatch
-    · simpa [initialState, nativeContractOfDispatcher] using hBody
-    · simpa [initialState] using hProject
+        (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+    let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+    let materializedSlots :=
+      Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode irContract) observableSlots
+    have hExec :
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+            (fuel + cases'.length + 20) contract
+            (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+              (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+          .error err := by
+      have hPeel :=
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+          fuel reservedNames switchStart cases' body1 inner
+          (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+          (YulTransaction.ofIR tx) initialState.storage materializedSlots
+          hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+      have hSwitch :=
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+          fuel tx.functionSelector
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames switchStart)
+          tx.functionSelector cases'
+          [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+          body' contract (YulTransaction.ofIR tx) initialState.storage
+          initialState.events materializedSlots err nativeYul
+          hSelector hCase hSelectorRangeNative hTagsRange
+          (by
+            intro pre suffix hCases
+            simpa [initialState, contract, materializedSlots,
+              nativeContractOfInitPrefixedDispatcher] using
+              hBody pre suffix hCases)
+          (by simpa [initialState] using hProject)
+      simpa [contract, nativeContractOfInitPrefixedDispatcher,
+        nativeInitFreeMemoryPointerStmt,
+        Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+    refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+      (contract := irContract) (tx := tx) (state := initialState)
+      (observableSlots := observableSlots)
+      (nativeContract := contract) ?_ hMatch
+    simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+      contract, initialState] using hProject
   exact
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
       (hSourceIR :=
@@ -13980,8 +16207,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -14004,11 +16232,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -14037,35 +16265,104 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcher [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
       hcompile hSupported hNoMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_atFuel
-      (nativeRuntimeDispatcherFuel irContract) irContract tx initialState
-      observableSlots inner
-      (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-      fn err nativeYul hLowerDispatcher hFind hSelectorRange hNoWrap
-      hFunctionSelectorsRange with
-    ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      irContract.functions [nativeInitFreeMemoryPointerStmt, .Block inner]
+      hLowerDispatcher with
+    ⟨inner', nextSwitchId, hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  let reservedNames :=
+    Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
   have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+      cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
     dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
+    have hBig :=
+      sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
         hcompile hSupported hNoMapping hLowerCases
-  refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
+    omega
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
+  refine ⟨reservedNames, switchStart, cases', body', bodyStart, bodyEnd,
     hCase, hBodyLower, ?_⟩
   intro hBody hProject hMatch
   have hNativeDispatcherExec' :
       nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
         irContract tx initialState observableSlots
-        (nativeContractOfDispatcher [.Block inner]) := by
-    refine hNativeDispatcherExec hFuel ?_ ?_ hMatch
-    · simpa [initialState, nativeContractOfDispatcher] using hBody
-    · simpa [initialState] using hProject
+        (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+    let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+    let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+    let materializedSlots :=
+      Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+        (Compiler.runtimeCode irContract) observableSlots
+    have hFuelShape :
+        nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+      dsimp [fuel0]
+      exact (Nat.sub_add_cancel hFuel).symm
+    have hExec :
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+            (nativeRuntimeDispatcherFuel irContract) contract
+            (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+              (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+          .error err := by
+      rw [hFuelShape]
+      have hPeel :=
+        Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+          fuel0 reservedNames switchStart cases' body1 inner
+          (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+          (YulTransaction.ofIR tx) initialState.storage materializedSlots
+          hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+      have hSwitch :=
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+          fuel0 tx.functionSelector
+          (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+            reservedNames switchStart)
+          tx.functionSelector cases'
+          [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+          body' contract (YulTransaction.ofIR tx) initialState.storage
+          initialState.events materializedSlots err nativeYul
+          hSelector hCase hSelectorRangeNative hTagsRange
+          (by
+            intro pre suffix hCases
+            simpa [initialState, contract, materializedSlots,
+              nativeContractOfInitPrefixedDispatcher, fuel0] using
+              hBody pre suffix hCases)
+          (by simpa [initialState] using hProject)
+      simpa [contract, nativeContractOfInitPrefixedDispatcher,
+        nativeInitFreeMemoryPointerStmt,
+        Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+    refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+      (contract := irContract) (tx := tx) (state := initialState)
+      (observableSlots := observableSlots)
+      (nativeContract := contract) ?_ hMatch
+    simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+      contract, initialState] using hProject
   exact
     sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
       (hSourceIR :=
@@ -14078,10 +16375,10 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
           (spec := model) (selectors := selectors) (irContract := irContract)
           (tx := tx) (state := initialState)
           (observableSlots := observableSlots)
-          (nativeContract := nativeContractOfDispatcher [.Block inner])
+          (nativeContract := nativeContractOfInitPrefixedDispatcher [.Block inner])
           hcompile hSupported hLowerRuntime hEnv
           (by
-            simpa [nativeContractOfDispatcher] using hNativeDispatcherExec'))
+            simpa [nativeContractOfInitPrefixedDispatcher] using hNativeDispatcherExec'))
 
 /-- Direct `callDispatcher` no-mapping selector-hit error theorem at canonical
 generated-runtime fuel.
@@ -14104,15 +16401,19 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
     (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -14125,11 +16426,11 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -14152,44 +16453,32 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
           (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
           (nativeGeneratedCallDispatcherResultOf irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
-            observableSlots (nativeContractOfDispatcher [.Block inner]))) := by
+            observableSlots (nativeContractOfInitPrefixedDispatcher [.Block inner]))) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
+  have hLowerRuntime :
+      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+          (Compiler.emitYul irContract).runtimeCode =
+        .ok (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+    rw [lowerRuntimeContractNative_of_compile_ok_supported_noMapping
+      hcompile hSupported hNoMapping]
+    rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_atFuel
-      (nativeRuntimeDispatcherFuel irContract) irContract tx initialState
-      observableSlots inner
-      (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-      fn err nativeYul hLowerDispatcher hFind hSelectorRange hNoWrap
-      hFunctionSelectorsRange with
-    ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
-  have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
-    dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
-        hcompile hSupported hNoMapping hLowerCases
+    compile_preserves_native_evmYulLean_selector_hit_error_noMapping_canonical
+      model selectors hSupported irContract tx initialWorld observableSlots
+      inner fn err nativeYul htxNormalized hcalldataSizeFits hcompile
+      hNoMapping hLowerDispatcher hFind hSelectorRange hNoWrap
+      hFunctionSelectorsRange hEnv with
+    ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
+      hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
     hCase, hBodyLower, ?_⟩
   intro hBody hProject hMatch
-  have hGeneratedMatch :
-      nativeGeneratedCallDispatcherMatchesIROn irContract tx initialState
-        observableSlots (nativeContractOfDispatcher [.Block inner]) := by
-    apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
-    simpa [nativeGeneratedDispatcherExecMatchesIROn,
-      nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-      nativeContractOfDispatcher] using
-        hNativeDispatcherExec hFuel
-          (by simpa [initialState, nativeContractOfDispatcher] using hBody)
-          (by simpa [initialState] using hProject)
-          hMatch
-  exact
-    sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
-      (hSourceIR :=
-        Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
-          model selectors hSupported irContract tx initialWorld
-          htxNormalized hcalldataSizeFits hcompile)
-      (hNativeIR := hGeneratedMatch)
+  have hSource := hDispatcherContinuation hBody hProject hMatch
+  rw [nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNative_of_lowerRuntimeContractNative_supported
+    tx initialState observableSlots
+    (nativeContractOfInitPrefixedDispatcher [.Block inner])
+    hcompile hSupported hLowerRuntime hEnv]
+  simpa [nativeRuntimeFuel, initialState] using hSource
 
 /-- Supported mapping-helper selector-hit source theorem at the structural fuel
 exposed by the reserved-context native selector-hit error execution lemma. -/
@@ -14211,8 +16500,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_s
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -14236,9 +16526,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_s
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec ((fuel + 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -14262,7 +16552,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_s
         sourceResultMatchesNativeOn observableSlots
           (supportedSourceContractSemantics model selectors hSupported tx initialWorld)
           (Compiler.Proofs.YulGeneration.Backends.Native.interpretIRRuntimeNative
-            (Nat.succ (fuel + cases'.length + 19)) irContract tx
+            (Nat.succ (fuel + cases'.length + 20)) irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
             observableSlots)) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
@@ -14276,29 +16566,88 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_s
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcherWithMapping [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
       hcompile hSupported hMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_withSwitchIds
-      fuel reservedNames 0 irContract tx initialState observableSlots inner
-      nextSwitchId functions fn err nativeYul hLowerDispatcher hFind
-      hSelectorRange hNoWrap hFunctionSelectorsRange with
-    ⟨switchStart, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower, hNativeDispatcherExec⟩
+    lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      reservedNames 0 irContract.functions
+      [nativeInitFreeMemoryPointerStmt, .Block inner] nextSwitchId
+      (by simpa [reservedNames] using hLowerDispatcher) with
+    ⟨inner', hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
   refine ⟨switchStart, cases', body', bodyStart, bodyEnd,
     hCase, ?_, ?_⟩
   · simpa [reservedNames] using hBodyLower
   · intro hBody hProject hMatch
     have hNativeDispatcherExec' :
-        nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 19)
+        nativeDispatcherExecMatchesIRPositive (fuel + cases'.length + 20)
           irContract tx initialState observableSlots
-          (nativeContractOfDispatcherWithMapping [.Block inner]) := by
-      refine hNativeDispatcherExec ?_ ?_ hMatch
-      · simpa [initialState, reservedNames, nativeContractOfDispatcherWithMapping,
-          functions] using hBody
-      · simpa [initialState] using hProject
+          (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+      let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (fuel + cases'.length + 20) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+            .error err := by
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            fuel reservedNames switchStart cases' body1 inner functions
+            (YulTransaction.ofIR tx) initialState.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+            fuel tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) initialState.storage
+            initialState.events materializedSlots err nativeYul
+            hSelector hCase hSelectorRangeNative hTagsRange
+            (by
+              intro pre suffix hCases
+              simpa [initialState, reservedNames, contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcherWithMapping] using
+                hBody pre suffix hCases)
+            (by simpa [initialState] using hProject)
+        simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+          nativeInitFreeMemoryPointerStmt, functions,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := initialState)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract, initialState] using hProject
     exact
       sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
         (hSourceIR :=
@@ -14309,7 +16658,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_s
           nativeIRRuntimeMatchesIR_of_compiled_generated_lowered_dispatcherExec_positive_supported
             hcompile hSupported hLowerRuntime hEnv
             (by
-              simpa [nativeContractOfDispatcherWithMapping, functions]
+              simpa [nativeContractOfInitPrefixedDispatcherWithMapping, functions]
                 using hNativeDispatcherExec'))
 
 /-- Supported mapping-helper selector-hit source theorem at canonical generated
@@ -14333,8 +16682,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -14358,11 +16708,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -14400,24 +16750,48 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcherWithMapping [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
       hcompile hSupported hMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_withSwitchIds_atFuel
-      (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
-      initialState observableSlots inner nextSwitchId functions fn err nativeYul
-      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-    ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      reservedNames 0 irContract.functions
+      [nativeInitFreeMemoryPointerStmt, .Block inner] nextSwitchId
+      (by simpa [reservedNames] using hLowerDispatcher) with
+    ⟨inner', hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
   have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+      cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
     dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
+    have hBig :=
+      sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
         hcompile hSupported hMapping
         (by simpa [reservedNames] using hLowerCases)
+    omega
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
   refine ⟨switchStart, cases', body', bodyStart, bodyEnd,
     hCase, ?_, ?_⟩
   · simpa [reservedNames] using hBodyLower
@@ -14425,11 +16799,53 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
     have hNativeDispatcherExec' :
         nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
           irContract tx initialState observableSlots
-          (nativeContractOfDispatcherWithMapping [.Block inner]) := by
-      refine hNativeDispatcherExec hFuel ?_ ?_ hMatch
-      · simpa [initialState, reservedNames, nativeContractOfDispatcherWithMapping,
-          functions] using hBody
-      · simpa [initialState] using hProject
+          (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+      let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+      let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hFuelShape :
+          nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+        dsimp [fuel0]
+        exact (Nat.sub_add_cancel hFuel).symm
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (nativeRuntimeDispatcherFuel irContract) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+            .error err := by
+        rw [hFuelShape]
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            fuel0 reservedNames switchStart cases' body1 inner functions
+            (YulTransaction.ofIR tx) initialState.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+            fuel0 tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) initialState.storage
+            initialState.events materializedSlots err nativeYul
+            hSelector hCase hSelectorRangeNative hTagsRange
+            (by
+              intro pre suffix hCases
+              simpa [initialState, reservedNames, contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcherWithMapping, fuel0] using
+                hBody pre suffix hCases)
+            (by simpa [initialState] using hProject)
+        simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+          nativeInitFreeMemoryPointerStmt, functions,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := initialState)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract, initialState] using hProject
     exact
       sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
         (hSourceIR :=
@@ -14442,10 +16858,10 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
             (spec := model) (selectors := selectors) (irContract := irContract)
             (tx := tx) (state := initialState)
             (observableSlots := observableSlots)
-            (nativeContract := nativeContractOfDispatcherWithMapping [.Block inner])
+            (nativeContract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
             hcompile hSupported hLowerRuntime hEnv
             (by
-            simpa [nativeContractOfDispatcherWithMapping, functions]
+            simpa [nativeContractOfInitPrefixedDispatcherWithMapping, functions]
               using hNativeDispatcherExec'))
 
 /-- Direct `callDispatcher` mapping selector-hit error theorem at canonical
@@ -14471,15 +16887,19 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
     (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        .ok ()) :
     ∃ (switchStart : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -14493,11 +16913,11 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -14523,53 +16943,31 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
           (nativeGeneratedCallDispatcherResultOf irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
             observableSlots
-            (nativeContractOfDispatcherWithMapping [.Block inner]))) := by
+            (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
-  let reservedNames :=
-    Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
-      (Compiler.emitYul irContract).runtimeCode
-  let functions :=
-    ((∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap).insert
-      "mappingSlot"
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition)
+  have hLowerRuntime :
+      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+          (Compiler.emitYul irContract).runtimeCode =
+        .ok (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+    rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
+      hcompile hSupported hMapping]
+    rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_withSwitchIds_atFuel
-      (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
-      initialState observableSlots inner nextSwitchId functions fn err nativeYul
-      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-    ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
-  have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
-    dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
-        hcompile hSupported hMapping
-        (by simpa [reservedNames] using hLowerCases)
+    compile_preserves_native_evmYulLean_selector_hit_error_mapping_canonical
+      model selectors hSupported irContract tx initialWorld observableSlots
+      inner nextSwitchId fn err nativeYul htxNormalized hcalldataSizeFits
+      hcompile hMapping hLowerDispatcher hFind hSelectorRange hNoWrap
+      hFunctionSelectorsRange hEnv with
+    ⟨switchStart, cases', body', bodyStart, bodyEnd, hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨switchStart, cases', body', bodyStart, bodyEnd,
-    hCase, ?_, ?_⟩
-  · simpa [reservedNames] using hBodyLower
-  · intro hBody hProject hMatch
-    have hGeneratedMatch :
-        nativeGeneratedCallDispatcherMatchesIROn irContract tx initialState
-          observableSlots
-          (nativeContractOfDispatcherWithMapping [.Block inner]) := by
-      apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
-      simpa [nativeGeneratedDispatcherExecMatchesIROn,
-        nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-        nativeContractOfDispatcherWithMapping, functions] using
-          hNativeDispatcherExec hFuel
-            (by simpa [initialState, reservedNames,
-                nativeContractOfDispatcherWithMapping, functions] using hBody)
-            (by simpa [initialState] using hProject)
-            hMatch
-    exact
-      sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
-        (hSourceIR :=
-          Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
-            model selectors hSupported irContract tx initialWorld
-            htxNormalized hcalldataSizeFits hcompile)
-        (hNativeIR := hGeneratedMatch)
+    hCase, hBodyLower, ?_⟩
+  intro hBody hProject hMatch
+  have hSource := hDispatcherContinuation hBody hProject hMatch
+  rw [nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNative_of_lowerRuntimeContractNative_supported
+    tx initialState observableSlots
+    (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
+    hcompile hSupported hLowerRuntime hEnv]
+  simpa [nativeRuntimeFuel, initialState] using hSource
 
 /-- Direct `callDispatcher` selector-hit error theorem from successful
 lowering of the whole emitted runtime.
@@ -14598,7 +16996,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -14611,10 +17012,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -14646,8 +17047,8 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
-        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+          (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
           (Compiler.emitYul irContract).runtimeCode)
         0 irContract.functions dispatcher nextSwitchId hLowerDispatcher with
       ⟨inner, hDispatcher, hLowerBlock⟩
@@ -14657,37 +17058,37 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       compile_preserves_native_evmYulLean_callDispatcher_selector_hit_error_mapping_canonical
         model selectors hSupported irContract tx initialWorld observableSlots
         inner nextSwitchId fn err nativeYul htxNormalized hcalldataSizeFits
-        hcompile hMapping hLowerBlock hFind hSelectorRange hNoWrap
-        hFunctionSelectorsRange with
-      ⟨switchStart, cases', body', bodyStart, bodyEnd,
-        hCase, hBodyLower, hCont⟩
+        hcompile hMapping hLowerDispatcher hFind hSelectorRange hNoWrap
+        hFunctionSelectorsRange hEnv with
+    ⟨switchStart, cases', body', bodyStart, bodyEnd,
+      hCase, hBodyLower, hDispatcherContinuation⟩
     refine ⟨
       Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode,
       switchStart, cases', body', bodyStart, bodyEnd, hCase, hBodyLower, ?_⟩
     intro hBody hProject hMatch
-    exact hCont hBody hProject hMatch
+    exact hDispatcherContinuation hBody hProject hMatch
   · have hNoMapping : irContract.usesMapping = false := by
       exact Bool.eq_false_iff.2 hUsesMapping
     rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
     rcases
       compile_preserves_native_evmYulLean_callDispatcher_selector_hit_error_noMapping_canonical
         model selectors hSupported irContract tx initialWorld observableSlots
         inner fn err nativeYul htxNormalized hcalldataSizeFits hcompile
-        hNoMapping hLowerBlock hFind hSelectorRange hNoWrap
-        hFunctionSelectorsRange with
-      ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
-        hCase, hBodyLower, hCont⟩
+        hNoMapping hLowerDispatcher hFind hSelectorRange hNoWrap
+        hFunctionSelectorsRange hEnv with
+    ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
+        hCase, hBodyLower, hDispatcherContinuation⟩
     exact ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower, hCont⟩
+      hCase, hBodyLower, hDispatcherContinuation⟩
 
 /-- Native-vs-IR selector-hit error theorem for a supported generated runtime.
 
@@ -14727,10 +17128,10 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_error_matchesIR
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -14767,81 +17168,202 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_error_matchesIR
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         reservedNames 0 irContract.functions dispatcher nextSwitchId
         hLowerDispatcher with
       ⟨inner, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
-    rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_withSwitchIds_atFuel
-        (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
-        state observableSlots inner nextSwitchId functions fn err nativeYul
-        (by simpa [reservedNames] using hLowerBlock)
-        hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-      ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-        hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+        hFind
     have hFuel :
-        cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+        cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
-      exact
-        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
+      have hBig :=
+        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
           hcompile hSupported hMapping
           (by simpa [reservedNames] using hLowerCases)
+      omega
+    have hSelector :
+        tx.functionSelector =
+          (YulTransaction.ofIR tx).functionSelector %
+            Compiler.Constants.selectorModulus := by
+      simpa [YulTransaction.ofIR] using
+        (Nat.mod_eq_of_lt hSelectorRange).symm
+    have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+      exact Nat.lt_trans hSelectorRange (by decide)
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
     refine ⟨reservedNames, switchStart, cases', body', bodyStart, bodyEnd,
       hCase, ?_, ?_⟩
     · simpa [reservedNames] using hBodyLower
     · intro hBody hProject hMatch
-      change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-        observableSlots (nativeContractOfDispatcherWithMapping [.Block inner])
+      have hNativeDispatcherExec' :
+          nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
+            irContract tx state observableSlots
+            (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+        let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+        let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+        let materializedSlots :=
+          Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode irContract) observableSlots
+        have hFuelShape :
+            nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+          dsimp [fuel0]
+          exact (Nat.sub_add_cancel hFuel).symm
+        have hExec :
+            Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+                (nativeRuntimeDispatcherFuel irContract) contract
+                (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                  (YulTransaction.ofIR tx) state.storage materializedSlots) =
+              .error err := by
+          rw [hFuelShape]
+          have hPeel :=
+            Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+              fuel0 reservedNames switchStart cases' body1 inner functions
+              (YulTransaction.ofIR tx) state.storage materializedSlots
+              hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+          have hSwitch :=
+            Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+              fuel0 tx.functionSelector
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              tx.functionSelector cases'
+              [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+              body' contract (YulTransaction.ofIR tx) state.storage
+              state.events materializedSlots err nativeYul
+              hSelector hCase hSelectorRangeNative hTagsRange
+              (by
+                intro pre suffix hCases
+                simpa [reservedNames, contract, materializedSlots,
+                  nativeContractOfInitPrefixedDispatcherWithMapping, fuel0] using
+                  hBody pre suffix hCases)
+              (by simpa using hProject)
+          simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+            nativeInitFreeMemoryPointerStmt, functions,
+            Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+        refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+          (contract := irContract) (tx := tx) (state := state)
+          (observableSlots := observableSlots)
+          (nativeContract := contract) ?_ hMatch
+        simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+          contract] using hProject
       apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
       simpa [nativeGeneratedDispatcherExecMatchesIROn,
         nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-        nativeContractOfDispatcherWithMapping, functions] using
-          hNativeDispatcherExec hFuel
-            (by simpa [reservedNames, nativeContractOfDispatcherWithMapping,
-                functions] using hBody)
-            (by simpa using hProject)
-            hMatch
+        nativeContractOfInitPrefixedDispatcherWithMapping,
+        nativeInitFreeMemoryPointerStmt, functions] using hNativeDispatcherExec'
   · have hNoMapping : irContract.usesMapping = false :=
       Bool.eq_false_iff.2 hUsesMapping
     rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
-    rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_atFuel
-        (nativeRuntimeDispatcherFuel irContract) irContract tx state
-        observableSlots inner
-        (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-        fn err nativeYul hLowerBlock hFind hSelectorRange hNoWrap
-        hFunctionSelectorsRange with
-      ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-        hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    let reservedNames :=
+      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+        hFind
     have hFuel :
-        cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+        cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
-      exact
-        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
+      have hBig :=
+        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
           hcompile hSupported hNoMapping hLowerCases
-    refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
+      omega
+    have hSelector :
+        tx.functionSelector =
+          (YulTransaction.ofIR tx).functionSelector %
+            Compiler.Constants.selectorModulus := by
+      simpa [YulTransaction.ofIR] using
+        (Nat.mod_eq_of_lt hSelectorRange).symm
+    have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+      exact Nat.lt_trans hSelectorRange (by decide)
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
+    refine ⟨reservedNames, switchStart, cases', body', bodyStart, bodyEnd,
       hCase, hBodyLower, ?_⟩
     intro hBody hProject hMatch
-    change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-      observableSlots (nativeContractOfDispatcher [.Block inner])
+    have hNativeDispatcherExec' :
+        nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
+          irContract tx state observableSlots
+          (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+      let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+      let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hFuelShape :
+          nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+        dsimp [fuel0]
+        exact (Nat.sub_add_cancel hFuel).symm
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (nativeRuntimeDispatcherFuel irContract) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) state.storage materializedSlots) =
+            .error err := by
+        rw [hFuelShape]
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            fuel0 reservedNames switchStart cases' body1 inner
+            (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+            (YulTransaction.ofIR tx) state.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+            fuel0 tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) state.storage
+            state.events materializedSlots err nativeYul
+            hSelector hCase hSelectorRangeNative hTagsRange
+            (by
+              intro pre suffix hCases
+              simpa [contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcher, fuel0] using
+                hBody pre suffix hCases)
+            (by simpa using hProject)
+        simpa [contract, nativeContractOfInitPrefixedDispatcher,
+          nativeInitFreeMemoryPointerStmt,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := state)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract] using hProject
     apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
     simpa [nativeGeneratedDispatcherExecMatchesIROn,
       nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-      nativeContractOfDispatcher] using
-        hNativeDispatcherExec hFuel
-          (by simpa [nativeContractOfDispatcher] using hBody)
-          (by simpa using hProject)
-          hMatch
+      nativeContractOfInitPrefixedDispatcher, nativeInitFreeMemoryPointerStmt]
+      using hNativeDispatcherExec'
 
 /-- Artifact-fixed native-vs-IR selector-hit error theorem for a supported
 generated runtime.
@@ -14890,10 +17412,10 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_error_artifact_
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -14930,81 +17452,202 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_error_artifact_
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         reservedNames 0 irContract.functions dispatcher nextSwitchId
         hLowerDispatcher with
       ⟨inner, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
-    rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_withSwitchIds_atFuel_artifact
-        (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
-        state observableSlots inner nextSwitchId functions fn
-        (by simpa [reservedNames] using hLowerBlock)
-        hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-      ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-        hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+        hFind
     have hFuel :
-        cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+        cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
-      exact
-        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
+      have hBig :=
+        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
           hcompile hSupported hMapping
           (by simpa [reservedNames] using hLowerCases)
+      omega
+    have hSelector :
+        tx.functionSelector =
+          (YulTransaction.ofIR tx).functionSelector %
+            Compiler.Constants.selectorModulus := by
+      simpa [YulTransaction.ofIR] using
+        (Nat.mod_eq_of_lt hSelectorRange).symm
+    have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+      exact Nat.lt_trans hSelectorRange (by decide)
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
     refine ⟨reservedNames, switchStart, cases', midN, body', bodyStart, bodyEnd,
       by simpa [reservedNames] using hLowerCases, hCase, ?_, ?_⟩
     · simpa [reservedNames] using hBodyLower
     · intro err nativeYul hBody hProject hMatch
-      change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-        observableSlots (nativeContractOfDispatcherWithMapping [.Block inner])
+      have hNativeDispatcherExec' :
+          nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
+            irContract tx state observableSlots
+            (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+        let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+        let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+        let materializedSlots :=
+          Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode irContract) observableSlots
+        have hFuelShape :
+            nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+          dsimp [fuel0]
+          exact (Nat.sub_add_cancel hFuel).symm
+        have hExec :
+            Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+                (nativeRuntimeDispatcherFuel irContract) contract
+                (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                  (YulTransaction.ofIR tx) state.storage materializedSlots) =
+              .error err := by
+          rw [hFuelShape]
+          have hPeel :=
+            Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+              fuel0 reservedNames switchStart cases' body1 inner functions
+              (YulTransaction.ofIR tx) state.storage materializedSlots
+              hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+          have hSwitch :=
+            Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+              fuel0 tx.functionSelector
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              tx.functionSelector cases'
+              [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+              body' contract (YulTransaction.ofIR tx) state.storage
+              state.events materializedSlots err nativeYul
+              hSelector hCase hSelectorRangeNative hTagsRange
+              (by
+                intro pre suffix hCases
+                simpa [reservedNames, contract, materializedSlots,
+                  nativeContractOfInitPrefixedDispatcherWithMapping, fuel0] using
+                  hBody pre suffix hCases)
+              (by simpa using hProject)
+          simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+            nativeInitFreeMemoryPointerStmt, functions,
+            Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+        refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+          (contract := irContract) (tx := tx) (state := state)
+          (observableSlots := observableSlots)
+          (nativeContract := contract) ?_ hMatch
+        simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+          contract] using hProject
       apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
       simpa [nativeGeneratedDispatcherExecMatchesIROn,
         nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-        nativeContractOfDispatcherWithMapping, functions] using
-          hNativeDispatcherExec err nativeYul hFuel
-            (by simpa [reservedNames, nativeContractOfDispatcherWithMapping,
-                functions] using hBody)
-            (by simpa using hProject)
-            hMatch
+        nativeContractOfInitPrefixedDispatcherWithMapping,
+        nativeInitFreeMemoryPointerStmt, functions] using hNativeDispatcherExec'
   · have hNoMapping : irContract.usesMapping = false :=
       Bool.eq_false_iff.2 hUsesMapping
     rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
-    rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_error_noFallback_noReceive_atFuel_artifact
-        (nativeRuntimeDispatcherFuel irContract) irContract tx state
-        observableSlots inner
-        (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-        fn hLowerBlock hFind hSelectorRange hNoWrap
-        hFunctionSelectorsRange with
-      ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-        hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    let reservedNames :=
+      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+        hFind
     have hFuel :
-        cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+        cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
-      exact
-        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
+      have hBig :=
+        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
           hcompile hSupported hNoMapping hLowerCases
-    refine ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      omega
+    have hSelector :
+        tx.functionSelector =
+          (YulTransaction.ofIR tx).functionSelector %
+            Compiler.Constants.selectorModulus := by
+      simpa [YulTransaction.ofIR] using
+        (Nat.mod_eq_of_lt hSelectorRange).symm
+    have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+      exact Nat.lt_trans hSelectorRange (by decide)
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
+    refine ⟨reservedNames, switchStart, cases', midN, body', bodyStart, bodyEnd,
       hLowerCases, hCase, hBodyLower, ?_⟩
     intro err nativeYul hBody hProject hMatch
-    change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-      observableSlots (nativeContractOfDispatcher [.Block inner])
+    have hNativeDispatcherExec' :
+        nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
+          irContract tx state observableSlots
+          (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+      let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+      let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hFuelShape :
+          nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+        dsimp [fuel0]
+        exact (Nat.sub_add_cancel hFuel).symm
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (nativeRuntimeDispatcherFuel irContract) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) state.storage materializedSlots) =
+            .error err := by
+        rw [hFuelShape]
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            fuel0 reservedNames switchStart cases' body1 inner
+            (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+            (YulTransaction.ofIR tx) state.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
+            fuel0 tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) state.storage
+            state.events materializedSlots err nativeYul
+            hSelector hCase hSelectorRangeNative hTagsRange
+            (by
+              intro pre suffix hCases
+              simpa [contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcher, fuel0] using
+                hBody pre suffix hCases)
+            (by simpa using hProject)
+        simpa [contract, nativeContractOfInitPrefixedDispatcher,
+          nativeInitFreeMemoryPointerStmt,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := state)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract] using hProject
     apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
     simpa [nativeGeneratedDispatcherExecMatchesIROn,
       nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-      nativeContractOfDispatcher] using
-        hNativeDispatcherExec err nativeYul hFuel
-          (by simpa [nativeContractOfDispatcher] using hBody)
-          (by simpa using hProject)
-          hMatch
+      nativeContractOfInitPrefixedDispatcher, nativeInitFreeMemoryPointerStmt]
+      using hNativeDispatcherExec'
 
 /-- Selector-hit error native-vs-IR theorem with native lowering produced from
 `SupportedSpec + compile`.
@@ -15043,10 +17686,10 @@ theorem nativeGeneratedCallDispatcherResult_selector_hit_error_matchesIR_exists_
         ((∀ pre suffix,
             cases' = pre ++ (tx.functionSelector, body') :: suffix →
             EvmYul.Yul.exec
-              (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
-                  1) + suffix.length + 7) (.Block body')
+              (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
+                1) + suffix.length + 7) (.Block body')
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -15074,9 +17717,9 @@ theorem nativeGeneratedCallDispatcherResult_selector_hit_error_matchesIR_exists_
       fn err nativeYul hcompile hLowerRuntime hFind hSelectorRange
       hSelectorsRange hNoWrap with
     ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower, hCont⟩
+      hCase, hBodyLower, hDispatcherContinuation⟩
   exact ⟨nativeContract, hLowerRuntime, reservedNames, n0, cases',
-    body', bodyStart, bodyEnd, hCase, hBodyLower, hCont⟩
+    body', bodyStart, bodyEnd, hCase, hBodyLower, hDispatcherContinuation⟩
 
 /-- Native-vs-IR selector-hit success theorem for a supported generated runtime.
 
@@ -15124,10 +17767,10 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_of
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -15184,85 +17827,276 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_of
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         reservedNames 0 irContract.functions dispatcher nextSwitchId
         hLowerDispatcher with
       ⟨inner, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
-    rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds_atFuel
-        (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
-        state observableSlots inner nextSwitchId functions fn final nativeYul
-        (by simpa [reservedNames] using hLowerBlock)
-        hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-      ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-        hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+        hFind
     have hFuel :
-        cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+        cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
-      exact
-        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
+      have hBig :=
+        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
           hcompile hSupported hMapping
           (by simpa [reservedNames] using hLowerCases)
+      omega
+    have hSelector :
+        tx.functionSelector =
+          (YulTransaction.ofIR tx).functionSelector %
+            Compiler.Constants.selectorModulus := by
+      simpa [YulTransaction.ofIR] using
+        (Nat.mod_eq_of_lt hSelectorRange).symm
+    have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+      exact Nat.lt_trans hSelectorRange (by decide)
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
     refine ⟨reservedNames, switchStart, cases', midN, body', bodyStart, bodyEnd,
       by simpa [reservedNames] using hLowerCases, hCase, ?_, ?_⟩
     · simpa [reservedNames] using hBodyLower
     · intro hBody hPreservesMatched hProject hMatch
-      change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-        observableSlots (nativeContractOfDispatcherWithMapping [.Block inner])
+      have hNativeDispatcherExec' :
+          nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
+            irContract tx state observableSlots
+            (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+        let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+        let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+        let materializedSlots :=
+          Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode irContract) observableSlots
+        have hFuelShape :
+            nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+          dsimp [fuel0]
+          exact (Nat.sub_add_cancel hFuel).symm
+        have hExec :
+            Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+                (nativeRuntimeDispatcherFuel irContract) contract
+                (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                  (YulTransaction.ofIR tx) state.storage materializedSlots) =
+              .ok final := by
+          rw [hFuelShape]
+          have hPeel :=
+            Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+              fuel0 reservedNames switchStart cases' body1 inner functions
+              (YulTransaction.ofIR tx) state.storage materializedSlots
+              hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+          have hFinalMatched :
+              ∀ matchedName : EvmYul.Identifier,
+                matchedName =
+                    Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                        reservedNames switchStart) →
+                  final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+            intro matchedName hMatchedName
+            subst matchedName
+            rcases
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+                tx.functionSelector cases' tx.functionSelector body' hCase with
+              ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+            exact hPreservesMatched pre suffix hCases
+              (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
+                  1) + suffix.length + 7)
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+                contract (YulTransaction.ofIR tx) state.storage materializedSlots
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)
+                Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+              final
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+                contract (YulTransaction.ofIR tx) state.storage materializedSlots
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)
+                Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+                (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                    reservedNames switchStart)) rfl)
+              (by
+                simpa [reservedNames, contract, materializedSlots,
+                  nativeContractOfInitPrefixedDispatcherWithMapping, fuel0] using
+                  hBody pre suffix hCases)
+          have hSwitch :=
+            Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+              fuel0 tx.functionSelector
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              tx.functionSelector cases'
+              [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+              body' contract (YulTransaction.ofIR tx) state.storage
+              state.events materializedSlots final
+              (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+                (YulTransaction.ofIR tx) state.storage state.events
+                (.ok (final, [])))
+              hSelector hCase hSelectorRangeNative hTagsRange
+              (by
+                intro pre suffix hCases
+                simpa [reservedNames, contract, materializedSlots,
+                  nativeContractOfInitPrefixedDispatcherWithMapping, fuel0] using
+                  hBody pre suffix hCases)
+              hFinalMatched rfl
+          simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+            nativeInitFreeMemoryPointerStmt, functions,
+            Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+        refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+          (contract := irContract) (tx := tx) (state := state)
+          (observableSlots := observableSlots)
+          (nativeContract := contract) ?_ hMatch
+        simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+          contract] using hProject
       apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
       simpa [nativeGeneratedDispatcherExecMatchesIROn,
         nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-        nativeContractOfDispatcherWithMapping, functions] using
-          hNativeDispatcherExec hFuel
-            (by simpa [reservedNames, nativeContractOfDispatcherWithMapping,
-                functions] using hBody)
-            (by simpa [reservedNames, nativeContractOfDispatcherWithMapping,
-                functions] using hPreservesMatched)
-            (by simpa [nativeContractOfDispatcherWithMapping, functions]
-                using hProject)
-            hMatch
+        nativeContractOfInitPrefixedDispatcherWithMapping,
+        nativeInitFreeMemoryPointerStmt, functions] using hNativeDispatcherExec'
   · have hNoMapping : irContract.usesMapping = false :=
       Bool.eq_false_iff.2 hUsesMapping
     rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
-    rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_atFuel
-        (nativeRuntimeDispatcherFuel irContract) irContract tx state
-        observableSlots inner
-        (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-        fn final nativeYul hLowerBlock hFind hSelectorRange hNoWrap
-        hFunctionSelectorsRange with
-      ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-        hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    let reservedNames :=
+      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+        hFind
     have hFuel :
-        cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+        cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
-      exact
-        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
+      have hBig :=
+        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
           hcompile hSupported hNoMapping hLowerCases
-    refine ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      omega
+    have hSelector :
+        tx.functionSelector =
+          (YulTransaction.ofIR tx).functionSelector %
+            Compiler.Constants.selectorModulus := by
+      simpa [YulTransaction.ofIR] using
+        (Nat.mod_eq_of_lt hSelectorRange).symm
+    have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+      exact Nat.lt_trans hSelectorRange (by decide)
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
+    refine ⟨reservedNames, switchStart, cases', midN, body', bodyStart, bodyEnd,
       hLowerCases, hCase, hBodyLower, ?_⟩
     intro hBody hPreservesMatched hProject hMatch
-    change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-      observableSlots (nativeContractOfDispatcher [.Block inner])
+    have hNativeDispatcherExec' :
+        nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
+          irContract tx state observableSlots
+          (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+      let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+      let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hFuelShape :
+          nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+        dsimp [fuel0]
+        exact (Nat.sub_add_cancel hFuel).symm
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (nativeRuntimeDispatcherFuel irContract) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) state.storage materializedSlots) =
+            .ok final := by
+        rw [hFuelShape]
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            fuel0 reservedNames switchStart cases' body1 inner
+            (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+            (YulTransaction.ofIR tx) state.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hFinalMatched :
+            ∀ matchedName : EvmYul.Identifier,
+              matchedName =
+                  Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                      reservedNames switchStart) →
+                final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+          intro matchedName hMatchedName
+          subst matchedName
+          rcases
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+              tx.functionSelector cases' tx.functionSelector body' hCase with
+            ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+          exact hPreservesMatched pre suffix hCases
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
+                1) + suffix.length + 7)
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              contract (YulTransaction.ofIR tx) state.storage materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+            final
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+              contract (YulTransaction.ofIR tx) state.storage materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)) rfl)
+            (by
+              simpa [contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcher, fuel0] using
+                hBody pre suffix hCases)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+            fuel0 tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) state.storage
+            state.events materializedSlots final
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) state.storage state.events
+              (.ok (final, [])))
+            hSelector hCase hSelectorRangeNative hTagsRange
+            (by
+              intro pre suffix hCases
+              simpa [contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcher, fuel0] using
+                hBody pre suffix hCases)
+            hFinalMatched rfl
+        simpa [contract, nativeContractOfInitPrefixedDispatcher,
+          nativeInitFreeMemoryPointerStmt,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := state)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract] using hProject
     apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
     simpa [nativeGeneratedDispatcherExecMatchesIROn,
       nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-      nativeContractOfDispatcher] using
-        hNativeDispatcherExec hFuel
-          (by simpa [nativeContractOfDispatcher] using hBody)
-          (by simpa [nativeContractOfDispatcher] using hPreservesMatched)
-          (by simpa [nativeContractOfDispatcher] using hProject)
-          hMatch
+      nativeContractOfInitPrefixedDispatcher, nativeInitFreeMemoryPointerStmt]
+      using hNativeDispatcherExec'
 
 /-- Native-vs-IR selector-hit success theorem for a supported generated runtime
 with the selected-body result quantified inside the continuation.
@@ -15310,10 +18144,10 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_fo
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -15370,85 +18204,276 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_fo
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         reservedNames 0 irContract.functions dispatcher nextSwitchId
         hLowerDispatcher with
       ⟨inner, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
-    rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds_atFuel_forall
-        (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
-        state observableSlots inner nextSwitchId functions fn
-        (by simpa [reservedNames] using hLowerBlock)
-        hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-      ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-        hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+        hFind
     have hFuel :
-        cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+        cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
-      exact
-        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
+      have hBig :=
+        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
           hcompile hSupported hMapping
           (by simpa [reservedNames] using hLowerCases)
+      omega
+    have hSelector :
+        tx.functionSelector =
+          (YulTransaction.ofIR tx).functionSelector %
+            Compiler.Constants.selectorModulus := by
+      simpa [YulTransaction.ofIR] using
+        (Nat.mod_eq_of_lt hSelectorRange).symm
+    have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+      exact Nat.lt_trans hSelectorRange (by decide)
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
     refine ⟨reservedNames, switchStart, cases', midN, body', bodyStart, bodyEnd,
       by simpa [reservedNames] using hLowerCases, hCase, ?_, ?_⟩
     · simpa [reservedNames] using hBodyLower
     · intro final nativeYul hBody hPreservesMatched hProject hMatch
-      change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-        observableSlots (nativeContractOfDispatcherWithMapping [.Block inner])
+      have hNativeDispatcherExec' :
+          nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
+            irContract tx state observableSlots
+            (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+        let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+        let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+        let materializedSlots :=
+          Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode irContract) observableSlots
+        have hFuelShape :
+            nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+          dsimp [fuel0]
+          exact (Nat.sub_add_cancel hFuel).symm
+        have hExec :
+            Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+                (nativeRuntimeDispatcherFuel irContract) contract
+                (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                  (YulTransaction.ofIR tx) state.storage materializedSlots) =
+              .ok final := by
+          rw [hFuelShape]
+          have hPeel :=
+            Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+              fuel0 reservedNames switchStart cases' body1 inner functions
+              (YulTransaction.ofIR tx) state.storage materializedSlots
+              hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+          have hFinalMatched :
+              ∀ matchedName : EvmYul.Identifier,
+                matchedName =
+                    Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                        reservedNames switchStart) →
+                  final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+            intro matchedName hMatchedName
+            subst matchedName
+            rcases
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+                tx.functionSelector cases' tx.functionSelector body' hCase with
+              ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+            exact hPreservesMatched pre suffix hCases
+              (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
+                  1) + suffix.length + 7)
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+                contract (YulTransaction.ofIR tx) state.storage materializedSlots
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)
+                Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+              final
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+                contract (YulTransaction.ofIR tx) state.storage materializedSlots
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)
+                Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+                (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                  (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                    reservedNames switchStart)) rfl)
+              (by
+                simpa [reservedNames, contract, materializedSlots,
+                  nativeContractOfInitPrefixedDispatcherWithMapping, fuel0] using
+                  hBody pre suffix hCases)
+          have hSwitch :=
+            Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+              fuel0 tx.functionSelector
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              tx.functionSelector cases'
+              [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+              body' contract (YulTransaction.ofIR tx) state.storage
+              state.events materializedSlots final
+              (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+                (YulTransaction.ofIR tx) state.storage state.events
+                (.ok (final, [])))
+              hSelector hCase hSelectorRangeNative hTagsRange
+              (by
+                intro pre suffix hCases
+                simpa [reservedNames, contract, materializedSlots,
+                  nativeContractOfInitPrefixedDispatcherWithMapping, fuel0] using
+                  hBody pre suffix hCases)
+              hFinalMatched rfl
+          simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+            nativeInitFreeMemoryPointerStmt, functions,
+            Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+        refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+          (contract := irContract) (tx := tx) (state := state)
+          (observableSlots := observableSlots)
+          (nativeContract := contract) ?_ hMatch
+        simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+          contract] using hProject
       apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
       simpa [nativeGeneratedDispatcherExecMatchesIROn,
         nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-        nativeContractOfDispatcherWithMapping, functions] using
-          hNativeDispatcherExec final nativeYul hFuel
-            (by simpa [reservedNames, nativeContractOfDispatcherWithMapping,
-                functions] using hBody)
-            (by simpa [reservedNames, nativeContractOfDispatcherWithMapping,
-                functions] using hPreservesMatched)
-            (by simpa [nativeContractOfDispatcherWithMapping, functions]
-                using hProject)
-            hMatch
+        nativeContractOfInitPrefixedDispatcherWithMapping,
+        nativeInitFreeMemoryPointerStmt, functions] using hNativeDispatcherExec'
   · have hNoMapping : irContract.usesMapping = false :=
       Bool.eq_false_iff.2 hUsesMapping
     rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
-    rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_atFuel_forall
-        (nativeRuntimeDispatcherFuel irContract) irContract tx state
-        observableSlots inner
-        (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-        fn hLowerBlock hFind hSelectorRange hNoWrap
-        hFunctionSelectorsRange with
-      ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-        hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    let reservedNames :=
+      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+        hFind
     have hFuel :
-        cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+        cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
-      exact
-        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
+      have hBig :=
+        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
           hcompile hSupported hNoMapping hLowerCases
-    refine ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      omega
+    have hSelector :
+        tx.functionSelector =
+          (YulTransaction.ofIR tx).functionSelector %
+            Compiler.Constants.selectorModulus := by
+      simpa [YulTransaction.ofIR] using
+        (Nat.mod_eq_of_lt hSelectorRange).symm
+    have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+      exact Nat.lt_trans hSelectorRange (by decide)
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
+    refine ⟨reservedNames, switchStart, cases', midN, body', bodyStart, bodyEnd,
       hLowerCases, hCase, hBodyLower, ?_⟩
     intro final nativeYul hBody hPreservesMatched hProject hMatch
-    change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-      observableSlots (nativeContractOfDispatcher [.Block inner])
+    have hNativeDispatcherExec' :
+        nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
+          irContract tx state observableSlots
+          (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+      let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+      let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hFuelShape :
+          nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+        dsimp [fuel0]
+        exact (Nat.sub_add_cancel hFuel).symm
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (nativeRuntimeDispatcherFuel irContract) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) state.storage materializedSlots) =
+            .ok final := by
+        rw [hFuelShape]
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            fuel0 reservedNames switchStart cases' body1 inner
+            (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+            (YulTransaction.ofIR tx) state.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hFinalMatched :
+            ∀ matchedName : EvmYul.Identifier,
+              matchedName =
+                  Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                      reservedNames switchStart) →
+                final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+          intro matchedName hMatchedName
+          subst matchedName
+          rcases
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+              tx.functionSelector cases' tx.functionSelector body' hCase with
+            ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+          exact hPreservesMatched pre suffix hCases
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
+                1) + suffix.length + 7)
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              contract (YulTransaction.ofIR tx) state.storage materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+            final
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+              contract (YulTransaction.ofIR tx) state.storage materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)) rfl)
+            (by
+              simpa [contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcher, fuel0] using
+                hBody pre suffix hCases)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+            fuel0 tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) state.storage
+            state.events materializedSlots final
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) state.storage state.events
+              (.ok (final, [])))
+            hSelector hCase hSelectorRangeNative hTagsRange
+            (by
+              intro pre suffix hCases
+              simpa [contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcher, fuel0] using
+                hBody pre suffix hCases)
+            hFinalMatched rfl
+        simpa [contract, nativeContractOfInitPrefixedDispatcher,
+          nativeInitFreeMemoryPointerStmt,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := state)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract] using hProject
     apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
     simpa [nativeGeneratedDispatcherExecMatchesIROn,
       nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-      nativeContractOfDispatcher] using
-        hNativeDispatcherExec final nativeYul hFuel
-          (by simpa [nativeContractOfDispatcher] using hBody)
-          (by simpa [nativeContractOfDispatcher] using hPreservesMatched)
-          (by simpa [nativeContractOfDispatcher] using hProject)
-          hMatch
+      nativeContractOfInitPrefixedDispatcher, nativeInitFreeMemoryPointerStmt]
+      using hNativeDispatcherExec'
 
 /-- Generated dispatcher selector-hit theorem with a direct raw matched-flag endpoint fact. -/
 private theorem nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_forall_of_compile_ok_supported_finalMatched
@@ -15492,10 +18517,10 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_fo
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -15549,85 +18574,208 @@ private theorem nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_fo
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         reservedNames 0 irContract.functions dispatcher nextSwitchId
         hLowerDispatcher with
       ⟨inner, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
-    rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds_atFuel_forall_finalMatched
-        (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
-        state observableSlots inner nextSwitchId functions fn
-        (by simpa [reservedNames] using hLowerBlock)
-        hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-      ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-        hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+        hFind
     have hFuel :
-        cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+        cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
-      exact
-        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
+      have hBig :=
+        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
           hcompile hSupported hMapping
           (by simpa [reservedNames] using hLowerCases)
+      omega
+    have hSelector :
+        tx.functionSelector =
+          (YulTransaction.ofIR tx).functionSelector %
+            Compiler.Constants.selectorModulus := by
+      simpa [YulTransaction.ofIR] using
+        (Nat.mod_eq_of_lt hSelectorRange).symm
+    have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+      exact Nat.lt_trans hSelectorRange (by decide)
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
     refine ⟨reservedNames, switchStart, cases', midN, body', bodyStart, bodyEnd,
       by simpa [reservedNames] using hLowerCases, hCase, ?_, ?_⟩
     · simpa [reservedNames] using hBodyLower
     · intro final nativeYul hBody hFinalMatched hProject hMatch
-      change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-        observableSlots (nativeContractOfDispatcherWithMapping [.Block inner])
+      have hNativeDispatcherExec' :
+          nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
+            irContract tx state observableSlots
+            (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+        let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+        let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+        let materializedSlots :=
+          Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+            (Compiler.runtimeCode irContract) observableSlots
+        have hFuelShape :
+            nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+          dsimp [fuel0]
+          exact (Nat.sub_add_cancel hFuel).symm
+        have hExec :
+            Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+                (nativeRuntimeDispatcherFuel irContract) contract
+                (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                  (YulTransaction.ofIR tx) state.storage materializedSlots) =
+              .ok final := by
+          rw [hFuelShape]
+          have hPeel :=
+            Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+              fuel0 reservedNames switchStart cases' body1 inner functions
+              (YulTransaction.ofIR tx) state.storage materializedSlots
+              hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+          have hSwitch :=
+            Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+              fuel0 tx.functionSelector
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              tx.functionSelector cases'
+              [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+              body' contract (YulTransaction.ofIR tx) state.storage
+              state.events materializedSlots final
+              (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+                (YulTransaction.ofIR tx) state.storage state.events
+                (.ok (final, [])))
+              hSelector hCase hSelectorRangeNative hTagsRange
+              (by
+                intro pre suffix hCases
+                simpa [reservedNames, contract, materializedSlots,
+                  nativeContractOfInitPrefixedDispatcherWithMapping, fuel0] using
+                  hBody pre suffix hCases)
+              hFinalMatched rfl
+          simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+            nativeInitFreeMemoryPointerStmt, functions,
+            Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+        refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+          (contract := irContract) (tx := tx) (state := state)
+          (observableSlots := observableSlots)
+          (nativeContract := contract) ?_ hMatch
+        simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+          contract] using hProject
       apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
       simpa [nativeGeneratedDispatcherExecMatchesIROn,
         nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-        nativeContractOfDispatcherWithMapping, functions] using
-          hNativeDispatcherExec final nativeYul hFuel
-            (by simpa [reservedNames, nativeContractOfDispatcherWithMapping,
-                functions] using hBody)
-            (by simpa [reservedNames, nativeContractOfDispatcherWithMapping,
-                functions] using hFinalMatched)
-            (by simpa [nativeContractOfDispatcherWithMapping, functions]
-                using hProject)
-            hMatch
+        nativeContractOfInitPrefixedDispatcherWithMapping,
+        nativeInitFreeMemoryPointerStmt, functions] using hNativeDispatcherExec'
   · have hNoMapping : irContract.usesMapping = false :=
       Bool.eq_false_iff.2 hUsesMapping
     rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
-    rcases
-      nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_atFuel_forall_finalMatched
-        (nativeRuntimeDispatcherFuel irContract) irContract tx state
-        observableSlots inner
-        (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-        fn hLowerBlock hFind hSelectorRange hNoWrap
-        hFunctionSelectorsRange with
-      ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-        hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    let reservedNames :=
+      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none]
+    obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+        hInner, hLowerCases, hCase, hBodyLower⟩ :=
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+        hFind
     have hFuel :
-        cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+        cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
       dsimp [nativeRuntimeDispatcherFuel]
-      exact
-        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
+      have hBig :=
+        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
           hcompile hSupported hNoMapping hLowerCases
-    refine ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      omega
+    have hSelector :
+        tx.functionSelector =
+          (YulTransaction.ofIR tx).functionSelector %
+            Compiler.Constants.selectorModulus := by
+      simpa [YulTransaction.ofIR] using
+        (Nat.mod_eq_of_lt hSelectorRange).symm
+    have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+      exact Nat.lt_trans hSelectorRange (by decide)
+    have hTagsRange :
+        ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+      lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+        reservedNames
+        (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+          reservedNames switchStart + 1)
+        midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
+    refine ⟨reservedNames, switchStart, cases', midN, body', bodyStart, bodyEnd,
       hLowerCases, hCase, hBodyLower, ?_⟩
     intro final nativeYul hBody hFinalMatched hProject hMatch
-    change nativeGeneratedCallDispatcherMatchesIROn irContract tx state
-      observableSlots (nativeContractOfDispatcher [.Block inner])
+    have hNativeDispatcherExec' :
+        nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
+          irContract tx state observableSlots
+          (nativeContractOfInitPrefixedDispatcher [.Block inner]) := by
+      let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+      let contract := nativeContractOfInitPrefixedDispatcher [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hFuelShape :
+          nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+        dsimp [fuel0]
+        exact (Nat.sub_add_cancel hFuel).symm
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (nativeRuntimeDispatcherFuel irContract) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) state.storage materializedSlots) =
+            .ok final := by
+        rw [hFuelShape]
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            fuel0 reservedNames switchStart cases' body1 inner
+            (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
+            (YulTransaction.ofIR tx) state.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+            fuel0 tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) state.storage
+            state.events materializedSlots final
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) state.storage state.events
+              (.ok (final, [])))
+            hSelector hCase hSelectorRangeNative hTagsRange
+            (by
+              intro pre suffix hCases
+              simpa [contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcher, fuel0] using
+                hBody pre suffix hCases)
+            hFinalMatched rfl
+        simpa [contract, nativeContractOfInitPrefixedDispatcher,
+          nativeInitFreeMemoryPointerStmt,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := state)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract] using hProject
     apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
     simpa [nativeGeneratedDispatcherExecMatchesIROn,
       nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-      nativeContractOfDispatcher] using
-        hNativeDispatcherExec final nativeYul hFuel
-          (by simpa [nativeContractOfDispatcher] using hBody)
-          (by simpa [nativeContractOfDispatcher] using hFinalMatched)
-          (by simpa [nativeContractOfDispatcher] using hProject)
-          hMatch
+      nativeContractOfInitPrefixedDispatcher, nativeInitFreeMemoryPointerStmt]
+      using hNativeDispatcherExec'
 
 
 /-- Selector-hit success native-vs-IR theorem with native lowering produced
@@ -15667,10 +18815,10 @@ theorem nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_exists_of_
         ((∀ pre suffix,
             cases' = pre ++ (tx.functionSelector, body') :: suffix →
             EvmYul.Yul.exec
-              (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
-                  1) + suffix.length + 7) (.Block body')
+              (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
+                1) + suffix.length + 7) (.Block body')
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -15718,9 +18866,9 @@ theorem nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_exists_of_
       fn final nativeYul hcompile hLowerRuntime hFind hSelectorRange
       hSelectorsRange hNoWrap with
     ⟨reservedNames, n0, cases', _midN, body', bodyStart, bodyEnd,
-      _hLowerCases, hCase, hBodyLower, hCont⟩
+      _hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   exact ⟨nativeContract, hLowerRuntime, reservedNames, n0, cases',
-    body', bodyStart, bodyEnd, hCase, hBodyLower, hCont⟩
+    body', bodyStart, bodyEnd, hCase, hBodyLower, hDispatcherContinuation⟩
 
 /-- Selector-hit lowered-artifact theorem for a supported generated runtime.
 
@@ -15764,7 +18912,7 @@ private theorem nativeGeneratedSelectorHitLoweredArtifacts_of_compile_ok_support
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         reservedNames 0 irContract.functions dispatcher nextSwitchId
         hLowerDispatcher with
       ⟨inner, hDispatcher, hLowerBlock⟩
@@ -15786,18 +18934,25 @@ private theorem nativeGeneratedSelectorHitLoweredArtifacts_of_compile_ok_support
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
+    let reservedNames :=
+      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none]
     rcases
-      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function
-        irContract.functions inner tx.functionSelector fn hLowerBlock hFind with
-      ⟨_body1, reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
+      Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+        reservedNames 0 irContract.functions inner nextSwitchId
+        tx.functionSelector fn
+        (by simpa [reservedNames] using hLowerBlock)
+        hFind with
+      ⟨_body1, n0, cases', midN, body', bodyStart, bodyEnd,
         _hInner, hLowerCases, hCase, hBodyLower⟩
     exact ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower⟩
+      hCase, by simpa [reservedNames] using hBodyLower⟩
 
 /-- Selector-hit success lowered artifacts for a supported generated runtime,
 including the direct lowered user function body.
@@ -15873,7 +19028,7 @@ private theorem nativeGeneratedSelectorHitSuccessUserBodyLoweredArtifacts_of_com
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         reservedNames 0 irContract.functions dispatcher nextSwitchId
         hLowerDispatcher with
       ⟨inner, hDispatcher, hLowerBlock⟩
@@ -15888,7 +19043,7 @@ private theorem nativeGeneratedSelectorHitSuccessUserBodyLoweredArtifacts_of_com
           hFind hSelectorRange hNoWrap hFunctionSelectorsRange
           (by simpa using hPayable) hguards hArgs with
         ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
-          userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, _hCont⟩
+          userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, _hDispatcherContinuation⟩
       exact ⟨reservedNames, switchStart, cases', midN, body', bodyNative,
         bodyStart, bodyEnd, userBodyStart,
         by simpa [reservedNames] using hLowerCases,
@@ -15904,7 +19059,7 @@ private theorem nativeGeneratedSelectorHitSuccessUserBodyLoweredArtifacts_of_com
           hFind hSelectorRange hNoWrap hFunctionSelectorsRange hNonPayable
           hguards hArgs with
         ⟨switchStart, cases', midN, body', bodyNative, bodyStart, bodyEnd,
-          userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, _hCont⟩
+          userBodyStart, hLowerCases, hCase, hBodyLower, hUserBodyLower, _hDispatcherContinuation⟩
       exact ⟨reservedNames, switchStart, cases', midN, body', bodyNative,
         bodyStart, bodyEnd, userBodyStart,
         by simpa [reservedNames] using hLowerCases,
@@ -15917,45 +19072,59 @@ private theorem nativeGeneratedSelectorHitSuccessUserBodyLoweredArtifacts_of_com
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
+    let reservedNames :=
+      Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none]
     by_cases hPayable : fn.payable
     · rcases
-        nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_payable_generated_prefix
-          0 irContract tx state observableSlots inner
+        nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_payable_withSwitchIds_generated_prefix
+          0 reservedNames 0 irContract tx state observableSlots inner nextSwitchId
           (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-          fn dummyNativeState dummyYul hLowerBlock hFind hSelectorRange
+          fn dummyNativeState dummyYul
+          (by simpa [reservedNames] using hLowerBlock)
+          hFind hSelectorRange
           hNoWrap hFunctionSelectorsRange (by simpa using hPayable)
           hguards hArgs with
-        ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart,
+        ⟨switchStart, cases', midN, body', bodyNative, bodyStart,
           bodyEnd, userBodyStart, hLowerCases, hCase, hBodyLower,
-          hUserBodyLower, _hCont⟩
-      exact ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart,
-        bodyEnd, userBodyStart, hLowerCases, hCase, hBodyLower,
-        hUserBodyLower⟩
+          hUserBodyLower, _hDispatcherContinuation⟩
+      exact ⟨reservedNames, switchStart, cases', midN, body', bodyNative,
+        bodyStart, bodyEnd, userBodyStart,
+        by simpa [reservedNames] using hLowerCases,
+        hCase,
+        by simpa [reservedNames] using hBodyLower,
+        by simpa [reservedNames] using hUserBodyLower⟩
     · have hNonPayable : fn.payable = false := Bool.eq_false_iff.2 hPayable
       rcases
-        nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_nonpayable_generated_prefix
-          0 irContract tx state observableSlots inner
+        nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_nonpayable_withSwitchIds_generated_prefix
+          0 reservedNames 0 irContract tx state observableSlots inner nextSwitchId
           (∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap)
-          fn dummyNativeState dummyYul hLowerBlock hFind hSelectorRange
+          fn dummyNativeState dummyYul
+          (by simpa [reservedNames] using hLowerBlock)
+          hFind hSelectorRange
           hNoWrap hFunctionSelectorsRange hNonPayable hguards hArgs with
-        ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart,
+        ⟨switchStart, cases', midN, body', bodyNative, bodyStart,
           bodyEnd, userBodyStart, hLowerCases, hCase, hBodyLower,
-          hUserBodyLower, _hCont⟩
-      exact ⟨reservedNames, n0, cases', midN, body', bodyNative, bodyStart,
-        bodyEnd, userBodyStart, hLowerCases, hCase, hBodyLower,
-        hUserBodyLower⟩
+          hUserBodyLower, _hDispatcherContinuation⟩
+      exact ⟨reservedNames, switchStart, cases', midN, body', bodyNative,
+        bodyStart, bodyEnd, userBodyStart,
+        by simpa [reservedNames] using hLowerCases,
+        hCase,
+        by simpa [reservedNames] using hBodyLower,
+        by simpa [reservedNames] using hUserBodyLower⟩
 
 /-- Selector-hit success lowered artifacts for a supported generated runtime,
 with native runtime lowering produced directly from `SupportedSpec + compile`.
 
 This packages the full lowering witness with the generated switch-case and
 selected user-body lowering artifacts needed by the remaining native body
-execution bridge. -/
+ExecBridge. -/
 theorem nativeGeneratedSelectorHitSuccessUserBodyLoweredArtifacts_exists_of_compile_ok_supported
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (hSupported : SupportedSpec spec selectors)
@@ -16158,10 +19327,10 @@ private def NativeGeneratedSelectorHitBodyBridge
       (∀ pre suffix,
         cases' = pre ++ (tx.functionSelector, body') :: suffix →
         EvmYul.Yul.exec
-          (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
-              1) + suffix.length + 7) (.Block body')
+          (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
+                1) + suffix.length + 7) (.Block body')
           (some nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
             nativeContract
             (YulTransaction.ofIR tx)
             state.storage
@@ -16230,10 +19399,10 @@ private def NativeGeneratedSelectorHitUserBodyBridge
       (∀ pre suffix,
         cases' = pre ++ (tx.functionSelector, body') :: suffix →
         EvmYul.Yul.exec
-          (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+          (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
               1) + suffix.length + 10) (.Block bodyNative)
           (some nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
             nativeContract
             (YulTransaction.ofIR tx)
             state.storage
@@ -16267,9 +19436,9 @@ noncomputable def nativeGeneratedSelectorHitUserBodyFuel
     (irContract : IRContract) (fn : IRFunction)
     (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) : Nat :=
   if fn.payable then
-    nativeRuntimeDispatcherFuel irContract - (cases'.length + 23)
-  else
     nativeRuntimeDispatcherFuel irContract - (cases'.length + 24)
+  else
+    nativeRuntimeDispatcherFuel irContract - (cases'.length + 25)
 
 /-- Exact-fuel user-body selector-hit bridge target.
 
@@ -16306,7 +19475,7 @@ private def NativeGeneratedSelectorHitUserBodyBridgeAtFuel
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
               suffix.length + 10) (.Block bodyNative)
           (some nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
             nativeContract
             (YulTransaction.ofIR tx)
             state.storage
@@ -16368,7 +19537,7 @@ private def NativeGeneratedSelectorHitUserBodyBridgeAtFuelRestored
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
               suffix.length + 10) (.Block bodyNative)
           (some nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
             nativeContract
             (YulTransaction.ofIR tx)
             state.storage
@@ -16445,7 +19614,7 @@ private def NativeGeneratedSelectorHitUserBodyBridgeAtFuelRevived
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
               suffix.length + 10) (.Block bodyNative)
           (some nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
             nativeContract
             (YulTransaction.ofIR tx)
             state.storage
@@ -16515,7 +19684,7 @@ private def NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
               suffix.length + 10) (.Block bodyNative)
           (some nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
             nativeContract
             (YulTransaction.ofIR tx)
             state.storage
@@ -16542,7 +19711,7 @@ private def NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived
         (execIRFunction fn tx.args (applyIRTransactionContext tx state))
         (.ok nativeYul)
 
-/-- Parallel `_revived`-leave-aware variant of
+/-- Parallel `_revived`-LeaveAware variant of
 `NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived` that uses
 `NativeBlockPreservesWord_revived` in the matched-flag preservation conjunct.
 
@@ -16591,7 +19760,7 @@ private def NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
               suffix.length + 10) (.Block bodyNative)
           (some nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
             nativeContract
             (YulTransaction.ofIR tx)
             state.storage
@@ -16618,7 +19787,7 @@ private def NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware
         (execIRFunction fn tx.args (applyIRTransactionContext tx state))
         (.ok nativeYul)
 
-/-- Revived native function-body execution bridge without matched-flag
+/-- Revived native function-body ExecBridge without matched-flag
 preservation.
 
 This separates the semantic part of the future native body-correctness theorem
@@ -16661,7 +19830,7 @@ private def NativeGeneratedSelectorHitUserBodyExecOnlyBridgeAtFuelRevived
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
               suffix.length + 10) (.Block bodyNative)
           (some nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
             nativeContract
             (YulTransaction.ofIR tx)
             state.storage
@@ -16713,10 +19882,10 @@ private def NativeGeneratedSelectorHitBodyHaltExecBridgeAtFuel
       (∀ pre suffix,
         cases' = pre ++ (tx.functionSelector, body') :: suffix →
         EvmYul.Yul.exec
-          (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
-              1) + suffix.length + 7) (.Block body')
+          (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
+                1) + suffix.length + 7) (.Block body')
           (some nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
             nativeContract
             (YulTransaction.ofIR tx)
             state.storage
@@ -16767,7 +19936,7 @@ def NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
               suffix.length + 10) (.Block bodyNative)
           (some nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
             nativeContract
             (YulTransaction.ofIR tx)
             state.storage
@@ -16801,12 +19970,12 @@ private theorem NativeGeneratedSelectorHitBodyHaltExecBridgeAtFuel.of_selected_u
     (hFuelPayable :
       ∀ (fn : IRFunction) (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
         fn.payable = true →
-        cases'.length + 23 ≤ nativeRuntimeDispatcherFuel irContract)
+        cases'.length + 24 ≤ nativeRuntimeDispatcherFuel irContract)
     (hFuelNonPayable :
       ∀ (fn : IRFunction) (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
         fn.payable = false →
-        cases'.length + 24 ≤ nativeRuntimeDispatcherFuel irContract)
-    (hUserBodyHalt :
+        cases'.length + 25 ≤ nativeRuntimeDispatcherFuel irContract)
+    (hSelectedUserBodyHalt :
       NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel irContract tx state
         observableSlots) :
     NativeGeneratedSelectorHitBodyHaltExecBridgeAtFuel irContract tx state
@@ -16819,7 +19988,7 @@ private theorem NativeGeneratedSelectorHitBodyHaltExecBridgeAtFuel.of_selected_u
         reservedNames bodyStart fn body' bodyEnd
         (by simpa using hPayable) hBodyLower with
       ⟨guardBody, bodyNative, userBodyStart, hBodyShape, hUserBodyLower⟩
-    rcases hUserBodyHalt nativeContract fn reservedNames n0 cases'
+    rcases hSelectedUserBodyHalt nativeContract fn reservedNames n0 cases'
         bodyNative bodyEnd userBodyStart hLowerRuntime hFind hUserBodyLower
         hguards hArgs with
       ⟨haltState, haltValue, nativeYul, hBody, hProject, hMatch⟩
@@ -16827,7 +19996,7 @@ private theorem NativeGeneratedSelectorHitBodyHaltExecBridgeAtFuel.of_selected_u
     intro pre suffix hCases
     rw [hBodyShape]
     have hPrefix :=
-      Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_eq
+      Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_postInitFreeMemory_eq
         (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
           suffix.length + 1)
         guardBody bodyNative nativeContract (YulTransaction.ofIR tx)
@@ -16848,10 +20017,10 @@ private theorem NativeGeneratedSelectorHitBodyHaltExecBridgeAtFuel.of_selected_u
     have hFuelEq :
         suffix.length +
             (1 + (11 + (nativeRuntimeDispatcherFuel irContract -
-              (cases'.length + 23)))) =
-          suffix.length +
-            (1 + (7 + (nativeRuntimeDispatcherFuel irContract -
-              (cases'.length + 19)))) := by
+              (cases'.length + 24)))) =
+suffix.length +
+(1 + (7 + (nativeRuntimeDispatcherFuel irContract -
+                (cases'.length + 20)))) := by
       have hBound := hFuelPayable fn cases' (by simpa using hPayable)
       omega
     simpa [nativeGeneratedSelectorHitUserBodyFuel, hPayable,
@@ -16863,7 +20032,7 @@ private theorem NativeGeneratedSelectorHitBodyHaltExecBridgeAtFuel.of_selected_u
         reservedNames bodyStart fn body' bodyEnd hNonPayable hBodyLower with
       ⟨callvalueGuardBody, calldataGuardBody, bodyNative, userBodyStart,
         hBodyShape, hUserBodyLower⟩
-    rcases hUserBodyHalt nativeContract fn reservedNames n0 cases'
+    rcases hSelectedUserBodyHalt nativeContract fn reservedNames n0 cases'
         bodyNative bodyEnd userBodyStart hLowerRuntime hFind hUserBodyLower
         hguards hArgs with
       ⟨haltState, haltValue, nativeYul, hBody, hProject, hMatch⟩
@@ -16871,7 +20040,7 @@ private theorem NativeGeneratedSelectorHitBodyHaltExecBridgeAtFuel.of_selected_u
     intro pre suffix hCases
     rw [hBodyShape]
     have hPrefix :=
-      Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_eq
+      Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_postInitFreeMemory_eq
         (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
           suffix.length + 1)
         callvalueGuardBody calldataGuardBody bodyNative nativeContract
@@ -16894,10 +20063,10 @@ private theorem NativeGeneratedSelectorHitBodyHaltExecBridgeAtFuel.of_selected_u
     have hFuelEq :
         suffix.length +
             (1 + (12 + (nativeRuntimeDispatcherFuel irContract -
-              (cases'.length + 24)))) =
-          suffix.length +
-            (1 + (7 + (nativeRuntimeDispatcherFuel irContract -
-              (cases'.length + 19)))) := by
+              (cases'.length + 25)))) =
+suffix.length +
+(1 + (7 + (nativeRuntimeDispatcherFuel irContract -
+                (cases'.length + 20)))) := by
       have hBound := hFuelNonPayable fn cases' (by simpa using hNonPayable)
       omega
     simpa [nativeGeneratedSelectorHitUserBodyFuel, hNonPayable,
@@ -16936,12 +20105,12 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_body_halt_exec_atFuel
       nativeContract fn hcompile hLowerRuntime hFind hSelectorRange
       hSelectorsRange hNoWrap with
     ⟨reservedNames, n0, cases', _midN, body', bodyStart, bodyEnd,
-      _hLowerCases, hCase, hBodyLower, hCont⟩
+      _hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   rcases hHaltBridge nativeContract fn reservedNames n0 cases' body'
       bodyStart bodyEnd hLowerRuntime hFind hCase hBodyLower hguards hArgs with
     ⟨haltState, haltValue, nativeYul, hBody, hProject, hMatchExec⟩
   exact
-    hCont (EvmYul.Yul.Exception.YulHalt haltState haltValue) nativeYul
+    hDispatcherContinuation (EvmYul.Yul.Exception.YulHalt haltState haltValue) nativeYul
       hBody hProject
       (nativeResultsMatchOn_interpretIR_of_execIRFunction_dispatchGuards
         irContract tx state observableSlots fn (.ok nativeYul) hFind hguards
@@ -16967,7 +20136,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ha
       ∀ selector, selector ∈ selectors →
         selector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
-    (hUserBodyHalt :
+    (hSelectedUserBodyHalt :
       NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel irContract tx state
         observableSlots) :
     NativeGeneratedSelectorHitSuccessBridge irContract tx state
@@ -16979,7 +20148,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ha
       nativeContract fn hcompile hLowerRuntime hFind hSelectorRange
       hSelectorsRange hNoWrap with
     ⟨reservedNames, n0, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hCont⟩
+      hLowerCases, hCase, hBodyLower, hDispatcherContinuation⟩
   have hFuelBound24 :
       cases'.length + 24 ≤ nativeRuntimeDispatcherFuel irContract := by
     dsimp [nativeRuntimeDispatcherFuel]
@@ -16994,13 +20163,27 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ha
       exact
         sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
           hcompile hSupported hNoMapping hLowerCases
+  have hFuelBound25 :
+      cases'.length + 25 ≤ nativeRuntimeDispatcherFuel irContract := by
+    dsimp [nativeRuntimeDispatcherFuel]
+    by_cases hUsesMapping : irContract.usesMapping
+    · have hMapping : irContract.usesMapping = true := by
+        simpa using hUsesMapping
+      exact
+        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus25
+          hcompile hSupported hMapping hLowerCases
+    · have hNoMapping : irContract.usesMapping = false :=
+        Bool.eq_false_iff.2 hUsesMapping
+      exact
+        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus25
+          hcompile hSupported hNoMapping hLowerCases
   by_cases hPayable : fn.payable
   · rcases
       Compiler.Proofs.YulGeneration.Backends.Native.lowerStmtsNativeWithSwitchIds_switchCaseBody_payable_eq
         reservedNames bodyStart fn body' bodyEnd
         (by simpa using hPayable) hBodyLower with
       ⟨guardBody, bodyNative, userBodyStart, hBodyShape, hUserBodyLower⟩
-    rcases hUserBodyHalt nativeContract fn reservedNames n0 cases'
+    rcases hSelectedUserBodyHalt nativeContract fn reservedNames n0 cases'
         bodyNative bodyEnd userBodyStart hLowerRuntime hFind hUserBodyLower
         hguards hArgs with
       ⟨haltState, haltValue, nativeYul, hBody, hProject, hMatchExec⟩
@@ -17008,10 +20191,10 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ha
         ∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -17024,7 +20207,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ha
       intro pre suffix hCases
       rw [hBodyShape]
       have hPrefix :=
-        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_eq
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_postInitFreeMemory_eq
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 1)
           guardBody bodyNative nativeContract (YulTransaction.ofIR tx)
@@ -17045,10 +20228,10 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ha
       have hFuelEq :
           suffix.length +
               (1 + (11 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 23)))) =
-            suffix.length +
-              (1 + (7 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 19)))) := by
+                (cases'.length + 24)))) =
+suffix.length +
+(1 + (7 + (nativeRuntimeDispatcherFuel irContract -
+                (cases'.length + 20)))) := by
         have hBound23 : cases'.length + 23 ≤
             nativeRuntimeDispatcherFuel irContract := by
           omega
@@ -17057,7 +20240,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ha
         Nat.add_assoc, Nat.add_comm, Nat.add_left_comm, hFuelEq] using
         hPrefix.trans (hBody pre suffix)
     exact
-      hCont (EvmYul.Yul.Exception.YulHalt haltState haltValue) nativeYul
+      hDispatcherContinuation (EvmYul.Yul.Exception.YulHalt haltState haltValue) nativeYul
         hCaseBody hProject
         (nativeResultsMatchOn_interpretIR_of_execIRFunction_dispatchGuards
           irContract tx state observableSlots fn (.ok nativeYul) hFind hguards
@@ -17068,7 +20251,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ha
         reservedNames bodyStart fn body' bodyEnd hNonPayable hBodyLower with
       ⟨callvalueGuardBody, calldataGuardBody, bodyNative, userBodyStart,
         hBodyShape, hUserBodyLower⟩
-    rcases hUserBodyHalt nativeContract fn reservedNames n0 cases'
+    rcases hSelectedUserBodyHalt nativeContract fn reservedNames n0 cases'
         bodyNative bodyEnd userBodyStart hLowerRuntime hFind hUserBodyLower
         hguards hArgs with
       ⟨haltState, haltValue, nativeYul, hBody, hProject, hMatchExec⟩
@@ -17076,10 +20259,10 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ha
         ∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -17092,7 +20275,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ha
       intro pre suffix hCases
       rw [hBodyShape]
       have hPrefix :=
-        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_eq
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_postInitFreeMemory_eq
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 1)
           callvalueGuardBody calldataGuardBody bodyNative nativeContract
@@ -17115,23 +20298,23 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ha
       have hFuelEq :
           suffix.length +
               (1 + (12 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 24)))) =
-            suffix.length +
-              (1 + (7 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 19)))) := by
-        have hBound24 := hFuelBound24
+                (cases'.length + 25)))) =
+suffix.length +
+(1 + (7 + (nativeRuntimeDispatcherFuel irContract -
+                (cases'.length + 20)))) := by
+        have hBound25 := hFuelBound25
         omega
       simpa [nativeGeneratedSelectorHitUserBodyFuel, hNonPayable,
         Nat.add_assoc, Nat.add_comm, Nat.add_left_comm, hFuelEq] using
         hPrefix.trans (hBody pre suffix)
     exact
-      hCont (EvmYul.Yul.Exception.YulHalt haltState haltValue) nativeYul
+      hDispatcherContinuation (EvmYul.Yul.Exception.YulHalt haltState haltValue) nativeYul
         hCaseBody hProject
         (nativeResultsMatchOn_interpretIR_of_execIRFunction_dispatchGuards
           irContract tx state observableSlots fn (.ok nativeYul) hFind hguards
           hArgs hMatchExec)
 
-/-- Direct selected-user-body execution bridge without switch-case lowering
+/-- Direct selected-user-body ExecBridge without switch-case lowering
 artifacts.
 
 This is the narrowest current success-case target for the future native
@@ -17168,7 +20351,7 @@ private def NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
               suffix.length + 10) (.Block bodyNative)
           (some nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
             nativeContract
             (YulTransaction.ofIR tx)
             state.storage
@@ -17209,7 +20392,7 @@ private theorem nativeResultsMatchOn_execIRFunction_empty_body_markedPrefix
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.ok
-            ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract (YulTransaction.ofIR tx) state.storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                 (Compiler.runtimeCode irContract) observableSlots)
@@ -17217,7 +20400,7 @@ private theorem nativeResultsMatchOn_execIRFunction_empty_body_markedPrefix
   simp only [nativeResultsMatchOn,
     Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn]
   simp [hBody, applyIRTransactionContext,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_reviveJump_eq]
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_reviveJump_eq]
   constructor
   · intro slot hSlot
     exact
@@ -17233,7 +20416,7 @@ private theorem nativeResultsMatchOn_execIRFunction_empty_body_markedPrefix
             (Compiler.runtimeCode irContract) observableSlots)
           switchId store)
 
-/-- Build the direct selected-user-body execution bridge for contracts whose
+/-- Build the direct selected-user-body ExecBridge for contracts whose
 selected generated function body is empty. -/
 private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_empty_body
     (irContract : IRContract)
@@ -17255,7 +20438,7 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_em
   let switchId :=
     Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0
   let final :=
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
       nativeContract (YulTransaction.ofIR tx) state.storage
       (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
         (Compiler.runtimeCode irContract) observableSlots)
@@ -17267,9 +20450,10 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_em
       (.ok (final.reviveJump, []))
   have hFinalOk : ∃ shared store, final = EvmYul.Yul.State.Ok shared store := by
     simp [final,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
       EvmYul.Yul.State.insert]
   rcases hFinalOk with ⟨shared, store, hFinalOk⟩
   refine ⟨final, nativeYul, shared, store, ?_, ?_, rfl, ?_⟩
@@ -17342,7 +20526,7 @@ private theorem nativeResultsMatchOn_execIRFunction_leave_body_markedPrefix
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.ok
-            (((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract (YulTransaction.ofIR tx) state.storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                 (Compiler.runtimeCode irContract) observableSlots)
@@ -17351,9 +20535,10 @@ private theorem nativeResultsMatchOn_execIRFunction_leave_body_markedPrefix
     Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn]
   unfold execIRFunction
   simp [hBody, applyIRTransactionContext,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
     EvmYul.Yul.State.insert, EvmYul.Yul.State.setLeave,
     EvmYul.Yul.State.reviveJump]
   constructor
@@ -17392,7 +20577,7 @@ private theorem nativeResultsMatchOn_execIRFunction_label_prefix_leave_body_mark
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.ok
-            (((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract (YulTransaction.ofIR tx) state.storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                 (Compiler.runtimeCode irContract) observableSlots)
@@ -17401,9 +20586,10 @@ private theorem nativeResultsMatchOn_execIRFunction_label_prefix_leave_body_mark
     Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn]
   unfold execIRFunction
   simp [hBody, applyIRTransactionContext, execIRStmts, execIRStmt,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
     EvmYul.Yul.State.insert, EvmYul.Yul.State.setLeave,
     EvmYul.Yul.State.reviveJump]
   constructor
@@ -17421,7 +20607,7 @@ private theorem nativeResultsMatchOn_execIRFunction_label_prefix_leave_body_mark
             (Compiler.runtimeCode irContract) observableSlots)
           switchId store)
 
-/-- Build the direct selected-user-body execution bridge for contracts whose
+/-- Build the direct selected-user-body ExecBridge for contracts whose
 selected generated function body is exactly `leave`. -/
 private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_leave_body
     (irContract : IRContract)
@@ -17444,7 +20630,7 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_le
   let switchId :=
     Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0
   let initial :=
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
       nativeContract (YulTransaction.ofIR tx) state.storage
       (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
         (Compiler.runtimeCode irContract) observableSlots)
@@ -17458,9 +20644,10 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_le
   have hReviveOk :
       ∃ shared store, final.reviveJump = EvmYul.Yul.State.Ok shared store := by
     simp [final, initial,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
       EvmYul.Yul.State.insert, EvmYul.Yul.State.setLeave,
       EvmYul.Yul.State.reviveJump, EvmYul.Yul.State.revive]
   rcases hReviveOk with ⟨shared, store, hRevive⟩
@@ -17476,7 +20663,7 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_le
         Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
         hBody
 
-/-- F2 ExecOnly: Build the direct selected-user-body execution bridge for
+/-- F2 ExecOnly: Build the direct selected-user-body ExecBridge for
 contracts whose selected generated function body is exactly `[.block [], .leave]`
 (F2's body shape, label-prefix variant of E2). Composes the `_revived`
 machinery: peel the `.Block []` head via `exec_block_label_prefix_leave_ok_add_ten`
@@ -17507,7 +20694,7 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_le
   let switchId :=
     Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0
   let initial :=
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
       nativeContract (YulTransaction.ofIR tx) state.storage
       (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
         (Compiler.runtimeCode irContract) observableSlots)
@@ -17521,9 +20708,10 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_le
   have hReviveOk :
       ∃ shared store, final.reviveJump = EvmYul.Yul.State.Ok shared store := by
     simp [final, initial,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
       EvmYul.Yul.State.insert, EvmYul.Yul.State.setLeave,
       EvmYul.Yul.State.reviveJump, EvmYul.Yul.State.revive]
   rcases hReviveOk with ⟨shared, store, hRevive⟩
@@ -17592,7 +20780,7 @@ private theorem nativeResultsMatchOn_execIRFunction_block_leave_body_markedPrefi
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.ok
-            (((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract (YulTransaction.ofIR tx) state.storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                 (Compiler.runtimeCode irContract) observableSlots)
@@ -17601,9 +20789,10 @@ private theorem nativeResultsMatchOn_execIRFunction_block_leave_body_markedPrefi
     Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn]
   unfold execIRFunction
   simp [hBody, applyIRTransactionContext, execIRStmts, execIRStmt,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
     EvmYul.Yul.State.insert, EvmYul.Yul.State.setLeave,
     EvmYul.Yul.State.reviveJump]
   constructor
@@ -17641,7 +20830,7 @@ private theorem nativeResultsMatchOn_execIRFunction_label_prefix_block_leave_bod
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.ok
-            (((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract (YulTransaction.ofIR tx) state.storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                 (Compiler.runtimeCode irContract) observableSlots)
@@ -17650,9 +20839,10 @@ private theorem nativeResultsMatchOn_execIRFunction_label_prefix_block_leave_bod
     Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn]
   unfold execIRFunction
   simp [hBody, applyIRTransactionContext, execIRStmts, execIRStmt,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
     EvmYul.Yul.State.insert, EvmYul.Yul.State.setLeave,
     EvmYul.Yul.State.reviveJump]
   constructor
@@ -17670,7 +20860,7 @@ private theorem nativeResultsMatchOn_execIRFunction_label_prefix_block_leave_bod
             (Compiler.runtimeCode irContract) observableSlots)
           switchId store)
 
-/-- Build the direct selected-user-body execution bridge for contracts whose
+/-- Build the direct selected-user-body ExecBridge for contracts whose
 selected generated function body is exactly `[.block [.leave]]`.
 
 Lowering wraps the `.leave` in a `[.Block ...]` native statement, but the
@@ -17702,7 +20892,7 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_bl
   let switchId :=
     Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0
   let initial :=
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
       nativeContract (YulTransaction.ofIR tx) state.storage
       (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
         (Compiler.runtimeCode irContract) observableSlots)
@@ -17716,9 +20906,10 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_bl
   have hReviveOk :
       ∃ shared store, final.reviveJump = EvmYul.Yul.State.Ok shared store := by
     simp [final, initial,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
       EvmYul.Yul.State.insert, EvmYul.Yul.State.setLeave,
       EvmYul.Yul.State.reviveJump, EvmYul.Yul.State.revive]
   rcases hReviveOk with ⟨shared, store, hRevive⟩
@@ -17734,7 +20925,7 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_bl
         Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
         hBody
 
-/-- F4 ExecOnly: Build the direct selected-user-body execution bridge for
+/-- F4 ExecOnly: Build the direct selected-user-body ExecBridge for
 contracts whose selected generated function body is exactly
 `[.block [], .block [.leave]]` (F4's body shape, label-prefix variant of E4).
 
@@ -17766,7 +20957,7 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_bl
   let switchId :=
     Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0
   let initial :=
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
       nativeContract (YulTransaction.ofIR tx) state.storage
       (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
         (Compiler.runtimeCode irContract) observableSlots)
@@ -17780,9 +20971,10 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_bl
   have hReviveOk :
       ∃ shared store, final.reviveJump = EvmYul.Yul.State.Ok shared store := by
     simp [final, initial,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
       EvmYul.Yul.State.insert, EvmYul.Yul.State.setLeave,
       EvmYul.Yul.State.reviveJump, EvmYul.Yul.State.revive]
   rcases hReviveOk with ⟨shared, store, hRevive⟩
@@ -17822,7 +21014,7 @@ private theorem nativeResultsMatchOn_execIRFunction_block_empty_body_markedPrefi
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.ok
-            ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract (YulTransaction.ofIR tx) state.storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                 (Compiler.runtimeCode irContract) observableSlots)
@@ -17831,7 +21023,7 @@ private theorem nativeResultsMatchOn_execIRFunction_block_empty_body_markedPrefi
     Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn]
   unfold execIRFunction
   simp [hBody, applyIRTransactionContext, execIRStmts, execIRStmt,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_reviveJump_eq]
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_reviveJump_eq]
   constructor
   · intro slot hSlot
     exact
@@ -17847,7 +21039,7 @@ private theorem nativeResultsMatchOn_execIRFunction_block_empty_body_markedPrefi
             (Compiler.runtimeCode irContract) observableSlots)
           switchId store)
 
-/-- Build the direct selected-user-body execution bridge for contracts whose
+/-- Build the direct selected-user-body ExecBridge for contracts whose
 selected generated function body is exactly `[.block []]`.
 
 Mirrors `.of_empty_body` (no leave flag set) but accounts for the additional
@@ -17878,7 +21070,7 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_bl
   let switchId :=
     Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0
   let final :=
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
       nativeContract (YulTransaction.ofIR tx) state.storage
       (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
         (Compiler.runtimeCode irContract) observableSlots)
@@ -17890,9 +21082,10 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_bl
       (.ok (final.reviveJump, []))
   have hFinalOk : ∃ shared store, final = EvmYul.Yul.State.Ok shared store := by
     simp [final,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
       EvmYul.Yul.State.insert]
   rcases hFinalOk with ⟨shared, store, hFinalOk⟩
   refine ⟨final, nativeYul, shared, store, ?_, ?_, rfl, ?_⟩
@@ -17936,7 +21129,7 @@ private theorem nativeResultsMatchOn_execIRFunction_singleton_comment_body_marke
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.ok
-            ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract (YulTransaction.ofIR tx) state.storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                 (Compiler.runtimeCode irContract) observableSlots)
@@ -17945,7 +21138,7 @@ private theorem nativeResultsMatchOn_execIRFunction_singleton_comment_body_marke
     Compiler.Proofs.YulGeneration.Backends.Native.nativeResultsMatchOn]
   unfold execIRFunction
   simp [hBody, applyIRTransactionContext, execIRStmts, execIRStmt,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_reviveJump_eq]
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_reviveJump_eq]
   constructor
   · intro slot hSlot
     exact
@@ -17961,7 +21154,7 @@ private theorem nativeResultsMatchOn_execIRFunction_singleton_comment_body_marke
             (Compiler.runtimeCode irContract) observableSlots)
           switchId store)
 
-/-- Build the direct selected-user-body execution bridge for contracts whose
+/-- Build the direct selected-user-body ExecBridge for contracts whose
 selected generated function body is exactly `[.comment text]` for some
 text.
 
@@ -17996,7 +21189,7 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_si
   let switchId :=
     Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0
   let final :=
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
       nativeContract (YulTransaction.ofIR tx) state.storage
       (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
         (Compiler.runtimeCode irContract) observableSlots)
@@ -18008,9 +21201,10 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_si
       (.ok (final.reviveJump, []))
   have hFinalOk : ∃ shared store, final = EvmYul.Yul.State.Ok shared store := by
     simp [final,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
       EvmYul.Yul.State.insert]
   rcases hFinalOk with ⟨shared, store, hFinalOk⟩
   refine ⟨final, nativeYul, shared, store, ?_, ?_, rfl, ?_⟩
@@ -18045,7 +21239,7 @@ private theorem nativeResultsMatchOn_execIRFunction_stop_body_markedPrefix
         (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx) state.storage state.events
           (.error (EvmYul.Yul.Exception.YulHalt
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract (YulTransaction.ofIR tx) state.storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                 (Compiler.runtimeCode irContract) observableSlots)
@@ -18059,7 +21253,7 @@ private theorem nativeResultsMatchOn_execIRFunction_stop_body_markedPrefix
   constructor
   · intro slot hSlot
     exact
-      (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_materializedStorageSlot
+      (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_materializedStorageSlot
         nativeContract (YulTransaction.ofIR tx) state.storage
         (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
           (Compiler.runtimeCode irContract) observableSlots)
@@ -18101,7 +21295,7 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_stop_body
   let switchId :=
     Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0
   let haltState :=
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
       nativeContract (YulTransaction.ofIR tx) state.storage
       (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
         (Compiler.runtimeCode irContract) observableSlots)
@@ -18262,7 +21456,7 @@ private theorem NativeGeneratedSelectedUserBodyResultBridgeAtFuel.of_exec_only_a
   Or.inr ⟨hExec, hPreserves⟩
 
 /-- Project the semantic execution half out of the existing all-in-one selected
-user-body execution bridge. -/
+user-body ExecBridge. -/
 private theorem NativeGeneratedSelectorHitUserBodyExecOnlyBridgeAtFuelRevived.of_exec_bridge
     (irContract : IRContract)
     (tx : IRTransaction)
@@ -18307,7 +21501,7 @@ private theorem NativeGeneratedSelectorHitUserBodyExecOnlyBridgeAtFuelRevived.of
   exact hBody pre suffix
 
 /-- Project the dispatcher-local preservation half out of the existing
-all-in-one selected user-body execution bridge. -/
+all-in-one selected user-body ExecBridge. -/
 private theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuel.of_exec_bridge
     (irContract : IRContract)
     (tx : IRTransaction)
@@ -20236,7 +23430,7 @@ private theorem NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.o
   rw [hBody fn hFind, hOnlyEmpty, List.nil_append]
 
 /-- Adapter: compose an exec-only Revived bridge with a `_revived` Preserves
-bridge to produce the leave-aware revived exec bridge. Parallel to
+bridge to produce the LeaveAware revived exec bridge. Parallel to
 `NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived.of_exec_only_and_preserves`
 but uses `_revived` Preserves so it works for Leave-ending bodies. -/
 private theorem NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_exec_only_and_revivedPreserves
@@ -20266,7 +23460,7 @@ private theorem NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAw
       bodyStart bodyEnd userBodyStart hLowerRuntime hFind hCase hBodyLower
       hUserBodyLower pre suffix hCases
 
-/-- One-shot constructor for the leave-aware revived exec bridge for the
+/-- One-shot constructor for the LeaveAware revived exec bridge for the
 `[.leave]` body shape. Composes the existing exec-only `of_leave_body` leaf
 (`NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_leave_body`)
 with the `_revived` Preserves bridge `of_leave_body` (shipped in `6cf2a453`). -/
@@ -20291,7 +23485,7 @@ private theorem NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAw
     (NativeGeneratedSelectorHitUserBodyPreservesBridgeAtFuelRevived.of_leave_body
       irContract tx hLeave)
 
-/-- One-shot constructor for the leave-aware revived exec bridge for the
+/-- One-shot constructor for the LeaveAware revived exec bridge for the
 `[.block [.leave]]` body shape. Composes the existing exec-only
 `of_block_leave` leaf with the `_revived` Preserves bridge `of_block_leave`. -/
 private theorem NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevivedLeaveAware.of_block_leave
@@ -20510,7 +23704,7 @@ private theorem NativeGeneratedSelectorHitUserBodyBridgeAtFuelRevived.of_execIRF
     (tx : IRTransaction)
     (state : IRState)
     (observableSlots : List Nat)
-    (hExecBridge :
+    (hSelectedExecBridge :
       NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived irContract tx
         state observableSlots)
     (hguards :
@@ -20527,7 +23721,7 @@ private theorem NativeGeneratedSelectorHitUserBodyBridgeAtFuelRevived.of_execIRF
       observableSlots := by
   intro nativeContract fn reservedNames n0 cases' body' bodyNative bodyStart
     bodyEnd userBodyStart hLowerRuntime hFind hCase hBodyLower hUserBodyLower
-  rcases hExecBridge nativeContract fn reservedNames n0 cases' body' bodyNative
+  rcases hSelectedExecBridge nativeContract fn reservedNames n0 cases' body' bodyNative
       bodyStart bodyEnd userBodyStart hLowerRuntime hFind hCase hBodyLower
       hUserBodyLower (hguards fn hFind) (hArgs fn hFind) with
     ⟨final, nativeYul, shared, store, hBody, hPreserves, hRevive, hProject,
@@ -20605,7 +23799,7 @@ private theorem NativeGeneratedSelectorHitUserBodyBridgeAtFuelRestored.of_execIR
     (tx : IRTransaction)
     (state : IRState)
     (observableSlots : List Nat)
-    (hExecBridge :
+    (hSelectedExecBridge :
       NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived irContract tx
         state observableSlots)
     (hguards :
@@ -20623,7 +23817,7 @@ private theorem NativeGeneratedSelectorHitUserBodyBridgeAtFuelRestored.of_execIR
   NativeGeneratedSelectorHitUserBodyBridgeAtFuelRestored.of_revived
     irContract tx state observableSlots
     (NativeGeneratedSelectorHitUserBodyBridgeAtFuelRevived.of_execIRFunction
-      irContract tx state observableSlots hExecBridge hguards hArgs)
+      irContract tx state observableSlots hSelectedExecBridge hguards hArgs)
 
 /-- Generic matched-flag preservation for a selected generated selector-hit
 body.
@@ -20725,10 +23919,10 @@ private def NativeGeneratedSelectorHitDispatcherContinuation
     (∀ pre suffix,
       cases' = pre ++ (tx.functionSelector, body') :: suffix →
       EvmYul.Yul.exec
-        (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
-            1) + suffix.length + 7) (.Block body')
+        (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
+                1) + suffix.length + 7) (.Block body')
         (some nativeContract)
-        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
           nativeContract
           (YulTransaction.ofIR tx)
           state.storage
@@ -20805,7 +23999,7 @@ private def NativeGeneratedSelectorHitUserBodyGeneratedPrefixContinuation
             suffix.length + 10)
           (.Block bodyNative)
           (some nativeContract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
             nativeContract
             (YulTransaction.ofIR tx)
             state.storage
@@ -20855,7 +24049,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_body_bridge_and_cont
     (hBodyBridge :
       NativeGeneratedSelectorHitBodyBridge irContract tx state
         observableSlots)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -20880,7 +24074,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_body_bridge_and_cont
       bodyStart bodyEnd hLowerRuntime hFind hCase hBodyLower with
     ⟨final, nativeYul, hBody, hPreserves, hProject, hMatch⟩
   exact
-    hCont nativeContract fn reservedNames n0 cases' body' bodyStart bodyEnd
+    hDispatcherContinuation nativeContract fn reservedNames n0 cases' body' bodyStart bodyEnd
       hLowerRuntime hFind hCase hBodyLower
       final nativeYul hBody hPreserves hProject hMatch
 
@@ -20899,7 +24093,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_and
     (hUserBodyBridge :
       NativeGeneratedSelectorHitUserBodyBridge irContract tx state
         observableSlots)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -20923,10 +24117,10 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_and
             cases' = pre ++ (tx.functionSelector, body') :: suffix →
             EvmYul.Yul.exec
               (((nativeRuntimeDispatcherFuel irContract -
-                    (cases'.length + 19)) + 1) + suffix.length + 10)
+                    (cases'.length + 20)) + 1) + suffix.length + 10)
               (.Block bodyNative)
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -20969,7 +24163,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_and
         hBodyLower hUserBodyLower with
       ⟨final, nativeYul, hBody, hPreserves, hProject, hMatch⟩
     exact
-      hCont nativeContract fn reservedNames n0 cases' body' bodyNative
+      hDispatcherContinuation nativeContract fn reservedNames n0 cases' body' bodyNative
         bodyStart bodyEnd userBodyStart hLowerRuntime hFind hCase hBodyLower
         hUserBodyLower final nativeYul hBody hPreserves hProject hMatch
   · have hNonPayable : fn.payable = false := Bool.eq_false_iff.2 hPayable
@@ -20983,7 +24177,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_and
         hBodyLower hUserBodyLower with
       ⟨final, nativeYul, hBody, hPreserves, hProject, hMatch⟩
     exact
-      hCont nativeContract fn reservedNames n0 cases' body' bodyNative
+      hDispatcherContinuation nativeContract fn reservedNames n0 cases' body' bodyNative
         bodyStart bodyEnd userBodyStart hLowerRuntime hFind hCase hBodyLower
         hUserBodyLower final nativeYul hBody hPreserves hProject hMatch
 
@@ -21003,7 +24197,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_atF
     (hUserBodyBridge :
       NativeGeneratedSelectorHitUserBodyBridgeAtFuel irContract tx state
         observableSlots)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -21030,7 +24224,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_atF
                 suffix.length + 10)
               (.Block bodyNative)
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -21073,7 +24267,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_atF
         hBodyLower hUserBodyLower with
       ⟨final, nativeYul, hBody, hPreserves, hProject, hMatch⟩
     exact
-      hCont nativeContract fn reservedNames n0 cases' body' bodyNative
+      hDispatcherContinuation nativeContract fn reservedNames n0 cases' body' bodyNative
         bodyStart bodyEnd userBodyStart hLowerRuntime hFind hCase hBodyLower
         hUserBodyLower final nativeYul hBody hPreserves hProject hMatch
   · have hNonPayable : fn.payable = false := Bool.eq_false_iff.2 hPayable
@@ -21087,7 +24281,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_atF
         hBodyLower hUserBodyLower with
       ⟨final, nativeYul, hBody, hPreserves, hProject, hMatch⟩
     exact
-      hCont nativeContract fn reservedNames n0 cases' body' bodyNative
+      hDispatcherContinuation nativeContract fn reservedNames n0 cases' body' bodyNative
         bodyStart bodyEnd userBodyStart hLowerRuntime hFind hCase hBodyLower
         hUserBodyLower final nativeYul hBody hPreserves hProject hMatch
 
@@ -21108,7 +24302,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_atF
     (hUserBodyBridge :
       NativeGeneratedSelectorHitUserBodyBridgeAtFuelRestored irContract tx state
         observableSlots)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -21135,7 +24329,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_atF
                 suffix.length + 10)
               (.Block bodyNative)
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -21189,7 +24383,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_atF
         hBodyLower hUserBodyLower with
       ⟨final, nativeYul, hBody, hPreserves, hProject, hMatch⟩
     exact
-      hCont nativeContract fn reservedNames n0 cases' body' bodyNative
+      hDispatcherContinuation nativeContract fn reservedNames n0 cases' body' bodyNative
         bodyStart bodyEnd userBodyStart hLowerRuntime hFind hCase hBodyLower
         hUserBodyLower final nativeYul hBody hPreserves hProject hMatch
   · have hNonPayable : fn.payable = false := Bool.eq_false_iff.2 hPayable
@@ -21203,7 +24397,7 @@ private theorem NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_atF
         hBodyLower hUserBodyLower with
       ⟨final, nativeYul, hBody, hPreserves, hProject, hMatch⟩
     exact
-      hCont nativeContract fn reservedNames n0 cases' body' bodyNative
+      hDispatcherContinuation nativeContract fn reservedNames n0 cases' body' bodyNative
         bodyStart bodyEnd userBodyStart hLowerRuntime hFind hCase hBodyLower
         hUserBodyLower final nativeYul hBody hPreserves hProject hMatch
 
@@ -21243,7 +24437,7 @@ private theorem NativeGeneratedSelectorHitBridge.of_artifact_bridge
       fn dummyNativeState dummyYul hcompile hLowerRuntime hFind hSelectorRange
       hSelectorsRange hNoWrap with
     ⟨reservedNames, n0, cases', _midN, body', bodyStart, bodyEnd,
-      _hLowerCases, hCase, hBodyLower, _hCont⟩
+      _hLowerCases, hCase, hBodyLower, _hDispatcherContinuation⟩
   exact hArtifactBridge nativeContract fn reservedNames n0 cases' body'
     bodyStart bodyEnd hLowerRuntime hFind hCase hBodyLower
 
@@ -21662,7 +24856,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
     (hUserBodyBridge :
       NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived irContract tx
         state observableSlots)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -21689,7 +24883,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
                 suffix.length + 10)
               (.Block bodyNative)
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -21831,7 +25025,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       ⟨final, nativeYul, shared, store, hBody, hPreserves, hRevive,
         hProject, hMatchExec⟩
     exact
-      hCont nativeContract fn reservedNames n0 cases' body' bodyNative
+      hDispatcherContinuation nativeContract fn reservedNames n0 cases' body' bodyNative
         bodyStart bodyEnd userBodyStart hLowerRuntime hFind hCase hBodyLower
         hUserBodyLower final nativeYul hBody hPreserves
         (hProjectRestored final nativeYul shared store hRevive hProject)
@@ -21850,7 +25044,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       ⟨final, nativeYul, shared, store, hBody, hPreserves, hRevive,
         hProject, hMatchExec⟩
     exact
-      hCont nativeContract fn reservedNames n0 cases' body' bodyNative
+      hDispatcherContinuation nativeContract fn reservedNames n0 cases' body' bodyNative
         bodyStart bodyEnd userBodyStart hLowerRuntime hFind hCase hBodyLower
         hUserBodyLower final nativeYul hBody hPreserves
         (hProjectRestored final nativeYul shared store hRevive hProject)
@@ -21860,12 +25054,12 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
 
 /-- Leave-aware parallel variant of
 `nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFuel_revived_and_continuation`
-that accepts the `_revived`-leave-aware exec bridge (with `_revived` Preserves
+that accepts the `_revived`-LeaveAware exec bridge (with `_revived` Preserves
 in the matched-flag conjunct) and a continuation that consumes `_revived`
 Preserves at the matching position.
 
 Mechanical mirror: the proof body is identical to the OLD-form consumer; only
-the types of `hUserBodyBridge` and the `hCont`'s Preserves parameter change. -/
+the types of `hUserBodyBridge` and the `hDispatcherContinuation`'s Preserves parameter change. -/
 private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFuel_revivedLeaveAware_and_continuation
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
     (hSupported : SupportedSpec spec selectors)
@@ -21914,6 +25108,20 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
         Bool.eq_false_iff.2 hUsesMapping
       exact
         sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
+          hcompile hSupported hNoMapping hLowerCases
+  have hFuelBound25 :
+      cases'.length + 25 ≤ nativeRuntimeDispatcherFuel irContract := by
+    dsimp [nativeRuntimeDispatcherFuel]
+    by_cases hUsesMapping : irContract.usesMapping
+    · have hMapping : irContract.usesMapping = true := by
+        simpa using hUsesMapping
+      exact
+        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus25
+          hcompile hSupported hMapping hLowerCases
+    · have hNoMapping : irContract.usesMapping = false :=
+        Bool.eq_false_iff.2 hUsesMapping
+      exact
+        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus25
           hcompile hSupported hNoMapping hLowerCases
   have hProjectRestored
       (final : EvmYul.Yul.State) (nativeYul : YulResult)
@@ -21993,10 +25201,10 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
         ∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -22009,7 +25217,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       intro pre suffix hCases
       rw [hBodyShape]
       have hPrefix :=
-        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_eq
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_postInitFreeMemory_eq
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 1)
           guardBody bodyNative nativeContract (YulTransaction.ofIR tx)
@@ -22030,10 +25238,10 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       have hFuelEq :
           suffix.length +
               (1 + (11 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 23)))) =
-            suffix.length +
-              (1 + (7 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 19)))) := by
+                (cases'.length + 24)))) =
+suffix.length +
+(1 + (7 + (nativeRuntimeDispatcherFuel irContract -
+                (cases'.length + 20)))) := by
         have hBound23 : cases'.length + 23 ≤
             nativeRuntimeDispatcherFuel irContract := by
           omega
@@ -22056,7 +25264,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       let switchId :=
         Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0
       let selectedState :=
-        Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+        Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
           nativeContract
           (YulTransaction.ofIR tx)
           state.storage
@@ -22069,7 +25277,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       have hInitialMatched :
           selectedState.reviveJump[matchedName]! = EvmYul.UInt256.ofNat 1 := by
         have hRaw :=
-          Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_matched
+          Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
             nativeContract (YulTransaction.ofIR tx) state.storage
             (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
               (Compiler.runtimeCode irContract) observableSlots)
@@ -22077,7 +25285,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
             matchedName rfl
         have hReviveSelected :=
-          Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_reviveJump_eq
+          Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_reviveJump_eq
             nativeContract (YulTransaction.ofIR tx) state.storage
             (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
               (Compiler.runtimeCode irContract) observableSlots)
@@ -22113,10 +25321,10 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
         ∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -22129,7 +25337,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       intro pre suffix hCases
       rw [hBodyShape]
       have hPrefix :=
-        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_eq
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_postInitFreeMemory_eq
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 1)
           callvalueGuardBody calldataGuardBody bodyNative nativeContract
@@ -22152,11 +25360,11 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       have hFuelEq :
           suffix.length +
               (1 + (12 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 24)))) =
-            suffix.length +
-              (1 + (7 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 19)))) := by
-        have hBound24 := hFuelBound24
+                (cases'.length + 25)))) =
+suffix.length +
+(1 + (7 + (nativeRuntimeDispatcherFuel irContract -
+                (cases'.length + 20)))) := by
+        have hBound25 := hFuelBound25
         omega
       simpa [nativeGeneratedSelectorHitUserBodyFuel, hNonPayable,
         Nat.add_assoc, Nat.add_comm, Nat.add_left_comm, hFuelEq] using
@@ -22176,7 +25384,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       let switchId :=
         Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId reservedNames n0
       let selectedState :=
-        Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+        Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
           nativeContract
           (YulTransaction.ofIR tx)
           state.storage
@@ -22189,7 +25397,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       have hInitialMatched :
           selectedState.reviveJump[matchedName]! = EvmYul.UInt256.ofNat 1 := by
         have hRaw :=
-          Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_matched
+          Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
             nativeContract (YulTransaction.ofIR tx) state.storage
             (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
               (Compiler.runtimeCode irContract) observableSlots)
@@ -22197,7 +25405,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
             Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
             matchedName rfl
         have hReviveSelected :=
-          Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_reviveJump_eq
+          Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_reviveJump_eq
             nativeContract (YulTransaction.ofIR tx) state.storage
             (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
               (Compiler.runtimeCode irContract) observableSlots)
@@ -22274,6 +25482,20 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       exact
         sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
           hcompile hSupported hNoMapping hLowerCases
+  have hFuelBound25 :
+      cases'.length + 25 ≤ nativeRuntimeDispatcherFuel irContract := by
+    dsimp [nativeRuntimeDispatcherFuel]
+    by_cases hUsesMapping : irContract.usesMapping
+    · have hMapping : irContract.usesMapping = true := by
+        simpa using hUsesMapping
+      exact
+        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus25
+          hcompile hSupported hMapping hLowerCases
+    · have hNoMapping : irContract.usesMapping = false :=
+        Bool.eq_false_iff.2 hUsesMapping
+      exact
+        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus25
+          hcompile hSupported hNoMapping hLowerCases
   have hProjectRestored
       (final : EvmYul.Yul.State) (nativeYul : YulResult)
       (shared : EvmYul.SharedState EvmYul.OperationType.Yul)
@@ -22352,10 +25574,10 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
         ∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -22368,7 +25590,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       intro pre suffix hCases
       rw [hBodyShape]
       have hPrefix :=
-        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_eq
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_postInitFreeMemory_eq
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 1)
           guardBody bodyNative nativeContract (YulTransaction.ofIR tx)
@@ -22389,10 +25611,10 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       have hFuelEq :
           suffix.length +
               (1 + (11 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 23)))) =
-            suffix.length +
-              (1 + (7 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 19)))) := by
+                (cases'.length + 24)))) =
+suffix.length +
+(1 + (7 + (nativeRuntimeDispatcherFuel irContract -
+                (cases'.length + 20)))) := by
         have hBound23 : cases'.length + 23 ≤
             nativeRuntimeDispatcherFuel irContract := by
           omega
@@ -22436,10 +25658,10 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
         ∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -22452,7 +25674,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       intro pre suffix hCases
       rw [hBodyShape]
       have hPrefix :=
-        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_eq
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_postInitFreeMemory_eq
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 1)
           callvalueGuardBody calldataGuardBody bodyNative nativeContract
@@ -22475,11 +25697,11 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
       have hFuelEq :
           suffix.length +
               (1 + (12 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 24)))) =
-            suffix.length +
-              (1 + (7 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 19)))) := by
-        have hBound24 := hFuelBound24
+                (cases'.length + 25)))) =
+suffix.length +
+(1 + (7 + (nativeRuntimeDispatcherFuel irContract -
+                (cases'.length + 20)))) := by
+        have hBound25 := hFuelBound25
         omega
       simpa [nativeGeneratedSelectorHitUserBodyFuel, hNonPayable,
         Nat.add_assoc, Nat.add_comm, Nat.add_left_comm, hFuelEq] using
@@ -22506,7 +25728,7 @@ private theorem nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFu
           irContract tx state observableSlots fn (.ok nativeYul) hFind
           hguards hArgs hMatchExec)
 
-/-- The exact-fuel selected user-body execution bridge plus the generated-prefix
+/-- The exact-fuel selected user-body ExecBridge plus the generated-prefix
 continuation supplies the named success-only selector-hit bridge. -/
 private theorem NativeGeneratedSelectorHitSuccessBridge.of_user_body_exec_bridge_atFuel_revived_and_continuation
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
@@ -22524,7 +25746,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_user_body_exec_bridge
     (hUserBodyBridge :
       NativeGeneratedSelectorHitUserBodyExecBridgeAtFuelRevived irContract tx
         state observableSlots)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -22551,7 +25773,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_user_body_exec_bridge
                 suffix.length + 10)
               (.Block bodyNative)
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -22596,10 +25818,10 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_user_body_exec_bridge
   exact
     nativeGeneratedSelectorHit_success_of_user_body_exec_bridge_atFuel_revived_and_continuation
       spec selectors hSupported irContract tx state observableSlots hcompile
-      hSelectorRange hSelectorsRange hNoWrap hUserBodyBridge hCont
+      hSelectorRange hSelectorsRange hNoWrap hUserBodyBridge hDispatcherContinuation
       nativeContract fn hLowerRuntime hFind hguards hArgs
 
-/-- The exact-fuel selected user-body execution bridge supplies the named
+/-- The exact-fuel selected user-body ExecBridge supplies the named
 success-only selector-hit bridge. -/
 private theorem NativeGeneratedSelectorHitSuccessBridge.of_user_body_exec_bridge_atFuel_revived
     (spec : CompilationModel.CompilationModel) (selectors : List Nat)
@@ -22698,6 +25920,20 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
       exact
         sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
           hcompile hSupported hNoMapping hLowerCases
+  have hFuelBound25 :
+      cases'.length + 25 ≤ nativeRuntimeDispatcherFuel irContract := by
+    dsimp [nativeRuntimeDispatcherFuel]
+    by_cases hUsesMapping : irContract.usesMapping
+    · have hMapping : irContract.usesMapping = true := by
+        simpa using hUsesMapping
+      exact
+        sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus25
+          hcompile hSupported hMapping hLowerCases
+    · have hNoMapping : irContract.usesMapping = false :=
+        Bool.eq_false_iff.2 hUsesMapping
+      exact
+        sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus25
+          hcompile hSupported hNoMapping hLowerCases
   have hProjectRestored
       (final : EvmYul.Yul.State) (nativeYul : YulResult)
       (shared : EvmYul.SharedState EvmYul.OperationType.Yul)
@@ -22791,10 +26027,10 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
         ∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -22807,7 +26043,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
       intro pre suffix hCases
       rw [hBodyShape]
       have hPrefix :=
-        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_eq
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_postInitFreeMemory_eq
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 1)
           guardBody bodyNative nativeContract (YulTransaction.ofIR tx)
@@ -22828,10 +26064,10 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
       have hFuelEq :
           suffix.length +
               (1 + (11 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 23)))) =
-            suffix.length +
-              (1 + (7 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 19)))) := by
+                (cases'.length + 24)))) =
+suffix.length +
+(1 + (7 + (nativeRuntimeDispatcherFuel irContract -
+                (cases'.length + 20)))) := by
         have hBound23 : cases'.length + 23 ≤
             nativeRuntimeDispatcherFuel irContract := by
           omega
@@ -22860,10 +26096,10 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
         ∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -22876,7 +26112,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
       intro pre suffix hCases
       rw [hBodyShape]
       have hPrefix :=
-        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_eq
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_postInitFreeMemory_eq
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 1)
           callvalueGuardBody calldataGuardBody bodyNative nativeContract
@@ -22899,11 +26135,11 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
       have hFuelEq :
           suffix.length +
               (1 + (12 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 24)))) =
-            suffix.length +
-              (1 + (7 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 19)))) := by
-        have hBound24 := hFuelBound24
+                (cases'.length + 25)))) =
+suffix.length +
+(1 + (7 + (nativeRuntimeDispatcherFuel irContract -
+                (cases'.length + 20)))) := by
+        have hBound25 := hFuelBound25
         omega
       simpa [nativeGeneratedSelectorHitUserBodyFuel, hNonPayable,
         Nat.add_assoc, Nat.add_comm, Nat.add_left_comm, hFuelEq] using
@@ -22976,6 +26212,12 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
     dsimp [nativeRuntimeDispatcherFuel]
     exact
       sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
+        hcompile hSupported hMapping hLowerCases
+  have hFuelBound25 :
+      cases'.length + 25 ≤ nativeRuntimeDispatcherFuel irContract := by
+    dsimp [nativeRuntimeDispatcherFuel]
+    exact
+      sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus25
         hcompile hSupported hMapping hLowerCases
   have hProjectRestored
       (final : EvmYul.Yul.State) (nativeYul : YulResult)
@@ -23071,10 +26313,10 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
         ∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -23087,7 +26329,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
       intro pre suffix hCases
       rw [hBodyShape]
       have hPrefix :=
-        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_eq
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_payable_prefix_postInitFreeMemory_eq
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 1)
           guardBody bodyNative nativeContract (YulTransaction.ofIR tx)
@@ -23108,10 +26350,10 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
       have hFuelEq :
           suffix.length +
               (1 + (11 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 23)))) =
-            suffix.length +
-              (1 + (7 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 19)))) := by
+                (cases'.length + 24)))) =
+suffix.length +
+(1 + (7 + (nativeRuntimeDispatcherFuel irContract -
+                (cases'.length + 20)))) := by
         have hBound23 : cases'.length + 23 ≤
             nativeRuntimeDispatcherFuel irContract := by
           omega
@@ -23140,10 +26382,10 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
         ∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               state.storage
@@ -23156,7 +26398,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
       intro pre suffix hCases
       rw [hBodyShape]
       have hPrefix :=
-        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_eq
+        Compiler.Proofs.YulGeneration.Backends.Native.exec_switchCaseBody_nonpayable_prefix_postInitFreeMemory_eq
           (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 1)
           callvalueGuardBody calldataGuardBody bodyNative nativeContract
@@ -23179,11 +26421,11 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_ex
       have hFuelEq :
           suffix.length +
               (1 + (12 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 24)))) =
-            suffix.length +
-              (1 + (7 + (nativeRuntimeDispatcherFuel irContract -
-                (cases'.length + 19)))) := by
-        have hBound24 := hFuelBound24
+                (cases'.length + 25)))) =
+suffix.length +
+(1 + (7 + (nativeRuntimeDispatcherFuel irContract -
+                (cases'.length + 20)))) := by
+        have hBound25 := hFuelBound25
         omega
       simpa [nativeGeneratedSelectorHitUserBodyFuel, hNonPayable,
         Nat.add_assoc, Nat.add_comm, Nat.add_left_comm, hFuelEq] using
@@ -23256,12 +26498,12 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_re
         observableSlots) :
     NativeGeneratedSelectorHitSuccessBridge irContract tx state
       observableSlots := by
-  rcases hUserBodyResult with hUserBodyHalt |
+  rcases hUserBodyResult with hSelectedUserBodyHalt |
       ⟨hUserBodyExec, hUserBodyPreserves⟩
   · exact
       NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_halt_exec_atFuel
         spec selectors hSupported irContract tx state observableSlots hcompile
-        hSelectorRange hSelectorsRange hNoWrap hUserBodyHalt
+        hSelectorRange hSelectorsRange hNoWrap hSelectedUserBodyHalt
   · exact
       NativeGeneratedSelectorHitSuccessBridge.of_selected_user_body_exec_only_and_preserves
         spec selectors hSupported irContract tx state observableSlots hcompile
@@ -23472,7 +26714,7 @@ private theorem NativeGeneratedSelectorHitSuccessBridge.of_leave_body_with_label
 /-- F4 (label-prefix variant of E4): Selected user bodies of shape
 `[.block [], .block [.leave]]` supply the named selector-hit success bridge.
 
-DIRECT (no `hExecBridge` hypothesis): composes the F4 LeaveAware ExecBridge
+DIRECT (no `hSelectedExecBridge` hypothesis): composes the F4 LeaveAware ExecBridge
 (`of_block_leave_with_label_prefix`) with the
 `revivedLeaveAware_and_continuation` consumer. -/
 private theorem NativeGeneratedSelectorHitSuccessBridge.of_block_leave_with_label_prefix
@@ -23674,7 +26916,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
         irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
           some fn →
         4 + fn.params.length * 32 < EvmYul.UInt256.size)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -23701,7 +26943,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
                 suffix.length + 10)
               (.Block bodyNative)
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -23753,13 +26995,13 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
       hSelectorRange hSelectorsRange hNoWrap hThreshold
       (NativeGeneratedSelectorHitSuccessBridge.of_user_body_exec_bridge_atFuel_revived_and_continuation
         spec selectors hSupported irContract tx state observableSlots hcompile
-        hSelectorRange hSelectorsRange hNoWrap hUserBodyBridge hCont)
+        hSelectorRange hSelectorsRange hNoWrap hUserBodyBridge hDispatcherContinuation)
 
 /-- Generated `callDispatcher` result theorem from `SupportedSpec + compile`,
 modulo the exact-fuel lowered-user-body proof stated against
 `execIRFunction`, with generated guard failures already discharged.
 
-This version consumes the selected user-body execution bridge directly; the
+This version consumes the selected user-body ExecBridge directly; the
 generated dispatcher continuation is provided by
 `nativeGeneratedCallDispatcherResult_selector_hit_ok_matchesIR_forall_of_compile_ok_supported`.
 -/
@@ -24560,7 +27802,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
     (hBodyBridge :
       NativeGeneratedSelectorHitBodyBridge irContract tx state
         observableSlots)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -24589,7 +27831,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
       spec selectors hSupported irContract tx state observableSlots hcompile
       hSelectorRange hSelectorsRange hNoWrap
       (NativeGeneratedSelectorHitArtifactBridge.of_body_bridge_and_continuation
-        irContract tx state observableSlots hBodyBridge hCont)
+        irContract tx state observableSlots hBodyBridge hDispatcherContinuation)
 
 /-- Generated `callDispatcher` result theorem from `SupportedSpec + compile`,
 modulo the direct lowered-user-body proof and generated-prefix continuation.
@@ -24613,7 +27855,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
     (hUserBodyBridge :
       NativeGeneratedSelectorHitUserBodyBridge irContract tx state
         observableSlots)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -24637,10 +27879,10 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
             cases' = pre ++ (tx.functionSelector, body') :: suffix →
             EvmYul.Yul.exec
               (((nativeRuntimeDispatcherFuel irContract -
-                    (cases'.length + 19)) + 1) + suffix.length + 10)
+                    (cases'.length + 20)) + 1) + suffix.length + 10)
               (.Block bodyNative)
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -24680,7 +27922,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
       spec selectors hSupported irContract tx state observableSlots hcompile
       hSelectorRange hSelectorsRange hNoWrap
       (NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_and_continuation
-        irContract tx state observableSlots hUserBodyBridge hCont)
+        irContract tx state observableSlots hUserBodyBridge hDispatcherContinuation)
 
 /-- Generated `callDispatcher` result theorem from `SupportedSpec + compile`,
 modulo the exact-fuel lowered-user-body proof and generated-prefix
@@ -24707,7 +27949,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
     (hUserBodyBridge :
       NativeGeneratedSelectorHitUserBodyBridgeAtFuel irContract tx state
         observableSlots)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -24734,7 +27976,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
                 suffix.length + 10)
               (.Block bodyNative)
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -24774,7 +28016,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
       spec selectors hSupported irContract tx state observableSlots hcompile
       hSelectorRange hSelectorsRange hNoWrap
       (NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_atFuel_and_continuation
-        irContract tx state observableSlots hUserBodyBridge hCont)
+        irContract tx state observableSlots hUserBodyBridge hDispatcherContinuation)
 
 /-- Generated `callDispatcher` result theorem from `SupportedSpec + compile`,
 modulo the exact-fuel lowered-user-body proof at the restored dispatcher
@@ -24800,7 +28042,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
     (hUserBodyBridge :
       NativeGeneratedSelectorHitUserBodyBridgeAtFuelRestored irContract tx state
         observableSlots)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -24827,7 +28069,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
                 suffix.length + 10)
               (.Block bodyNative)
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -24878,7 +28120,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
       spec selectors hSupported irContract tx state observableSlots hcompile
       hSelectorRange hSelectorsRange hNoWrap
       (NativeGeneratedSelectorHitArtifactBridge.of_user_body_bridge_atFuel_restored_and_continuation
-        irContract tx state observableSlots hUserBodyBridge hCont)
+        irContract tx state observableSlots hUserBodyBridge hDispatcherContinuation)
 
 /-- Generated `callDispatcher` result theorem from `SupportedSpec + compile`,
 modulo the exact-fuel lowered-user-body proof at the revived body boundary.
@@ -24902,7 +28144,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
     (hUserBodyBridge :
       NativeGeneratedSelectorHitUserBodyBridgeAtFuelRevived irContract tx state
         observableSlots)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -24929,7 +28171,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
                 suffix.length + 10)
               (.Block bodyNative)
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -24981,7 +28223,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
       hSelectorRange hSelectorsRange hNoWrap
       (NativeGeneratedSelectorHitUserBodyBridgeAtFuelRestored.of_revived
         irContract tx state observableSlots hUserBodyBridge)
-      hCont
+      hDispatcherContinuation
 
 /-- Generated `callDispatcher` result theorem from `SupportedSpec + compile`,
 modulo the exact-fuel lowered-user-body proof stated against
@@ -25017,7 +28259,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
         irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
           some fn →
         fn.params.length ≤ tx.args.length)
-    (hCont :
+    (hDispatcherContinuation :
       ∀ (nativeContract : EvmYul.Yul.Ast.YulContract) (fn : IRFunction)
         (reservedNames : List String) (n0 : Nat)
         (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
@@ -25044,7 +28286,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
                 suffix.length + 10)
               (.Block bodyNative)
               (some nativeContract)
-              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+              (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
                 nativeContract
                 (YulTransaction.ofIR tx)
                 state.storage
@@ -25096,7 +28338,7 @@ private theorem nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported_w
       hSelectorRange hSelectorsRange hNoWrap
       (NativeGeneratedSelectorHitUserBodyBridgeAtFuelRestored.of_execIRFunction
         irContract tx state observableSlots hUserBodyBridge hguards hArgs)
-      hCont
+      hDispatcherContinuation
 
 attribute [deprecated nativeGeneratedCallDispatcherMatchesIR_of_compile_ok_supported
   (since := "2026-05-07")]
@@ -25154,7 +28396,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     (hSelectorsRange :
       ∀ selector, selector ∈ selectors →
         selector < Compiler.Constants.selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -25167,10 +28412,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -25201,6 +28446,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     hLowerRuntime hFind hSelectorRange hNoWrap
     (generatedRuntimeFunctionSelectorsRange_of_compile_ok_supported
       hcompile hSupported hSelectorsRange)
+    hEnv
 
 /-- Selector-hit error lowered-runtime wrapper with both the selected
 transaction selector range and generated function selector ranges derived from
@@ -25226,7 +28472,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     (hSelectorsRange :
       ∀ selector, selector ∈ selectors →
         selector < Compiler.Constants.selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -25239,10 +28488,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -25273,7 +28522,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     hLowerRuntime hFind
     (selectedGeneratedFunctionSelectorRange_of_compile_ok_supported
       hcompile hSupported hSelectorsRange hFind)
-    hSelectorsRange hNoWrap
+    hSelectorsRange hNoWrap hEnv
 
 /-- Selector-hit error lowered-runtime wrapper deriving calldata no-wrap from
 the transaction calldata-size fit premise. -/
@@ -25297,7 +28546,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
         some fn)
     (hSelectorsRange :
       ∀ selector, selector ∈ selectors →
-        selector < Compiler.Constants.selectorModulus) :
+        selector < Compiler.Constants.selectorModulus)
+    (hEnv : Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+      (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+        .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -25310,10 +28562,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -25343,6 +28595,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     nativeContract fn err nativeYul htxNormalized hcalldataSizeFits hcompile
     hLowerRuntime hFind hSelectorsRange
     (txNoWrap_of_calldataSizeFits hcalldataSizeFits)
+    hEnv
 
 /-- Block-preservation variant of
 `compile_preserves_native_evmYulLean_selector_hit_ok_mapping_canonical`. -/
@@ -25363,8 +28616,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -25388,11 +28642,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -25412,7 +28666,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
                   (Compiler.emitYul irContract).runtimeCode)
                 switchStart))
             (EvmYul.UInt256.ofNat 1) body'
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -25420,13 +28674,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -25453,24 +28707,47 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
   have hLowerRuntime :
       Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
           (Compiler.emitYul irContract).runtimeCode =
-        .ok (nativeContractOfDispatcherWithMapping [.Block inner]) := by
+        .ok (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
     rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
       hcompile hSupported hMapping]
     rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds_atFuel
-      (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
-      initialState observableSlots inner nextSwitchId functions fn final nativeYul
-      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-    ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
+    lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
+      reservedNames 0 irContract.functions
+      [nativeInitFreeMemoryPointerStmt, .Block inner] nextSwitchId
+      (by simpa [reservedNames] using hLowerDispatcher) with
+    ⟨inner', hDispatcher, hLowerBlock⟩
+  have hInnerEq : inner = inner' := by
+    simpa [nativeInitFreeMemoryPointerStmt] using hDispatcher
+  subst inner'
+  obtain ⟨body1, switchStart, cases', midN, body', bodyStart, bodyEnd,
+      hInner, hLowerCases, hCase, hBodyLower⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_find?_some_of_find_function_withSwitchIds
+      reservedNames 0 irContract.functions inner nextSwitchId
+      tx.functionSelector fn (by simpa [reservedNames] using hLowerBlock)
+      hFind
   have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
+      cases'.length + 20 ≤ nativeRuntimeDispatcherFuel irContract := by
     dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
-        hcompile hSupported hMapping
-        (by simpa [reservedNames] using hLowerCases)
+    have hBig :=
+      sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
+        hcompile hSupported hMapping hLowerCases
+    omega
+  have hSelector :
+      tx.functionSelector =
+        (YulTransaction.ofIR tx).functionSelector %
+          Compiler.Constants.selectorModulus := by
+    simpa [YulTransaction.ofIR] using
+      (Nat.mod_eq_of_lt hSelectorRange).symm
+  have hSelectorRangeNative : tx.functionSelector < EvmYul.UInt256.size := by
+    exact Nat.lt_trans hSelectorRange (by decide)
+  have hTagsRange :
+      ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size :=
+    lowerSwitchCasesNativeWithSwitchIds_buildSwitch_tags_range_of_functionSelectorsRange
+      reservedNames
+      (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+        reservedNames switchStart + 1)
+      midN irContract.functions cases' hLowerCases hFunctionSelectorsRange
   refine ⟨switchStart, cases', body', bodyStart, bodyEnd,
     hCase, ?_, ?_⟩
   · simpa [reservedNames] using hBodyLower
@@ -25478,14 +28755,91 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
     have hNativeDispatcherExec' :
         nativeDispatcherExecMatchesIRPositive (nativeRuntimeDispatcherFuel irContract)
           irContract tx initialState observableSlots
-          (nativeContractOfDispatcherWithMapping [.Block inner]) := by
-      refine hNativeDispatcherExec hFuel ?_ ?_ ?_ hMatch
-      · simpa [initialState, reservedNames, nativeContractOfDispatcherWithMapping,
-          functions] using hBody
-      · simpa [reservedNames, nativeContractOfDispatcherWithMapping, functions]
-          using hPreservesMatched
-      · simpa [initialState, nativeContractOfDispatcherWithMapping, functions]
-          using hProject
+          (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+      let fuel0 := nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)
+      let contract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]
+      let materializedSlots :=
+        Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
+          (Compiler.runtimeCode irContract) observableSlots
+      have hFuelShape :
+          nativeRuntimeDispatcherFuel irContract = fuel0 + cases'.length + 20 := by
+        dsimp [fuel0]
+        exact (Nat.sub_add_cancel hFuel).symm
+      have hExec :
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
+              (nativeRuntimeDispatcherFuel irContract) contract
+              (Compiler.Proofs.YulGeneration.Backends.Native.initialState contract
+                (YulTransaction.ofIR tx) initialState.storage materializedSlots) =
+            .ok final := by
+        rw [hFuelShape]
+        have hPeel :=
+          Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel
+            fuel0 reservedNames switchStart cases' body1 inner functions
+            (YulTransaction.ofIR tx) initialState.storage materializedSlots
+            hInner (by simpa [YulTransaction.ofIR_args] using hNoWrap)
+        have hFinalMatched :
+            ∀ matchedName : EvmYul.Identifier,
+              matchedName =
+                  Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                    (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                      reservedNames switchStart) →
+                final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+          intro matchedName hMatchedName
+          subst matchedName
+          rcases
+            Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitch_find_hit_split
+              tx.functionSelector cases' tx.functionSelector body' hCase with
+            ⟨pre, suffix, hCases, _hTag, _hPrefix⟩
+          exact hPreservesMatched pre suffix hCases
+            ((fuel0 + 1) + suffix.length + 7)
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore)
+            final
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId_matched
+              contract (YulTransaction.ofIR tx) initialState.storage
+              materializedSlots
+              (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                reservedNames switchStart)
+              Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
+              (Compiler.Proofs.YulGeneration.Backends.nativeSwitchMatchedTempName
+                (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+                  reservedNames switchStart)) rfl)
+            (by
+              simpa [initialState, reservedNames, contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcherWithMapping, functions,
+                fuel0] using hBody pre suffix hCases)
+        have hSwitch :=
+          Compiler.Proofs.YulGeneration.Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched
+            fuel0 tx.functionSelector
+            (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
+              reservedNames switchStart)
+            tx.functionSelector cases'
+            [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
+            body' contract (YulTransaction.ofIR tx) initialState.storage
+            initialState.events materializedSlots final
+            (Compiler.Proofs.YulGeneration.Backends.Native.projectResult
+              (YulTransaction.ofIR tx) initialState.storage initialState.events
+              (.ok (final, [])))
+            hSelector hCase hSelectorRangeNative hTagsRange
+            (by
+              intro pre suffix hCases
+              simpa [initialState, reservedNames, contract, materializedSlots,
+                nativeContractOfInitPrefixedDispatcherWithMapping, functions,
+                fuel0] using hBody pre suffix hCases)
+            hFinalMatched rfl
+        simpa [contract, nativeContractOfInitPrefixedDispatcherWithMapping,
+          nativeInitFreeMemoryPointerStmt, functions,
+          Compiler.Proofs.YulGeneration.selectorExpr] using hPeel.trans hSwitch.1
+      refine nativeDispatcherExecMatchesIRPositive_of_project_eq_match
+        (contract := irContract) (tx := tx) (state := initialState)
+        (observableSlots := observableSlots)
+        (nativeContract := contract) ?_ hMatch
+      simpa [nativeProjectedDispatcherResultEq, hExec, materializedSlots,
+        contract, initialState, functions] using hProject
     exact
       sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeIRRuntimeMatchesIR
         (hSourceIR :=
@@ -25498,10 +28852,10 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
             (spec := model) (selectors := selectors) (irContract := irContract)
             (tx := tx) (state := initialState)
             (observableSlots := observableSlots)
-            (nativeContract := nativeContractOfDispatcherWithMapping [.Block inner])
+            (nativeContract := nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
             hcompile hSupported hLowerRuntime hEnv
             (by
-              simpa [nativeContractOfDispatcherWithMapping, functions]
+              simpa [nativeContractOfInitPrefixedDispatcherWithMapping, functions]
                 using hNativeDispatcherExec'))
 
 /-- Direct `callDispatcher` mapping selector-hit success theorem at canonical
@@ -25524,15 +28878,20 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
     (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
     ∃ (switchStart : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -25546,11 +28905,11 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -25570,7 +28929,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
                   (Compiler.emitYul irContract).runtimeCode)
                 switchStart))
             (EvmYul.UInt256.ofNat 1) body'
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -25578,13 +28937,13 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -25599,56 +28958,32 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
           (nativeGeneratedCallDispatcherResultOf irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
             observableSlots
-            (nativeContractOfDispatcherWithMapping [.Block inner]))) := by
+            (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) := by
   let initialState := FunctionBody.initialIRStateForTx model tx initialWorld
-  let reservedNames :=
-    Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
-      (Compiler.emitYul irContract).runtimeCode
-  let functions :=
-    ((∅ : Compiler.Proofs.YulGeneration.Backends.NativeFunctionMap).insert
-      "mappingSlot"
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeMappingSlotFunctionDefinition)
+  have hLowerRuntime :
+      Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
+          (Compiler.emitYul irContract).runtimeCode =
+        .ok (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]) := by
+    rw [lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
+      hcompile hSupported hMapping]
+    rw [hLowerDispatcher]
   rcases
-    nativeDispatcherExecMatchesIRPositive_of_buildSwitch_selector_hit_ok_noFallback_noReceive_withSwitchIds_atFuel
-      (nativeRuntimeDispatcherFuel irContract) reservedNames 0 irContract tx
-      initialState observableSlots inner nextSwitchId functions fn final nativeYul
-      hLowerDispatcher hFind hSelectorRange hNoWrap hFunctionSelectorsRange with
-    ⟨switchStart, cases', midN, body', bodyStart, bodyEnd,
-      hLowerCases, hCase, hBodyLower, hNativeDispatcherExec⟩
-  have hFuel :
-      cases'.length + 19 ≤ nativeRuntimeDispatcherFuel irContract := by
-    dsimp [nativeRuntimeDispatcherFuel]
-    exact
-      sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
-        hcompile hSupported hMapping
-        (by simpa [reservedNames] using hLowerCases)
+    compile_preserves_native_evmYulLean_selector_hit_ok_mapping_canonical_preserved
+      model selectors hSupported irContract tx initialWorld observableSlots inner
+      nextSwitchId fn final nativeYul htxNormalized hcalldataSizeFits hcompile
+      hMapping hLowerDispatcher hFind hSelectorRange hNoWrap
+      hFunctionSelectorsRange hEnv with
+    ⟨switchStart, cases', body', bodyStart, bodyEnd, hCase, hBodyLower,
+      hDispatcherContinuation⟩
   refine ⟨switchStart, cases', body', bodyStart, bodyEnd,
-    hCase, ?_, ?_⟩
-  · simpa [reservedNames] using hBodyLower
-  · intro hBody hPreservesMatched hProject hMatch
-    have hGeneratedMatch :
-        nativeGeneratedCallDispatcherMatchesIROn irContract tx initialState
-          observableSlots
-          (nativeContractOfDispatcherWithMapping [.Block inner]) := by
-      apply nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
-      simpa [nativeGeneratedDispatcherExecMatchesIROn,
-        nativeDispatcherExecMatchesIRPositive, nativeRuntimeDispatcherFuel,
-        nativeContractOfDispatcherWithMapping, functions] using
-          hNativeDispatcherExec hFuel
-            (by simpa [initialState, reservedNames,
-                nativeContractOfDispatcherWithMapping, functions] using hBody)
-            (by simpa [reservedNames, nativeContractOfDispatcherWithMapping,
-                functions] using hPreservesMatched)
-            (by simpa [initialState, nativeContractOfDispatcherWithMapping,
-                functions] using hProject)
-            hMatch
-    exact
-      sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
-        (hSourceIR :=
-          Compiler.Proofs.IRGeneration.Contract.compile_preserves_semantics
-            model selectors hSupported irContract tx initialWorld
-            htxNormalized hcalldataSizeFits hcompile)
-        (hNativeIR := hGeneratedMatch)
+    hCase, hBodyLower, ?_⟩
+  intro hBody hPreservesMatched hProject hMatch
+  have hSource := hDispatcherContinuation hBody hPreservesMatched hProject hMatch
+  rw [nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNative_of_lowerRuntimeContractNative_supported
+    tx initialState observableSlots
+    (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
+    hcompile hSupported hLowerRuntime hEnv]
+  simpa [nativeRuntimeFuel, initialState] using hSource
 
 /-- Direct `callDispatcher` selector-hit success theorem from successful
 lowering of the whole emitted runtime, using a block-preservation obligation
@@ -25679,7 +29014,11 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -25692,10 +29031,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -25748,7 +29087,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
         hcompile hSupported hMapping hLowerRuntime with
       ⟨dispatcher, nextSwitchId, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNativeWithSwitchIds_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNativeWithSwitchIds_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
           (Compiler.emitYul irContract).runtimeCode)
         0 irContract.functions dispatcher nextSwitchId hLowerDispatcher with
@@ -25759,37 +29098,37 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       compile_preserves_native_evmYulLean_callDispatcher_selector_hit_ok_mapping_canonical_preserved
         model selectors hSupported irContract tx initialWorld observableSlots
         inner nextSwitchId fn final nativeYul htxNormalized hcalldataSizeFits
-        hcompile hMapping hLowerBlock hFind hSelectorRange hNoWrap
-        hFunctionSelectorsRange with
+        hcompile hMapping (by simpa using hLowerDispatcher) hFind
+        hSelectorRange hNoWrap hFunctionSelectorsRange hEnv with
       ⟨switchStart, cases', body', bodyStart, bodyEnd,
-        hCase, hBodyLower, hCont⟩
+        hCase, hBodyLower, hDispatcherContinuation⟩
     refine ⟨
       Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode,
       switchStart, cases', body', bodyStart, bodyEnd, hCase, hBodyLower, ?_⟩
     intro hBody hPreserves hProject hMatch
-    exact hCont hBody hPreserves hProject hMatch
+    exact hDispatcherContinuation hBody hPreserves hProject hMatch
   · have hNoMapping : irContract.usesMapping = false := by
       exact Bool.eq_false_iff.2 hUsesMapping
     rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
         hcompile hSupported hNoMapping hLowerRuntime with
       ⟨dispatcher, hLowerDispatcher, hNativeContract⟩
     rcases
-      lowerStmtsNative_buildSwitch_noFallback_noReceive_ok_block
+      lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block
         irContract.functions dispatcher hLowerDispatcher with
-      ⟨inner, hDispatcher, hLowerBlock⟩
+      ⟨inner, nextSwitchId, hDispatcher, hLowerBlock⟩
     subst nativeContract
     subst dispatcher
     rcases
       compile_preserves_native_evmYulLean_callDispatcher_selector_hit_ok_noMapping_canonical_preserved
         model selectors hSupported irContract tx initialWorld observableSlots
         inner fn final nativeYul htxNormalized hcalldataSizeFits hcompile
-        hNoMapping hLowerBlock hFind hSelectorRange hNoWrap
-        hFunctionSelectorsRange with
+        hNoMapping (by simpa using hLowerDispatcher) hFind
+        hSelectorRange hNoWrap hFunctionSelectorsRange hEnv with
       ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
-        hCase, hBodyLower, hCont⟩
+        hCase, hBodyLower, hDispatcherContinuation⟩
     exact ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower, hCont⟩
+      hCase, hBodyLower, hDispatcherContinuation⟩
 
 /-- Direct `callDispatcher` selector-hit success theorem from successful
 lowering of the whole emitted runtime, deriving selected-body block preservation
@@ -25815,7 +29154,11 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -25832,10 +29175,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -25889,14 +29232,14 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       model selectors hSupported irContract tx initialWorld observableSlots
       nativeContract fn final nativeYul htxNormalized hcalldataSizeFits
       hcompile hLowerRuntime hFind hSelectorRange hNoWrap
-      hFunctionSelectorsRange with
+      hFunctionSelectorsRange hEnv with
     ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
-      hCase, hBodyLower, hCont⟩
+      hCase, hBodyLower, hDispatcherContinuation⟩
   refine ⟨reservedNames, n0, cases', body', bodyStart, bodyEnd,
     hCase, hBodyLower, ?_⟩
   intro hFresh hBody hStmtPreserves hProject hMatch
   exact
-    hCont hBody
+    hDispatcherContinuation hBody
       (by
         intro pre suffix hcases
         exact
@@ -25935,7 +29278,11 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     (hSelectorsRange :
       ∀ selector, selector ∈ selectors →
         selector < Compiler.Constants.selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -25952,10 +29299,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -26010,6 +29357,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     hLowerRuntime hFind hSelectorRange hNoWrap
     (generatedRuntimeFunctionSelectorsRange_of_compile_ok_supported
       hcompile hSupported hSelectorsRange)
+    hEnv
 
 /-- Selector-hit success lowered-runtime wrapper with both selector range facts
 derived from the source selector list. The selected-body execution,
@@ -26035,7 +29383,11 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     (hSelectorsRange :
       ∀ selector, selector ∈ selectors →
         selector < Compiler.Constants.selectorModulus)
-    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
+    (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -26052,10 +29404,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -26110,7 +29462,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     hLowerRuntime hFind
     (selectedGeneratedFunctionSelectorRange_of_compile_ok_supported
       hcompile hSupported hSelectorsRange hFind)
-    hSelectorsRange hNoWrap
+    hSelectorsRange hNoWrap hEnv
 
 /-- Selector-hit success lowered-runtime wrapper deriving calldata no-wrap from
 the transaction calldata-size fit premise. The selected-body execution,
@@ -26135,7 +29487,11 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
         some fn)
     (hSelectorsRange :
       ∀ selector, selector ∈ selectors →
-        selector < Compiler.Constants.selectorModulus) :
+        selector < Compiler.Constants.selectorModulus)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -26152,10 +29508,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
             (some nativeContract)
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
               nativeContract
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -26208,7 +29564,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
     model selectors hSupported irContract tx initialWorld observableSlots
     nativeContract fn final nativeYul htxNormalized hcalldataSizeFits hcompile
     hLowerRuntime hFind hSelectorsRange
-    (txNoWrap_of_calldataSizeFits hcalldataSizeFits)
+    (txNoWrap_of_calldataSizeFits hcalldataSizeFits) hEnv
 
 /-- Direct `callDispatcher` mapping selector-hit success theorem at canonical
 generated-runtime fuel, deriving selected-body block preservation from native
@@ -26230,15 +29586,20 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
     (hSelectorRange : tx.functionSelector < Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hFunctionSelectorsRange :
-      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size) :
+      ∀ fn, fn ∈ irContract.functions → fn.selector < EvmYul.UInt256.size)
+    (hEnv :
+      Compiler.Proofs.YulGeneration.Backends.Native.validateNativeRuntimeEnvironment
+        (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) =
+          .ok ()) :
     ∃ (switchStart : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (body' : List EvmYul.Yul.Ast.Stmt) (bodyStart bodyEnd : Nat),
@@ -26258,11 +29619,11 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -26287,7 +29648,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
                   (Compiler.emitYul irContract).runtimeCode)
                 switchStart))
             (EvmYul.UInt256.ofNat 1) stmt
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -26295,13 +29656,13 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -26316,7 +29677,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
           (nativeGeneratedCallDispatcherResultOf irContract tx
             (FunctionBody.initialIRStateForTx model tx initialWorld)
             observableSlots
-            (nativeContractOfDispatcherWithMapping [.Block inner]))) := by
+            (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) := by
   let reservedNames :=
     Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
       (Compiler.emitYul irContract).runtimeCode
@@ -26325,7 +29686,7 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
       model selectors hSupported irContract tx initialWorld observableSlots inner
       nextSwitchId fn final nativeYul htxNormalized hcalldataSizeFits hcompile
       hMapping hLowerDispatcher hFind hSelectorRange hNoWrap
-      hFunctionSelectorsRange with
+      hFunctionSelectorsRange hEnv with
     ⟨switchStart, cases', body', bodyStart, bodyEnd, hCase, hBodyLower,
       hPreserved⟩
   refine ⟨switchStart, cases', body', bodyStart, bodyEnd, hCase, hBodyLower, ?_⟩
@@ -26338,10 +29699,10 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_selector_hit_
         tx.functionSelector tx.functionSelector body'
         [Compiler.Proofs.YulGeneration.Backends.Native.nativeRevertZeroZeroStmt]
         cases' (EvmYul.UInt256.ofNat 1)
-        (some (nativeContractOfDispatcherWithMapping [.Block inner]))
+        (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
         (by simpa [reservedNames] using hFresh) hCase
         (by
-          simpa [reservedNames, nativeContractOfDispatcherWithMapping] using
+          simpa [reservedNames, nativeContractOfInitPrefixedDispatcherWithMapping] using
             hStmtPreserves))
     hProject hMatch
 
@@ -26359,8 +29720,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_noMapping_cano
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -26406,8 +29768,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_noMapping_cano
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -26449,8 +29812,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_noMapping_cano
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -26493,8 +29857,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_noMapping_cano
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -26535,8 +29900,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_mapping_canoni
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -26584,8 +29950,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_mapping_canoni
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -26629,8 +29996,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_mapping_canoni
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -26676,8 +30044,9 @@ private theorem compile_preserves_native_evmYulLean_selector_miss_mapping_canoni
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         none)
@@ -26718,8 +30087,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -26749,11 +30119,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -26801,8 +30171,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -26828,11 +30199,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -26880,8 +30251,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -26910,11 +30282,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -26961,8 +30333,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -26987,11 +30360,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_noMapping
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27040,8 +30413,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -27072,11 +30446,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27129,8 +30503,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -27157,11 +30532,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27214,8 +30589,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -27245,11 +30621,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27300,8 +30676,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -27327,11 +30704,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_error_mapping_c
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27380,8 +30757,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -27414,11 +30792,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27437,7 +30815,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
               (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
                 reservedNames n0))
             (EvmYul.UInt256.ofNat 1) stmt
-            (some (nativeContractOfDispatcher [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -27445,13 +30823,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27491,8 +30869,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -27521,11 +30900,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27544,7 +30923,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
               (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
                 reservedNames n0))
             (EvmYul.UInt256.ofNat 1) stmt
-            (some (nativeContractOfDispatcher [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -27552,13 +30931,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27598,8 +30977,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -27628,11 +31008,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27648,7 +31028,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
               (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
                 reservedNames n0))
             (EvmYul.UInt256.ofNat 1) body'
-            (some (nativeContractOfDispatcher [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -27656,13 +31036,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27702,8 +31082,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
     (hNoMapping : irContract.usesMapping = false)
     (hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok [.Block inner])
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok [nativeInitFreeMemoryPointerStmt, .Block inner])
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -27728,11 +31109,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcher [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcher [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcher [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27748,7 +31129,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
               (Compiler.Proofs.YulGeneration.Backends.freshNativeSwitchId
                 reservedNames n0))
             (EvmYul.UInt256.ofNat 1) body'
-            (some (nativeContractOfDispatcher [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcher [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -27756,13 +31137,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_noMapping_ca
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcher [.Block inner])
+                (nativeContractOfInitPrefixedDispatcher [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27804,8 +31185,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -27841,11 +31223,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27870,7 +31252,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
                   (Compiler.emitYul irContract).runtimeCode)
                 switchStart))
             (EvmYul.UInt256.ofNat 1) stmt
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -27878,13 +31260,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27927,8 +31309,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -27960,11 +31343,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
         (∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -27989,7 +31372,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
                   (Compiler.emitYul irContract).runtimeCode)
                 switchStart))
             (EvmYul.UInt256.ofNat 1) stmt
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -27997,13 +31380,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -28046,8 +31429,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -28077,11 +31461,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -28101,7 +31485,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
                   (Compiler.emitYul irContract).runtimeCode)
                 switchStart))
             (EvmYul.UInt256.ofNat 1) body'
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -28109,13 +31493,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -28158,8 +31542,9 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
-        .ok ([.Block inner], nextSwitchId))
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+        .ok ([nativeInitFreeMemoryPointerStmt, .Block inner], nextSwitchId))
     (hFind :
       irContract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
         some fn)
@@ -28185,11 +31570,11 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
       ((∀ pre suffix,
           cases' = pre ++ (tx.functionSelector, body') :: suffix →
           EvmYul.Yul.exec
-            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 19)) +
+            (((nativeRuntimeDispatcherFuel irContract - (cases'.length + 20)) +
                 1) + suffix.length + 7) (.Block body')
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))
-            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
-              (nativeContractOfDispatcherWithMapping [.Block inner])
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))
+            (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
+              (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
               (YulTransaction.ofIR tx)
               (FunctionBody.initialIRStateForTx model tx initialWorld).storage
               (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -28209,7 +31594,7 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
                   (Compiler.emitYul irContract).runtimeCode)
                 switchStart))
             (EvmYul.UInt256.ofNat 1) body'
-            (some (nativeContractOfDispatcherWithMapping [.Block inner]))) →
+            (some (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner]))) →
         Compiler.Proofs.YulGeneration.Backends.Native.projectResult
           (YulTransaction.ofIR tx)
           (FunctionBody.initialIRStateForTx model tx initialWorld).storage
@@ -28217,13 +31602,13 @@ private theorem compile_preserves_native_evmYulLean_selector_hit_ok_mapping_cano
           (.ok
             (((final.reviveJump.overwrite?
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
                   (Compiler.runtimeCode irContract) observableSlots))).setStore
               (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-                (nativeContractOfDispatcherWithMapping [.Block inner])
+                (nativeContractOfInitPrefixedDispatcherWithMapping [.Block inner])
                 (YulTransaction.ofIR tx)
                 (FunctionBody.initialIRStateForTx model tx initialWorld).storage
                 (Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
@@ -28520,7 +31905,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherSt
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -28558,7 +31943,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherSt
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -28703,7 +32088,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherSt
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -28745,7 +32130,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherSt
       Compiler.Proofs.YulGeneration.Backends.BridgedSafeStmts
         spec.fields spec.errors .calldata [] false entry.1.body)
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-      [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -28781,7 +32166,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherSt
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -28819,7 +32204,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherSt
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -28853,7 +32238,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherSt
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId :
       Compiler.Proofs.YulGeneration.Backends.Native.nativeChainIdRepresentable
@@ -28893,7 +32278,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherSt
     (hLowerDispatcher : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
       (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
         (Compiler.emitYul irContract).runtimeCode)
-      0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+      0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hChainId : tx.chainId = EvmYul.chainId)
     (hBlobBaseFee : tx.blobBaseFee = EvmYul.MIN_BASE_FEE_PER_BLOB_GAS)
@@ -28933,7 +32318,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hNativeDispatcherExec : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher)) :
@@ -28967,7 +32352,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hProject : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher) nativeYul)
@@ -29005,7 +32390,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
@@ -29041,7 +32426,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)
@@ -29070,7 +32455,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hNativeDispatcherExec : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher)) :
@@ -29095,7 +32480,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       (Compiler.emitYul irContract).runtimeCode (YulTransaction.ofIR tx) = .ok ())
     (hProject : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher) nativeYul)
@@ -29124,7 +32509,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
@@ -29151,7 +32536,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)
@@ -29187,7 +32572,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
         false)
     (hNativeDispatcherExec : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher)) :
@@ -29219,7 +32604,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
         false)
     (hNativeDispatcherExec : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher)) :
@@ -29256,7 +32641,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
         false)
     (hProject : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher) nativeYul)
@@ -29292,7 +32677,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
         false)
     (hProject : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher) nativeYul)
@@ -29333,7 +32718,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
@@ -29367,7 +32752,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
@@ -29406,7 +32791,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)
@@ -29445,7 +32830,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)
@@ -29493,7 +32878,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
         false)
     (hNativeDispatcherExec : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher)) :
@@ -29533,7 +32918,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
         false)
     (hNativeDispatcherExec : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher)) :
@@ -29578,7 +32963,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
         false)
     (hProject : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher) nativeYul)
@@ -29622,7 +33007,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
         false)
     (hProject : ∀ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcher dispatcher) nativeYul)
@@ -29671,7 +33056,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
@@ -29713,7 +33098,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeDispatcherExecMatchesIRPositive fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)) :
@@ -29758,7 +33143,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)
@@ -29805,7 +33190,7 @@ private theorem layers2_3_ir_matches_native_evmYulLean_of_generated_lowered_runt
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer, Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) →
       nativeProjectedDispatcherResultEq fuel' irContract tx initialState
         observableSlots (nativeContractOfDispatcherWithMapping dispatcher)
@@ -29887,6 +33272,28 @@ private theorem simpleStorage_runtimeCode_eq_single_dispatcher :
     Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode,
     simpleStorageIRContract]
 
+private abbrev simpleStorageBuildSwitchSourceCases : List (Nat × List Yul.YulStmt) :=
+  simpleStorageIRContract.functions.map (fun fn =>
+    (fn.selector,
+      Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
+        ([Compiler.CodegenCommon.calldatasizeGuard fn.params.length] ++ fn.body)))
+
+private abbrev simpleStorageBuildSwitchBody : List Yul.YulStmt :=
+  [Yul.YulStmt.let_ "__has_selector"
+    (Yul.YulExpr.call "iszero"
+      [Yul.YulExpr.call "lt"
+        [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit 4]]),
+   Yul.YulStmt.if_ (Yul.YulExpr.call "iszero"
+      [Yul.YulExpr.ident "__has_selector"])
+      (Compiler.CodegenCommon.defaultDispatchCase none none),
+   Yul.YulStmt.if_ (Yul.YulExpr.ident "__has_selector")
+      [Yul.YulStmt.switch
+        (Yul.YulExpr.call "shr"
+          [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+           Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+        simpleStorageBuildSwitchSourceCases
+        (some (Compiler.CodegenCommon.defaultDispatchCase none none))]]
+
 private theorem lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
     (stmt : Yul.YulStmt)
     (hNoFunc : ∀ name params rets body,
@@ -29901,6 +33308,16 @@ private theorem lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
       | .error err => .error err :=
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative
     stmt hNoFunc
+
+private noncomputable def simpleStorageNativeRuntimeDispatcherStmts :
+    List EvmYul.Yul.Ast.Stmt :=
+  match
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+       Compiler.CodegenCommon.buildSwitch
+        simpleStorageIRContract.functions none none] with
+  | .ok stmts => stmts
+  | .error _ => []
 
 private noncomputable def simpleStorageNativeDispatcherStmts :
     List EvmYul.Yul.Ast.Stmt :=
@@ -29918,20 +33335,14 @@ This exposes the concrete lowered dispatcher block without unfolding the
 computed native witness in later selector-case proofs. -/
 private theorem simpleStorageNativeContract_dispatcher_eq_lowered_stmts :
     Compiler.SimpleStorageNativeWitness.nativeContract.dispatcher =
-      .Block simpleStorageNativeDispatcherStmts := by
-  unfold Compiler.SimpleStorageNativeWitness.nativeContract
-  rw [simpleStorage_runtimeCode_eq_single_dispatcher]
-  rw [lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative]
-  · cases hLower :
-        Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch
-            simpleStorageIRContract.functions none none] with
-    | ok stmts =>
-        simp [simpleStorageNativeDispatcherStmts, hLower]
-    | error err =>
-        simp [simpleStorageNativeDispatcherStmts, hLower]
-  · intro name params rets body h
-    cases h
+      .Block simpleStorageNativeRuntimeDispatcherStmts := by
+  have hOuter := Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq
+  obtain ⟨dispatcher, hDispatcher, hContract⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher
+      simpleStorageIRContract Compiler.SimpleStorageNativeWitness.nativeContract
+      (by rfl) (by rfl) (by rfl) (by rfl) hOuter
+  rw [hContract]
+  simp [simpleStorageNativeRuntimeDispatcherStmts, hDispatcher]
 
 /-- A `.block` head in the native lowering surfaces as a singleton `.Block`
 output when the lowering succeeds.
@@ -29960,19 +33371,21 @@ private theorem simpleStorageNativeDispatcherStmts_lowering_ok :
         [Compiler.CodegenCommon.buildSwitch
           simpleStorageIRContract.functions none none] =
       .ok simpleStorageNativeDispatcherStmts := by
-  have hOuter := Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq
-  rw [simpleStorage_runtimeCode_eq_single_dispatcher] at hOuter
-  rw [lowerRuntimeContractNative_single_stmt_eq_lowerStmtsNative] at hOuter
-  · cases hL : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-        [Compiler.CodegenCommon.buildSwitch
-          simpleStorageIRContract.functions none none] with
-    | ok stmts =>
-        simp [simpleStorageNativeDispatcherStmts, hL]
-    | error err =>
-        rw [hL] at hOuter
-        simp at hOuter
-  · intro name params rets body h'
-    cases h'
+  have hOk :
+      (match Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+          [Compiler.CodegenCommon.buildSwitch
+            simpleStorageIRContract.functions none none] with
+      | .ok _ => true
+      | .error _ => false) = true := by
+    native_decide
+  cases hLower : Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
+      [Compiler.CodegenCommon.buildSwitch
+        simpleStorageIRContract.functions none none] with
+  | ok lowered =>
+      simp [simpleStorageNativeDispatcherStmts, hLower]
+  | error err =>
+      rw [hLower] at hOk
+      cases hOk
 
 /-- The SimpleStorage native dispatcher statement list is a singleton `.Block`.
 
@@ -29980,26 +33393,335 @@ Reason: `buildSwitch` produces a `Yul.YulStmt.block`, which the native lowering
 maps to `[.Block inner]` for the lowered inner statements. Combined with the
 fact that the lowering succeeds (above), this exposes the inner block shape
 without further computation. -/
-private theorem simpleStorageNativeDispatcherStmts_exists_singleton_block :
-    ∃ inner : List EvmYul.Yul.Ast.Stmt,
-      simpleStorageNativeDispatcherStmts = [.Block inner] := by
-  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
-  -- buildSwitch produces a YulStmt.block by definition.
-  have hBlock :
-      Compiler.CodegenCommon.buildSwitch
-          simpleStorageIRContract.functions none none =
-        Yul.YulStmt.block _ := rfl
-  rw [hBlock] at hOk
-  exact lowerStmtsNative_single_block_ok_singleton _ _ hOk
+private theorem simpleStorageNativeRuntimeDispatcherStmts_exists_init_block :
+    ∃ (inner : List EvmYul.Yul.Ast.Stmt) (next : Nat),
+      simpleStorageNativeRuntimeDispatcherStmts =
+        [.ExprStmtCall
+          (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+            (Yul.YulExpr.call "mstore"
+              [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+               Yul.YulExpr.lit 128])),
+         .Block inner] ∧
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+           Compiler.CodegenCommon.buildSwitch simpleStorageIRContract.functions none none])
+        0
+        simpleStorageBuildSwitchBody =
+        .ok (inner, next) := by
+  have hOuter := Compiler.SimpleStorageNativeWitness.lowerRuntimeContractNative_eq
+  obtain ⟨dispatcher, hDispatcher, _hContract⟩ :=
+    Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher
+      simpleStorageIRContract Compiler.SimpleStorageNativeWitness.nativeContract
+      (by rfl) (by rfl) (by rfl) (by rfl) hOuter
+  unfold simpleStorageNativeRuntimeDispatcherStmts
+  rw [hDispatcher]
+  unfold Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative at hDispatcher
+  dsimp at hDispatcher
+  cases hLowerList :
+      Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+        (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+           Compiler.CodegenCommon.buildSwitch simpleStorageIRContract.functions none none])
+        0
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+         Compiler.CodegenCommon.buildSwitch simpleStorageIRContract.functions none none] with
+  | error err =>
+      rw [hLowerList] at hDispatcher
+      simp at hDispatcher
+  | ok pair =>
+      rcases pair with ⟨lowered, finalNext⟩
+      rw [hLowerList] at hDispatcher
+      simp at hDispatcher
+      subst dispatcher
+      rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons] at hLowerList
+      simp [Compiler.CodegenCommon.initFreeMemoryPointer, Bind.bind,
+        Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_expr,
+        Except.bind, Pure.pure, Except.pure] at hLowerList
+      rw [Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds_cons] at hLowerList
+      simp [Compiler.CodegenCommon.buildSwitch,
+        Compiler.Proofs.YulGeneration.Backends.lowerStmtGroupNativeWithSwitchIds_block,
+        simpleStorageBuildSwitchBody, simpleStorageBuildSwitchSourceCases,
+        Bind.bind, Except.bind, Pure.pure, Except.pure] at hLowerList
+      cases hInner :
+          Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+            (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+              [Compiler.CodegenCommon.initFreeMemoryPointer,
+               Compiler.CodegenCommon.buildSwitch simpleStorageIRContract.functions none none])
+            0
+            simpleStorageBuildSwitchBody with
+      | error err =>
+          have hInner' :
+              Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+                (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+                  [Yul.YulStmt.expr
+                    (Yul.YulExpr.call "mstore"
+                      [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                       Yul.YulExpr.lit 128]),
+                   Yul.YulStmt.block
+                    [Yul.YulStmt.let_ "__has_selector"
+                      (Yul.YulExpr.call "iszero"
+                        [Yul.YulExpr.call "lt"
+                          [Yul.YulExpr.call "calldatasize" [],
+                           Yul.YulExpr.lit 4]]),
+                     Yul.YulStmt.if_
+                      (Yul.YulExpr.call "iszero"
+                        [Yul.YulExpr.ident "__has_selector"])
+                      (Compiler.CodegenCommon.defaultDispatchCase none none),
+                     Yul.YulStmt.if_ (Yul.YulExpr.ident "__has_selector")
+                      [Yul.YulStmt.switch
+                        (Yul.YulExpr.call "shr"
+                          [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                           Yul.YulExpr.call "calldataload"
+                            [Yul.YulExpr.lit 0]])
+                        simpleStorageBuildSwitchSourceCases
+                        (some (Compiler.CodegenCommon.defaultDispatchCase
+                          none none))]]])
+                0
+                [Yul.YulStmt.let_ "__has_selector"
+                  (Yul.YulExpr.call "iszero"
+                    [Yul.YulExpr.call "lt"
+                      [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit 4]]),
+                 Yul.YulStmt.if_
+                  (Yul.YulExpr.call "iszero"
+                    [Yul.YulExpr.ident "__has_selector"])
+                  (Compiler.CodegenCommon.defaultDispatchCase none none),
+                 Yul.YulStmt.if_ (Yul.YulExpr.ident "__has_selector")
+                  [Yul.YulStmt.switch
+                    (Yul.YulExpr.call "shr"
+                      [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                       Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+                    simpleStorageBuildSwitchSourceCases
+                    (some (Compiler.CodegenCommon.defaultDispatchCase
+                      none none))]] =
+                .error err := by
+            simpa [Compiler.CodegenCommon.initFreeMemoryPointer,
+              Compiler.CodegenCommon.buildSwitch, simpleStorageBuildSwitchBody,
+              simpleStorageBuildSwitchSourceCases] using hInner
+          have hBad : (Except.error err : Except AdapterError
+              (List EvmYul.Yul.Ast.Stmt × Nat)) = .ok (lowered, finalNext) := by
+            have hInnerMap :
+                Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+                  (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+                    [Yul.YulStmt.expr
+                      (Yul.YulExpr.call "mstore"
+                        [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                         Yul.YulExpr.lit 128]),
+                     Yul.YulStmt.block
+                      [Yul.YulStmt.let_ "__has_selector"
+                        (Yul.YulExpr.call "iszero"
+                          [Yul.YulExpr.call "lt"
+                            [Yul.YulExpr.call "calldatasize" [],
+                             Yul.YulExpr.lit 4]]),
+                       Yul.YulStmt.if_
+                        (Yul.YulExpr.call "iszero"
+                          [Yul.YulExpr.ident "__has_selector"])
+                        (Compiler.CodegenCommon.defaultDispatchCase none none),
+                       Yul.YulStmt.if_ (Yul.YulExpr.ident "__has_selector")
+                        [Yul.YulStmt.switch
+                          (Yul.YulExpr.call "shr"
+                            [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                             Yul.YulExpr.call "calldataload"
+                              [Yul.YulExpr.lit 0]])
+                          (List.map
+                            (fun fn =>
+                              (fn.selector,
+                                Compiler.CodegenCommon.dispatchBody fn.payable
+                                  (toString "" ++ toString fn.name ++ toString "()")
+                                  (Compiler.CodegenCommon.calldatasizeGuard
+                                    fn.params.length :: fn.body)))
+                            simpleStorageIRContract.functions)
+                          (some (Compiler.CodegenCommon.defaultDispatchCase
+                            none none))]]])
+                  0
+                  [Yul.YulStmt.let_ "__has_selector"
+                    (Yul.YulExpr.call "iszero"
+                      [Yul.YulExpr.call "lt"
+                        [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit 4]]),
+                   Yul.YulStmt.if_
+                    (Yul.YulExpr.call "iszero"
+                      [Yul.YulExpr.ident "__has_selector"])
+                    (Compiler.CodegenCommon.defaultDispatchCase none none),
+                   Yul.YulStmt.if_ (Yul.YulExpr.ident "__has_selector")
+                    [Yul.YulStmt.switch
+                      (Yul.YulExpr.call "shr"
+                        [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                         Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+                      (List.map
+                        (fun fn =>
+                          (fn.selector,
+                            Compiler.CodegenCommon.dispatchBody fn.payable
+                              (toString "" ++ toString fn.name ++ toString "()")
+                              (Compiler.CodegenCommon.calldatasizeGuard
+                                fn.params.length :: fn.body)))
+                        simpleStorageIRContract.functions)
+                      (some (Compiler.CodegenCommon.defaultDispatchCase
+                        none none))]] =
+                  .error err := by
+              simpa [simpleStorageBuildSwitchSourceCases] using hInner'
+            simpa [hInnerMap] using hLowerList
+          cases hBad
+      | ok innerPair =>
+          rcases innerPair with ⟨inner, innerNext⟩
+          have hInner' :
+              Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+                (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+                  [Yul.YulStmt.expr
+                    (Yul.YulExpr.call "mstore"
+                      [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                       Yul.YulExpr.lit 128]),
+                   Yul.YulStmt.block
+                    [Yul.YulStmt.let_ "__has_selector"
+                      (Yul.YulExpr.call "iszero"
+                        [Yul.YulExpr.call "lt"
+                          [Yul.YulExpr.call "calldatasize" [],
+                           Yul.YulExpr.lit 4]]),
+                     Yul.YulStmt.if_
+                      (Yul.YulExpr.call "iszero"
+                        [Yul.YulExpr.ident "__has_selector"])
+                      (Compiler.CodegenCommon.defaultDispatchCase none none),
+                     Yul.YulStmt.if_ (Yul.YulExpr.ident "__has_selector")
+                      [Yul.YulStmt.switch
+                        (Yul.YulExpr.call "shr"
+                          [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                           Yul.YulExpr.call "calldataload"
+                            [Yul.YulExpr.lit 0]])
+                        simpleStorageBuildSwitchSourceCases
+                        (some (Compiler.CodegenCommon.defaultDispatchCase
+                          none none))]]])
+                0
+                [Yul.YulStmt.let_ "__has_selector"
+                  (Yul.YulExpr.call "iszero"
+                    [Yul.YulExpr.call "lt"
+                      [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit 4]]),
+                 Yul.YulStmt.if_
+                  (Yul.YulExpr.call "iszero"
+                    [Yul.YulExpr.ident "__has_selector"])
+                  (Compiler.CodegenCommon.defaultDispatchCase none none),
+                 Yul.YulStmt.if_ (Yul.YulExpr.ident "__has_selector")
+                  [Yul.YulStmt.switch
+                    (Yul.YulExpr.call "shr"
+                      [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                       Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+                    simpleStorageBuildSwitchSourceCases
+                    (some (Compiler.CodegenCommon.defaultDispatchCase
+                      none none))]] =
+                .ok (inner, innerNext) := by
+            simpa [Compiler.CodegenCommon.initFreeMemoryPointer,
+              Compiler.CodegenCommon.buildSwitch, simpleStorageBuildSwitchBody,
+              simpleStorageBuildSwitchSourceCases] using hInner
+          have hLowerList' :
+              (Except.ok
+                ([EvmYul.Yul.Ast.Stmt.ExprStmtCall
+                    (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+                      (Yul.YulExpr.call "mstore"
+                        [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                         Yul.YulExpr.lit 128])),
+                  EvmYul.Yul.Ast.Stmt.Block inner],
+                 innerNext) :
+                Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)) =
+                (Except.ok (lowered, finalNext) :
+                  Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)) := by
+            have hInnerMap :
+                Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+                  (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+                    [Yul.YulStmt.expr
+                      (Yul.YulExpr.call "mstore"
+                        [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                         Yul.YulExpr.lit 128]),
+                     Yul.YulStmt.block
+                      [Yul.YulStmt.let_ "__has_selector"
+                        (Yul.YulExpr.call "iszero"
+                          [Yul.YulExpr.call "lt"
+                            [Yul.YulExpr.call "calldatasize" [],
+                             Yul.YulExpr.lit 4]]),
+                       Yul.YulStmt.if_
+                        (Yul.YulExpr.call "iszero"
+                          [Yul.YulExpr.ident "__has_selector"])
+                        (Compiler.CodegenCommon.defaultDispatchCase none none),
+                       Yul.YulStmt.if_ (Yul.YulExpr.ident "__has_selector")
+                        [Yul.YulStmt.switch
+                          (Yul.YulExpr.call "shr"
+                            [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                             Yul.YulExpr.call "calldataload"
+                              [Yul.YulExpr.lit 0]])
+                          (List.map
+                            (fun fn =>
+                              (fn.selector,
+                                Compiler.CodegenCommon.dispatchBody fn.payable
+                                  (toString "" ++ toString fn.name ++ toString "()")
+                                  (Compiler.CodegenCommon.calldatasizeGuard
+                                    fn.params.length :: fn.body)))
+                            simpleStorageIRContract.functions)
+                          (some (Compiler.CodegenCommon.defaultDispatchCase
+                            none none))]]])
+                  0
+                  [Yul.YulStmt.let_ "__has_selector"
+                    (Yul.YulExpr.call "iszero"
+                      [Yul.YulExpr.call "lt"
+                        [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit 4]]),
+                   Yul.YulStmt.if_
+                    (Yul.YulExpr.call "iszero"
+                      [Yul.YulExpr.ident "__has_selector"])
+                    (Compiler.CodegenCommon.defaultDispatchCase none none),
+                   Yul.YulStmt.if_ (Yul.YulExpr.ident "__has_selector")
+                    [Yul.YulStmt.switch
+                      (Yul.YulExpr.call "shr"
+                        [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                         Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+                      (List.map
+                        (fun fn =>
+                          (fn.selector,
+                            Compiler.CodegenCommon.dispatchBody fn.payable
+                              (toString "" ++ toString fn.name ++ toString "()")
+                              (Compiler.CodegenCommon.calldatasizeGuard
+                                fn.params.length :: fn.body)))
+                        simpleStorageIRContract.functions)
+                      (some (Compiler.CodegenCommon.defaultDispatchCase
+                        none none))]] =
+                  .ok (inner, innerNext) := by
+              simpa [simpleStorageBuildSwitchSourceCases] using hInner'
+            simpa [hInnerMap] using hLowerList
+          simp at hLowerList'
+          rcases hLowerList' with ⟨hLowered, hNext⟩
+          subst lowered
+          subst finalNext
+          exact ⟨inner, innerNext, by simp, by
+            simpa [simpleStorageBuildSwitchBody, simpleStorageBuildSwitchSourceCases]
+              using hInner⟩
 
 private noncomputable def simpleStorageNativeDispatcherInnerStmts :
     List EvmYul.Yul.Ast.Stmt :=
-  Classical.choose simpleStorageNativeDispatcherStmts_exists_singleton_block
+  Classical.choose simpleStorageNativeRuntimeDispatcherStmts_exists_init_block
 
-private theorem simpleStorageNativeDispatcherStmts_eq_singleton_block :
-    simpleStorageNativeDispatcherStmts =
-      [.Block simpleStorageNativeDispatcherInnerStmts] :=
-  Classical.choose_spec simpleStorageNativeDispatcherStmts_exists_singleton_block
+private noncomputable def simpleStorageNativeDispatcherInnerNext : Nat :=
+  Classical.choose
+    (Classical.choose_spec simpleStorageNativeRuntimeDispatcherStmts_exists_init_block)
+
+private theorem simpleStorageNativeRuntimeDispatcherStmts_eq_init_block :
+    simpleStorageNativeRuntimeDispatcherStmts =
+      [.ExprStmtCall
+        (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+          (Yul.YulExpr.call "mstore"
+            [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+             Yul.YulExpr.lit 128])),
+       .Block simpleStorageNativeDispatcherInnerStmts] :=
+  (Classical.choose_spec
+    (Classical.choose_spec
+      simpleStorageNativeRuntimeDispatcherStmts_exists_init_block)).1
+
+private theorem simpleStorageNativeDispatcherInnerStmts_lowering_ok :
+    Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
+      (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+         Compiler.CodegenCommon.buildSwitch simpleStorageIRContract.functions none none])
+      0
+      simpleStorageBuildSwitchBody =
+      .ok (simpleStorageNativeDispatcherInnerStmts,
+        simpleStorageNativeDispatcherInnerNext) :=
+  (Classical.choose_spec
+    (Classical.choose_spec
+      simpleStorageNativeRuntimeDispatcherStmts_exists_init_block)).2
 
 /-- Transitive form of the SimpleStorage native dispatcher shape: combining
 the lowered-stmts and singleton-block equalities exposes the dispatcher value
@@ -30007,9 +33729,16 @@ as `.Block [.Block <inner>]`, which is the exact shape consumed by the harness
 dispatcher-exec peel lemma. -/
 private theorem simpleStorageNativeContract_dispatcher_eq_singleton_block_inner :
     Compiler.SimpleStorageNativeWitness.nativeContract.dispatcher =
-      .Block [.Block simpleStorageNativeDispatcherInnerStmts] := by
-  rw [simpleStorageNativeContract_dispatcher_eq_lowered_stmts,
-    simpleStorageNativeDispatcherStmts_eq_singleton_block]
+      .Block
+        [.ExprStmtCall
+          (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+            (Yul.YulExpr.call "mstore"
+              [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+               Yul.YulExpr.lit 128])),
+         .Block simpleStorageNativeDispatcherInnerStmts] := by
+  rw [simpleStorageNativeContract_dispatcher_eq_lowered_stmts]
+  congr
+  exact simpleStorageNativeRuntimeDispatcherStmts_eq_init_block
 
 /-- Reify the SimpleStorage native witness contract as a record whose
 dispatcher is the doubly-blocked inner statement list.
@@ -30019,7 +33748,13 @@ equalities so that the harness peel lemmas (which expect a
 `{ dispatcher := .Block body, functions := … }` shape) apply in one rewrite. -/
 private theorem simpleStorageNativeContract_eq_record_inner_block :
     Compiler.SimpleStorageNativeWitness.nativeContract =
-      { dispatcher := .Block [.Block simpleStorageNativeDispatcherInnerStmts]
+      { dispatcher := .Block
+          [.ExprStmtCall
+            (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+              (Yul.YulExpr.call "mstore"
+                [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+                 Yul.YulExpr.lit 128])),
+           .Block simpleStorageNativeDispatcherInnerStmts]
         functions :=
           Compiler.SimpleStorageNativeWitness.nativeContract.functions } := by
   have hEta : Compiler.SimpleStorageNativeWitness.nativeContract =
@@ -30040,22 +33775,41 @@ private theorem simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
     (peeledFuel : Nat)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (Nat.succ (Nat.succ (Nat.succ peeledFuel)))
+        (Nat.succ (Nat.succ (peeledFuel + 6)))
         Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract
           tx storage observableSlots) =
-      EvmYul.Yul.exec (Nat.succ peeledFuel)
+      EvmYul.Yul.exec (peeledFuel + 5)
         (.Block simpleStorageNativeDispatcherInnerStmts)
         (some Compiler.SimpleStorageNativeWitness.nativeContract)
-        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
           Compiler.SimpleStorageNativeWitness.nativeContract
-          tx storage observableSlots) := by
+          tx storage observableSlots ∅) := by
   rw [simpleStorageNativeContract_eq_record_inner_block]
   rw [Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult_block_dispatcher_eq_exec_block
-    (Nat.succ peeledFuel) [.Block simpleStorageNativeDispatcherInnerStmts]
+    (peeledFuel + 6)
+    [.ExprStmtCall
+      (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+        (Yul.YulExpr.call "mstore"
+          [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+           Yul.YulExpr.lit 128])),
+     .Block simpleStorageNativeDispatcherInnerStmts]
     Compiler.SimpleStorageNativeWitness.nativeContract.functions
     tx storage observableSlots]
+  rw [Compiler.Proofs.YulGeneration.Backends.Native.exec_block_cons_initFreeMemoryPointer_eq
+    peeledFuel [.Block simpleStorageNativeDispatcherInnerStmts]
+    { dispatcher := EvmYul.Yul.Ast.Stmt.Block
+        [EvmYul.Yul.Ast.Stmt.ExprStmtCall
+          (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
+            (Yul.YulExpr.call "mstore"
+              [Yul.YulExpr.lit Compiler.Constants.freeMemoryPointer,
+               Yul.YulExpr.lit 128])),
+         EvmYul.Yul.Ast.Stmt.Block simpleStorageNativeDispatcherInnerStmts],
+      functions := Compiler.SimpleStorageNativeWitness.nativeContract.functions }
+    tx storage observableSlots]
+  rw [show peeledFuel + 6 =
+      Nat.succ (Nat.succ (peeledFuel + 4)) by omega]
   rw [Compiler.Proofs.YulGeneration.Backends.Native.exec_singleton_block_eq_exec_block]
 
 /-- A successful lowering of a singleton `[.block stmts]` reveals exactly the
@@ -30159,9 +33913,7 @@ private theorem simpleStorageNativeDispatcherInnerStmts_head_let_exists :
     ∃ (e : EvmYul.Yul.Ast.Expr) (rest : List EvmYul.Yul.Ast.Stmt),
       simpleStorageNativeDispatcherInnerStmts =
         EvmYul.Yul.Ast.Stmt.Let ["__has_selector"] (some e) :: rest := by
-  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
-  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
-  obtain ⟨next, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  have hInner := simpleStorageNativeDispatcherInnerStmts_lowering_ok
   -- `buildSwitch ssIRC.functions none none` unfolds (definitionally) to a
   -- 3-statement `YulStmt.block` whose head is `let __has_selector := …`, so
   -- `hInner` is already a `let_`-headed lowering at the source spine.
@@ -30182,9 +33934,7 @@ private theorem simpleStorageNativeDispatcherInnerStmts_let_if_head_exists :
         EvmYul.Yul.Ast.Stmt.Let ["__has_selector"] (some e) ::
           EvmYul.Yul.Ast.Stmt.If c body ::
           rest := by
-  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
-  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
-  obtain ⟨next, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  have hInner := simpleStorageNativeDispatcherInnerStmts_lowering_ok
   obtain ⟨rest', hLet, hRestLowering⟩ :=
     lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
   obtain ⟨body', _midN, rest'', hIf, _, _⟩ :=
@@ -30205,9 +33955,7 @@ private theorem simpleStorageNativeDispatcherInnerStmts_eq_let_if_if :
         [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"] (some e),
          EvmYul.Yul.Ast.Stmt.If c1 body1,
          EvmYul.Yul.Ast.Stmt.If c2 body2] := by
-  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
-  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
-  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  have hInner := simpleStorageNativeDispatcherInnerStmts_lowering_ok
   obtain ⟨rest', hLet, hRestLowering⟩ :=
     lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
   obtain ⟨body1', _, rest'', hIf1, _, hRest1⟩ :=
@@ -30298,12 +34046,12 @@ private theorem simpleStorageNativeContract_dispatcherExec_eq_named_let_if_if_bl
     (peeledFuel : Nat)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (Nat.succ (Nat.succ (Nat.succ peeledFuel)))
+        (Nat.succ (Nat.succ (peeledFuel + 6)))
         Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract
           tx storage observableSlots) =
-      EvmYul.Yul.exec (Nat.succ peeledFuel)
+      EvmYul.Yul.exec (peeledFuel + 5)
         (.Block
           [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
               (some simpleStorageNativeDispatcher_letValue),
@@ -30314,9 +34062,9 @@ private theorem simpleStorageNativeContract_dispatcherExec_eq_named_let_if_if_bl
               simpleStorageNativeDispatcher_if2Cond
               simpleStorageNativeDispatcher_if2Body])
         (some Compiler.SimpleStorageNativeWitness.nativeContract)
-        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
           Compiler.SimpleStorageNativeWitness.nativeContract
-          tx storage observableSlots) := by
+          tx storage observableSlots ∅) := by
   rw [simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec,
       simpleStorageNativeDispatcherInnerStmts_eq_named_let_if_if]
 
@@ -30337,9 +34085,7 @@ private theorem simpleStorageNativeDispatcherInnerStmts_concrete_let_head :
                   [Yul.YulExpr.call "lt"
                     [Yul.YulExpr.call "calldatasize" [],
                      Yul.YulExpr.lit 4]]))) :: rest := by
-  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
-  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
-  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  have hInner := simpleStorageNativeDispatcherInnerStmts_lowering_ok
   obtain ⟨rest', hSplit, _⟩ :=
     lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
   exact ⟨rest', hSplit⟩
@@ -30371,9 +34117,7 @@ private theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_if :
             (Compiler.Proofs.YulGeneration.Backends.lowerExprNative
               (Yul.YulExpr.ident "__has_selector"))
             body2] := by
-  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
-  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
-  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  have hInner := simpleStorageNativeDispatcherInnerStmts_lowering_ok
   obtain ⟨rest', hLet, hRestLowering⟩ :=
     lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
   obtain ⟨body1', _, rest'', hIf1, _, hRest1⟩ :=
@@ -30417,9 +34161,7 @@ private theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switc
                 [Yul.YulExpr.lit Compiler.Constants.selectorShift,
                  Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
               switchId cases' default']] := by
-  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
-  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
-  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  have hInner := simpleStorageNativeDispatcherInnerStmts_lowering_ok
   obtain ⟨_, hLet, hRestLowering⟩ :=
     lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
   obtain ⟨body1', _, _, hIf1, _, hRest1⟩ :=
@@ -30503,54 +34245,6 @@ private theorem lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq
   exact Backends.Native.lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
     reservedNames n0 expr cases inner next h
 
-/-- Strengthened companion of `simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton`:
-the lowered default body of the inner switch is pinned to the concrete
-`[nativeRevertZeroZeroStmt]` singleton. The lowered case bodies (and the
-selector-miss `If` body `body1`) remain existential as before. Combines the
-existing concrete decomposition with the new
-`lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq`, exploiting
-the definitional fact that `simpleStorageIRContract` has both `fallback` and
-`receive` set to `none`, so the switch's source-level `defaultCase` is
-`defaultDispatchCase none none = [revert(0,0)]`. -/
-private theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default :
-    ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (switchId : Nat)
-      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
-      simpleStorageNativeDispatcherInnerStmts =
-        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
-            (some (Backends.lowerExprNative
-              (Yul.YulExpr.call "iszero"
-                [Yul.YulExpr.call "lt"
-                  [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit 4]]))),
-         EvmYul.Yul.Ast.Stmt.If
-            (Backends.lowerExprNative
-              (Yul.YulExpr.call "iszero" [Yul.YulExpr.ident "__has_selector"]))
-            body1,
-         EvmYul.Yul.Ast.Stmt.If
-            (Backends.lowerExprNative (Yul.YulExpr.ident "__has_selector"))
-            [Backends.lowerNativeSwitchBlock
-              (Yul.YulExpr.call "shr"
-                [Yul.YulExpr.lit Compiler.Constants.selectorShift,
-                 Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
-              switchId cases'
-              [Backends.Native.nativeRevertZeroZeroStmt]]] := by
-  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
-  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
-  obtain ⟨body1, reservedNames, n0, cases', _, hInner, _⟩ :=
-    Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered
-      simpleStorageIRContract.functions simpleStorageNativeDispatcherInnerStmts hOk
-  exact ⟨body1, Backends.freshNativeSwitchId reservedNames n0, cases', hInner⟩
-
-/-- The source-level switch cases that `buildSwitch` emits for SimpleStorage
-(one entry per source IR function, keyed by selector). Used by the
-`_sourceLowered` companion below as the explicit input to
-`lowerSwitchCasesNativeWithSwitchIds`, anchoring the switch lowering to the
-concrete source-level selector list. -/
-private abbrev simpleStorageBuildSwitchSourceCases : List (Nat × List Yul.YulStmt) :=
-  simpleStorageIRContract.functions.map (fun fn =>
-    (fn.selector,
-      Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
-        ([Compiler.CodegenCommon.calldatasizeGuard fn.params.length] ++ fn.body)))
-
 /-- Source-lowered companion of `_eq_concrete_let_if_switchSingleton_revert_default`:
 additionally exposes the lowering equation for the buildSwitch-emitted source
 case list `simpleStorageBuildSwitchSourceCases` into the lowered `cases'`.
@@ -30579,11 +34273,55 @@ private theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switc
       Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
         (Backends.freshNativeSwitchId reservedNames n0 + 1)
         simpleStorageBuildSwitchSourceCases = .ok (cases', midN) := by
-  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
-  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
-  simpa [simpleStorageBuildSwitchSourceCases] using
-    (Backends.Native.buildSwitch_noFallback_noReceive_lowered_inner_sourceLowered
-      simpleStorageIRContract.functions simpleStorageNativeDispatcherInnerStmts hOk)
+  have hInner := simpleStorageNativeDispatcherInnerStmts_lowering_ok
+  obtain ⟨rest', hLet, hRestLowering⟩ :=
+    lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
+  obtain ⟨body1, body1Next, rest'', hIf1, _, hRest1⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRestLowering
+  obtain ⟨body2, _body2Next, rest''', hIf2, hBody2, hRest2⟩ :=
+    lowerStmtsNativeWithSwitchIds_if_head_eq _ _ _ _ _ _ _ hRest1
+  rw [Backends.lowerStmtsNativeWithSwitchIds_nil,
+      Except.ok.injEq, Prod.mk.injEq] at hRest2
+  obtain ⟨hNil, _⟩ := hRest2
+  subst hNil
+  obtain ⟨cases', midN, hSwitch, hLowerCases⟩ :=
+    lowerStmtsNativeWithSwitchIds_singleton_switch_revert_default_eq_sourceLowered
+      _ _ _ _ _ _ hBody2
+  rw [hSwitch] at hIf2
+  rw [hIf2] at hIf1
+  rw [hIf1] at hLet
+  let reservedNames : List String :=
+    Backends.yulStmtsIdentifierNames
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+       Compiler.CodegenCommon.buildSwitch simpleStorageIRContract.functions none none]
+  refine ⟨body1, reservedNames, body1Next, cases', midN, ?_, ?_⟩
+  · simpa [reservedNames] using hLet
+  · simpa [reservedNames, simpleStorageBuildSwitchSourceCases] using hLowerCases
+
+private theorem simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default :
+    ∃ (body1 : List EvmYul.Yul.Ast.Stmt) (switchId : Nat)
+      (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
+      simpleStorageNativeDispatcherInnerStmts =
+        [EvmYul.Yul.Ast.Stmt.Let ["__has_selector"]
+            (some (Backends.lowerExprNative
+              (Yul.YulExpr.call "iszero"
+                [Yul.YulExpr.call "lt"
+                  [Yul.YulExpr.call "calldatasize" [], Yul.YulExpr.lit 4]]))),
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative
+              (Yul.YulExpr.call "iszero" [Yul.YulExpr.ident "__has_selector"]))
+            body1,
+         EvmYul.Yul.Ast.Stmt.If
+            (Backends.lowerExprNative (Yul.YulExpr.ident "__has_selector"))
+            [Backends.lowerNativeSwitchBlock
+              (Yul.YulExpr.call "shr"
+                [Yul.YulExpr.lit Compiler.Constants.selectorShift,
+                 Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
+              switchId cases'
+              [Backends.Native.nativeRevertZeroZeroStmt]]] := by
+  obtain ⟨body1, reservedNames, n0, cases', _, hInner, _⟩ :=
+    simpleStorageNativeDispatcherInnerStmts_eq_concrete_let_if_switchSingleton_revert_default_sourceLowered
+  exact ⟨body1, Backends.freshNativeSwitchId reservedNames n0, cases', hInner⟩
 
 /-- The `Classical.choose`-pinned let RHS of the SimpleStorage native dispatcher
 equals the lowered `iszero(lt(calldatasize(), 4))` Yul expression that
@@ -30725,9 +34463,7 @@ selector-miss exec proofs invoke `exec_revert_zero_zero_error` directly. -/
 private theorem simpleStorageNativeDispatcher_if1Body_eq :
     simpleStorageNativeDispatcher_if1Body =
       [Backends.Native.nativeRevertZeroZeroStmt] := by
-  have hOk := simpleStorageNativeDispatcherStmts_lowering_ok
-  rw [simpleStorageNativeDispatcherStmts_eq_singleton_block] at hOk
-  obtain ⟨_, hInner⟩ := lowerStmtsNative_block_stmts_eq _ _ hOk
+  have hInner := simpleStorageNativeDispatcherInnerStmts_lowering_ok
   obtain ⟨rest', hLet, hRestLowering⟩ :=
     lowerStmtsNativeWithSwitchIds_let_head_eq _ _ _ _ _ _ _ hInner
   obtain ⟨body1', _, rest'', hIf1, hBody1, hRest1⟩ :=
@@ -30806,8 +34542,8 @@ private theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativ
       EvmYul.Yul.exec (fuel + 12)
           (.Block simpleStorageNativeDispatcherInnerStmts)
           (some contract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
-            contract tx storage observableSlots) =
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
+            contract tx storage observableSlots ∅) =
         EvmYul.Yul.exec (fuel + 8)
           (.Block
             [Backends.lowerNativeSwitchBlock
@@ -30816,8 +34552,8 @@ private theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativ
                  Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
               switchId cases' default'])
           (some contract)
-          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
-            contract tx storage observableSlots).insert "__has_selector"
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
+            contract tx storage observableSlots ∅).insert "__has_selector"
             (EvmYul.UInt256.ofNat 1)) := by
   obtain ⟨switchId, cases', default', hIf2Body⟩ :=
     simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_exists
@@ -30826,8 +34562,8 @@ private theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativ
       simpleStorageNativeDispatcher_letValue_eq,
       simpleStorageNativeDispatcher_if1Cond_eq,
       simpleStorageNativeDispatcher_if2Cond_eq, hIf2Body]
-  exact Backends.Native.exec_block_letSelector_if1Skip_if2Take_initialState_fuel
-    fuel contract tx storage observableSlots "__has_selector"
+  exact Backends.Native.exec_block_letSelector_if1Skip_if2Take_postInitFreeMemory_fuel
+    fuel contract tx storage observableSlots ∅ "__has_selector"
     simpleStorageNativeDispatcher_if1Body
     [Backends.lowerNativeSwitchBlock
       (Yul.YulExpr.call "shr"
@@ -30850,8 +34586,8 @@ private theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativ
       EvmYul.Yul.exec (fuel + 12)
           (.Block simpleStorageNativeDispatcherInnerStmts)
           (some contract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
-            contract tx storage observableSlots) =
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
+            contract tx storage observableSlots ∅) =
         EvmYul.Yul.exec (fuel + 8)
           (.Block
             [Backends.lowerNativeSwitchBlock
@@ -30861,8 +34597,8 @@ private theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativ
               switchId cases'
               [Backends.Native.nativeRevertZeroZeroStmt]])
           (some contract)
-          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
-            contract tx storage observableSlots).insert "__has_selector"
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
+            contract tx storage observableSlots ∅).insert "__has_selector"
             (EvmYul.UInt256.ofNat 1)) := by
   obtain ⟨switchId, cases', hIf2Body⟩ :=
     simpleStorageNativeDispatcher_if2Body_eq_lowerSwitchBlock_revert_default_exists
@@ -30871,8 +34607,8 @@ private theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativ
       simpleStorageNativeDispatcher_letValue_eq,
       simpleStorageNativeDispatcher_if1Cond_eq,
       simpleStorageNativeDispatcher_if2Cond_eq, hIf2Body]
-  exact Backends.Native.exec_block_letSelector_if1Skip_if2Take_initialState_fuel
-    fuel contract tx storage observableSlots "__has_selector"
+  exact Backends.Native.exec_block_letSelector_if1Skip_if2Take_postInitFreeMemory_fuel
+    fuel contract tx storage observableSlots ∅ "__has_selector"
     simpleStorageNativeDispatcher_if1Body
     [Backends.lowerNativeSwitchBlock
       (Yul.YulExpr.call "shr"
@@ -30897,8 +34633,8 @@ private theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativ
       EvmYul.Yul.exec (fuel + 12)
           (.Block simpleStorageNativeDispatcherInnerStmts)
           (some contract)
-          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
-            contract tx storage observableSlots) =
+          (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
+            contract tx storage observableSlots ∅) =
         EvmYul.Yul.exec (fuel + 8)
           (.Block
             [Backends.lowerNativeSwitchBlock
@@ -30908,8 +34644,8 @@ private theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativ
               (Backends.freshNativeSwitchId reservedNames n0) cases'
               [Backends.Native.nativeRevertZeroZeroStmt]])
           (some contract)
-          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
-            contract tx storage observableSlots).insert "__has_selector"
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
+            contract tx storage observableSlots ∅).insert "__has_selector"
             (EvmYul.UInt256.ofNat 1)) ∧
       Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
         (Backends.freshNativeSwitchId reservedNames n0 + 1)
@@ -30921,8 +34657,8 @@ private theorem exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativ
       simpleStorageNativeDispatcher_letValue_eq,
       simpleStorageNativeDispatcher_if1Cond_eq,
       simpleStorageNativeDispatcher_if2Cond_eq, hIf2Body]
-  exact Backends.Native.exec_block_letSelector_if1Skip_if2Take_initialState_fuel
-    fuel contract tx storage observableSlots "__has_selector"
+  exact Backends.Native.exec_block_letSelector_if1Skip_if2Take_postInitFreeMemory_fuel
+    fuel contract tx storage observableSlots ∅ "__has_selector"
     simpleStorageNativeDispatcher_if1Body
     [Backends.lowerNativeSwitchBlock
       (Yul.YulExpr.call "shr"
@@ -30946,7 +34682,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchB
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt))
       (default' : List EvmYul.Yul.Ast.Stmt),
       Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-          (peeledFuel + 14)
+          (peeledFuel + 15)
           Compiler.SimpleStorageNativeWitness.nativeContract
           (Compiler.Proofs.YulGeneration.Backends.Native.initialState
             Compiler.SimpleStorageNativeWitness.nativeContract
@@ -30959,19 +34695,19 @@ private theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchB
                  Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
               switchId cases' default'])
           (some Compiler.SimpleStorageNativeWitness.nativeContract)
-          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
             Compiler.SimpleStorageNativeWitness.nativeContract
-            tx storage observableSlots).insert "__has_selector"
+            tx storage observableSlots ∅).insert "__has_selector"
             (EvmYul.UInt256.ofNat 1)) := by
   obtain ⟨switchId, cases', default', hExec⟩ :=
     exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_exec
       peeledFuel Compiler.SimpleStorageNativeWitness.nativeContract
       tx storage observableSlots hNoWrap
   refine ⟨switchId, cases', default', ?_⟩
-  have hShape : peeledFuel + 14 =
-      Nat.succ (Nat.succ (Nat.succ (peeledFuel + 11))) := by omega
+  have hShape : peeledFuel + 15 =
+      Nat.succ (Nat.succ ((peeledFuel + 7) + 6)) := by omega
   rw [hShape, simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
-        (peeledFuel + 11) tx storage observableSlots]
+        (peeledFuel + 7) tx storage observableSlots]
   exact hExec
 
 /-- Strengthened companion of `simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_exec`
@@ -30988,7 +34724,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchB
     ∃ (switchId : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)),
       Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-          (peeledFuel + 14)
+          (peeledFuel + 15)
           Compiler.SimpleStorageNativeWitness.nativeContract
           (Compiler.Proofs.YulGeneration.Backends.Native.initialState
             Compiler.SimpleStorageNativeWitness.nativeContract
@@ -31002,19 +34738,19 @@ private theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchB
               switchId cases'
               [Backends.Native.nativeRevertZeroZeroStmt]])
           (some Compiler.SimpleStorageNativeWitness.nativeContract)
-          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
             Compiler.SimpleStorageNativeWitness.nativeContract
-            tx storage observableSlots).insert "__has_selector"
+            tx storage observableSlots ∅).insert "__has_selector"
             (EvmYul.UInt256.ofNat 1)) := by
   obtain ⟨switchId, cases', hExec⟩ :=
     exec_block_simpleStorageNativeDispatcherInnerStmts_eq_lowerNativeSwitchBlock_revert_default_exec
       peeledFuel Compiler.SimpleStorageNativeWitness.nativeContract
       tx storage observableSlots hNoWrap
   refine ⟨switchId, cases', ?_⟩
-  have hShape : peeledFuel + 14 =
-      Nat.succ (Nat.succ (Nat.succ (peeledFuel + 11))) := by omega
+  have hShape : peeledFuel + 15 =
+      Nat.succ (Nat.succ ((peeledFuel + 7) + 6)) := by omega
   rw [hShape, simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
-        (peeledFuel + 11) tx storage observableSlots]
+        (peeledFuel + 7) tx storage observableSlots]
   exact hExec
 
 /-- Source-lowered companion of `_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec`:
@@ -31032,7 +34768,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchB
     ∃ (reservedNames : List String) (n0 : Nat)
       (cases' : List (Nat × List EvmYul.Yul.Ast.Stmt)) (midN : Nat),
       Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-          (peeledFuel + 14)
+          (peeledFuel + 15)
           Compiler.SimpleStorageNativeWitness.nativeContract
           (Compiler.Proofs.YulGeneration.Backends.Native.initialState
             Compiler.SimpleStorageNativeWitness.nativeContract
@@ -31046,9 +34782,9 @@ private theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchB
               (Backends.freshNativeSwitchId reservedNames n0) cases'
               [Backends.Native.nativeRevertZeroZeroStmt]])
           (some Compiler.SimpleStorageNativeWitness.nativeContract)
-          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
             Compiler.SimpleStorageNativeWitness.nativeContract
-            tx storage observableSlots).insert "__has_selector"
+            tx storage observableSlots ∅).insert "__has_selector"
             (EvmYul.UInt256.ofNat 1)) ∧
       Backends.lowerSwitchCasesNativeWithSwitchIds reservedNames
         (Backends.freshNativeSwitchId reservedNames n0 + 1)
@@ -31058,10 +34794,10 @@ private theorem simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchB
       peeledFuel Compiler.SimpleStorageNativeWitness.nativeContract
       tx storage observableSlots hNoWrap
   refine ⟨reservedNames, n0, cases', midN, ?_, hLowerCases⟩
-  have hShape : peeledFuel + 14 =
-      Nat.succ (Nat.succ (Nat.succ (peeledFuel + 11))) := by omega
+  have hShape : peeledFuel + 15 =
+      Nat.succ (Nat.succ ((peeledFuel + 7) + 6)) := by omega
   rw [hShape, simpleStorageNativeContract_dispatcherExec_eq_innerBlock_exec
-        (peeledFuel + 11) tx storage observableSlots]
+        (peeledFuel + 7) tx storage observableSlots]
   exact hExec
 
 /-- Bridge-level selector-miss endpoint, parametric in `cases'` and `switchId`:
@@ -31086,7 +34822,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_v
       ∀ tag body, (tag, body) ∈ cases' → tag < EvmYul.UInt256.size)
     (hReduction :
       Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-          (fuel + cases'.length + 19)
+          (fuel + cases'.length + 20)
           Compiler.SimpleStorageNativeWitness.nativeContract
           (Compiler.Proofs.YulGeneration.Backends.Native.initialState
             Compiler.SimpleStorageNativeWitness.nativeContract
@@ -31100,22 +34836,22 @@ private theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_v
               switchId cases'
               [Backends.Native.nativeRevertZeroZeroStmt]])
           (some Compiler.SimpleStorageNativeWitness.nativeContract)
-          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
             Compiler.SimpleStorageNativeWitness.nativeContract
-            tx storage observableSlots).insert "__has_selector"
+            tx storage observableSlots ∅).insert "__has_selector"
               (EvmYul.UInt256.ofNat 1))) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + cases'.length + 19)
+        (fuel + cases'.length + 20)
         Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract
           tx storage observableSlots) =
       .error EvmYul.Yul.Exception.Revert := by
   rw [hReduction]
-  exact Backends.Native.exec_block_lowerNativeSwitchBlock_revert_default_hasSelectorState_error
+  exact (Backends.Native.exec_block_lowerNativeSwitchBlock_revert_default_postInitFreeMemory_hasSelectorState_projectResult_eq
     fuel selector switchId cases'
     Compiler.SimpleStorageNativeWitness.nativeContract
-    tx storage observableSlots hSelector hFind hSelectorRange hTagsRange
+    tx storage [] observableSlots hSelector hFind hSelectorRange hTagsRange).1
 
 /-- The source-level switch cases emitted by `buildSwitch` for SimpleStorage
 project to the concrete two-element selector list `[0x6057361d, 0x2e64cec1]`.
@@ -31312,6 +35048,42 @@ private def simpleStorageLoweredStoreCaseBodyTail3 : List EvmYul.Yul.Ast.Stmt :=
      (.call "sstore" [.lit 0, .ident "value"])),
    .ExprStmtCall (Backends.lowerExprNative (.call "stop" []))]
 
+private theorem nativeSwitchPostInitFreeMemorySharedState_weiValue
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat) :
+    (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+      contract tx storage observableSlots).executionEnv.weiValue =
+      Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 tx.msgValue := by
+  simp [Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
+    Compiler.Proofs.YulGeneration.Backends.Native.initialState,
+    Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
+    YulState.initial, EvmYul.Yul.State.sharedState,
+    Compiler.Proofs.YulGeneration.Backends.StateBridge.mkBlockHeader]
+
+private theorem nativeSwitchPostInitFreeMemorySharedState_calldata_size
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat) :
+    (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+      contract tx storage observableSlots).executionEnv.calldata.size =
+      4 + tx.args.length * 32 := by
+  simp [Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
+    Compiler.Proofs.YulGeneration.Backends.Native.initialState,
+    Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
+    YulState.initial, EvmYul.Yul.State.sharedState,
+    Compiler.Proofs.YulGeneration.Backends.StateBridge.mkBlockHeader,
+    Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_size]
+
+private theorem nativeSwitchPostInitFreeMemorySharedState_perm
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat) :
+    (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+      contract tx storage observableSlots).executionEnv.perm = true := by
+  simp [Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
+    Compiler.Proofs.YulGeneration.Backends.Native.initialState,
+    Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
+    YulState.initial, EvmYul.Yul.State.sharedState,
+    Compiler.Proofs.YulGeneration.Backends.StateBridge.mkBlockHeader]
+
 /-- Closed-form native exec of the direct lowered setter body from the
 generated dispatcher marked-prefix state.
 
@@ -31325,7 +35097,7 @@ private theorem exec_block_store0_calldataload4_stop_markedPrefix_halt
     (store : EvmYul.Yul.VarStore)
     (arg : Nat) (rest : List Nat) (hArgs : tx.args = arg :: rest) :
     let initialWithStore :=
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
         contract tx storage observableSlots switchId store
     let withValue := initialWithStore.insert "value"
       (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
@@ -31351,28 +35123,16 @@ private theorem exec_block_store0_calldataload4_stop_markedPrefix_halt
     EvmYul.Yul.reverse', EvmYul.Yul.cons', EvmYul.Yul.multifill',
     EvmYul.Yul.State.multifill, initialWithStore, withValue, finalState,
     hWord,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
     EvmYul.Yul.State.insert, GetElem?.getElem!, decidableGetElem?,
     GetElem.getElem, EvmYul.Yul.State.store, EvmYul.Yul.State.lookup!]
-  have hPerm :
-      (EvmYul.Yul.State.Ok
-        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-          contract tx storage observableSlots).sharedState
-        (((store.insert
-          (Backends.nativeSwitchDiscrTempName switchId)
-          (EvmYul.UInt256.ofNat
-            (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
-          (Backends.nativeSwitchMatchedTempName switchId)
-          (EvmYul.UInt256.ofNat 1)).insert "value"
-          (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg))).executionEnv.perm =
-        true := by
+  simp [EvmYul.Yul.primCall, EvmYul.Yul.State.executionEnv]
+  cases withValue.toState.sstore (EvmYul.UInt256.ofNat 0)
+      (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg) <;>
     rfl
-  rw [show fuel + 7 = (fuel + 6) + 1 by omega]
-  rw [Compiler.Proofs.YulGeneration.Backends.Native.primCall_sstore_ok
-    (fuel + 6) _ _ _ hPerm]
-  rfl
 
 /-- 3-statement callvalue-stripped tail of `simpleStorageLoweredRetrieveCaseBody`. -/
 private def simpleStorageLoweredRetrieveCaseBodyTail2 : List EvmYul.Yul.Ast.Stmt :=
@@ -31694,8 +35454,8 @@ private theorem exec_block_simpleStorageLoweredStoreCaseBodyTail2_markedPrefix_h
         (Backends.nativeSwitchMatchedTempName switchId)
         (EvmYul.UInt256.ofNat 1))
     let shared :=
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        contract tx storage observableSlots).sharedState
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+        contract tx storage observableSlots
     let initialWithStore : EvmYul.Yul.State := .Ok shared markedStore
     let withValue := initialWithStore.insert "value"
       (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
@@ -31710,7 +35470,9 @@ private theorem exec_block_simpleStorageLoweredStoreCaseBodyTail2_markedPrefix_h
   have hWord :
       shared.calldataload (EvmYul.UInt256.ofNat 4) =
         Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg := by
-    simpa [shared, EvmYul.Yul.State.toState] using
+    simpa [shared,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
+      EvmYul.Yul.State.toState] using
       Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_word
         contract tx storage observableSlots arg rest hArgs
   have hTail3 :
@@ -31719,7 +35481,9 @@ private theorem exec_block_simpleStorageLoweredStoreCaseBodyTail2_markedPrefix_h
           (some contract) initialWithStore =
         .error (EvmYul.Yul.Exception.YulHalt finalState ⟨0⟩) := by
     have hPerm : shared.executionEnv.perm = true := by
-      simp [shared, Compiler.Proofs.YulGeneration.Backends.Native.initialState,
+      simp [shared,
+        Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState,
         Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
         YulState.initial, EvmYul.Yul.State.sharedState]
     simpa [initialWithStore, withValue, finalState] using
@@ -31728,12 +35492,11 @@ private theorem exec_block_simpleStorageLoweredStoreCaseBodyTail2_markedPrefix_h
   have hCalldataSize :
       shared.executionEnv.calldata.size = 4 + tx.args.length * 32 := by
     simpa [shared,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
-      EvmYul.Yul.State.sharedState, EvmYul.Yul.State.insert] using
-      (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId_calldata_size
-        contract tx storage observableSlots switchId store)
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
+      Compiler.Proofs.YulGeneration.Backends.Native.initialState,
+      Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
+      YulState.initial, EvmYul.Yul.State.sharedState,
+      Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_size]
   have hSize :
       shared.executionEnv.calldata.size < EvmYul.UInt256.size := by
     simpa [hCalldataSize] using hNoWrap
@@ -31838,27 +35601,19 @@ private theorem exec_block_simpleStorageLoweredStoreCaseBodyTail3_halt
 the calldata contains the setter argument. -/
 private theorem exec_block_simpleStorageLoweredStoreCaseBody_halt
     (fuel : Nat) (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (shared : EvmYul.SharedState .Yul)
     (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) (store : EvmYul.Yul.VarStore)
     (arg : Nat) (rest : List Nat) (hArgs : tx.args = arg :: rest)
-    (hWei :
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState.executionEnv.weiValue =
-      (⟨0⟩ : EvmYul.Literal))
-    (hSize :
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState.executionEnv.calldata.size <
-      EvmYul.UInt256.size)
-    (hGe :
-      36 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState.executionEnv.calldata.size) :
+    (hPerm : shared.executionEnv.perm = true)
+    (hWord :
+      shared.calldataload (EvmYul.UInt256.ofNat 4) =
+        Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
+    (hWei : shared.executionEnv.weiValue = (⟨0⟩ : EvmYul.Literal))
+    (hSize : shared.executionEnv.calldata.size < EvmYul.UInt256.size)
+    (hGe : 36 ≤ shared.executionEnv.calldata.size) :
     let initialWithStore : EvmYul.Yul.State :=
-      .Ok (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState store
+      .Ok shared store
     let withValue := initialWithStore.insert "value"
       (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
     let finalState := withValue.setState
@@ -31868,20 +35623,12 @@ private theorem exec_block_simpleStorageLoweredStoreCaseBody_halt
         codeOverride initialWithStore =
       .error (EvmYul.Yul.Exception.YulHalt finalState ⟨0⟩) := by
   intro initialWithStore withValue finalState
-  have hTail3 := exec_block_simpleStorageLoweredStoreCaseBodyTail3_halt
-    fuel codeOverride tx storage observableSlots store arg rest hArgs
+  have hTail3 := exec_block_store0_calldataload4_stop_shared_halt
+    fuel codeOverride shared store arg hPerm hWord
   have hTail2 := exec_block_simpleStorageLoweredStoreCaseBodyTail2_lt_strip_error
-    fuel codeOverride
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState
-      store _ hSize hGe hTail3
+    fuel codeOverride shared store _ hSize hGe hTail3
   have hTail := exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
-    (fuel + 4) codeOverride
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState
-      store _ hWei hTail2
+    (fuel + 4) codeOverride shared store _ hWei hTail2
   exact exec_block_simpleStorageLoweredStoreCaseBody_head_strip_error
     (fuel + 11) codeOverride initialWithStore _ hTail
 
@@ -32225,8 +35972,8 @@ private theorem simpleStorageBuildSwitchSourceCases_lowered_concrete
 /-- Closed-form selector-miss bridge endpoint for SimpleStorage native
 dispatcher. Takes only source-level selector facts (`selector ≠ 0x6057361d`
 and `selector ≠ 0x2e64cec1`, the two SimpleStorage IR selectors) and
-produces the dispatcher exec result `.error Revert` at fuel `fuel + 21`
-(`= fuel + cases'.length + 19` with `cases'.length = 2`). The proof opens the
+produces the dispatcher exec result `.error Revert` at fuel `fuel + 22`
+(`= fuel + cases'.length + 20` with `cases'.length = 2`). The proof opens the
 `_sourceLowered` existential, derives `cases'.find? = none` and `tags-range`
 from the source-cases facts via `_find?_none` / `_tags_eq` chained with
 `simpleStorageBuildSwitchSourceCases_find?_none` and `_tags_lt_uint256_size`,
@@ -32243,7 +35990,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
     (hSelMissRetrieve : selector ≠ 0x2e64cec1)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + 21)
+        (fuel + 22)
         Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract
@@ -32270,14 +36017,14 @@ private theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
     simp only [List.mem_cons, List.not_mem_nil, or_false] at hMemTag
     rcases hMemTag with rfl | rfl <;> decide
   have hReduction := hExec
-  rw [show (fuel + 7 + 14 : Nat) = fuel + cases'.length + 19 by rw [hLen],
+  rw [show (fuel + 7 + 15 : Nat) = fuel + cases'.length + 20 by rw [hLen],
       show (fuel + 7 + 8 : Nat) = fuel + cases'.length + 13 by rw [hLen]]
     at hReduction
   have h := simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_via_reduction
     fuel selector (Backends.freshNativeSwitchId reservedNames n0) cases'
     tx storage observableSlots hSelector hSelectorRange hFind hTagsRange
     hReduction
-  rw [show fuel + cases'.length + 19 = fuel + 21 by rw [hLen]] at h
+  rw [show fuel + cases'.length + 20 = fuel + 22 by rw [hLen]] at h
   exact h
 
 /-- Post-`__has_selector := 1` switch-prefix state at a hit, with the matched
@@ -32286,18 +36033,17 @@ lowered native switch's hit branch. -/
 private def simpleStorageDispatcherHitBodyInputState
     (switchId : Nat) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat) : EvmYul.Yul.State :=
-  ((((.Ok (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+  ((((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
             Compiler.SimpleStorageNativeWitness.nativeContract
-            tx storage observableSlots).sharedState
-            ((∅ : EvmYul.Yul.VarStore).insert "__has_selector"
-              (EvmYul.UInt256.ofNat 1)) : EvmYul.Yul.State).insert
+            tx storage observableSlots ∅).insert "__has_selector"
+              (EvmYul.UInt256.ofNat 1)).insert
           (Backends.nativeSwitchDiscrTempName switchId)
           (EvmYul.UInt256.ofNat
             (tx.functionSelector % Compiler.Constants.selectorModulus))).insert
         (Backends.nativeSwitchMatchedTempName switchId)
         (EvmYul.UInt256.ofNat 0)).insert
       (Backends.nativeSwitchMatchedTempName switchId)
-      (EvmYul.UInt256.ofNat 1))
+      (EvmYul.UInt256.ofNat 1)
 
 /-- Hit-case dual of `_selectorMiss_revert_via_reduction` for the
 SimpleStorage `store(uint256)` selector: composes the harness-level
@@ -32320,7 +36066,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_via_re
           observableSlots) = .error err)
     (hReduction :
       Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-          (fuel + cases'.length + 19)
+          (fuel + cases'.length + 20)
           Compiler.SimpleStorageNativeWitness.nativeContract
           (Compiler.Proofs.YulGeneration.Backends.Native.initialState
             Compiler.SimpleStorageNativeWitness.nativeContract
@@ -32331,28 +36077,33 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_via_re
               Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
             switchId cases' [Backends.Native.nativeRevertZeroZeroStmt]])
           (some Compiler.SimpleStorageNativeWitness.nativeContract)
-          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
             Compiler.SimpleStorageNativeWitness.nativeContract
-            tx storage observableSlots).insert "__has_selector"
+            tx storage observableSlots ∅).insert "__has_selector"
               (EvmYul.UInt256.ofNat 1))) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + cases'.length + 19)
+        (fuel + cases'.length + 20)
         Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract
           tx storage observableSlots) = .error err := by
   rw [hReduction]
-  refine Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error
+  refine (Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
     fuel 0x6057361d switchId 0x6057361d cases'
     [Backends.Native.nativeRevertZeroZeroStmt] storeBody'
     Compiler.SimpleStorageNativeWitness.nativeContract
-    tx storage observableSlots err hSelector ?_ ?_ ?_ ?_
+    tx storage [] observableSlots err
+    (Backends.Native.projectResult tx storage [] (.error err))
+    hSelector ?_ ?_ ?_ ?_ rfl).1
   · rw [hCases]; rfl
   · norm_num [EvmYul.UInt256.size]
   · intro tag body hMem; rw [hCases] at hMem
     simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at hMem
     rcases hMem with ⟨rfl, _⟩ | ⟨rfl, _⟩ <;> decide
-  · simpa [simpleStorageDispatcherHitBodyInputState] using hBody
+  · simpa [simpleStorageDispatcherHitBodyInputState,
+      Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Backends.Native.nativeSwitchHasSelectorStore] using hBody
 
 private def simpleStorageLoweredHitCasesShape
     (reservedNames : List String) (n0 midN : Nat)
@@ -32376,7 +36127,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error
             (Backends.freshNativeSwitchId reservedNames n0) tx storage observableSlots) =
           .error err) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (fuel + 22) Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage observableSlots) =
       .error err := by
@@ -32388,7 +36139,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error
   subst hCases
   have hBody' := hBody reservedNames n0 midN storeBody' retrieveBody' hLowerCases
   have hReduction := hExec
-  rw [show (fuel + 7 + 14 : Nat) = fuel + 2 + 19 from by omega,
+  rw [show (fuel + 7 + 15 : Nat) = fuel + 2 + 20 from by omega,
       show (fuel + 7 + 8 : Nat) = fuel + 2 + 13 from by omega,
       show (2 : Nat) = ([(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')] :
         List (Nat × List EvmYul.Yul.Ast.Stmt)).length from rfl] at hReduction
@@ -32398,7 +36149,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error
     storeBody' retrieveBody' tx storage observableSlots err
     hSelector rfl ?_ hReduction
   · rw [show fuel + ([(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')] :
-        List (Nat × List EvmYul.Yul.Ast.Stmt)).length + 19 = fuel + 21 from rfl] at h
+        List (Nat × List EvmYul.Yul.Ast.Stmt)).length + 20 = fuel + 22 from rfl] at h
     exact h
   · rintro (_ | ⟨⟨_, _⟩, rest⟩) suffix hDecomp
     · simp only [List.nil_append, List.cons.injEq] at hDecomp
@@ -32445,7 +36196,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concre
             tx storage observableSlots) =
           .error err) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (fuel + 22) Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage
           observableSlots) =
@@ -32470,7 +36221,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concre
             tx storage observableSlots) =
           .error err) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (fuel + 22) Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage
           observableSlots) =
@@ -32503,7 +36254,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_error_concre
             tx storage observableSlots) =
           .error err) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (fuel + 22) Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage
           observableSlots) =
@@ -32542,7 +36293,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via
           observableSlots) = .error err)
     (hReduction :
       Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-          (fuel + cases'.length + 19)
+          (fuel + cases'.length + 20)
           Compiler.SimpleStorageNativeWitness.nativeContract
           (Compiler.Proofs.YulGeneration.Backends.Native.initialState
             Compiler.SimpleStorageNativeWitness.nativeContract
@@ -32553,28 +36304,33 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via
               Yul.YulExpr.call "calldataload" [Yul.YulExpr.lit 0]])
             switchId cases' [Backends.Native.nativeRevertZeroZeroStmt]])
           (some Compiler.SimpleStorageNativeWitness.nativeContract)
-          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchInitialOkState
+          ((Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState
             Compiler.SimpleStorageNativeWitness.nativeContract
-            tx storage observableSlots).insert "__has_selector"
+            tx storage observableSlots ∅).insert "__has_selector"
               (EvmYul.UInt256.ofNat 1))) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + cases'.length + 19)
+        (fuel + cases'.length + 20)
         Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract
           tx storage observableSlots) = .error err := by
   rw [hReduction]
-  refine Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_hasSelectorState_error
+  refine (Backends.Native.exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq
     fuel 0x2e64cec1 switchId 0x2e64cec1 cases'
     [Backends.Native.nativeRevertZeroZeroStmt] retrieveBody'
     Compiler.SimpleStorageNativeWitness.nativeContract
-    tx storage observableSlots err hSelector ?_ ?_ ?_ ?_
+    tx storage [] observableSlots err
+    (Backends.Native.projectResult tx storage [] (.error err))
+    hSelector ?_ ?_ ?_ ?_ rfl).1
   · rw [hCases]; rfl
   · norm_num [EvmYul.UInt256.size]
   · intro tag body hMem; rw [hCases] at hMem
     simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at hMem
     rcases hMem with ⟨rfl, _⟩ | ⟨rfl, _⟩ <;> decide
-  · simpa [simpleStorageDispatcherHitBodyInputState] using hBody
+  · simpa [simpleStorageDispatcherHitBodyInputState,
+      Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Backends.Native.nativeSwitchHasSelectorStore] using hBody
 
 private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error
     (fuel : Nat) (tx : YulTransaction) (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat)
@@ -32590,7 +36346,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error
             (Backends.freshNativeSwitchId reservedNames n0) tx storage observableSlots) =
           .error err) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (fuel + 22) Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage observableSlots) =
       .error err := by
@@ -32602,7 +36358,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error
   subst hCases
   have hBody' := hBody reservedNames n0 midN storeBody' retrieveBody' hLowerCases
   have hReduction := hExec
-  rw [show (fuel + 7 + 14 : Nat) = fuel + 2 + 19 from by omega,
+  rw [show (fuel + 7 + 15 : Nat) = fuel + 2 + 20 from by omega,
       show (fuel + 7 + 8 : Nat) = fuel + 2 + 13 from by omega,
       show (2 : Nat) = ([(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')] :
         List (Nat × List EvmYul.Yul.Ast.Stmt)).length from rfl] at hReduction
@@ -32612,7 +36368,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error
     storeBody' retrieveBody' tx storage observableSlots err
     hSelector rfl ?_ hReduction
   · rw [show fuel + ([(0x6057361d, storeBody'), (0x2e64cec1, retrieveBody')] :
-        List (Nat × List EvmYul.Yul.Ast.Stmt)).length + 19 = fuel + 21 from rfl] at h
+        List (Nat × List EvmYul.Yul.Ast.Stmt)).length + 20 = fuel + 22 from rfl] at h
     exact h
   · rintro (_ | ⟨⟨_, _⟩, rest⟩) suffix hDecomp
     · exfalso
@@ -32638,7 +36394,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_con
             tx storage observableSlots) =
           .error err) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (fuel + 22) Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage
           observableSlots) =
@@ -32663,7 +36419,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_con
             tx storage observableSlots) =
           .error err) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (fuel + 22) Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage
           observableSlots) =
@@ -32690,7 +36446,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_con
             tx storage observableSlots) =
           .error err) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + 21) Compiler.SimpleStorageNativeWitness.nativeContract
+        (fuel + 22) Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage
           observableSlots) =
@@ -32699,11 +36455,11 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_con
     fuel tx storage observableSlots err hSelector hNoWrap ?_
   intro reservedNames n0
   have hWei :
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState.executionEnv.weiValue =
+        observableSlots).executionEnv.weiValue =
       (⟨0⟩ : EvmYul.Literal) := by
-    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue]
+    rw [nativeSwitchPostInitFreeMemorySharedState_weiValue]
     apply congrArg EvmYul.UInt256.mk
     apply Fin.ext
     simpa [Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256,
@@ -32737,7 +36493,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_con
             tx storage observableSlots) =
           .error err) :
     Compiler.Proofs.YulGeneration.Backends.Native.contractDispatcherExecResult
-        (fuel + 25) Compiler.SimpleStorageNativeWitness.nativeContract
+        (fuel + 26) Compiler.SimpleStorageNativeWitness.nativeContract
         (Compiler.Proofs.YulGeneration.Backends.Native.initialState
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage
           observableSlots) =
@@ -32747,17 +36503,17 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_con
   intro reservedNames n0
   have hT3 := hTail3 reservedNames n0
   have hSize :
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState.executionEnv.calldata.size <
+        observableSlots).executionEnv.calldata.size <
       EvmYul.UInt256.size := by
-    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+    rw [nativeSwitchPostInitFreeMemorySharedState_calldata_size]
     exact hNoWrap
   have hGe :
-      4 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      4 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState.executionEnv.calldata.size := by
-    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+        observableSlots).executionEnv.calldata.size := by
+    rw [nativeSwitchPostInitFreeMemorySharedState_calldata_size]
     exact Nat.le_add_right 4 _
   show EvmYul.Yul.exec ((fuel + 4) + 6)
     (.Block simpleStorageLoweredRetrieveCaseBodyTail2)
@@ -32767,20 +36523,20 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_error_con
     fuel _ _ _ err hSize hGe hT3
 
 private noncomputable def simpleStorageNativeDispatcherFuel : Nat :=
-  sizeOf [Compiler.CodegenCommon.buildSwitch
-    simpleStorageIRContract.functions none none]
+  sizeOf [Compiler.CodegenCommon.initFreeMemoryPointer,
+    Compiler.CodegenCommon.buildSwitch simpleStorageIRContract.functions none none]
 
 /-- Lower bound on the SimpleStorage native dispatcher fuel constant for
 the retrieve-hit and store-hit bridges, which use the `_concrete_tail3`
-chain that produces dispatcher exec at `fuel + 25`. -/
-private theorem simpleStorageNativeDispatcherFuel_ge_25 :
-    simpleStorageNativeDispatcherFuel ≥ 25 := by
+chain that produces dispatcher exec at `fuel + 26`. -/
+private theorem simpleStorageNativeDispatcherFuel_ge_26 :
+    simpleStorageNativeDispatcherFuel ≥ 26 := by
   unfold simpleStorageNativeDispatcherFuel
   decide
 
-private theorem simpleStorageNativeDispatcherFuel_ge_21 :
-    simpleStorageNativeDispatcherFuel ≥ 21 := by
-  exact Nat.le_trans (by decide) simpleStorageNativeDispatcherFuel_ge_25
+private theorem simpleStorageNativeDispatcherFuel_ge_22 :
+    simpleStorageNativeDispatcherFuel ≥ 22 := by
+  exact Nat.le_trans (by decide) simpleStorageNativeDispatcherFuel_ge_26
 
 /-- Native dispatcher exec at exactly `simpleStorageNativeDispatcherFuel`
 reduces to `.error Revert` for the selector-miss class. -/
@@ -32802,11 +36558,11 @@ private theorem simpleStorageNativeContract_dispatcherExec_selectorMiss_revert_a
           observableSlots) =
       .error EvmYul.Yul.Exception.Revert := by
   have hReshape : simpleStorageNativeDispatcherFuel =
-      (simpleStorageNativeDispatcherFuel - 21) + 21 :=
-    (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_21).symm
+      (simpleStorageNativeDispatcherFuel - 22) + 22 :=
+    (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_22).symm
   rw [hReshape]
   exact simpleStorageNativeContract_dispatcherExec_selectorMiss_revert
-    (simpleStorageNativeDispatcherFuel - 21)
+    (simpleStorageNativeDispatcherFuel - 22)
     (tx.functionSelector % Compiler.Constants.selectorModulus)
     tx storage observableSlots
     rfl hSelectorRange hSelMissStore hSelMissRetrieve hNoWrap
@@ -32971,9 +36727,9 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFu
     (hSelector : 0x2e64cec1 = tx.functionSelector % Compiler.Constants.selectorModulus)
     (hNoWrap : 4 + tx.args.length * 32 < EvmYul.UInt256.size)
     (hMsgValue : tx.msgValue % EvmYul.UInt256.size = 0) :
-    let shared := (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState
+    let shared :=
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage observableSlots
     let p := shared.sload (EvmYul.UInt256.ofNat 0)
     let shared1 : EvmYul.SharedState .Yul := { shared with toState := p.1 }
     let shared2 : EvmYul.SharedState .Yul :=
@@ -32995,13 +36751,14 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFu
         .error (EvmYul.Yul.Exception.YulHalt (.Ok shared3 store) ⟨1⟩) := by
   -- Bring the let-bound names from the goal into the local context.
   intro shared p shared1 shared2 shared3
-  -- Reshape dispatcher fuel to `g + 25` where `g := dispatcherFuel - 25`.
-  set g := simpleStorageNativeDispatcherFuel - 25 with hg_def
-  have hReshape : simpleStorageNativeDispatcherFuel = g + 25 :=
-    (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_25).symm
+  -- Reshape dispatcher fuel to `g + 26` where `g := dispatcherFuel - 26`.
+  set g := simpleStorageNativeDispatcherFuel - 26 with hg_def
+  have hReshape : simpleStorageNativeDispatcherFuel = g + 26 :=
+    by simpa [g] using
+      (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_26).symm
   rw [hReshape]
   -- Open the `_sourceLowered` existential at `peeledFuel := g + 11`, so the
-  -- dispatcher LHS lands at `(g + 11) + 14 = g + 25`.
+  -- dispatcher LHS lands at `(g + 11) + 14 = g + 26`.
   obtain ⟨reservedNames, n0, cases', midN, hExec, hLowerCases⟩ :=
     simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
       (g + 11) tx storage observableSlots hNoWrap
@@ -33031,39 +36788,39 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFu
   refine ⟨store_body, ?_⟩
   -- Discharge the body-level closed form via `_RetrieveCaseBody_halt`.
   have hWei :
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState.executionEnv.weiValue =
+        observableSlots).executionEnv.weiValue =
       (⟨0⟩ : EvmYul.Literal) := by
-    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue]
+    rw [nativeSwitchPostInitFreeMemorySharedState_weiValue]
     apply congrArg EvmYul.UInt256.mk
     apply Fin.ext
     simpa [Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256,
       EvmYul.UInt256.ofNat, Fin.ofNat] using hMsgValue
   have hSize :
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState.executionEnv.calldata.size <
+        observableSlots).executionEnv.calldata.size <
       EvmYul.UInt256.size := by
-    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+    rw [nativeSwitchPostInitFreeMemorySharedState_calldata_size]
     exact hNoWrap
   have hGe :
-      4 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      4 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState.executionEnv.calldata.size := by
-    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+        observableSlots).executionEnv.calldata.size := by
+    rw [nativeSwitchPostInitFreeMemorySharedState_calldata_size]
     exact Nat.le_add_right 4 _
   have hBodyHalt :=
     exec_block_simpleStorageLoweredRetrieveCaseBody_halt g
       (some Compiler.SimpleStorageNativeWitness.nativeContract)
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState
+        observableSlots)
       store_body hWei hSize hGe
   -- Reshape `hExec` into the form expected by `_via_reduction`'s
   -- `hReduction` parameter.
   have hReduction := hExec
-  rw [show (g + 11 + 14 : Nat) = (g + 4) + 2 + 19 from by omega,
+  rw [show (g + 11 + 15 : Nat) = (g + 4) + 2 + 20 from by omega,
       show (g + 11 + 8 : Nat) = (g + 4) + 2 + 13 from by omega,
       show (2 : Nat) = ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
         (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
@@ -33108,12 +36865,12 @@ private theorem simpleStorageNativeContract_dispatcherExec_retrieveHit_halt_atFu
     tx storage observableSlots
     (EvmYul.Yul.Exception.YulHalt (.Ok shared3 store_body) ⟨1⟩)
     hSelector rfl hBodyExec hReduction
-  -- `h` has dispatcher fuel `(g + 4) + cases'.length + 19`. Reshape to `g + 25`.
+  -- `h` has dispatcher fuel `(g + 4) + cases'.length + 19`. Reshape to `g + 26`.
   have hLen :
       ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
         (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
         List (Nat × List EvmYul.Yul.Ast.Stmt)).length = 2 := rfl
-  rw [hLen, show (g + 4) + 2 + 19 = g + 25 from by omega] at h
+  rw [hLen, show (g + 4) + 2 + 20 = g + 26 from by omega] at h
   exact h
 
 /-- Native dispatcher exec at exactly `simpleStorageNativeDispatcherFuel`
@@ -33135,17 +36892,18 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel
         .error (EvmYul.Yul.Exception.YulHalt haltState ⟨0⟩) ∧
       haltState =
         let initialWithStore : EvmYul.Yul.State :=
-          .Ok (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+          .Ok (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
             Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-            observableSlots).sharedState store_body
+            observableSlots) store_body
         let withValue := initialWithStore.insert "value"
           (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
         withValue.setState
           (withValue.toState.sstore (EvmYul.UInt256.ofNat 0)
             (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)) := by
-  set g := simpleStorageNativeDispatcherFuel - 25 with hg_def
-  have hReshape : simpleStorageNativeDispatcherFuel = g + 25 :=
-    (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_25).symm
+  set g := simpleStorageNativeDispatcherFuel - 26 with hg_def
+  have hReshape : simpleStorageNativeDispatcherFuel = g + 26 :=
+    by simpa [g] using
+      (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_26).symm
   rw [hReshape]
   obtain ⟨reservedNames, n0, cases', midN, hExec, hLowerCases⟩ :=
     simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
@@ -33170,9 +36928,9 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel
       (Backends.nativeSwitchMatchedTempName switchId)
       (EvmYul.UInt256.ofNat 1)
   let initialWithStore : EvmYul.Yul.State :=
-    .Ok (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+    .Ok (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
       Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-      observableSlots).sharedState store_body
+      observableSlots) store_body
   let withValue := initialWithStore.insert "value"
     (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
   let finalState := withValue.setState
@@ -33180,36 +36938,55 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel
       (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg))
   refine ⟨store_body, finalState, ?_, ?_⟩
   · have hWei :
-        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-          observableSlots).sharedState.executionEnv.weiValue =
+          observableSlots).executionEnv.weiValue =
         (⟨0⟩ : EvmYul.Literal) := by
-      rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue]
+      rw [nativeSwitchPostInitFreeMemorySharedState_weiValue]
       apply congrArg EvmYul.UInt256.mk
       apply Fin.ext
       simpa [Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256,
         EvmYul.UInt256.ofNat, Fin.ofNat] using hMsgValue
     have hSize :
-        (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-          observableSlots).sharedState.executionEnv.calldata.size <
+          observableSlots).executionEnv.calldata.size <
         EvmYul.UInt256.size := by
-      rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+      rw [nativeSwitchPostInitFreeMemorySharedState_calldata_size]
       exact hNoWrap
     have hGe :
-        36 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        36 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-          observableSlots).sharedState.executionEnv.calldata.size := by
-      rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+          observableSlots).executionEnv.calldata.size := by
+      rw [nativeSwitchPostInitFreeMemorySharedState_calldata_size]
       rw [hArgs]
       simp
       omega
+    have hPerm :
+        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots).executionEnv.perm = true :=
+      nativeSwitchPostInitFreeMemorySharedState_perm
+        Compiler.SimpleStorageNativeWitness.nativeContract tx storage observableSlots
+    have hWord :
+        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots).calldataload (EvmYul.UInt256.ofNat 4) =
+          Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg := by
+      simpa [Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
+        EvmYul.Yul.State.toState] using
+        Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataload4_arg0_word
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage observableSlots
+          arg rest hArgs
     have hBodyHalt :=
       exec_block_simpleStorageLoweredStoreCaseBody_halt g
         (some Compiler.SimpleStorageNativeWitness.nativeContract)
-        tx storage observableSlots store_body arg rest hArgs hWei hSize hGe
+        (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+          Compiler.SimpleStorageNativeWitness.nativeContract tx storage
+          observableSlots)
+        tx storage observableSlots store_body arg rest hArgs hPerm hWord hWei hSize hGe
     have hReduction := hExec
-    rw [show (g + 11 + 14 : Nat) = (g + 4) + 2 + 19 from by omega,
+    rw [show (g + 11 + 15 : Nat) = (g + 4) + 2 + 20 from by omega,
         show (g + 11 + 8 : Nat) = (g + 4) + 2 + 13 from by omega,
         show (2 : Nat) = ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
           (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
@@ -33254,7 +37031,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_halt_atFuel
         ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
           (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
           List (Nat × List EvmYul.Yul.Ast.Stmt)).length = 2 := rfl
-    rw [hLen, show (g + 4) + 2 + 19 = g + 25 from by omega] at h
+    rw [hLen, show (g + 4) + 2 + 20 = g + 26 from by omega] at h
     exact h
   · rfl
 
@@ -33273,9 +37050,10 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_short_revert
           Compiler.SimpleStorageNativeWitness.nativeContract tx storage
           observableSlots) =
       .error EvmYul.Yul.Exception.Revert := by
-  set g := simpleStorageNativeDispatcherFuel - 25 with hg_def
-  have hReshape : simpleStorageNativeDispatcherFuel = g + 25 :=
-    (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_25).symm
+  set g := simpleStorageNativeDispatcherFuel - 26 with hg_def
+  have hReshape : simpleStorageNativeDispatcherFuel = g + 26 :=
+    by simpa [g] using
+      (Nat.sub_add_cancel simpleStorageNativeDispatcherFuel_ge_26).symm
   rw [hReshape]
   obtain ⟨reservedNames, n0, cases', midN, hExec, hLowerCases⟩ :=
     simpleStorageNativeContract_dispatcherExec_eq_lowerNativeSwitchBlock_revert_default_exec_sourceLowered
@@ -33300,34 +37078,34 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_short_revert
       (Backends.nativeSwitchMatchedTempName switchId)
       (EvmYul.UInt256.ofNat 1)
   have hWei :
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState.executionEnv.weiValue =
+        observableSlots).executionEnv.weiValue =
       (⟨0⟩ : EvmYul.Literal) := by
-    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_weiValue]
+    rw [nativeSwitchPostInitFreeMemorySharedState_weiValue]
     apply congrArg EvmYul.UInt256.mk
     apply Fin.ext
     simpa [Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256,
       EvmYul.UInt256.ofNat, Fin.ofNat] using hMsgValue
   have hSizeEq :
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState.executionEnv.calldata.size = 4 := by
-    rw [Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataSize]
+        observableSlots).executionEnv.calldata.size = 4 := by
+    rw [nativeSwitchPostInitFreeMemorySharedState_calldata_size]
     simp [hArgs]
   have hTail2 :=
     exec_block_simpleStorageLoweredStoreCaseBodyTail2_short_revert
       g (some Compiler.SimpleStorageNativeWitness.nativeContract)
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState
+        observableSlots)
       store_body hSizeEq
   have hTail :=
     exec_block_simpleStorageLoweredStoreCaseBodyTail_callvalue_strip_error
       (g + 4) (some Compiler.SimpleStorageNativeWitness.nativeContract)
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+      (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
         Compiler.SimpleStorageNativeWitness.nativeContract tx storage
-        observableSlots).sharedState
+        observableSlots)
       store_body _ hWei hTail2
   have hBodyRevert :
       EvmYul.Yul.exec (g + 13) (.Block simpleStorageLoweredStoreCaseBody)
@@ -33338,7 +37116,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_short_revert
     exact exec_block_simpleStorageLoweredStoreCaseBody_head_strip_error
       (g + 11) _ _ _ hTail
   have hReduction := hExec
-  rw [show (g + 11 + 14 : Nat) = (g + 4) + 2 + 19 from by omega,
+  rw [show (g + 11 + 15 : Nat) = (g + 4) + 2 + 20 from by omega,
       show (g + 11 + 8 : Nat) = (g + 4) + 2 + 13 from by omega,
       show (2 : Nat) = ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
         (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
@@ -33381,7 +37159,7 @@ private theorem simpleStorageNativeContract_dispatcherExec_storeHit_short_revert
       ([(0x6057361d, simpleStorageLoweredStoreCaseBody),
         (0x2e64cec1, simpleStorageLoweredRetrieveCaseBody)] :
         List (Nat × List EvmYul.Yul.Ast.Stmt)).length = 2 := rfl
-  rw [hLen, show (g + 4) + 2 + 19 = g + 25 from by omega] at h
+  rw [hLen, show (g + 4) + 2 + 20 = g + 26 from by omega] at h
   exact h
 
 /-- Projected native storage after the generated `store(uint256)` body agrees
@@ -33588,7 +37366,7 @@ private theorem nativeResultsMatchOn_execIRFunction_store0_calldataload4_stop_ma
       Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
         (Compiler.runtimeCode irContract) observableSlots
     let initialWithStore :=
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
         nativeContract yulTx state.storage slots switchId store
     let withValue := initialWithStore.insert "value"
       (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
@@ -33631,17 +37409,19 @@ private theorem nativeResultsMatchOn_execIRFunction_store0_calldataload4_stop_ma
       unfold EvmYul.UInt256.ofNat
       simp [Id.run, Fin.ofNat, evmModulus, EvmYul.UInt256.size]
     simpa [finalState, withValue, initialWithStore, markedStore,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
       Compiler.Proofs.abstractStoreStorageOrMapping,
       Compiler.Proofs.IRGeneration.IRStorageWord.ofNat, hArgMod] using
       hNative.symm
   · simp [finalState, withValue, initialWithStore,
       Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
       Compiler.Proofs.YulGeneration.Backends.Native.initialState,
       Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
       YulState.initial, EvmYul.Yul.State.sharedState,
@@ -33703,7 +37483,7 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_store0_ca
     Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
       (Compiler.runtimeCode irContract) observableSlots
   let initialWithStore :=
-    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
       nativeContract yulTx state.storage slots switchId
       Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchHasSelectorStore
   let withValue := initialWithStore.insert "value"
@@ -33807,11 +37587,150 @@ override), and `evmReturn(0, 32)` (toMachineState override) starting from a
 shared state with empty memory. The native projected return value is the
 `Nat`-normalized form of the loaded slot-zero word; storage and logs are
 read off the halt's `sharedState` directly. -/
+private theorem array_extract_append_left {α} (a b : Array α) :
+    (a ++ b).extract 0 a.size = a := by
+  apply Array.ext
+  · simp
+  · intro i hi1 hi2
+    simp
+
+private theorem byteArray_readWithPadding_prefix
+    (source suffix : ByteArray) (hSize : source.size = 32) :
+    (⟨source.data ++ suffix.data⟩ : ByteArray).readWithPadding 0 32 = source := by
+  have hSizeData : source.data.size = 32 := by
+    simpa [ByteArray.size] using hSize
+  have hSourceNonempty : source.data ≠ #[] := by
+    intro h
+    have : source.data.size = 0 := by simp [h]
+    omega
+  unfold ByteArray.readWithPadding ByteArray.readWithoutPadding
+  have hSmall : ¬ 32 ≥ 2 ^ 64 := by norm_num
+  simp only [hSmall, ↓reduceIte]
+  have hAddr : ¬ 0 ≥ (⟨source.data ++ suffix.data⟩ : ByteArray).size := by
+    simp [ByteArray.size, hSourceNonempty]
+  simp only [hAddr, ↓reduceIte]
+  have hMin : min 32 (⟨source.data ++ suffix.data⟩ : ByteArray).size = 32 := by
+    simp [ByteArray.size, hSizeData]
+  simp only [hMin]
+  apply ByteArray.ext
+  simp [ByteArray.data_extract, ByteArray.data_append, ByteArray.size,
+    ffi.ByteArray.zeroes] at hSizeData ⊢
+  rw [show source.data.extract 0 32 = source.data by
+    rw [show (32 : Nat) = source.data.size by omega]
+    exact array_extract_append_left source.data #[]]
+  simp [hSizeData]
+  rw [USize.toNat_sub, USize.toNat_add, USize.toNat_ofNat,
+    USize.toNat_ofNat, USize.toNat_ofNat]
+  rcases System.Platform.numBits_eq with hbits | hbits
+  · rw [hbits]
+    omega
+  · rw [hbits]
+    omega
+
+private theorem byteArray_write_zero_32_readWithPadding_eq_of_size
+    (source dest : ByteArray) (hSize : source.size = 32)
+    (hDest : 32 ≤ dest.size) :
+    (source.write 0 dest 0 32).readWithPadding 0 32 = source := by
+  unfold ByteArray.write
+  simp only [Nat.reduceEqDiff, ↓reduceIte]
+  have hSourceAddr : ¬ 0 ≥ source.size := by omega
+  simp only [hSourceAddr, ↓reduceIte]
+  have hPractical : min 32 (source.size - 0) = 32 := by omega
+  have hEnd : min dest.size (0 + 32) = 32 := by omega
+  have hSourcePaddingLength : 32 - (0 + 32) = 0 := by omega
+  have hDestPaddingLength : 0 - dest.size = 0 := by simp
+  simp only [hPractical, hEnd, hSourcePaddingLength, hDestPaddingLength]
+  have hCopy :
+      (source ++ ffi.ByteArray.zeroes { toBitVec := 0 }).copySlice 0
+        (dest ++ ffi.ByteArray.zeroes { toBitVec := 0 }) 0 (32 + 0) =
+        (⟨source.data ++ (dest.extract 32 dest.size).data⟩ : ByteArray) := by
+    apply ByteArray.ext
+    rw [ByteArray.data_copySlice]
+    simp [ByteArray.data_append, ByteArray.data_extract, ByteArray.size,
+      ffi.ByteArray.zeroes] at hSize hDest ⊢
+    rw [show (32 : Nat) = source.data.size by omega]
+    simp
+  have hPrefix :=
+    byteArray_readWithPadding_prefix source (dest.extract 32 dest.size) hSize
+  rw [← hCopy] at hPrefix
+  simpa using hPrefix
+
+private theorem byteArray_write_empty_64_32_size_ge_32
+    (source : ByteArray) (hSize : source.size = 32) :
+    32 ≤ (source.write 0 ByteArray.empty 64 32).size := by
+  unfold ByteArray.write
+  simp only [Nat.reduceEqDiff, ↓reduceIte]
+  have hSourceAddr : ¬ 0 ≥ source.size := by omega
+  simp only [hSourceAddr, ↓reduceIte]
+  have hPractical : min 32 (source.size - 0) = 32 := by omega
+  have hEnd : min ByteArray.empty.size (64 + 32) = 0 := by simp
+  have hSourcePaddingLength : 0 - (64 + 32) = 0 := by omega
+  have hDestPaddingLength : 64 - ByteArray.empty.size = 64 := by simp
+  simp only [hPractical, hEnd, hSourcePaddingLength, hDestPaddingLength]
+  simp [ByteArray.size, ByteArray.data_copySlice, ByteArray.data_append,
+    ffi.ByteArray.zeroes] at hSize ⊢
+  rw [hSize, USize.toNat_ofNat]
+  rcases System.Platform.numBits_eq with hbits | hbits
+  · rw [hbits]
+    norm_num
+  · rw [hbits]
+    norm_num
+
+private theorem nativeSwitchPostInitFreeMemorySharedState_memory_size_ge_32
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat) :
+    32 ≤ (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+      contract tx storage observableSlots).memory.size := by
+  simp [Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
+    Compiler.Proofs.YulGeneration.Backends.Native.initialState,
+    Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
+    Compiler.Proofs.YulGeneration.Backends.StateBridge.mkBlockHeader,
+    Compiler.Constants.freeMemoryPointer, YulState.initial,
+    EvmYul.Yul.State.sharedState, EvmYul.MachineState.mstore,
+    EvmYul.MachineState.writeWord, EvmYul.writeBytes]
+  exact byteArray_write_empty_64_32_size_ge_32
+    (EvmYul.UInt256.ofNat 128).toByteArray
+    (Compiler.Proofs.YulGeneration.Backends.Native.uint256_toByteArray_size
+      (EvmYul.UInt256.ofNat 128))
+
+private theorem nativeSwitchPostInitFreeMemorySharedState_accountMap
+    (contract : EvmYul.Yul.Ast.YulContract) (tx : YulTransaction)
+    (storage : IRStorageSlot → IRStorageWord) (observableSlots : List Nat) :
+    (Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+      contract tx storage observableSlots).accountMap =
+      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+        contract tx storage observableSlots).sharedState.accountMap := by
+  rfl
+
+private theorem mstore0_then_return32_hReturn_eq_toByteArray
+    (sharedState : EvmYul.SharedState .Yul)
+    (store : EvmYul.Yul.VarStore)
+    (value : EvmYul.UInt256)
+    (hMemorySize : 32 ≤ sharedState.memory.size) :
+    let state : EvmYul.Yul.State := .Ok sharedState store
+    let stored :=
+      state.setMachineState
+        (state.toMachineState.mstore (EvmYul.UInt256.ofNat 0) value)
+    let returned :=
+      stored.setMachineState
+        (stored.toMachineState.evmReturn
+          (EvmYul.UInt256.ofNat 0) (EvmYul.UInt256.ofNat 32))
+    returned.sharedState.H_return = value.toByteArray := by
+  dsimp
+  simp only [EvmYul.Yul.State.toMachineState, EvmYul.Yul.State.setMachineState,
+    EvmYul.Yul.State.sharedState]
+  simp only [EvmYul.MachineState.mstore, EvmYul.MachineState.writeWord,
+    EvmYul.writeBytes, EvmYul.MachineState.evmReturn]
+  exact byteArray_write_zero_32_readWithPadding_eq_of_size value.toByteArray
+    sharedState.memory
+    (Compiler.Proofs.YulGeneration.Backends.Native.uint256_toByteArray_size value)
+    hMemorySize
+
 private theorem projectResult_retrieveHit_eq
     (tx : YulTransaction) (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
-    (hMemory : shared.memory = ByteArray.empty) :
+    (hMemorySize : 32 ≤ shared.memory.size) :
     let p := shared.sload (EvmYul.UInt256.ofNat 0)
     let shared1 : EvmYul.SharedState .Yul := { shared with toState := p.1 }
     let shared2 : EvmYul.SharedState .Yul :=
@@ -33841,8 +37760,6 @@ private theorem projectResult_retrieveHit_eq
             Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
               (EvmYul.Yul.State.Ok shared3 store) } := by
   intro p shared1 shared2 shared3
-  -- shared1 inherits memory from shared because only `toState` was overridden.
-  have hMemory1 : shared1.memory = ByteArray.empty := hMemory
   -- The harness helpers describe the result via `setMachineState` chains;
   -- those equal the structural overrides used in `shared3`.
   have hSize :
@@ -33854,8 +37771,8 @@ private theorem projectResult_retrieveHit_eq
   have hH_return :
       (EvmYul.Yul.State.Ok shared3 store).sharedState.H_return = p.2.toByteArray := by
     have h :=
-      Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq_toByteArray
-        shared1 store p.2 hMemory1
+      mstore0_then_return32_hReturn_eq_toByteArray shared1 store p.2
+        (by simpa [shared1] using hMemorySize)
     simpa [shared3, shared2, EvmYul.Yul.State.setMachineState,
       EvmYul.Yul.State.toMachineState, EvmYul.Yul.State.sharedState] using h
   have hHaltNotZero : (⟨1⟩ : EvmYul.Yul.Ast.Literal) ≠ ⟨0⟩ := by
@@ -33877,8 +37794,7 @@ private theorem projectResult_literalReturnHit_eq
     (tx : YulTransaction) (initialStorage : IRStorageSlot → IRStorageWord)
     (initialEvents : List (List Nat))
     (shared : EvmYul.SharedState .Yul) (store : EvmYul.Yul.VarStore)
-    (value : Nat)
-    (hMemory : shared.memory = ByteArray.empty) :
+    (value : Nat) (hMemorySize : 32 ≤ shared.memory.size) :
     let shared1 : EvmYul.SharedState .Yul :=
       { shared with
         toMachineState :=
@@ -33917,8 +37833,8 @@ private theorem projectResult_literalReturnHit_eq
       (EvmYul.Yul.State.Ok shared2 store).sharedState.H_return =
         (EvmYul.UInt256.ofNat value).toByteArray := by
     have h :=
-      Compiler.Proofs.YulGeneration.Backends.Native.mstore0_then_return32_emptyMemory_hReturn_eq_toByteArray
-        shared store (EvmYul.UInt256.ofNat value) hMemory
+      mstore0_then_return32_hReturn_eq_toByteArray shared store
+        (EvmYul.UInt256.ofNat value) hMemorySize
     simpa [shared2, shared1, EvmYul.Yul.State.setMachineState,
       EvmYul.Yul.State.toMachineState, EvmYul.Yul.State.sharedState] using h
   have hHaltNotZero : (⟨1⟩ : EvmYul.Yul.Ast.Literal) ≠ ⟨0⟩ := by
@@ -33965,8 +37881,8 @@ private theorem nativeResultsMatchOn_execIRFunction_mstore0_sload0_return32_mark
         (Backends.nativeSwitchMatchedTempName switchId)
         (EvmYul.UInt256.ofNat 1))
     let shared :=
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        nativeContract yulTx state.storage slots).sharedState
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+        nativeContract yulTx state.storage slots
     let p := shared.sload (EvmYul.UInt256.ofNat 0)
     let shared1 : EvmYul.SharedState .Yul := { shared with toState := p.1 }
     let shared2 : EvmYul.SharedState .Yul :=
@@ -34007,13 +37923,13 @@ private theorem nativeResultsMatchOn_execIRFunction_mstore0_sload0_return32_mark
             state.events ++
               Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
                 (EvmYul.Yul.State.Ok shared3 markedStore) } := by
-    have hMemory : shared.memory = ByteArray.empty := by
-      simp [shared, Compiler.Proofs.YulGeneration.Backends.Native.initialState,
-        Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
-        YulState.initial, EvmYul.Yul.State.sharedState]
+    have hMemorySize : 32 ≤ shared.memory.size := by
+      simpa [shared] using
+        nativeSwitchPostInitFreeMemorySharedState_memory_size_ge_32
+          nativeContract yulTx state.storage slots
     simpa [yulTx, shared, p, shared1, shared2, shared3] using
       projectResult_retrieveHit_eq yulTx state.storage state.events
-        shared markedStore hMemory
+        shared markedStore hMemorySize
   have hSlotZero : 0 ∈ slots := by
     simp [slots, Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots]
   have hp :
@@ -34471,7 +38387,7 @@ private theorem nativeResultsMatchOn_execIRFunction_oneParam_store0_value_stop_m
       Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
         (Compiler.runtimeCode irContract) observableSlots
     let initialWithStore :=
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId
         nativeContract yulTx state.storage slots switchId store
     let withValue := initialWithStore.insert "value"
       (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
@@ -34514,17 +38430,19 @@ private theorem nativeResultsMatchOn_execIRFunction_oneParam_store0_value_stop_m
       unfold EvmYul.UInt256.ofNat
       simp [Id.run, Fin.ofNat, evmModulus, EvmYul.UInt256.size]
     simpa [finalState, withValue, initialWithStore, markedStore,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
       Compiler.Proofs.abstractStoreStorageOrMapping,
       Compiler.Proofs.IRGeneration.IRStorageWord.ofNat, hArgMod] using
       hNative.symm
   · simp [finalState, withValue, initialWithStore,
       Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreMarkedPrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStorePrefixStateForId,
-      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchStoreInitialState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStoreMarkedPrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryStorePrefixStateForId,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemoryState,
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState,
       Compiler.Proofs.YulGeneration.Backends.Native.initialState,
       Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
       YulState.initial, EvmYul.Yul.State.sharedState,
@@ -34611,8 +38529,8 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_oneParam_
       (Backends.nativeSwitchMatchedTempName switchId)
       (EvmYul.UInt256.ofNat 1))
   let shared :=
-    (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-      nativeContract yulTx state.storage slots).sharedState
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+      nativeContract yulTx state.storage slots
   let initialWithStore : EvmYul.Yul.State := .Ok shared markedStore
   let withValue := initialWithStore.insert "value"
     (Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg)
@@ -34999,8 +38917,8 @@ private theorem nativeResultsMatchOn_execIRFunction_mstore0_lit_return32_markedP
         (Backends.nativeSwitchMatchedTempName switchId)
         (EvmYul.UInt256.ofNat 1))
     let shared :=
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        nativeContract yulTx state.storage slots).sharedState
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+        nativeContract yulTx state.storage slots
     let shared1 : EvmYul.SharedState .Yul :=
       { shared with
         toMachineState :=
@@ -35040,13 +38958,13 @@ private theorem nativeResultsMatchOn_execIRFunction_mstore0_lit_return32_markedP
             state.events ++
               Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
                 (EvmYul.Yul.State.Ok shared2 markedStore) } := by
-    have hMemory : shared.memory = ByteArray.empty := by
-      simp [shared, Compiler.Proofs.YulGeneration.Backends.Native.initialState,
-        Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
-        YulState.initial, EvmYul.Yul.State.sharedState]
+    have hMemorySize : 32 ≤ shared.memory.size := by
+      simpa [shared] using
+        nativeSwitchPostInitFreeMemorySharedState_memory_size_ge_32
+          nativeContract yulTx state.storage slots
     simpa [yulTx, shared, shared1, shared2] using
       projectResult_literalReturnHit_eq yulTx state.storage state.events
-        shared markedStore value hMemory
+        shared markedStore value hMemorySize
   have hValueNat : (EvmYul.UInt256.ofNat value).toNat = value := by
     have hValueRange' : value < Verity.Core.UINT256_MODULUS := by
       simpa [EvmYul.UInt256.size, Verity.Core.UINT256_MODULUS] using hValueRange
@@ -35073,7 +38991,9 @@ private theorem nativeResultsMatchOn_execIRFunction_mstore0_lit_return32_markedP
         shared2.accountMap =
           (Compiler.Proofs.YulGeneration.Backends.Native.initialState
             nativeContract yulTx state.storage slots).sharedState.accountMap := by
-      simp [shared2, shared1, shared]
+      simpa [shared2, shared1, shared] using
+        nativeSwitchPostInitFreeMemorySharedState_accountMap
+          nativeContract yulTx state.storage slots
     have hNative :=
       Compiler.Proofs.YulGeneration.Backends.Native.initialState_materializedStorageSlot
         nativeContract yulTx state.storage slots slot hslot'
@@ -35123,8 +39043,8 @@ private theorem nativeResultsMatchOn_execIRFunction_zeroParam_mstore0_lit_return
         (Backends.nativeSwitchMatchedTempName switchId)
         (EvmYul.UInt256.ofNat 1))
     let shared :=
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        nativeContract yulTx state.storage slots).sharedState
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+        nativeContract yulTx state.storage slots
     let shared1 : EvmYul.SharedState .Yul :=
       { shared with
         toMachineState :=
@@ -35164,13 +39084,13 @@ private theorem nativeResultsMatchOn_execIRFunction_zeroParam_mstore0_lit_return
             state.events ++
               Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
                 (EvmYul.Yul.State.Ok shared2 markedStore) } := by
-    have hMemory : shared.memory = ByteArray.empty := by
-      simp [shared, Compiler.Proofs.YulGeneration.Backends.Native.initialState,
-        Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
-        YulState.initial, EvmYul.Yul.State.sharedState]
+    have hMemorySize : 32 ≤ shared.memory.size := by
+      simpa [shared] using
+        nativeSwitchPostInitFreeMemorySharedState_memory_size_ge_32
+          nativeContract yulTx state.storage slots
     simpa [yulTx, shared, shared1, shared2] using
       projectResult_literalReturnHit_eq yulTx state.storage state.events
-        shared markedStore value hMemory
+        shared markedStore value hMemorySize
   have hValueNat : (EvmYul.UInt256.ofNat value).toNat = value := by
     have hValueRange' : value < Verity.Core.UINT256_MODULUS := by
       simpa [EvmYul.UInt256.size, Verity.Core.UINT256_MODULUS] using hValueRange
@@ -35197,7 +39117,9 @@ private theorem nativeResultsMatchOn_execIRFunction_zeroParam_mstore0_lit_return
         shared2.accountMap =
           (Compiler.Proofs.YulGeneration.Backends.Native.initialState
             nativeContract yulTx state.storage slots).sharedState.accountMap := by
-      simp [shared2, shared1, shared]
+      simpa [shared2, shared1, shared] using
+        nativeSwitchPostInitFreeMemorySharedState_accountMap
+          nativeContract yulTx state.storage slots
     have hNative :=
       Compiler.Proofs.YulGeneration.Backends.Native.initialState_materializedStorageSlot
         nativeContract yulTx state.storage slots slot hslot'
@@ -35245,8 +39167,8 @@ private theorem nativeResultsMatchOn_execIRFunction_zeroParam_mstore0_sload0_ret
         (Backends.nativeSwitchMatchedTempName switchId)
         (EvmYul.UInt256.ofNat 1))
     let shared :=
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        nativeContract yulTx state.storage slots).sharedState
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+        nativeContract yulTx state.storage slots
     let p := shared.sload (EvmYul.UInt256.ofNat 0)
     let shared1 : EvmYul.SharedState .Yul := { shared with toState := p.1 }
     let shared2 : EvmYul.SharedState .Yul :=
@@ -35287,13 +39209,13 @@ private theorem nativeResultsMatchOn_execIRFunction_zeroParam_mstore0_sload0_ret
             state.events ++
               Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
                 (EvmYul.Yul.State.Ok shared3 markedStore) } := by
-    have hMemory : shared.memory = ByteArray.empty := by
-      simp [shared, Compiler.Proofs.YulGeneration.Backends.Native.initialState,
-        Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
-        YulState.initial, EvmYul.Yul.State.sharedState]
+    have hMemorySize : 32 ≤ shared.memory.size := by
+      simpa [shared] using
+        nativeSwitchPostInitFreeMemorySharedState_memory_size_ge_32
+          nativeContract yulTx state.storage slots
     simpa [yulTx, shared, p, shared1, shared2, shared3] using
       projectResult_retrieveHit_eq yulTx state.storage state.events
-        shared markedStore hMemory
+        shared markedStore hMemorySize
   have hSlotZero : 0 ∈ slots := by
     simp [slots, Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots]
   have hp :
@@ -35369,8 +39291,8 @@ private theorem nativeResultsMatchOn_execIRFunction_mstore0_calldataload_aligned
         (Backends.nativeSwitchMatchedTempName switchId)
         (EvmYul.UInt256.ofNat 1))
     let shared :=
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        nativeContract yulTx state.storage slots).sharedState
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+        nativeContract yulTx state.storage slots
     let value := Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg
     let shared1 : EvmYul.SharedState .Yul :=
       { shared with
@@ -35412,14 +39334,14 @@ private theorem nativeResultsMatchOn_execIRFunction_mstore0_calldataload_aligned
             state.events ++
               Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
                 (EvmYul.Yul.State.Ok shared2 markedStore) } := by
-    have hMemory : shared.memory = ByteArray.empty := by
-      simp [shared, Compiler.Proofs.YulGeneration.Backends.Native.initialState,
-        Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
-        YulState.initial, EvmYul.Yul.State.sharedState]
+    have hMemorySize : 32 ≤ shared.memory.size := by
+      simpa [shared] using
+        nativeSwitchPostInitFreeMemorySharedState_memory_size_ge_32
+          nativeContract yulTx state.storage slots
     simpa [yulTx, shared, value, shared1, shared2,
       Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256] using
       projectResult_literalReturnHit_eq yulTx state.storage state.events
-        shared markedStore arg hMemory
+        shared markedStore arg hMemorySize
   have hValueNat :
       value.toNat = arg % Compiler.Constants.evmModulus := by
     simp [value,
@@ -35446,7 +39368,9 @@ private theorem nativeResultsMatchOn_execIRFunction_mstore0_calldataload_aligned
         shared2.accountMap =
           (Compiler.Proofs.YulGeneration.Backends.Native.initialState
             nativeContract yulTx state.storage slots).sharedState.accountMap := by
-      simp [shared2, shared1, shared]
+      simpa [shared2, shared1, shared] using
+        nativeSwitchPostInitFreeMemorySharedState_accountMap
+          nativeContract yulTx state.storage slots
     have hNative :=
       Compiler.Proofs.YulGeneration.Backends.Native.initialState_materializedStorageSlot
         nativeContract yulTx state.storage slots slot hslot'
@@ -35494,8 +39418,8 @@ private theorem nativeResultsMatchOn_execIRFunction_mstore0_calldataload4_return
         (Backends.nativeSwitchMatchedTempName switchId)
         (EvmYul.UInt256.ofNat 1))
     let shared :=
-      (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-        nativeContract yulTx state.storage slots).sharedState
+      Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+        nativeContract yulTx state.storage slots
     let value := Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg
     let shared1 : EvmYul.SharedState .Yul :=
       { shared with
@@ -35535,14 +39459,14 @@ private theorem nativeResultsMatchOn_execIRFunction_mstore0_calldataload4_return
             state.events ++
               Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
                 (EvmYul.Yul.State.Ok shared2 markedStore) } := by
-    have hMemory : shared.memory = ByteArray.empty := by
-      simp [shared, Compiler.Proofs.YulGeneration.Backends.Native.initialState,
-        Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
-        YulState.initial, EvmYul.Yul.State.sharedState]
+    have hMemorySize : 32 ≤ shared.memory.size := by
+      simpa [shared] using
+        nativeSwitchPostInitFreeMemorySharedState_memory_size_ge_32
+          nativeContract yulTx state.storage slots
     simpa [yulTx, shared, value, shared1, shared2,
       Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256] using
       projectResult_literalReturnHit_eq yulTx state.storage state.events
-        shared markedStore arg hMemory
+        shared markedStore arg hMemorySize
   have hValueNat :
       value.toNat = arg % Compiler.Constants.evmModulus := by
     simp [value,
@@ -35569,7 +39493,9 @@ private theorem nativeResultsMatchOn_execIRFunction_mstore0_calldataload4_return
         shared2.accountMap =
           (Compiler.Proofs.YulGeneration.Backends.Native.initialState
             nativeContract yulTx state.storage slots).sharedState.accountMap := by
-      simp [shared2, shared1, shared]
+      simpa [shared2, shared1, shared] using
+        nativeSwitchPostInitFreeMemorySharedState_accountMap
+          nativeContract yulTx state.storage slots
     have hNative :=
       Compiler.Proofs.YulGeneration.Backends.Native.initialState_materializedStorageSlot
         nativeContract yulTx state.storage slots slot hslot'
@@ -35638,8 +39564,8 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_s
       (Backends.nativeSwitchMatchedTempName switchId)
       (EvmYul.UInt256.ofNat 1))
   let shared :=
-    (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-      nativeContract yulTx state.storage slots).sharedState
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+      nativeContract yulTx state.storage slots
   let p := shared.sload (EvmYul.UInt256.ofNat 0)
   let shared1 : EvmYul.SharedState .Yul := { shared with toState := p.1 }
   let shared2 : EvmYul.SharedState .Yul :=
@@ -35674,7 +39600,8 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_s
         nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 10 =
           nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
-            suffix.length + 1 + 9 by omega]
+            suffix.length + 1 + 9 by
+        rw [show (10 : Nat) = 1 + 9 by rfl]]
     simpa [shared, p, shared1, shared2, shared3, haltState] using hExec
   · simpa [switchId, yulTx, slots, markedStore, shared, p, shared1, shared2,
       shared3, haltState, nativeYul] using
@@ -35751,8 +39678,8 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_zeroParam
       (Backends.nativeSwitchMatchedTempName switchId)
       (EvmYul.UInt256.ofNat 1))
   let shared :=
-    (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-      nativeContract yulTx state.storage slots).sharedState
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+      nativeContract yulTx state.storage slots
   let p := shared.sload (EvmYul.UInt256.ofNat 0)
   let shared1 : EvmYul.SharedState .Yul := { shared with toState := p.1 }
   let shared2 : EvmYul.SharedState .Yul :=
@@ -35772,12 +39699,19 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_zeroParam
   refine ⟨haltState, ⟨1⟩, nativeYul, ?_, rfl, ?_⟩
   · intro _pre suffix
     have hSize : shared.executionEnv.calldata.size < EvmYul.UInt256.size := by
-      simpa [shared, yulTx,
-        Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_size]
-        using hNoWrap
+      rw [show shared.executionEnv.calldata.size =
+          4 + yulTx.args.length * 32 by
+        simpa [shared] using
+          nativeSwitchPostInitFreeMemorySharedState_calldata_size
+            nativeContract yulTx state.storage slots]
+      simpa [yulTx, YulTransaction.ofIR_args] using hNoWrap
     have hGe : 4 ≤ shared.executionEnv.calldata.size := by
-      simp [shared, yulTx,
-        Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_size]
+      rw [show shared.executionEnv.calldata.size =
+          4 + yulTx.args.length * 32 by
+        simpa [shared] using
+          nativeSwitchPostInitFreeMemorySharedState_calldata_size
+            nativeContract yulTx state.storage slots]
+      exact Nat.le_add_right 4 _
     have hExec :=
       exec_block_loweredZeroParamSload0ReturnCaseBody_closed
         (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
@@ -35846,8 +39780,8 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_l
       (Backends.nativeSwitchMatchedTempName switchId)
       (EvmYul.UInt256.ofNat 1))
   let shared :=
-    (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-      nativeContract yulTx state.storage slots).sharedState
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+      nativeContract yulTx state.storage slots
   let shared1 : EvmYul.SharedState .Yul :=
     { shared with
       toMachineState :=
@@ -35874,7 +39808,8 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_l
         nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 10 =
           nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
-            suffix.length + 2 + 8 by omega]
+            suffix.length + 2 + 8 by
+        rw [show (10 : Nat) = 2 + 8 by rfl]]
     simpa [shared, shared1, shared2, haltState] using hExec
   · simpa [switchId, yulTx, slots, markedStore, shared, shared1, shared2,
       haltState, nativeYul] using
@@ -35952,8 +39887,8 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_zeroParam
       (Backends.nativeSwitchMatchedTempName switchId)
       (EvmYul.UInt256.ofNat 1))
   let shared :=
-    (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-      nativeContract yulTx state.storage slots).sharedState
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+      nativeContract yulTx state.storage slots
   let shared1 : EvmYul.SharedState .Yul :=
     { shared with
       toMachineState :=
@@ -35972,12 +39907,19 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_zeroParam
   refine ⟨haltState, ⟨1⟩, nativeYul, ?_, rfl, ?_⟩
   · intro _pre suffix
     have hSize : shared.executionEnv.calldata.size < EvmYul.UInt256.size := by
-      simpa [shared, yulTx,
-        Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_size]
-        using hNoWrap
+      rw [show shared.executionEnv.calldata.size =
+          4 + yulTx.args.length * 32 by
+        simpa [shared] using
+          nativeSwitchPostInitFreeMemorySharedState_calldata_size
+            nativeContract yulTx state.storage slots]
+      simpa [yulTx, YulTransaction.ofIR_args] using hNoWrap
     have hGe : 4 ≤ shared.executionEnv.calldata.size := by
-      simp [shared, yulTx,
-        Compiler.Proofs.YulGeneration.Backends.StateBridge.calldataToByteArray_size]
+      rw [show shared.executionEnv.calldata.size =
+          4 + yulTx.args.length * 32 by
+        simpa [shared] using
+          nativeSwitchPostInitFreeMemorySharedState_calldata_size
+            nativeContract yulTx state.storage slots]
+      exact Nat.le_add_right 4 _
     have hExec :=
       exec_block_loweredZeroParamLiteralReturnCaseBody_closed
         (nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
@@ -36048,8 +39990,8 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_c
       (Backends.nativeSwitchMatchedTempName switchId)
       (EvmYul.UInt256.ofNat 1))
   let shared :=
-    (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-      nativeContract yulTx state.storage slots).sharedState
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+      nativeContract yulTx state.storage slots
   let value := Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg
   let shared1 : EvmYul.SharedState .Yul :=
     { shared with
@@ -36081,7 +40023,8 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_c
         nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 10 =
           nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
-            suffix.length + 1 + 9 by omega]
+            suffix.length + 1 + 9 by
+        rw [show (10 : Nat) = 1 + 9 by rfl]]
     simpa [shared, value, shared1, shared2, haltState] using hExec
   · simpa [switchId, yulTx, slots, markedStore, shared, value, shared1, shared2,
       haltState, nativeYul] using
@@ -36150,8 +40093,8 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_c
       (Backends.nativeSwitchMatchedTempName switchId)
       (EvmYul.UInt256.ofNat 1))
   let shared :=
-    (Compiler.Proofs.YulGeneration.Backends.Native.initialState
-      nativeContract yulTx state.storage slots).sharedState
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
+      nativeContract yulTx state.storage slots
   let value := Compiler.Proofs.YulGeneration.Backends.StateBridge.natToUInt256 arg
   let shared1 : EvmYul.SharedState .Yul :=
     { shared with
@@ -36183,7 +40126,8 @@ private theorem NativeGeneratedSelectedUserBodyHaltExecBridgeAtFuel.of_mstore0_c
         nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
             suffix.length + 10 =
           nativeGeneratedSelectorHitUserBodyFuel irContract fn cases' +
-            suffix.length + 1 + 9 by omega]
+            suffix.length + 1 + 9 by
+        rw [show (10 : Nat) = 1 + 9 by rfl]]
     simpa [shared, value, shared1, shared2, haltState] using hExec
   · simpa [switchId, yulTx, slots, markedStore, shared, value, shared1, shared2,
       haltState, nativeYul] using
@@ -37200,9 +41144,9 @@ private theorem simpleStorageNativeRetrieveHitMatchBridge_proved
     Compiler.Proofs.YulGeneration.Backends.Native.materializedStorageSlots
       (Compiler.runtimeCode simpleStorageIRContract) observableSlots
   let shared :=
-    (Compiler.Proofs.YulGeneration.Backends.Native.initialState
+    Compiler.Proofs.YulGeneration.Backends.Native.nativeSwitchPostInitFreeMemorySharedState
       Compiler.SimpleStorageNativeWitness.nativeContract yulTx
-      initialState.storage slots).sharedState
+      initialState.storage slots
   let p := shared.sload (EvmYul.UInt256.ofNat 0)
   let shared1 : EvmYul.SharedState .Yul := { shared with toState := p.1 }
   let shared2 : EvmYul.SharedState .Yul :=
@@ -37250,13 +41194,14 @@ private theorem simpleStorageNativeRetrieveHitMatchBridge_proved
           initialState.events ++
             Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
               (EvmYul.Yul.State.Ok shared3 store) } := by
-    have hMemory : shared.memory = ByteArray.empty := by
-      simp [shared, Compiler.Proofs.YulGeneration.Backends.Native.initialState,
-        Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
-        YulState.initial, EvmYul.Yul.State.sharedState]
+    have hMemorySize : 32 ≤ shared.memory.size := by
+      simpa [shared] using
+        nativeSwitchPostInitFreeMemorySharedState_memory_size_ge_32
+          Compiler.SimpleStorageNativeWitness.nativeContract yulTx
+          initialState.storage slots
     simpa [yulTx, shared, p, shared1, shared2, shared3] using
       projectResult_retrieveHit_eq yulTx initialState.storage initialState.events
-        shared store hMemory
+        shared store hMemorySize
   have hLogs :
       Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState
         (EvmYul.Yul.State.Ok shared3 store) = [] := by
@@ -37636,7 +41581,7 @@ expose the public surface this file needs.
   is hypothesis-free).
 - 36 of 36 builtins are bridged, including `mappingSlot` via the shared
   keccak-faithful `abstractMappingSlot` derivation.
-- 0 bridge lemmas use `sorry`; all builtin bridge equivalences are proven.
+- All bridge lemmas are complete; all builtin bridge equivalences are proven.
 - The external-call/function-table family remains outside `BridgedSafeStmts`
   and needs separate simulation work before it can be admitted into the
   safe-body EndToEnd wrapper.
