@@ -48,7 +48,7 @@ private def yulReturnRuntime : YulStmt :=
     YulExpr.call "datasize" [YulExpr.str "runtime"]
   ])
 
-private def initFreeMemoryPointer : YulStmt :=
+def initFreeMemoryPointer : YulStmt :=
   YulStmt.expr (YulExpr.call "mstore" [
     YulExpr.lit Compiler.Constants.freeMemoryPointer,
     YulExpr.lit 128

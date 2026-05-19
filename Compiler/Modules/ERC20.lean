@@ -111,10 +111,6 @@ def safeTransferModule : ExternalCallModule where
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__st_ptr", YulExpr.hex selectorWord]),
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__st_ptr", YulExpr.lit 4], toExpr]),
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__st_ptr", YulExpr.lit 36], amountExpr]),
-      YulStmt.let_ "__st_success" (YulExpr.call "call" [
-        YulExpr.call "gas" [], tokenExpr, YulExpr.lit 0,
-        YulExpr.ident "__st_ptr", YulExpr.lit 68, YulExpr.ident "__st_ptr", YulExpr.lit 32
-      ]),
       YulStmt.expr (YulExpr.call "mstore" [
         YulExpr.lit freeMemoryPointer,
         YulExpr.call "and" [
@@ -124,6 +120,10 @@ def safeTransferModule : ExternalCallModule where
           ],
           YulExpr.call "not" [YulExpr.lit 31]
         ]
+      ]),
+      YulStmt.let_ "__st_success" (YulExpr.call "call" [
+        YulExpr.call "gas" [], tokenExpr, YulExpr.lit 0,
+        YulExpr.ident "__st_ptr", YulExpr.lit 68, YulExpr.ident "__st_ptr", YulExpr.lit 32
       ]),
       YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__st_success"]) [
         YulStmt.let_ "__st_rds" (YulExpr.call "returndatasize" []),
@@ -160,10 +160,6 @@ def safeTransferFromModule : ExternalCallModule where
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__stf_ptr", YulExpr.lit 4], fromExpr]),
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__stf_ptr", YulExpr.lit 36], toExpr]),
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__stf_ptr", YulExpr.lit 68], amountExpr]),
-      YulStmt.let_ "__stf_success" (YulExpr.call "call" [
-        YulExpr.call "gas" [], tokenExpr, YulExpr.lit 0,
-        YulExpr.ident "__stf_ptr", YulExpr.lit 100, YulExpr.ident "__stf_ptr", YulExpr.lit 32
-      ]),
       YulStmt.expr (YulExpr.call "mstore" [
         YulExpr.lit freeMemoryPointer,
         YulExpr.call "and" [
@@ -173,6 +169,10 @@ def safeTransferFromModule : ExternalCallModule where
           ],
           YulExpr.call "not" [YulExpr.lit 31]
         ]
+      ]),
+      YulStmt.let_ "__stf_success" (YulExpr.call "call" [
+        YulExpr.call "gas" [], tokenExpr, YulExpr.lit 0,
+        YulExpr.ident "__stf_ptr", YulExpr.lit 100, YulExpr.ident "__stf_ptr", YulExpr.lit 32
       ]),
       YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__stf_success"]) [
         YulStmt.let_ "__stf_rds" (YulExpr.call "returndatasize" []),
@@ -208,10 +208,6 @@ def safeApproveModule : ExternalCallModule where
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__sa_ptr", YulExpr.hex selectorWord]),
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__sa_ptr", YulExpr.lit 4], spenderExpr]),
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.call "add" [YulExpr.ident "__sa_ptr", YulExpr.lit 36], amountExpr]),
-      YulStmt.let_ "__sa_success" (YulExpr.call "call" [
-        YulExpr.call "gas" [], tokenExpr, YulExpr.lit 0,
-        YulExpr.ident "__sa_ptr", YulExpr.lit 68, YulExpr.ident "__sa_ptr", YulExpr.lit 32
-      ]),
       YulStmt.expr (YulExpr.call "mstore" [
         YulExpr.lit freeMemoryPointer,
         YulExpr.call "and" [
@@ -221,6 +217,10 @@ def safeApproveModule : ExternalCallModule where
           ],
           YulExpr.call "not" [YulExpr.lit 31]
         ]
+      ]),
+      YulStmt.let_ "__sa_success" (YulExpr.call "call" [
+        YulExpr.call "gas" [], tokenExpr, YulExpr.lit 0,
+        YulExpr.ident "__sa_ptr", YulExpr.lit 68, YulExpr.ident "__sa_ptr", YulExpr.lit 32
       ]),
       YulStmt.if_ (YulExpr.call "iszero" [YulExpr.ident "__sa_success"]) [
         YulStmt.let_ "__sa_rds" (YulExpr.call "returndatasize" []),
