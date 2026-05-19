@@ -1,9 +1,11 @@
+/* Light theme — cool paper background with a faint teal wash on the
+   left edge to mark verity code as the "lifted" / proof-carrying variant. */
 figure[data-rehype-pretty-code-figure] pre[data-language="verity"] {
   background:
-    linear-gradient(90deg, rgba(123, 63, 50, 0.06), transparent 22rem),
-    #fffaf1 !important;
-  border: 1px solid #eadcca;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset;
+    linear-gradient(90deg, rgba(15, 142, 126, 0.05), transparent 22rem),
+    var(--verity-code-surface) !important;
+  border: 1px solid var(--verity-rule);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
 }
 
 .dark figure[data-rehype-pretty-code-figure] pre {
@@ -16,22 +18,25 @@ figure[data-rehype-pretty-code-figure] pre[data-language="verity"] {
   color: var(--verity-ink) !important;
 }
 
+/* Dark-theme syntax remap: the bundled shiki theme is warm-amber. Push
+   highlights to cool teal/cyan/slate so code reads cold like the rest of
+   the dark theme. */
 .dark figure[data-rehype-pretty-code-figure] span[style*="#D9B7FF"],
 .dark figure[data-rehype-pretty-code-figure] span[style*="#D5B3FF"] {
-  color: #E5C98A !important;
+  color: #7DD3C0 !important;
 }
 
 .dark figure[data-rehype-pretty-code-figure] span[style*="#91C9FF"],
 .dark figure[data-rehype-pretty-code-figure] span[style*="#86D6C8"] {
-  color: #D8B989 !important;
+  color: #A3E1D4 !important;
 }
 
 .dark figure[data-rehype-pretty-code-figure] span[style*="#A7E39B"] {
-  color: #C9A961 !important;
+  color: #82E0CC !important;
 }
 
 .dark figure[data-rehype-pretty-code-figure] span[style*="#D7E4F2"] {
-  color: #D9D0C0 !important;
+  color: #C7D5D1 !important;
 }
 
 figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code {
@@ -47,23 +52,23 @@ figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span::
   position: absolute;
   inset-block: 0;
   left: 1.35rem;
-  border-left: 1px solid rgba(139, 118, 99, 0.13);
+  border-left: 1px solid rgba(94, 110, 106, 0.13);
   pointer-events: none;
 }
 
 figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#7b3f32" i]:first-child),
 figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#875c24" i]) {
-  background: linear-gradient(90deg, rgba(234, 220, 202, 0.7), rgba(234, 220, 202, 0));
+  background: linear-gradient(90deg, rgba(15, 142, 126, 0.08), rgba(15, 142, 126, 0));
 }
 
 figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#a34537" i]) {
-  background: linear-gradient(90deg, rgba(163, 69, 55, 0.08), rgba(163, 69, 55, 0));
+  background: linear-gradient(90deg, rgba(15, 142, 126, 0.06), rgba(15, 142, 126, 0));
 }
 
 figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#6f5631" i]) {
-  background: linear-gradient(90deg, rgba(111, 86, 49, 0.08), rgba(111, 86, 49, 0));
+  background: linear-gradient(90deg, rgba(11, 110, 98, 0.05), rgba(11, 110, 98, 0));
 }
 
 figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span:has(> span[style*="#3f7456" i]) {
-  background: linear-gradient(90deg, rgba(63, 116, 86, 0.08), rgba(63, 116, 86, 0));
+  background: linear-gradient(90deg, rgba(11, 110, 98, 0.08), rgba(11, 110, 98, 0));
 }

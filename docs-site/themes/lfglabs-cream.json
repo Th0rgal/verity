@@ -1,180 +1,180 @@
 {
   "$schema": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/main/packages/tm-themes/schema.json",
-  "name": "LFGLabs Cream",
+  "name": "Verity Paper Light",
   "type": "light",
   "colors": {
-    "editor.background": "#fffaf1",
-    "editor.foreground": "#302b25",
-    "editorLineNumber.foreground": "#b9a992",
-    "editor.selectionBackground": "#eadcca",
-    "editor.inactiveSelectionBackground": "#f2e7d5"
+    "editor.background": "#fbfcfb",
+    "editor.foreground": "#1a2422",
+    "editorLineNumber.foreground": "#a3aeab",
+    "editor.selectionBackground": "#cfe6e0",
+    "editor.inactiveSelectionBackground": "#dfece9"
   },
   "tokenColors": [
     {
       "scope": ["comment", "punctuation.definition.comment"],
       "settings": {
-        "foreground": "#8a8175",
+        "foreground": "#6F807C",
         "fontStyle": "italic"
       }
     },
     {
       "scope": ["string.quoted.double", "string.quoted.double.verity"],
       "settings": {
-        "foreground": "#6b6f32"
+        "foreground": "#2A6B61"
       }
     },
     {
       "scope": ["entity.name.function.event.verity"],
       "settings": {
-        "foreground": "#3f7456",
+        "foreground": "#0F8E7E",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["constant.numeric", "constant.numeric.hex", "constant.numeric.decimal", "constant.numeric.storage-slot"],
       "settings": {
-        "foreground": "#8b4e2f"
+        "foreground": "#2A6B61"
       }
     },
     {
       "scope": ["constant.language.boolean", "constant.language.boolean.verity"],
       "settings": {
-        "foreground": "#8b4e2f",
+        "foreground": "#0B6E62",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["keyword.declaration.contract.verity", "keyword.declaration.function.verity", "keyword.declaration.modifier.verity", "keyword.declaration.external.verity", "keyword.other.section.verity", "keyword.other.section.linked-externals.verity"],
       "settings": {
-        "foreground": "#7b3f32",
+        "foreground": "#0B6E62",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["keyword.control.modifier-clause.verity", "storage.modifier.verity", "storage.modifier.reentrancy.verity"],
       "settings": {
-        "foreground": "#875c24",
+        "foreground": "#3D8579",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["keyword.control.do.verity", "keyword.control.lean.verity", "keyword.operator.assignment.verity"],
       "settings": {
-        "foreground": "#8b7663"
+        "foreground": "#6F807C"
       }
     },
     {
       "scope": ["keyword.operator", "punctuation.definition.parameters", "punctuation.separator", "punctuation.accessor.verity"],
       "settings": {
-        "foreground": "#8b7663"
+        "foreground": "#6F807C"
       }
     },
     {
       "scope": ["entity.name.type.contract.verity", "storage.type.verity", "support.type"],
       "settings": {
-        "foreground": "#715a36",
+        "foreground": "#1F5F58",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["entity.name.function.verity"],
       "settings": {
-        "foreground": "#2f6c67"
+        "foreground": "#283531"
       }
     },
     {
       "scope": ["entity.name.function.external.verity"],
       "settings": {
-        "foreground": "#6f5631",
+        "foreground": "#1F5F58",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["entity.name.function.modifier.verity"],
       "settings": {
-        "foreground": "#7a5527",
+        "foreground": "#3D8579",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["support.function.guard.verity"],
       "settings": {
-        "foreground": "#a34537",
+        "foreground": "#B14A3A",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["support.function.external-call.verity"],
       "settings": {
-        "foreground": "#6f5631",
+        "foreground": "#1F5F58",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["support.function.event.verity"],
       "settings": {
-        "foreground": "#3f7456",
+        "foreground": "#0F8E7E",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["support.function.loop.verity"],
       "settings": {
-        "foreground": "#7b5b33",
+        "foreground": "#1F5F58",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["support.function.abi.verity"],
       "settings": {
-        "foreground": "#7f5831",
+        "foreground": "#1F5F58",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["support.function.storage.verity", "support.function.context.verity", "support.function.arithmetic.verity", "support.function.spec.verity"],
       "settings": {
-        "foreground": "#2f6c67",
+        "foreground": "#0F8E7E",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["entity.name.exception.custom-error.verity"],
       "settings": {
-        "foreground": "#a34537",
+        "foreground": "#B14A3A",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["variable.other.property.verity"],
       "settings": {
-        "foreground": "#785b1f",
+        "foreground": "#3D8579",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["variable.other.storage.verity", "variable.language.verity", "variable.other"],
       "settings": {
-        "foreground": "#4f463b"
+        "foreground": "#2A3633"
       }
     },
     {
       "scope": ["meta.block.linked-externals.verity"],
       "settings": {
-        "foreground": "#655b4d"
+        "foreground": "#5E6E6A"
       }
     },
     {
       "scope": ["source.lean keyword", "keyword.declaration.lean.verity"],
       "settings": {
-        "foreground": "#7b3f32",
+        "foreground": "#0B6E62",
         "fontStyle": "bold"
       }
     },
     {
       "scope": ["source.lean entity.name.function", "support.function.tactic.verity"],
       "settings": {
-        "foreground": "#2f6c67"
+        "foreground": "#283531"
       }
     },
 
@@ -200,7 +200,7 @@
         "keyword.control.for"
       ],
       "settings": {
-        "foreground": "#7b3f32",
+        "foreground": "#0B6E62",
         "fontStyle": "bold"
       }
     },
@@ -213,7 +213,7 @@
         "storage.modifier.is"
       ],
       "settings": {
-        "foreground": "#875c24",
+        "foreground": "#3D8579",
         "fontStyle": "bold"
       }
     },
@@ -222,7 +222,7 @@
         "support.type.primitive"
       ],
       "settings": {
-        "foreground": "#715a36",
+        "foreground": "#1F5F58",
         "fontStyle": "bold"
       }
     },
@@ -239,7 +239,7 @@
         "entity.name.type.userType"
       ],
       "settings": {
-        "foreground": "#6f5631",
+        "foreground": "#1F5F58",
         "fontStyle": "bold"
       }
     },
@@ -249,7 +249,7 @@
         "entity.name.function.modifier"
       ],
       "settings": {
-        "foreground": "#2f6c67"
+        "foreground": "#283531"
       }
     },
     {
@@ -260,7 +260,7 @@
         "keyword.control.contract"
       ],
       "settings": {
-        "foreground": "#a34537",
+        "foreground": "#B14A3A",
         "fontStyle": "bold"
       }
     },
@@ -271,7 +271,7 @@
         "variable.parameter.other"
       ],
       "settings": {
-        "foreground": "#4f463b"
+        "foreground": "#2A3633"
       }
     },
     {
@@ -279,7 +279,7 @@
         "support.variable.property"
       ],
       "settings": {
-        "foreground": "#785b1f"
+        "foreground": "#3D8579"
       }
     },
     {
@@ -291,7 +291,7 @@
         "variable.language.type"
       ],
       "settings": {
-        "foreground": "#875c24",
+        "foreground": "#3D8579",
         "fontStyle": "bold"
       }
     },
@@ -305,7 +305,7 @@
         "constant.language.time"
       ],
       "settings": {
-        "foreground": "#8b4e2f"
+        "foreground": "#2A6B61"
       }
     },
     {
@@ -314,7 +314,7 @@
         "string.quoted.single"
       ],
       "settings": {
-        "foreground": "#6b6f32"
+        "foreground": "#2A6B61"
       }
     },
     {
@@ -326,7 +326,7 @@
         "keyword.operator.binary"
       ],
       "settings": {
-        "foreground": "#8b7663"
+        "foreground": "#6F807C"
       }
     }
   ],

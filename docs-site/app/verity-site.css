@@ -2,77 +2,85 @@
 
 :root {
   color-scheme: light;
-  --verity-bg: #EDE5D6;
-  --verity-page: #FAF7EF;
-  --verity-sidebar: #DED2BD;
-  --verity-sidebar-strong: #CDBB9C;
-  --verity-surface: #FFFDF8;
-  --verity-surface-strong: #E5D7BF;
-  --verity-ink: #28190F;
-  --verity-heading: #160D07;
-  --verity-muted: #6A5A4A;
-  --verity-rule: #C5B69F;
-  --verity-code-bg: #EFE5D4;
-  --verity-code-surface: #FFF9EE;
-  --verity-accent: #65401F;
-  --verity-accent-soft: #D3BC92;
-  --verity-accent-ink: #FFF9EE;
-  --verity-shadow: 0 18px 44px rgba(42, 24, 16, 0.09);
+  /* Cool LaTeX-paper palette. The page reads as a preprint set on
+     bright, faintly-blue stock; teal "sarcelle" carries every accent. */
+  --verity-bg: #ECEEEC;
+  --verity-page: #F7F8F6;
+  --verity-sidebar: #E6E9E6;
+  --verity-sidebar-strong: #D6DAD7;
+  --verity-surface: #FFFFFF;
+  --verity-surface-strong: #EEF1EE;
+  --verity-ink: #1A2422;
+  --verity-heading: #0B1614;
+  --verity-muted: #5E6E6A;
+  --verity-rule: #D3D8D5;
+  --verity-rule-soft: #E1E5E2;
+  --verity-code-bg: #EEF1EE;
+  --verity-code-surface: #FBFCFB;
+  --verity-accent: #0F8E7E;
+  --verity-accent-strong: #0B6E62;
+  --verity-accent-bright: #2DD4BF;
+  --verity-accent-soft: #B9E6DE;
+  --verity-accent-ink: #FFFFFF;
+  --verity-shadow: 0 14px 38px rgba(11, 22, 20, 0.06);
   --verity-font-prose: "Source Serif 4", Georgia, serif;
   --verity-font-display: "Source Serif 4", Georgia, serif;
   --verity-font-caption: "Source Serif 4", Georgia, serif;
   --verity-font-code: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, monospace;
   --verity-font-ui: "Source Sans 3", Inter, ui-sans-serif, system-ui, sans-serif;
-  --nextra-navbar-height: 68px;
+  --nextra-navbar-height: 64px;
   --nextra-content-width: 82rem;
-  --nextra-primary-hue: 31deg;
-  --nextra-primary-saturation: 71%;
-  --nextra-primary-lightness: 25%;
-  --nextra-bg: 247, 241, 228;
-  --x-color-blue-100: #E8D8BB;
-  --x-color-blue-400: #A8733F;
-  --x-color-blue-600: #7D4319;
-  --x-color-blue-700: #6F3B13;
-  --x-color-blue-900: #3D2111;
-  --x-color-slate-50: #FBF8F1;
-  --x-color-slate-100: #F4EFE6;
-  --x-color-slate-200: #E7D7BB;
-  --x-color-slate-700: #2A1810;
-  --x-color-slate-900: #1A0F08;
-  --x-color-gray-50: #FBF8F1;
-  --x-color-gray-100: #F0E6D5;
-  --x-color-gray-200: #DDCEB7;
-  --x-color-gray-300: #C9BBA4;
-  --x-color-gray-400: #8B7B68;
-  --x-color-gray-600: #6D5D50;
-  --x-color-gray-700: #534539;
-  --x-color-gray-800: #35271D;
-  --x-color-gray-900: #21150E;
+  --nextra-primary-hue: 170deg;
+  --nextra-primary-saturation: 70%;
+  --nextra-primary-lightness: 31%;
+  --nextra-bg: 247, 248, 246;
+  --x-color-blue-100: #C9E8E1;
+  --x-color-blue-400: #14B5A1;
+  --x-color-blue-600: #0F8E7E;
+  --x-color-blue-700: #0B6E62;
+  --x-color-blue-900: #053A33;
+  --x-color-slate-50: #F7F8F6;
+  --x-color-slate-100: #ECEEEC;
+  --x-color-slate-200: #D9DDDA;
+  --x-color-slate-700: #2A3633;
+  --x-color-slate-900: #0B1614;
+  --x-color-gray-50: #F7F8F6;
+  --x-color-gray-100: #ECEEEC;
+  --x-color-gray-200: #D9DDDA;
+  --x-color-gray-300: #C4CAC7;
+  --x-color-gray-400: #8B9591;
+  --x-color-gray-600: #5E6E6A;
+  --x-color-gray-700: #45524F;
+  --x-color-gray-800: #283531;
+  --x-color-gray-900: #0F1B19;
 }
 
 .dark {
   color-scheme: dark;
-  /* Warmer "vellum at night" instead of pure black */
-  --verity-bg: #0B0908;
-  --verity-page: #0B0908;
-  --verity-sidebar: #100D0A;
-  --verity-sidebar-strong: #18130E;
-  --verity-surface: #14110D;
-  --verity-surface-strong: #1B1813;
-  --verity-ink: #E8E2D2;
-  --verity-heading: #F6F1E5;
-  --verity-muted: #B7A993;
-  --verity-rule: #2E281E;
-  --verity-code-bg: #14110D;
-  --verity-code-surface: #100D0A;
-  --verity-accent: #CFA968;
-  --verity-accent-soft: #6B501F;
-  --verity-accent-ink: #0B0908;
+  /* "Console at night": cold dark slate with a phosphor-teal accent. */
+  --verity-bg: #07100E;
+  --verity-page: #07100E;
+  --verity-sidebar: #0B1614;
+  --verity-sidebar-strong: #122220;
+  --verity-surface: #0F1B19;
+  --verity-surface-strong: #16241F;
+  --verity-ink: #DDE8E5;
+  --verity-heading: #F1F7F4;
+  --verity-muted: #8FA09B;
+  --verity-rule: #1E2A26;
+  --verity-rule-soft: #16241F;
+  --verity-code-bg: #0B1614;
+  --verity-code-surface: #0A1311;
+  --verity-accent: #2DD4BF;
+  --verity-accent-strong: #5EEAD4;
+  --verity-accent-bright: #2DD4BF;
+  --verity-accent-soft: #134E48;
+  --verity-accent-ink: #04100D;
   --verity-shadow: none;
-  --nextra-primary-hue: 39deg;
-  --nextra-primary-saturation: 54%;
-  --nextra-primary-lightness: 60%;
-  --nextra-bg: 11, 9, 8;
+  --nextra-primary-hue: 172deg;
+  --nextra-primary-saturation: 70%;
+  --nextra-primary-lightness: 56%;
+  --nextra-bg: 7, 16, 14;
 }
 
 html,
@@ -401,9 +409,10 @@ body {
 .nextra-toc a[aria-current="true"],
 .nextra-toc a[aria-selected="true"] {
   color: var(--verity-heading) !important;
-  background: color-mix(in srgb, var(--verity-accent-soft) 52%, transparent) !important;
+  background: color-mix(in srgb, var(--verity-accent) 12%, transparent) !important;
   border-radius: 0 !important;
   box-shadow: inset 2px 0 0 var(--verity-accent);
+  font-weight: 600 !important;
 }
 
 .dark .nextra-sidebar a[aria-current="page"],
@@ -724,14 +733,19 @@ figure[data-rehype-pretty-code-figure] pre {
 
 article :not(pre) > code,
 code.nextra-code:not(pre code) {
-  background: color-mix(in srgb, var(--verity-sidebar) 28%, var(--verity-surface)) !important;
-  border: 1px solid color-mix(in srgb, var(--verity-rule) 55%, transparent) !important;
+  background: color-mix(in srgb, var(--verity-sidebar) 50%, var(--verity-surface)) !important;
+  border: 1px solid color-mix(in srgb, var(--verity-rule) 60%, transparent) !important;
   border-radius: 0 !important;
   color: var(--verity-heading) !important;
   font-family: var(--verity-font-code) !important;
-  font-size: 0.88em !important;
+  font-size: 0.86em !important;
   font-weight: 500 !important;
   padding: 0.05em 0.36em !important;
+  /* Allow line-break inside long inline-code identifiers so they
+     don't push the surrounding paragraph past the gutter on narrow
+     viewports. */
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .dark article :not(pre) > code,
@@ -777,7 +791,7 @@ a[role="button"] {
   font-family: var(--verity-font-ui);
   font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -834,10 +848,11 @@ a[role="button"] {
   font-family: var(--verity-font-display);
   font-size: clamp(3.6rem, 9vw, 6.4rem);
   font-weight: 760;
-  letter-spacing: -0.012em;
+  letter-spacing: -0.014em;
   line-height: 0.92;
   overflow-wrap: normal;
   word-break: normal;
+  font-feature-settings: "kern", "liga", "calt";
 }
 
 .verity-hero__terminal {
@@ -847,6 +862,27 @@ a[role="button"] {
      not an afterthought punctuation mark. */
   font-size: 1.08em;
   line-height: 1;
+}
+
+/* A faint hairline under the kicker, like a journal masthead rule. */
+.verity-hero__head > .verity-kicker {
+  position: relative;
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.verity-hero__head > .verity-kicker::after {
+  content: "";
+  display: block;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 2rem;
+  border-bottom: 1px solid var(--verity-accent);
+}
+
+.verity-hero__head > .verity-kicker + h1 {
+  margin-top: 0 !important;
 }
 
 .verity-hero__dek {
@@ -1473,13 +1509,32 @@ a[role="button"] {
     background: var(--verity-page);
   }
 
+  /* The "extend sidebar to the viewport edge" stripe is desktop-only;
+     paint it transparent on phones so the dark sliver disappears. */
+  body::before {
+    display: none !important;
+  }
+
   article main {
     font-size: 1rem !important;
+    line-height: 1.68 !important;
+  }
+
+  article main > :not(.verity-hero):not(.code-compare):not(.report-callout) {
+    max-width: 100%;
+  }
+
+  /* The "Copy page" widget hugs the right side and the section-number
+     "§ N" marker hugs the right side too — drop both on phones so
+     headings can use the full width without a collision. */
+  article main h2::after {
+    display: none !important;
   }
 
   .verity-hero {
-    padding-top: 1.75rem;
+    padding-top: 1.25rem;
     padding-bottom: 1.5rem;
+    gap: 1.75rem;
   }
 
   .verity-hero__head {
@@ -1487,17 +1542,19 @@ a[role="button"] {
   }
 
   .verity-hero h1 {
-    font-size: clamp(3.6rem, 18vw, 4.6rem);
+    font-size: clamp(3.2rem, 16vw, 4.2rem);
+    line-height: 0.95;
   }
 
   .verity-hero__dek {
-    font-size: 1.15rem;
+    font-size: 1.12rem;
+    line-height: 1.42;
   }
 
   .verity-hero__cta-row {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.6rem;
+    gap: 0.55rem;
     width: 100%;
   }
 
@@ -1505,21 +1562,24 @@ a[role="button"] {
   .verity-hero__paper {
     width: 100%;
     justify-content: center;
+    min-height: 2.85rem;
   }
 
   .verity-hero__more {
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.35rem;
   }
 
   .code-compare {
-    margin-top: 1rem;
+    margin-top: 0.5rem;
+    margin-bottom: 1.75rem;
   }
 
   .code-switcher__head {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.7rem;
+    gap: 0.65rem;
+    padding: 0.65rem 0.85rem;
   }
 
   .code-switcher__tabs {
@@ -1529,17 +1589,47 @@ a[role="button"] {
 
   .code-switcher__tabs button {
     flex: 1 1 0;
+    padding: 0.55rem 0.5rem;
   }
 
   .code-panel__pre,
   .code-panel__pre > pre {
-    min-height: 22rem;
-    max-height: 30rem;
-    font-size: 0.76rem;
+    min-height: 18rem;
+    max-height: 28rem;
+    font-size: 0.74rem;
+    line-height: 1.55;
   }
 
   article main table {
     display: block;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* The serif body uses hyphenation; on narrow screens this can
+     hyphenate every other line. Loosen so words break only on the rare
+     overflow case. */
+  article main p,
+  article main li {
+    hyphens: manual;
+    -webkit-hyphens: manual;
+  }
+}
+
+/* Floating theme toggle that Nextra docks bottom-left of the sidebar
+   was overlapping page content on mobile because its container had no
+   bottom edge. Pin it down and give it a contained chip look. */
+.nextra-sidebar-footer,
+.nextra-sidebar .nextra-sidebar-footer {
+  padding-block: 0.6rem !important;
+}
+
+/* Quieten the giant section-number marker on /research, /verification etc
+   so we don't get an isolated "§ 1" floating in the gutter on narrow
+   layouts where TOC has been collapsed. */
+@media (max-width: 1280px) {
+  article main h2::after {
+    right: 0 !important;
+    font-size: 0.65rem !important;
   }
 }
