@@ -15,6 +15,7 @@ declare_syntax_cat verityEvent
 declare_syntax_cat verityConstant
 declare_syntax_cat verityImmutable
 declare_syntax_cat verityExternal
+declare_syntax_cat verityExternalLinkMode
 declare_syntax_cat verityLocalObligation
 declare_syntax_cat verityLocalObligations
 declare_syntax_cat verityConstructor
@@ -52,7 +53,15 @@ syntax "@indexed " ident " : " term : verityEventParam
 syntax "event " ident "(" sepBy(verityEventParam, ",") ")" : verityEvent
 syntax ident " : " term:max " := " term:max : verityConstant
 syntax ident " : " term:max " := " term:max : verityImmutable
-syntax "external " ident "(" sepBy(term, ",") ")" (" -> " "(" sepBy(term, ",") ")")? : verityExternal
+syntax "external" : verityExternalLinkMode
+syntax "internal_yul" : verityExternalLinkMode
+syntax "object_linked" : verityExternalLinkMode
+syntax "inline" : verityExternalLinkMode
+syntax "compiler_runtime" : verityExternalLinkMode
+syntax "external " ident "(" sepBy(term, ",") ")" : verityExternal
+syntax "external " ident "(" sepBy(term, ",") ")" " -> " "(" sepBy(term, ",") ")" : verityExternal
+syntax "external " ident "(" sepBy(term, ",") ")" ppSpace "linked_as" " := " verityExternalLinkMode : verityExternal
+syntax "external " ident "(" sepBy(term, ",") ")" " -> " "(" sepBy(term, ",") ")" ppSpace "linked_as" " := " verityExternalLinkMode : verityExternal
 syntax ident " := " ident ppSpace str : verityLocalObligation
 syntax "local_obligations " "[" sepBy(verityLocalObligation, ",") "]" : verityLocalObligations
 syntax "payable" : verityMutability

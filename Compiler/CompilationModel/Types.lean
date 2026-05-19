@@ -228,6 +228,34 @@ structure ErrorDef where
 Verified external library integration with axiom documentation.
 -/
 
+inductive ForeignLinkMode where
+  /-- The dependency remains an ABI boundary and is called through an adapter
+      that preserves Solidity-compatible returndata and revert behavior. -/
+  | external
+  /-- The dependency is provided as Yul/EVM object code and linked into the
+      generated artifact at compile time. -/
+  | objectLinked
+  /-- The dependency is a small pure helper whose body may be inlined by the
+      frontend/backend. The compiler still treats it as a declared foreign
+      surface for audit visibility. -/
+  | inline
+  /-- The dependency is owned by the compiler runtime rather than by a protocol
+      deployment boundary. -/
+  | compilerRuntime
+  deriving Repr, BEq
+
+def ForeignLinkMode.toJsonString : ForeignLinkMode → String
+  | .external => "external"
+  | .objectLinked => "objectLinked"
+  | .inline => "inline"
+  | .compilerRuntime => "compilerRuntime"
+
+def ForeignLinkMode.humanName : ForeignLinkMode → String
+  | .external => "external ABI boundary"
+  | .objectLinked => "object-linked Yul"
+  | .inline => "inline helper"
+  | .compilerRuntime => "compiler runtime"
+
 structure ExternalFunction where
   name : String
   params : List ParamType
@@ -242,6 +270,11 @@ structure ExternalFunction where
       The actual Lean propositions are stated separately;
       these names are for documentation and audit purposes. -/
   axiomNames : List String
+  /-- How the foreign surface is linked into the generated artifact.  Historical
+      `linked_externals` declarations default to object-linked Yul because the
+      compiler emits a Yul function call and the driver injects matching helper
+      definitions from `--link` libraries. -/
+  linkMode : ForeignLinkMode := .objectLinked
   deriving Repr
 
 structure LocalObligation where
