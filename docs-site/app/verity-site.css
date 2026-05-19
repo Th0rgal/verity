@@ -1146,6 +1146,13 @@ article main blockquote,
   box-shadow: none !important;
 }
 
+/* Dark mode: drop the left bar to the softer section-marker mint so
+   the callout aligns with the rest of the eased dark palette. */
+.dark article main blockquote,
+.dark .nextra-callout {
+  border-left-color: #7CD4C0 !important;
+}
+
 button,
 .nextra-button,
 a[role="button"] {
