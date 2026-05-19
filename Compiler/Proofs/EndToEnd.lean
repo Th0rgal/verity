@@ -796,7 +796,8 @@ private theorem sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
       sizeOf (Compiler.emitYul irContract).runtimeCode := by
   have hRuntime :
       (Compiler.emitYul irContract).runtimeCode =
-        [Compiler.CodegenCommon.buildSwitch irContract.functions none none] :=
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none] :=
     Compiler.Proofs.YulGeneration.Backends.Native.emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive
       irContract hNoMapping
       (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_internalFunctions_nil
@@ -821,7 +822,8 @@ private theorem sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length
     sizeOf_buildSwitch_noFallback_noReceive_ge_source_cases_length
       irContract.functions
   rw [hRuntime, hLen]
-  exact hSize
+  refine Nat.le_trans hSize ?_
+  simp [Compiler.CodegenCommon.initFreeMemoryPointer]
 
 private theorem sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plus24
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
@@ -842,7 +844,8 @@ private theorem sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plu
       sizeOf (Compiler.emitYul irContract).runtimeCode := by
   have hRuntime :
       (Compiler.emitYul irContract).runtimeCode =
-        [Compiler.CodegenCommon.buildSwitch irContract.functions none none] :=
+        [Compiler.CodegenCommon.initFreeMemoryPointer,
+          Compiler.CodegenCommon.buildSwitch irContract.functions none none] :=
     Compiler.Proofs.YulGeneration.Backends.Native.emitYul_runtimeCode_eq_single_dispatcher_of_noMapping_noInternals_noFallback_noReceive
       irContract hNoMapping
       (Compiler.Proofs.IRGeneration.ContractShape.compile_ok_yields_internalFunctions_nil
@@ -867,7 +870,8 @@ private theorem sizeOf_emitYul_runtimeCode_noMapping_ge_lowered_cases_length_plu
     sizeOf_buildSwitch_noFallback_noReceive_ge_source_cases_length_plus24
       irContract.functions
   rw [hRuntime, hLen]
-  exact hSize
+  simp [Compiler.CodegenCommon.initFreeMemoryPointer] at hSize ⊢
+  omega
 
 private theorem sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
@@ -920,7 +924,8 @@ private theorem sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length
   simp only [hMapping, hInternals, hNoFallback, hNoReceive, if_true,
     List.singleton_append, List.append_nil]
   simp only [Compiler.CodegenCommon.mappingSlotFuncAt]
-  simp
+  simp [Compiler.CodegenCommon.initFreeMemoryPointer] at hSize ⊢
+  omega
 
 private theorem sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus24
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
@@ -973,7 +978,8 @@ private theorem sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus2
   simp only [hMapping, hInternals, hNoFallback, hNoReceive, if_true,
     List.singleton_append, List.append_nil]
   simp only [Compiler.CodegenCommon.mappingSlotFuncAt]
-  simp
+  simp [Compiler.CodegenCommon.initFreeMemoryPointer] at hSize ⊢
+  omega
 
 /-- Projected native dispatcher-exec result equality used by the public native
 EndToEnd theorems.
@@ -5591,6 +5597,13 @@ private theorem mappingSlotFuncAt_bridged_local (scratchBase : Nat) :
   unfold Compiler.CodegenCommon.mappingSlotFuncAt
   exact bridgedStmt_funcDef "mappingSlot" ["baseSlot", "key"] ["slot"] _
 
+private theorem initFreeMemoryPointer_bridged_local :
+    BridgedStmt Compiler.CodegenCommon.initFreeMemoryPointer := by
+  unfold Compiler.CodegenCommon.initFreeMemoryPointer
+  exact bridgedStmt_mstore_of_bridged_args _ _
+    (BridgedExpr.lit Compiler.Constants.freeMemoryPointer)
+    (BridgedExpr.lit 128)
+
 private theorem runtimeCode_bridged_local
     (contract : Compiler.IRContract)
     (hFunctions : ∀ fn, fn ∈ contract.functions → BridgedStmts fn.body)
@@ -5602,16 +5615,21 @@ private theorem runtimeCode_bridged_local
     BridgedStmts (Compiler.CodegenCommon.runtimeCode contract) := by
   unfold Compiler.CodegenCommon.runtimeCode
   cases contract.usesMapping
-  · exact BridgedStmts_snoc hInternals
-      (buildSwitch_bridged_local contract.functions
-        contract.fallbackEntrypoint contract.receiveEntrypoint hFunctions
-        hFallback hReceive)
-  · simp only [ite_true]
-    exact BridgedStmts_cons (mappingSlotFuncAt_bridged_local 0)
-      (BridgedStmts_snoc hInternals
+  · simpa [List.append_assoc] using
+      BridgedStmts_snoc
+        (BridgedStmts_snoc hInternals initFreeMemoryPointer_bridged_local)
         (buildSwitch_bridged_local contract.functions
           contract.fallbackEntrypoint contract.receiveEntrypoint hFunctions
-          hFallback hReceive))
+          hFallback hReceive)
+  · simp only [ite_true]
+    exact BridgedStmts_cons (mappingSlotFuncAt_bridged_local 0)
+      (by
+        simpa [List.append_assoc] using
+          BridgedStmts_snoc
+            (BridgedStmts_snoc hInternals initFreeMemoryPointer_bridged_local)
+            (buildSwitch_bridged_local contract.functions
+              contract.fallbackEntrypoint contract.receiveEntrypoint hFunctions
+              hFallback hReceive))
 
 /-- The selected native-harness switch case for a compiled external function is
 bridged whenever the compiled function body is bridged. This packages the
@@ -6428,7 +6446,8 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping
     Compiler.Proofs.YulGeneration.Backends.lowerRuntimeContractNative
         (Compiler.emitYul irContract).runtimeCode =
       match Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] with
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] with
       | .ok dispatcher =>
           .ok { dispatcher := .Block dispatcher
                 functions :=
@@ -6458,7 +6477,8 @@ private theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_
         (Compiler.emitYul irContract).runtimeCode = .ok nativeContract) :
     ∃ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher ∧
       nativeContract = nativeContractOfDispatcher dispatcher :=
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher
@@ -6488,7 +6508,8 @@ private theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_
         (Compiler.emitYul irContract).runtimeCode = .ok nativeContract) :
     ∃ dispatcher : List EvmYul.Yul.Ast.Stmt,
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher ∧
       nativeContract = nativeGeneratedDispatcherContractOf dispatcher := by
   rcases lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher
@@ -6514,7 +6535,8 @@ theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved
       match Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] with
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] with
       | .ok (dispatcher, _) =>
           .ok { dispatcher := .Block dispatcher
                 functions := ((∅ :
@@ -6778,7 +6800,8 @@ private theorem lowerRuntimeContractNative_of_compile_ok_supported_mapping_ok_di
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId) ∧
       nativeContract = nativeContractOfDispatcherWithMapping dispatcher :=
   Compiler.Proofs.YulGeneration.Backends.Native.lowerRuntimeContractNative_emitYul_mapping_ok_dispatcher_reserved
@@ -29855,7 +29878,8 @@ This pins down the outer runtime layer that the native dispatcher bridge must
 peel before applying the concrete lowered selector-switch lemmas. -/
 private theorem simpleStorage_runtimeCode_eq_single_dispatcher :
     (Compiler.emitYul simpleStorageIRContract).runtimeCode =
-      [Compiler.CodegenCommon.buildSwitch
+      [Compiler.CodegenCommon.initFreeMemoryPointer,
+        Compiler.CodegenCommon.buildSwitch
         simpleStorageIRContract.functions none none] := by
   dsimp [Compiler.emitYul, Compiler.CodegenCommon.emitYul,
     Compiler.runtimeCode, Compiler.CodegenCommon.runtimeCode,
