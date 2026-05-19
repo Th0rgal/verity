@@ -47,8 +47,8 @@ The dominant pattern is `_meets_spec`: each EDSL operation has a `_spec` predica
 
 ## Trust boundary
 
-- **Verified**: EDSL semantics, CompilationModel→IR, IR→Yul (three layers, zero `sorry`, axioms in AXIOMS.md only).
-- **Trusted**: Lean 4 kernel, solc, EVM spec alignment, deployment toolchain.
+- **Verified**: EDSL semantics, CompilationModel→IR, IR→Yul (three layers, zero `sorry`, zero active project-level Lean axioms per AXIOMS.md).
+- **Trusted**: Lean 4 kernel, solc, EVM spec alignment, deployment toolchain, and the ECM/local-obligation **assumptions** surfaced by `--trust-report` (e.g., `erc20_balanceOf_interface`, `evm_ecrecover_precompile`, `keccak256_memory_slice_matches_evm`).
 - Each build emits machine-readable `--trust-report`, `--assumption-report`, `--layout-report`, `--layout-compat-report`. Deny flags fail-closed: `--deny-axiomatized-primitives`, `--deny-event-emission`, `--deny-linear-memory-mechanics`, `--deny-proxy-upgradeability`, `--deny-local-obligations`, `--deny-layout-incompatibility`.
 
 ## Agent benchmark
