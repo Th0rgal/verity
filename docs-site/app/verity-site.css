@@ -1138,6 +1138,12 @@ input:focus-visible,
   .verity-hero .verity-kicker span {
     margin: 0 0.3em;
   }
+
+  /* On these very narrow screens the Copy-page widget can drop to
+     about 100px so the kicker doesn't stack into four lines. */
+  .verity-hero__head > .verity-kicker {
+    padding-right: 6rem;
+  }
 }
 
 .verity-hero {
@@ -2005,6 +2011,14 @@ input:focus-visible,
     z-index: 5;
     float: none !important;
     margin: 0 !important;
+  }
+
+  /* On the very narrowest viewports (fold-style phones, ~280-360px)
+     shrink the Copy-page widget so the kicker has enough horizontal
+     space to fit on two lines instead of four. */
+  article > [class*="x:rounded-md"]:has(> button) button {
+    font-size: 0.78rem !important;
+    padding: 0.35rem 0.55rem !important;
   }
 
   /* The kicker is the only line that sits at the same Y as the widget
