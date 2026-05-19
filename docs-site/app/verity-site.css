@@ -828,6 +828,57 @@ article > div:last-child > a[title]:hover svg {
   transform: translateX(0.15rem);
 }
 
+/* Disclosure widgets — <details><summary> — render as quiet
+   research-paper "footnote" blocks: a 1px rule top + bottom, a
+   teal triangle marker, and content padded under the summary.
+   Currently unused in content but ready for FAQ-style or
+   "Show proof" expanders. */
+article main details {
+  margin: 1.25rem 0;
+  border-top: 1px solid var(--verity-rule);
+  border-bottom: 1px solid var(--verity-rule);
+  padding: 0.85rem 0;
+}
+
+article main details > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  font-family: var(--verity-font-display);
+  font-weight: 600;
+  color: var(--verity-heading);
+  font-size: 1.05rem;
+  letter-spacing: -0.005em;
+  position: relative;
+}
+
+article main details > summary::-webkit-details-marker {
+  display: none;
+}
+
+article main details > summary::before {
+  content: "▸";
+  color: var(--verity-accent);
+  font-size: 0.78em;
+  transition: transform 0.15s ease;
+  display: inline-block;
+  width: 1em;
+}
+
+article main details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+article main details > summary:focus-visible {
+  outline-offset: 4px;
+}
+
+article main details[open] > *:not(summary) {
+  margin-top: 0.7rem;
+}
+
 article main hr {
   border: 0;
   height: 0;
