@@ -1578,6 +1578,10 @@ input:focus-visible,
   color: var(--verity-accent-ink);
 }
 
+.code-switcher__tabs button:active {
+  background: color-mix(in srgb, var(--verity-accent) 60%, var(--verity-surface));
+}
+
 .code-switcher__tabs button:focus-visible {
   outline: 2px solid var(--verity-accent);
   outline-offset: 2px;
