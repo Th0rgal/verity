@@ -1076,6 +1076,18 @@ code.nextra-code:not(pre code) {
   color: var(--verity-heading) !important;
 }
 
+/* When an inline chip sits inside a link, hovering the link shows a
+   gentle teal-tinted chip background so the chip reads as "part of
+   the interactive element" instead of decoration that floats next
+   to it. */
+article main a:hover :not(pre) > code,
+article main a:focus-visible :not(pre) > code {
+  background: color-mix(in srgb, var(--verity-accent) 14%, var(--verity-surface)) !important;
+  border-color: color-mix(in srgb, var(--verity-accent) 35%, var(--verity-rule)) !important;
+  color: var(--verity-accent) !important;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
 /* When an inline code chip sits in a heading or strong, drop the chip
    chrome so the heading keeps its serif rhythm. */
 article h1 :not(pre) > code,
