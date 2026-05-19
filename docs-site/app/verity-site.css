@@ -869,9 +869,13 @@ code.nextra-code:not(pre code) {
   padding: 0.05em 0.36em !important;
   /* Allow line-break inside long inline-code identifiers so they
      don't push the surrounding paragraph past the gutter on narrow
-     viewports. */
+     viewports. `break-word` (without anywhere) breaks at natural
+     boundaries first — slashes, dots, dashes — and only resorts to
+     mid-character when nothing else fits, avoiding single-letter
+     orphans like ".lea / n". */
   word-break: break-word;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: none;
 }
 
 .dark article :not(pre) > code,
@@ -1588,11 +1592,29 @@ input:focus-visible,
 }
 
 @media (max-width: 767px) {
+  /* On phones, lay the reading-list row as a single column. The title
+     goes on top with the arrow right-aligned next to it, and the note
+     drops below as a quiet second line. Previously the arrow was
+     orphaning to its own line because grid-row was constraining it. */
   .verity-reading-list__row {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr auto !important;
+    grid-template-rows: auto auto;
+    gap: 0.15rem 0.6rem;
+    padding: 0.95rem 0.2rem !important;
+  }
+  .verity-reading-list__title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .verity-reading-list__arrow {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
   }
   .verity-reading-list__note {
-    grid-column: 1 / -1;
+    grid-column: 1 / -1 !important;
+    grid-row: 2;
+    font-size: 0.92rem !important;
   }
 }
 
@@ -1672,7 +1694,25 @@ input:focus-visible,
 
   article main {
     font-size: 1rem !important;
-    line-height: 1.68 !important;
+    line-height: 1.7 !important;
+  }
+
+  article main h2 {
+    font-size: clamp(1.55rem, 6vw, 1.95rem) !important;
+    margin-top: 2.5rem !important;
+    padding-top: 1rem !important;
+  }
+
+  article main h3 {
+    font-size: 1.22rem !important;
+    margin-top: 1.85rem !important;
+  }
+
+  /* Allow chip-style h3s (an inline-code identifier as the heading) to
+     not blow up the line-height by capping their inline-code size on
+     phones. */
+  article main h3 :not(pre) > code {
+    font-size: 0.95em !important;
   }
 
   article main > :not(.verity-hero):not(.code-compare):not(.report-callout) {
@@ -1715,7 +1755,15 @@ input:focus-visible,
   .verity-hero {
     padding-top: 1.25rem;
     padding-bottom: 1.5rem;
-    gap: 1.75rem;
+    gap: 1.25rem;
+  }
+
+  .verity-hero__head > h1 + .verity-hero__dek {
+    margin-top: 1rem;
+  }
+
+  .verity-hero__head > .verity-hero__dek + .verity-hero__links {
+    margin-top: 1.5rem;
   }
 
   .verity-hero__head {
@@ -1748,7 +1796,21 @@ input:focus-visible,
 
   .verity-hero__more {
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.45rem;
+  }
+
+  .verity-hero__more a {
+    /* Bigger tap target on phones without changing visual weight. */
+    padding: 0.2rem 0;
+    min-height: 1.85rem;
+  }
+
+  /* Quieter breadcrumb on doc pages so it reads as a small spine
+     locator rather than a competing label above the h1. */
+  .nextra-breadcrumb {
+    font-size: 0.7rem !important;
+    letter-spacing: 0.04em;
+    opacity: 0.85;
   }
 
   .code-compare {
