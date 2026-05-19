@@ -13153,6 +13153,41 @@ theorem NativeBlockPreservesWord_revived_singleton
   NativeBlockPreservesWord_revived_cons name value stmt [] codeOverride hStmt
     (NativeBlockPreservesWord_revived_nil name value codeOverride)
 
+/-- Generated-switch matched flag endpoint for Leave-aware bodies. The body
+    preservation proof is stated through `reviveJump`; once the final checkpoint
+    has been revived to an `Ok` state, checkpoint state projections make the raw
+    final lookup agree with the revived lookup expected by the switch tail. -/
+theorem nativeSwitchMatchedFlag_of_revived_body_final
+    (switchId : Nat)
+    (matchedName : EvmYul.Identifier)
+    (body : List EvmYul.Yul.Ast.Stmt)
+    (codeOverride : Option EvmYul.Yul.Ast.YulContract)
+    (initial final : EvmYul.Yul.State)
+    (fuel : Nat)
+    (shared : EvmYul.SharedState EvmYul.OperationType.Yul)
+    (store : EvmYul.Yul.VarStore)
+    (_hMatchedName : matchedName = Backends.nativeSwitchMatchedTempName switchId)
+    (hPreserves :
+      NativeBlockPreservesWord_revived matchedName
+        (EvmYul.UInt256.ofNat 1) body codeOverride)
+    (hInitial :
+      initial.reviveJump[matchedName]! =
+        EvmYul.UInt256.ofNat 1)
+    (hExec :
+      EvmYul.Yul.exec fuel (.Block body) codeOverride initial = .ok final)
+    (hRevive : final.reviveJump = EvmYul.Yul.State.Ok shared store) :
+    final[matchedName]! = EvmYul.UInt256.ofNat 1 := by
+  have hRawRevived :
+      final[matchedName]! =
+        final.reviveJump[matchedName]! := by
+    cases final <;> simp [EvmYul.Yul.State.reviveJump] at hRevive ⊢
+    case Checkpoint jump =>
+      cases jump <;>
+        simp [EvmYul.Yul.State.revive, GetElem?.getElem!, decidableGetElem?,
+          GetElem.getElem, EvmYul.Yul.State.lookup!, EvmYul.Yul.State.store]
+          at hRevive ⊢
+  exact hRawRevived.trans (hPreserves fuel initial final hInitial hExec)
+
 /-- `_revived` `.Block` constructor adapter — mirrors the OLD-form
 `NativeStmtPreservesWord_block`. `.Block body` exec and a list-body
 preservation share the same definition shape, so the witness is the
