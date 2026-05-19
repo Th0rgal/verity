@@ -1746,10 +1746,32 @@ input:focus-visible,
 
   /* Lighten the inline-code chip border on phones so dense
      paragraphs (research / EDSL reference) don't read as a wall of
-     boxes. */
+     boxes. And shrink the chip a hair so long file paths like
+     `Compiler/Proofs/IRGeneration/Contract.lean` fit on a single
+     line in the article column instead of orphaning a single letter
+     ("Contract.lea" + "n") to the next line. */
   article :not(pre) > code,
   code.nextra-code:not(pre code) {
     border-color: color-mix(in srgb, var(--verity-rule) 45%, transparent) !important;
+    font-size: 0.8em !important;
+    padding: 0.05em 0.32em !important;
+    /* Treat the chip as an atomic inline-block: it either fits on the
+       current line or wraps as a whole to a new line. This kills the
+       "one orphan letter" wrap that was happening when a path got
+       broken mid-word as a last resort. */
+    display: inline-block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: baseline;
+  }
+
+  /* For chip-style h3 headings (e.g. `getStorage` / `setStorage`) we
+     still want the chip to wrap as a whole rather than be ellipsised. */
+  article main h3 :not(pre) > code {
+    text-overflow: clip !important;
+    overflow: visible !important;
   }
 
   article main > :not(.verity-hero):not(.code-compare):not(.report-callout) {
