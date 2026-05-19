@@ -48,7 +48,7 @@ of core primitives.
 pre-computes the exact result state when guards pass. Main proofs then
 `rw [op_unfold]` to get the concrete state.
 
-```lean
+```verity
 private theorem increment_unfold (s : ContractState)
   (h_owner : s.sender = s.storageAddr 0) :
   (increment.run s) = ContractResult.success () { ... } := by

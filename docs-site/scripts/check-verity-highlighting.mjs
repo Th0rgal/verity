@@ -66,7 +66,7 @@ const highlighter = await createHighlighter({
 
 const tokens = highlighter.codeToTokens(sample, {
   lang: "verity",
-  theme: "LFGLabs Cream",
+  theme: "Verity Paper Light",
   includeExplanation: true,
 }).tokens.flat();
 

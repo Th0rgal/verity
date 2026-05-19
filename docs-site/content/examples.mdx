@@ -210,7 +210,7 @@ The spec layer (`deposit_spec`, `withdraw_spec`, isolation predicates) lives in 
 
 Two parallel bank contracts, one vulnerable, one safe, demonstrating that reentrancy is a *provable* property, not just a testing concern.
 
-```lean
+```verity
 -- Vulnerable: external call before state update
 -- Modeled by subtracting totalSupply twice, balance once
 theorem vulnerable_attack_exists :

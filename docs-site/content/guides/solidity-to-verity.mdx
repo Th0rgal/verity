@@ -238,7 +238,7 @@ For this transfer path, typical specs include:
 
 Specs are `Prop`-valued predicates over the pre/post `ContractState`, not records. The canonical shape (used across `Contracts/<Name>/Spec.lean`) is `<op>_spec args s s' : Prop`:
 
-```lean
+```verity
 def transfer_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
   s'.storageMap balances.slot s.sender =
     sub (s.storageMap balances.slot s.sender) amount ∧
@@ -254,7 +254,7 @@ Pick the right "unchanged" helper from [`Verity.Specs.Common`](/core#spec-helper
 
 Use the `_meets_spec` convention — single `simp` with the operation, slot names, spec definition, and any guard hypothesis:
 
-```lean
+```verity
 theorem transfer_meets_spec (s : ContractState) (to : Address) (amount : Uint256)
     (h_funds : s.storageMap balances.slot s.sender >= amount) :
     let s' := ((transfer to amount).run s).snd

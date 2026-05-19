@@ -7,7 +7,7 @@ description: Canonical reference for Verity contract-building primitives
 
 Canonical reference for primitives used to write Verity contracts.
 
-```lean
+```verity
 import Verity
 open Verity
 open Verity.EVM.Uint256
@@ -68,7 +68,7 @@ If `attempt` reverts with message `msg`, `tryCatch` runs `handler msg` on the st
 
 Bounded iteration in the compilation-model surface (`Stmt.forEach`). Accumulator-style loops use `Stmt.assignVar` inside `Stmt.forEach`; the macro path currently rejects mutating `let mut` locals from nested `forEach` bodies, so macro-authored contracts should use explicit memory scratch space for accumulators.
 
-```lean
+```verity
 forEach "i" count (do
   -- body
 )
@@ -88,7 +88,7 @@ emitEvent "Transfer" [amount] [fromAddr, toAddr]
 
 `add`, `sub`, `mul`, `pow`, `div`, `mod` — EVM modular arithmetic. `pow a b` / `a ^ b` compiles to Yul `exp(a, b)`.
 
-```lean
+```verity
 let z : Uint256 := add x y
 let scale : Uint256 := pow 10 decimals
 ```
@@ -152,7 +152,7 @@ The macro lowers effect-only calls to `Stmt.internalCall`, result bindings to `S
 
 ### Tuple sugar
 
-```lean
+```verity
 let (first, second) := pair
 let (_, second) := pair
 let (assets, shares) ← preview seed
@@ -222,7 +222,7 @@ Populates `spec.externals` with assumed foreign signatures. Single-word argument
 
 ### Raw log surface
 
-```lean
+```verity
 rawLog [topic0, add topic1 1] dataOffset dataSize
 ```
 
@@ -230,7 +230,7 @@ Lowers to `Stmt.rawLog`. Supports 0–4 topics (`log0`–`log4`). Classified as 
 
 ### Transient storage (EIP-1153)
 
-```lean
+```verity
 tstore slot value
 let warmed := tload slot
 ```
@@ -239,7 +239,7 @@ Lowers to `Stmt.tstore` / `Expr.tload`. The executable path keeps a separate `Co
 
 ### Dynamic arrays
 
-```lean
+```verity
 let count := arrayLength recipients
 let first := arrayElement recipients 0
 returnArray amounts
@@ -278,7 +278,7 @@ External calls are modeled as **Externally Callable Modules** (ECMs) — stateme
 
 Inside `verity_contract` bodies, the standard names lower directly:
 
-```lean
+```verity
 safeTransfer token to amount
 safeTransferFrom token fromAddr to amount
 safeApprove token spender amount
@@ -294,7 +294,7 @@ These compile to `Compiler.Modules.ERC20.*Module` ECMs. If the contract defines 
 
 Twelve ECMs share one template: ABI-encode the selector + static args, `staticcall` (or `call` for state-changing), expect one 32-byte return word, bind it.
 
-```lean
+```verity
 Compiler.Modules.ERC4626.previewDeposit  (resultVar : String) (vault assets   : Expr) : Stmt
 Compiler.Modules.ERC4626.previewMint     (resultVar : String) (vault shares   : Expr) : Stmt
 Compiler.Modules.ERC4626.previewWithdraw (resultVar : String) (vault assets   : Expr) : Stmt
@@ -314,7 +314,7 @@ Compiler.Modules.ERC4626.deposit         (resultVar : String) (vault assets rece
 
 ### Precompiles and hashing
 
-```lean
+```verity
 Compiler.Modules.Precompiles.ecrecover        -- `let signer <- ecrecover digest v r s` in macro surface
 Compiler.Modules.Precompiles.sha256Memory     -- aliased as `sha256`
 Compiler.Modules.Hashing.abiEncodePackedWords -- contiguous-word keccak256
@@ -332,7 +332,7 @@ Segment widths in 1–32 bytes; sub-word values are left-aligned. Dynamic `bytes
 
 ### Oracle and generic calls
 
-```lean
+```verity
 Compiler.Modules.Oracle.oracleReadUint256
   (resultVar : String) (target : Expr) (selector : Nat) (staticArgs : List Expr) : Stmt
 
@@ -347,7 +347,7 @@ Compiler.Modules.Calls.bubblingValueCall
 
 ### `keccak256` primitive
 
-```lean
+```verity
 let digest := keccak256 offset size
 ```
 

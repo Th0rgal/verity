@@ -448,11 +448,11 @@
       "patterns": [
         {
           "name": "support.function.storage.verity",
-          "match": "\\b(getStorage|setStorage|getStorageAddr|setStorageAddr|getMapping|getMappingUint|getMapping2|setMapping|setMappingUint|setMapping2|structMember|structMember2|structMembers|structMembers2|setStructMember|setStructMember2|arrayLength|arrayElement|allocArray|arrayPush)\\b"
+          "match": "\\b(getStorage|setStorage|getStorageAddr|setStorageAddr|getMapping|getMappingAddr|getMappingUint|getMappingUintAddr|getMapping2|setMapping|setMappingAddr|setMappingUint|setMappingUintAddr|setMapping2|structMember|structMember2|structMembers|structMembers2|setStructMember|setStructMember2|getStorageArrayLength|getStorageArrayElement|setStorageArrayElement|pushStorageArray|popStorageArray|arrayLength|arrayElement|allocArray|arrayPush)\\b"
         },
         {
           "name": "support.function.context.verity",
-          "match": "\\b(msgSender|msgValue|blockTimestamp|blockNumber|contractAddress|chainid|blobbasefee|defaultState)\\b"
+          "match": "\\b(msgSender|msgValue|selfBalance|blockTimestamp|blockNumber|contractAddress|chainid|blobbasefee|calldataSize|defaultState)\\b"
         },
         {
           "name": "support.function.guard.verity",
@@ -460,11 +460,15 @@
         },
         {
           "name": "support.function.external-call.verity",
-          "match": "\\b(tryExternalCall|externalCall|ecmBind|ecmCall|ecmDo|tryCatch)\\b"
+          "match": "\\b(tryExternalCall|externalCall|ecmBind|ecmCall|ecmDo|tryCatch|safeTransfer|safeTransferFrom|safeApprove|balanceOf|allowance|totalSupply|ecrecover|sha256)\\b"
         },
         {
           "name": "support.function.event.verity",
-          "match": "\\b(emitEvent|emit)\\b"
+          "match": "\\b(emitEvent|emit|rawLog)\\b"
+        },
+        {
+          "name": "support.function.transient.verity",
+          "match": "\\b(tstore|tload)\\b"
         },
         {
           "name": "support.function.loop.verity",
@@ -472,7 +476,7 @@
         },
         {
           "name": "support.function.arithmetic.verity",
-          "match": "\\b(add|sub|mul|div|mod|pow|safeAdd|safeSub|safeMul|safeDiv|mulDivDown|mulDivUp|wMulDown|wDivUp|mulDiv512Down\\?|mulDiv512Up\\?|wordToAddress|keccak256)\\b"
+          "match": "\\b(add|sub|mul|div|mod|pow|safeAdd|safeSub|safeMul|safeDiv|mulDivDown|mulDivUp|wMulDown|wDivUp|mulDiv512Down\\?|mulDiv512Up\\?|wordToAddress|addressToWord|keccak256)\\b"
         },
         {
           "name": "support.function.spec.verity",

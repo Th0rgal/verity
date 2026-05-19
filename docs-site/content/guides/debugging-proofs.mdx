@@ -21,7 +21,7 @@ When proofs fail. Patterns and fixes, no theory.
 
 ## Diagnostic tools
 
-```lean
+```verity
 #check myTerm                    -- show type
 #check @myFunction               -- show implicit args
 #print MyTheorem                 -- show full definition
@@ -57,7 +57,7 @@ If a helper applies often, mark it `@[simp]` once so you don't have to thread it
 
 `omega` solves *linear* integer arithmetic. Non-linear terms (`a * b`), dependent types, or quantifiers will defeat it. Split into linear cases:
 
-```lean
+```verity
 theorem complex_bound : a * b ≤ MAX := by
   by_cases ha : a = 0
   · simp [ha]
@@ -72,7 +72,7 @@ Or stage with `have` so omega has concrete bounds in context.
 
 The goal depends on the term you're inducting on. Generalize the dependency first:
 
-```lean
+```verity
 theorem good_induction (xs : List α) : xs.length = n := by
   generalize hlen : xs.length = m
   rw [hlen] in *
@@ -122,7 +122,7 @@ Verity proofs follow the **`_meets_spec` pattern**: each EDSL operation has a `_
 
 ### Read-only (SimpleStorage)
 
-```lean
+```verity
 theorem retrieve_meets_spec (s : ContractState) :
   let result := ((retrieve).run s).fst
   retrieve_spec result s := by
@@ -170,7 +170,7 @@ Pass the guard hypothesis to `simp` so it can resolve the boolean check.
 
 ### Conservation (Ledger)
 
-```lean
+```verity
 theorem transfer_sum_preservation (s : ContractState) (to : Address) (amount : Uint256)
   (addrs : List Address) (h_guard : ...) :
   let s' := ((transfer to amount).run s).snd
