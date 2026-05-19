@@ -1,0 +1,122 @@
+---
+title: Proof Techniques
+description: How Verity contracts are proved correct, and what's currently out of scope.
+---
+
+# Proof Techniques
+
+This page collects the proof patterns used throughout `Contracts/<Name>/Proofs/`
+and the `Verity/Proofs/Stdlib/` automation modules, plus the current set of
+known limitations. The companion live status page is [`/verification`](/verification).
+
+## Guard modeling
+
+The `ContractResult` type models Solidity's `require` explicitly:
+
+```verity
+inductive ContractResult (α : Type) where
+  | success : α → ContractState → ContractResult α
+  | revert : String → ContractState → ContractResult α
+
+def require (condition : Bool) (message : String) : Contract Unit :=
+  fun s => if condition
+           then ContractResult.success () s
+           else ContractResult.revert message s
+```
+
+This lets proofs reason about both the success path and the revert path of
+guard-protected operations.
+
+## Proof techniques
+
+**Full unfolding** is the main approach. For guarded operations, unfold the
+entire do-notation chain through `bind`/`pure`/`Contract.run`/`ContractResult.snd`,
+then `simp [h_guard]` to resolve the guard condition.
+
+```verity
+simp only [operation, onlyOwner, isOwner, owner,
+  msgSender, getStorageAddr, setStorage,
+  Verity.bind, Bind.bind, Pure.pure,
+  Contract.run, ContractResult.snd]
+simp [h_owner]
+```
+
+It works because the EDSL is shallow: every contract function is a composition
+of core primitives.
+
+**Private unfold helpers**: for complex operations, a private theorem
+pre-computes the exact result state when guards pass. Main proofs then
+`rw [op_unfold]` to get the concrete state.
+
+```lean
+private theorem increment_unfold (s : ContractState)
+  (h_owner : s.sender = s.storageAddr 0) :
+  (increment.run s) = ContractResult.success () { ... } := by
+  simp only [increment, ...]; simp [h_owner]
+```
+
+`private theorem` isn't accessible from other files, so isolation proofs in
+separate files must repeat the full unfolding.
+
+**Boolean equality conversion**: `beq_iff_eq` converts between `(x == y) = true`
+and `x = y`.
+
+**Slot preservation**: `intro slot h_neq h_eq; exact absurd h_eq h_neq` is the
+standard pattern for "this operation doesn't touch slot `n`" lemmas.
+
+**List sum reasoning**: `omega` cannot handle `List.sum` or nonlinear
+multiplication, so conservation proofs use explicit
+`Nat.add_assoc`/`Nat.add_comm`/`Nat.add_left_comm` rewrite chains.
+
+**countOcc helpers**: `simp [countOcc, if_pos rfl]` produces `if True then 1 else 0`
+which doesn't reduce. Pre-proven `countOcc_cons_eq` / `countOcc_cons_ne` helpers
+avoid this.
+
+**No Mathlib**: tactics such as `push_neg`, `set`, `ring`, and `linarith` are
+unavailable. Use `by_cases`, explicit witnesses, and manual `Nat.*` lemma
+chains.
+
+## Arithmetic semantics
+
+All core arithmetic is EVM-compatible. `Uint256` wraps at `2^256`, so `+`,
+`-`, `*`, `/`, and `%` match EVM behavior by default.
+
+Two approaches coexist for overflow safety:
+
+- **Counter**: bare `add`/`sub` (modular arithmetic, EVM-accurate).
+- **SafeCounter / Ledger / SimpleToken**: `safeAdd` / `safeSub` from
+  `Stdlib/Math.lean` return `Option`, reverting on overflow/underflow.
+
+`MAX_UINT256 := 2^256 - 1`. Safe arithmetic checks this bound before returning
+`some`.
+
+## Known limitations
+
+- **Uint256**: `Uint256` is a dedicated 256-bit modular type; `+`, `-`, `*`,
+  `/`, and `%` wrap at `2^256`.
+- **No multi-contract interaction**: composition across contracts is not
+  modeled in the EDSL semantics.
+- **No reentrancy modeling**: cross-call control flow is not in the proof
+  envelope.
+- **Self-transfer**: modeled as a no-op; transfer theorems no longer require
+  `sender != to`.
+- **Supply = sum of balances**: requires a finite address model. Proven as
+  exact sum equations with `countOcc`, not as a global invariant over all
+  addresses. `supply_bounds_balances` is not preserved for lists with duplicates;
+  exact sum equations are proven instead.
+- **`ContractResult.fst`**: returns `default` on revert, requiring `[Inhabited α]`.
+  Proofs using `.fst` always show the result is `success` first.
+- **No gas modeling**: the EDSL models storage and control flow only;
+  verification assumes infinite gas.
+- **Events**: the CompilationModel DSL supports event emission (`Stmt.emit`),
+  but the EDSL core does not yet model events in proofs.
+- **Nested mappings**: the CompilationModel DSL supports double mappings
+  (`mapping2`/`setMapping2`), but EDSL-level proofs for nested mapping
+  semantics are still limited.
+- **No Mathlib**: `set`, `ring`, `linarith` unavailable, as noted above.
+
+## See also
+
+- [Verification](/verification) — live theorem inventory and proof-status snapshot.
+- [Glossary](/glossary) — definitions of `ContractResult`, `local_obligations`, and other load-bearing terms.
+- [Trust Model](/trust-model) — what the proof techniques here actually buy you.

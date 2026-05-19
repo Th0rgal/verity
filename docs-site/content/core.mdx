@@ -73,79 +73,13 @@ def bind (ma : Contract α) (f : α → Contract β) : Contract β :=
 
 This gives do-notation with automatic failure propagation. A failed `require` stops the whole chain.
 
-## Storage operations
+## Primitives
 
-Five pairs of get/set functions, one per storage type:
+The core types above are operated on by a small surface of EDSL primitives — storage get/set, mapping get/set, context accessors (`msgSender`, `msgValue`, `blockTimestamp`, `contractAddress`), event emission, and the `require` guard. Those are documented in the [EDSL API Reference](/edsl-api-reference); the prose here only covers the *type layer* and the monad, not the operation catalogue.
 
-| Storage type | Get | Set | Slot type |
-|---|---|---|---|
-| Uint256 | `getStorage` | `setStorage` | `StorageSlot Uint256` |
-| Address | `getStorageAddr` | `setStorageAddr` | `StorageSlot Address` |
-| Mapping (address-keyed) | `getMapping` | `setMapping` | `StorageSlot (Address → Uint256)` |
-| Mapping (uint256-keyed) | `getMappingUint` | `setMappingUint` | `StorageSlot (Uint256 → Uint256)` |
-| Double mapping | `getMapping2` | `setMapping2` | `StorageSlot (Address → Address → Uint256)` |
+The shape of every primitive is the same: it's a `Contract α` value, which is `ContractState → ContractResult α`. Read-only primitives like `msgSender` and `getStorage` always emit `ContractResult.success`; write primitives like `setStorage` return `success ()` with a modified `ContractState`. `require` is the one operation that may emit `ContractResult.revert`, preserving the original state.
 
-All follow the same pattern — read from or write to the corresponding `ContractState` field:
-
-```verity
-def getStorage (s : StorageSlot Uint256) : Contract Uint256 :=
-  fun state => ContractResult.success (state.storage s.slot) state
-
-def setStorage (s : StorageSlot Uint256) (value : Uint256) : Contract Unit :=
-  fun state => ContractResult.success ()
-    { state with storage := fun slot =>
-        if slot == s.slot then value else state.storage slot }
-```
-
-Mapping operations take key arguments:
-
-```verity
--- Address-keyed mapping (e.g., balances[owner])
-let bal ← getMapping balances owner
-setMapping balances owner newBal
-
--- Uint256-keyed mapping
-let val ← getMappingUint prices tokenId
-setMappingUint prices tokenId newPrice
-
--- Double mapping (e.g., allowances[owner][spender])
-let allow ← getMapping2 allowances owner spender
-setMapping2 allowances owner spender newAllow
-```
-
-> `setMapping` also inserts the key into `knownAddresses` for that slot, enabling conservation proofs that sum over all balances.
-
-## Context accessors
-
-Read-only functions for accessing transaction context:
-
-```verity
-let sender ← msgSender           -- Transaction sender address
-let self ← contractAddress        -- This contract's address
-let value ← msgValue             -- ETH value sent with call
-let time ← blockTimestamp         -- Current block timestamp
-```
-
-These return values from `ContractState` without modifying state.
-
-## Event emission
-
-```verity
-emitEvent "Transfer" [amount] [senderBal, recipientBal]
-```
-
-`emitEvent name args indexedArgs` appends to the `events` log. The `indexedArgs` parameter is optional (defaults to `[]`).
-
-## Require guard
-
-```verity
-def require (condition : Bool) (message : String) : Contract Unit :=
-  fun s => if condition
-           then ContractResult.success () s
-           else ContractResult.revert message s
-```
-
-Returns `success` when the condition holds, `revert` with the message when it doesn't.
+> `setMapping` (and its keyed variants) also inserts the key into `knownAddresses` for that slot, enabling conservation proofs that sum over all balances.
 
 ## Simp lemmas
 

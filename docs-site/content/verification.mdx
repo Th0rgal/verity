@@ -1,11 +1,11 @@
 ---
-title: Formal Verification
-description: EDSL proofs plus compiler correctness proofs (IR + Yul)
+title: Verification Status
+description: Theorem inventory by contract, plus the compiler-proof structure.
 ---
 
-# Formal Verification
+# Verification Status
 
-The compiler is verified with IR preservation proofs and Yul equivalence proofs in `Compiler/Proofs/`. All three layers are complete and checked by `lake build`.
+Per-contract theorem inventory and the structure of the compiler-correctness proofs in `Compiler/Proofs/`. All three layers are complete and checked by `lake build`. For *how* these proofs are built (guard modeling, techniques, limitations) see [Proof Techniques](/proof-techniques). For *what is trusted vs verified*, see [Trust Model](/trust-model).
 
 **Status**: See [docs/VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the current theorem totals, test counts, exclusions, and proof-status snapshot. [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md) remains the source of truth for documented axioms.
 
@@ -40,23 +40,6 @@ Contracts/{Name}/
 
 Verity/Proofs/Stdlib/     # Reusable proof infrastructure (Math, Automation, etc.)
 ```
-
-## Guard modeling
-
-The `ContractResult` type models Solidity's `require` explicitly:
-
-```verity
-inductive ContractResult (α : Type) where
-  | success : α → ContractState → ContractResult α
-  | revert : String → ContractState → ContractResult α
-
-def require (condition : Bool) (message : String) : Contract Unit :=
-  fun s => if condition
-           then ContractResult.success () s
-           else ContractResult.revert message s
-```
-
-This lets proofs reason about both the success path and the revert path of guard-protected operations.
 
 ## Theorems by contract
 
@@ -435,22 +418,8 @@ Transfer proofs handle self-transfer by modeling it as a no-op (preloading balan
 | 24 | `safeDiv_self` | a / a equals 1 (when a > 0) |
 | 25 | `safeDiv_result_le_numerator` | Result never exceeds numerator |
 
-## Proof techniques
+## See also
 
-**Full unfolding**: For guarded operations, unfold the entire do-notation chain through bind/pure/Contract.run/ContractResult.snd, then `simp [h_guard]` to resolve the guard condition.
-
-**Private unfold helpers**: For complex operations, a private theorem pre-computes the exact result state when guards pass. Main proofs then `rw [op_unfold]` to get the concrete state.
-
-**Boolean equality conversion**: `beq_iff_eq` converts between `(x == y) = true` and `x = y`.
-
-**List sum reasoning**: `omega` cannot handle `List.sum` or nonlinear multiplication, so conservation proofs use explicit `Nat.add_assoc`/`Nat.add_comm`/`Nat.add_left_comm` rewrite chains.
-
-**countOcc helpers**: `simp [countOcc, if_pos rfl]` produces `if True then 1 else 0` which doesn't reduce. Pre-proven `countOcc_cons_eq`/`countOcc_cons_ne` helpers avoid this.
-
-## Known limitations
-
-1. Uint256 is a dedicated 256-bit modular type; `+`, `-`, `*`, `/`, and `%` wrap at `2^256`
-2. No multi-contract interaction
-3. No reentrancy modeling
-4. `supply_bounds_balances` not preserved for lists with duplicates; exact sum equations are proven instead
-5. No Mathlib: `set`, `ring`, `linarith` unavailable
+- [Proof Techniques](/proof-techniques) — how the proofs above are constructed (guard modeling, unfolding, list-sum reasoning) and what's currently out of scope.
+- [Trust Model](/trust-model) — what each verified theorem rules out, and what assumptions remain.
+- [Examples Gallery](/examples) — the contract sources these theorems apply to.

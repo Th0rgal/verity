@@ -1,11 +1,11 @@
 ---
-title: Research & Development
-description: Design decisions, iterations, and proof techniques
+title: Research Log
+description: How Verity got to its current shape — iteration history, design decisions, and compiler-development milestones.
 ---
 
-# Research & Development
+# Research Log
 
-**Compact core, built across 7 iterations.** See [/verification](/verification) for current theorem totals and proof status. [AXIOMS.md](https://github.com/lfglabs-dev/verity/blob/main/AXIOMS.md) remains the source of truth for documented axioms.
+**Compact core, built across 7 iterations.** For *current* theorem totals and proof status see [Verification Status](/verification); for *how* the proofs are built see [Proof Techniques](/proof-techniques). [AXIOMS.md](https://github.com/lfglabs-dev/verity/blob/main/AXIOMS.md) remains the source of truth for documented axioms.
 
 ## Evolution
 
@@ -27,75 +27,32 @@ The project evolved in two phases:
 | 6 | Ledger | Extend | Mapping support (`Address -> Uint256`) |
 | 7 | SimpleToken | Compose | Combined patterns: owned + ledger + supply |
 
+For per-iteration commentary, see [Detailed Iterations](/research/iterations).
+
 ## Design Decisions
 
 **What worked:**
+
 - `Address := String`, `Uint256` is a dedicated 256-bit modular type.
 - Storage as functions (`Nat -> Uint256`), not finite maps. Uninitialized slots return 0.
 - `require` returns `ContractResult.revert msg s`, preserving original state.
-- Manual storage slot allocation (slot 0, 1, 2...). No automatic allocation needed.
+- Manual storage slot allocation (slot 0, 1, 2…). No automatic allocation needed.
 - Selectors are auto-computed from function signatures via `computeSelectors`; no manual selector maps needed.
 - `onlyOwner` is a regular function, not special syntax.
 
 **What didn't work:**
+
 - `StateM.get` doesn't exist in Lean 4. Use plain `get` in do-notation.
 - `Repr` can't derive for function types. Added manual instance.
 - Generic `requireSome` needs `[Inhabited a]`. Made Uint256-specific version instead.
 - Marking `.fst`/`.snd` as `@[simp]` caused over-simplification. Added operation-specific simp lemmas.
-
-## Arithmetic Semantics
-
-All core arithmetic is EVM-compatible. `Uint256` wraps at `2^256`, so `+`, `-`, `*`, `/`, and `%` match EVM behavior by default.
-
-Two approaches coexist for overflow safety:
-- **Counter**: Bare `add`/`sub` (modular arithmetic, EVM-accurate)
-- **SafeCounter / Ledger / SimpleToken**: `safeAdd`/`safeSub` from `Stdlib/Math.lean` return `Option`, reverting on overflow/underflow
-
-`MAX_UINT256 := 2^256 - 1`. Safe arithmetic checks this bound before returning `some`.
-
-## Proof Techniques
-
-**Full unfolding** is the main approach:
-```verity
-simp only [operation, onlyOwner, isOwner, owner,
-  msgSender, getStorageAddr, setStorage,
-  Verity.bind, Bind.bind, Pure.pure,
-  Contract.run, ContractResult.snd]
-simp [h_owner]
-```
-
-Works because the EDSL is shallow: every contract function is a composition of core primitives.
-
-**Private unfold helpers** pre-compute exact result states when guards pass:
-```lean
-private theorem increment_unfold (s : ContractState)
-  (h_owner : s.sender = s.storageAddr 0) :
-  (increment.run s) = ContractResult.success () { ... } := by
-  simp only [increment, ...]; simp [h_owner]
-```
-
-But `private theorem` isn't accessible from other files. Isolation proofs in separate files must repeat the full unfolding.
-
-**Other techniques:**
-- **Boolean equality**: Use `beq_iff_eq` to convert `(x == y) = true` to `x = y`
-- **Slot preservation**: `intro slot h_neq h_eq; exact absurd h_eq h_neq`
-- **List sum reasoning**: `omega` can't handle `List.sum` or `var * var`. Use explicit `Nat.add_assoc`/`add_comm`/`add_left_comm` chains
-- **No Mathlib**: `push_neg`, `set`, `ring`, `linarith` unavailable. Use `by_cases`, explicit witnesses, manual `Nat.*` lemma chains
-
-## Known Limitations
-
-- **Self-transfer**: Modeled as a no-op; transfer theorems no longer require `sender != to`.
-- **Supply = sum of balances**: Requires finite address model. Proven as exact sum equations with `countOcc`, not as global invariant over all addresses.
-- **`ContractResult.fst`**: Returns `default` on revert, requiring `[Inhabited a]`. Proofs using `.fst` always show result is `success` first.
-- **No gas modeling**: EDSL models storage and control flow only; verification assumes infinite gas.
-- **Events**: The CompilationModel DSL supports event emission (`Stmt.emit`), but the EDSL core does not yet model events in proofs.
-- **Nested mappings**: The CompilationModel DSL supports double mappings (`mapping2`/`setMapping2`), but EDSL-level proofs for nested mapping semantics are still limited.
 
 ## Compiler Development
 
 The compiler pipeline compiles declarative `CompilationModel` specs to Yul/EVM bytecode automatically, replacing the earlier manual IR approach.
 
 Key milestones:
+
 - **Generic compilation** (2026-02-10): All contracts compile from declarative specs. Zero manual IR.
 - **Differential testing** (2026-02-10): Random transaction generation + parallel execution on EDSL interpreter vs compiled EVM. Zero mismatches.
 - **CompilationModel expansion**: Loops, branching, arrays, events, multi-mappings, internal calls, verified extern linking.
@@ -103,6 +60,8 @@ Key milestones:
 
 See [`docs/ROADMAP.md`](https://github.com/lfglabs-dev/verity/blob/main/docs/ROADMAP.md) for active workstreams and the full roadmap.
 
-## Detailed Logs
+## See also
 
-For iteration-by-iteration development notes, see [/research/iterations](/research/iterations).
+- [Detailed Iterations](/research/iterations) — iteration-by-iteration notes.
+- [Proof Techniques](/proof-techniques) — how the techniques born during these iterations now apply to all contracts.
+- [Compiler Architecture](/compiler-architecture) — the pipeline these decisions led to.

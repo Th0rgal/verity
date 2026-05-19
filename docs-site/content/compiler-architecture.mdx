@@ -1,0 +1,414 @@
+---
+title: Compiler Architecture
+description: The narrative explanation of the EDSL-to-EVM pipeline. For the CLI reference, see /compiler.
+---
+
+# Compiler Architecture
+
+Automatic compilation from verified EDSL to EVM bytecode. This page is the
+explanation: how the pipeline is shaped, what each module does, and why the
+declarative `CompilationModel` surface replaces hand-written IR. The
+companion CLI reference lives at [`/compiler`](/compiler).
+
+## Pipeline overview
+
+The Verity compiler transforms `CompilationModel` models into deployable EVM
+bytecode. No manual IR writing is required.
+
+**Pipeline**: EDSL Contract → CompilationModel → IR → Yul → EVM Bytecode
+
+The CLI can also emit machine-readable audit artifacts alongside Yul/ABI output:
+
+- `--trust-report <path>` writes proof-boundary and assumption data.
+- `--assumption-report <path>` writes a flattened assumption inventory grouped by contract and usage site.
+- `--layout-report <path>` writes resolved storage-slot metadata, including effective alias writes and reserved-slot policies for upgrade/layout reviews.
+- `--layout-compat-report <path>` compares the first selected contract as the baseline layout and the second as the candidate upgrade layout, then writes a machine-readable compatibility summary.
+
+Important: Verity has two different "spec" concepts.
+
+1. Logical specs in `Verity/Specs/<Name>/Spec.lean` are `Prop` statements used for proofs.
+2. Compiler specs in `Compiler/Specs.lean` are `CompilationModel` values used for code generation.
+
+`CompilationModel` is not only an ABI. It also contains storage fields and function bodies (`Expr`/`Stmt`).
+
+### Modules
+
+**`Compiler/CompilationModel.lean`** — declarative contract DSL: a full
+expression language (`literal`, `param`, `storage`, mapping accessors,
+arithmetic, bitwise, comparisons, logical operators, low-level primitives),
+a statement language (`letVar`, `assignVar`, storage writes, `require`,
+`return`, `ite`, `forEach`, `emit`, `internalCall`), constructor parameter
+handling, and automatic storage-slot inference in field order.
+
+**`Compiler/Specs.lean`** — declarative specifications for the example
+contracts, registered via `allSpecs`.
+
+**`Compiler/Selector.lean` / `Compiler/Selectors.lean`** — canonical function
+selector computation from `FunctionSpec`, type-safe Solidity signature
+generation, kernel-computable `keccak256_first_4_bytes` via the vendored
+unrolled Keccak engine, plus CI cross-checks against `solc --hashes`.
+
+**`Compiler/Codegen.lean`** — IR → Yul code generation: dispatcher generation
+(function selector switch), mapping slot computation helper, and deploy/runtime
+code separation.
+
+**`Compiler/Linker.lean`** — external Yul library linking: a line-based parser
+extracts function definitions from `.yul` files, injects them into the runtime
+section, and validates external references via `validateExternalReferences`.
+
+**`Compiler/Yul/*.lean`** — Yul abstract syntax tree and pretty printer.
+
+### Compilation process
+
+1. **Specification**: write declarative `CompilationModel`.
+2. **Storage Inference**: assign slots 0, 1, 2, ... based on field order.
+3. **Selector Lookup**: retrieve pre-computed function selectors.
+4. **IR Generation**: compile expressions/statements to IR.
+5. **Code Generation**: transform IR to Yul AST.
+6. **Pretty Print**: render Yul AST as text.
+7. **Yul Compilation**: use `solc` to generate bytecode.
+
+## Trust model summary
+
+The compiler operates inside a three-layer correctness boundary: Layer 1
+(EDSL ↔ `CompilationModel`), Layer 2 (`CompilationModel` ↔ IR), Layer 3
+(IR ↔ Yul). The `solc` Yul-to-bytecode step and the EVM execution model
+themselves are trusted, not verified. See [`/trust-model`](/trust-model) for
+the full breakdown of what is verified, what is assumed, and the role of
+`AXIOMS.md`, `--trust-report`, and `--assumption-report`.
+
+## Example: SimpleStorage
+
+### EDSL Implementation
+```verity
+-- Verity/Examples/SimpleStorage.lean
+def storedData : StorageSlot Uint256 := ⟨0⟩
+
+def store (value : Uint256) : Contract Unit := do
+  setStorage storedData value
+
+def retrieve : Contract Uint256 := do
+  getStorage storedData
+```
+
+### Declarative Specification
+```verity
+-- Compiler/Specs.lean
+def simpleStorageSpec : CompilationModel := {
+  name := "SimpleStorage"
+  fields := [
+    { name := "storedData", ty := FieldType.uint256 }
+  ]
+  constructor := none
+  functions := [
+    { name := "store"
+      params := [{ name := "value", ty := ParamType.uint256 }]
+      returnType := none
+      body := [
+        Stmt.setStorage "storedData" (Expr.param "value"),
+        Stmt.stop
+      ]
+    },
+    { name := "retrieve"
+      params := []
+      returnType := some FieldType.uint256
+      body := [
+        Stmt.return (Expr.storage "storedData")
+      ]
+    }
+  ]
+}
+```
+
+### Generated IR
+```lean
+-- Automatically generated (no manual writing)
+{ name := "SimpleStorage"
+  deploy := []
+  functions := [
+    { name := "store"
+      selector := 0x6057361d
+      params := [{ name := "value", ty := IRType.uint256 }]
+      ret := IRType.unit
+      body := [
+        YulStmt.let_ "value" (YulExpr.call "calldataload" [YulExpr.lit 4]),
+        YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit 0, YulExpr.ident "value"]),
+        YulStmt.expr (YulExpr.call "stop" [])
+      ]
+    },
+    { name := "retrieve"
+      selector := 0x2e64cec1
+      params := []
+      ret := IRType.uint256
+      body := [
+        YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.call "sload" [YulExpr.lit 0]]),
+        YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])
+      ]
+    }
+  ]
+  usesMapping := false
+}
+```
+
+### Generated Yul
+```yul
+// artifacts/yul/SimpleStorage.yul
+object "SimpleStorage" {
+    code {
+        datacopy(0, dataoffset("runtime"), datasize("runtime"))
+        return(0, datasize("runtime"))
+    }
+    object "runtime" {
+        code {
+            switch shr(224, calldataload(0))
+            case 0x6057361d {
+                /* store() */
+                let value := calldataload(4)
+                sstore(0, value)
+                stop()
+            }
+            case 0x2e64cec1 {
+                /* retrieve() */
+                mstore(0, sload(0))
+                return(0, 32)
+            }
+            default {
+                revert(0, 0)
+            }
+        }
+    }
+}
+```
+
+### Deployed Bytecode
+```bash
+# Compile Yul to bytecode
+solc --strict-assembly SimpleStorage.yul
+
+# Deploy to Ethereum (local, testnet, or mainnet)
+forge create SimpleStorage --from 0x... --private-key ...
+```
+
+## Features
+
+### Automatic Storage Slot Inference
+```verity
+fields := [
+  { name := "owner", ty := FieldType.address },     -- slot 0
+  { name := "balances", ty := FieldType.mappingTyped (.simple .address) },  -- slot 1
+  { name := "totalSupply", ty := FieldType.uint256 } -- slot 2
+]
+```
+
+No manual slot management needed. Compiler assigns slots based on field order.
+
+### Constructor Parameters
+```verity
+constructor := some {
+  params := [{ name := "initialOwner", ty := ParamType.address }]
+  body := [
+    Stmt.setStorage "owner" (Expr.constructorArg 0)
+  ]
+}
+```
+
+Arguments loaded from end of deployment bytecode (Solidity convention).
+
+### Function Selectors
+```lean
+"store(uint256)" → 0x6057361d
+"retrieve()" → 0x2e64cec1
+```
+
+Pre-computed from Solidity keccak256. Extensible for new functions.
+
+### Type-Safe DSL
+
+The CompilationModel DSL provides a complete expression and statement language
+for specifying contract behavior. Expressions cover literals, parameters,
+storage and mapping reads, EVM context (`caller`, `chainid`, `msgValue`,
+`blockTimestamp`, `blockNumber`, `blobbasefee`), memory primitives (`mload`,
+`keccak256`), low-level calls (`call`, `staticcall`, `delegatecall`),
+arithmetic, bitwise, comparisons, and logical operators. Statements cover local
+variables, storage and mapping writes, `require`, `return`, memory writes,
+returndata copy and revert bubbling, `stop`, `ite` branching, bounded
+`forEach` loops, event emission, and internal calls. See [`/compiler`](/compiler)
+for the full constructor table.
+
+Low-level call expressions, linear-memory primitives, raw `rawLog`, and
+`keccak256` compile but remain partially modeled in the current proof
+interpreter. For audit-oriented or proof-strict builds, archive `--trust-report`
+and use the matching `--deny-*` flags (`--deny-linear-memory-mechanics`,
+`--deny-event-emission`, `--deny-axiomatized-primitives`,
+`--deny-proxy-upgradeability`).
+
+The trust-report surface also supports localized `localObligations` on a
+function or constructor. Use these when a small unsafe or assembly-shaped
+boundary still needs a user-supplied refinement contract without turning the
+whole compilation unit into an opaque trust blob. Direct raw low-level calls,
+returndata choreography, and manual memory/calldata primitives are expected to
+carry at least one such obligation. For proof-strict builds, add
+`--deny-local-obligations` so any undischarged local obligation fails closed.
+
+For upgradeability reviews, pair `--layout-compat-report` with
+`--deny-layout-incompatibility`. That path compares the first selected contract
+against the second, preserves all baseline field slots/types/alias writes, and
+fails closed if the candidate moves or mutates persisted storage fields while
+still writing the JSON compatibility report for audit trails.
+
+### Code Optimization
+```yul
+// Before (manual): Unnecessary variable
+let current := sload(0)
+sstore(0, add(current, 1))
+
+// After (automatic): Inlined expression
+sstore(0, add(sload(0), 1))
+```
+
+Automatic expression inlining reduces bytecode size and gas costs.
+
+### External Library Linking
+
+Link production cryptographic libraries (or any external Yul functions) into
+compiled contracts using the `--link` flag:
+
+```bash
+lake exe verity-compiler \
+    --link examples/external-libs/PoseidonT3.yul \
+    --link examples/external-libs/PoseidonT4.yul \
+    -o artifacts/yul
+```
+
+**How it works**: The linker parses `.yul` files, extracts function
+definitions, and injects them into the runtime `code {}` section of each
+compiled contract. This lets you prove properties about contract logic using
+simple placeholder functions in Lean, then swap in production-grade
+implementations at compile time.
+
+**Library file format**: External libraries should contain plain Yul function
+definitions (no `object` wrapper):
+
+```yul
+function PoseidonT3_hash(a, b) -> result {
+    // Production implementation here
+    result := /* ... */
+}
+```
+
+**Validation**: The `validateExternalReferences` function checks that all
+non-builtin function calls in the contract are satisfied by linked libraries,
+catching missing dependencies at compile time.
+
+### Backend Profiles
+
+The compiler supports an opt-in backend profile for deterministic output-shape
+normalization:
+
+```bash
+# Default semantic profile
+lake exe verity-compiler --backend-profile semantic
+
+# Sort dispatch `case` blocks by selector
+lake exe verity-compiler --backend-profile solidity-parity-ordering
+
+# Sort selector cases + enable deterministic patch pass
+lake exe verity-compiler-patched --backend-profile solidity-parity
+```
+
+### Internal Functions, Events, Nested Mappings, Arrays
+
+The CompilationModel also supports internal (non-dispatched) functions via
+`isInternal := true` and `Stmt.internalCall`; EVM events via the `events` block
+and `Stmt.emit` (topic0 is computed from the event signature); double mappings
+via `mapping2`/`setMapping2` matching Solidity's nested layout; uint256-keyed
+mappings; and dynamic, fixed-size, and bytes array parameters with ABI
+offset-based decoding. See [`/compiler`](/compiler) for the full code samples.
+
+## Comparison: Manual vs Automatic
+
+### Lines of Code
+- **Before**: Manual IR for all contracts (brittle to maintain)
+- **After**: Declarative specs for all contracts (stable, reusable)
+- **Reduction**: Manual IR eliminated
+
+### Time to Add Contract
+- **Before**: Manual IR requires more steps (write IR, test, debug)
+- **After**: Declarative specs reduce the setup and iteration work
+- **Improvement**: Faster authoring and less surface for mistakes
+
+### Code Quality
+- **Before**: Manual Yul construction, error-prone
+- **After**: Type-safe DSL, compile-time validation
+- **Result**: More optimized, safer, maintainable
+
+### Example: Owned Contract
+
+**Before** (manual IR):
+```lean
+private def ownedContract : IRContract :=
+  let deployBody := [
+    stmtLet "argsOffset" (call "sub" [call "codesize" [], lit 32]),
+    stmtExpr (call "codecopy" [lit 0, ident "argsOffset", lit 32]),
+    stmtLet "initialOwner" (call "and" [call "mload" [lit 0], hex addressMask]),
+    sstoreSlot 0 (ident "initialOwner")
+  ]
+  let transferBody := onlyOwnerCheck 0 ++ [
+    stmtLet "newOwner" (calldataAddress 4),
+    sstoreSlot 0 (ident "newOwner"),
+    stop
+  ]
+  let getOwnerBody := returnUint (sloadSlot 0)
+  { name := "Owned"
+    deploy := deployBody
+    functions := [
+      fn "transferOwnership" 0xf2fde38b [addrParam "newOwner"] IRType.unit transferBody,
+      fn "getOwner" 0x893d20e8 [] IRType.address getOwnerBody
+    ]
+    usesMapping := false }
+```
+
+**After** (declarative spec):
+```verity
+def ownedSpec : CompilationModel := {
+  name := "Owned"
+  fields := [
+    { name := "owner", ty := FieldType.address }
+  ]
+  constructor := some {
+    params := [{ name := "initialOwner", ty := ParamType.address }]
+    body := [
+      Stmt.setStorage "owner" (Expr.constructorArg 0)
+    ]
+  }
+  functions := [
+    { name := "transferOwnership"
+      params := [{ name := "newOwner", ty := ParamType.address }]
+      returnType := none
+      body := [
+        Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner",
+        Stmt.setStorage "owner" (Expr.param "newOwner"),
+        Stmt.stop
+      ]
+    },
+    { name := "getOwner"
+      params := []
+      returnType := some FieldType.address
+      body := [
+        Stmt.return (Expr.storage "owner")
+      ]
+    }
+  ]
+}
+```
+
+**Improvements**:
+- 33% shorter
+- Type-safe expressions
+- No manual Yul construction
+- Automatic slot/selector management
+
+## See also
+
+- [Compiler](/compiler) — CLI reference and full constructor tables.
+- [Architecture Overview](/architecture) — single-page system map.

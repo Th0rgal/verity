@@ -54,4 +54,16 @@ export default withNextra({
   images: {
     formats: ["image/avif", "image/webp"],
   },
+  // Redirect legacy URLs to the new IA so old bookmarks / external
+  // links don't 404 after the restructure.
+  async redirects() {
+    return [
+      // Tutorial moved from /guides/ to top-level.
+      { source: "/guides/first-contract", destination: "/first-contract", permanent: true },
+      // The "Add a Contract" page moved into /guides/.
+      { source: "/add-contract", destination: "/guides/add-contract", permanent: true },
+      // Syntax-highlighting page moved out of /guides/ to top-level.
+      { source: "/guides/verity-syntax-highlighting", destination: "/syntax-highlighting", permanent: true },
+    ];
+  },
 });

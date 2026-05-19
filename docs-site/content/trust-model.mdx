@@ -1,0 +1,101 @@
+---
+title: Trust Model
+description: The canonical home for the Layer 1/2/3 framing, the trust boundary, and the assumption model.
+---
+
+# Trust Model
+
+What you trust when you trust a Verity contract: the Lean kernel, the Yul
+compiler, the deployment toolchain, the EVM specification itself, and the
+short list of axioms documented in `AXIOMS.md`. Everything else — the EDSL
+semantics, the `CompilationModel → IR` transformation, the `IR → Yul`
+preservation, and the per-contract specifications — is machine-checked.
+
+## The three layers
+
+Correctness is organized into three nested boundaries. Each layer states what
+is verified and what is explicitly *not* yet.
+
+### Layer 1 — spec ↔ EDSL
+
+The frontend bridge. An EDSL implementation written in `Contracts/<Name>/` is
+proven equivalent to its `CompilationModel`, and per-contract proofs in
+`Contracts/<Name>/Proofs/` show that the EDSL satisfies a human-readable
+`Spec.lean`. **What's verified:** functional behavior of every supported
+primitive, success/revert paths via `ContractResult`, storage isolation and
+context preservation. **What's not:** the spec itself is a human artifact —
+Layer 1 cannot tell you that the spec is the *right* specification for your
+business problem.
+
+### Layer 2 — EDSL ↔ IR / CompilationModel
+
+The compiler middle. The generic whole-contract theorem in
+`Compiler/Proofs/IRGeneration/Contract.lean` proves that
+`CompilationModel.compile` produces IR with matching semantics for the current
+supported fragment. The former exact-state body-simulation axiom has been
+eliminated; legacy contract-specific bridge theorems now sit above the generic
+compiler theorem as wrappers. **What's verified:** every statement and
+expression constructor in the supported fragment lowers to semantically
+equivalent IR. **What's not:** features marked as "not modeled" in the trust
+report — including parts of low-level call mechanics, linear-memory primitives
+(`mload`/`mstore`/`calldatacopy`/`returndatacopy`), raw `rawLog` event
+emission, and `keccak256` (still axiomatized end-to-end). Each carries a
+`--deny-*` flag for proof-strict builds.
+
+### Layer 3 — IR ↔ Yul / EVM
+
+The backend. `IR → Yul` preservation is proved in
+`Compiler/Proofs/YulGeneration/`, with the remaining dispatcher bridge exposed
+as an explicit theorem hypothesis rather than a Lean axiom. **What's
+verified:** the Yul AST emitted for each IR program has matching semantics
+under the in-Lean Yul interpreter. **What's not:** the final `Yul → bytecode`
+step performed by `solc`, and the EVM's own runtime semantics, which sit
+outside the proof envelope.
+
+## Axioms and assumptions
+
+All axioms used anywhere in the proof tree are listed in
+[`AXIOMS.md`](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md). That file
+is the source of truth. The compiler can also export a flat per-build
+inventory: `--assumption-report <path>` writes every assumption used by the
+selected contracts, grouped by contract and usage site, including any
+`local_obligations` declared at constructor or function granularity. Pair this
+with `--trust-report` to get the structured proof-boundary view alongside the
+flattened list — together they describe exactly what was assumed for a given
+compilation unit.
+
+## What is trusted
+
+- **The Lean 4 kernel.** Every proof in Verity is reduced to kernel-checked
+  terms.
+- **The Yul compiler (`solc`).** Verity proves correctness down to Yul; the
+  Yul-to-bytecode step is delegated to `solc --strict-assembly`.
+- **The EVM specification.** The Yul and IR interpreters in Lean model the EVM
+  as defined by the Yellow Paper and the post-merge spec.
+- **The deployment toolchain.** `forge`, `cast`, RPC providers, and any other
+  artifact handling sit outside the proof boundary.
+- **Pre-computed function selectors.** Selectors are derived from
+  `keccak256` of canonical signatures; CI cross-checks against
+  `solc --hashes`.
+- **The axioms in [`AXIOMS.md`](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md).**
+  Currently a short list, including the residual `keccak256` primitive and
+  a small number of EVM-side primitives.
+
+## What is verified
+
+- **EDSL semantics.** `Verity/Core.lean` primitives have full-result
+  `@[simp]` lemmas and complete coverage in proofs.
+- **The `CompilationModel → IR` transformation.** Proved generically for the
+  supported fragment.
+- **The `IR → Yul` preservation.** Proved with the dispatcher bridge stated as
+  an explicit hypothesis rather than an axiom.
+- **Contract-specific specifications.** Each `Contracts/<Name>/Proofs/` tree
+  proves the implementation satisfies its `Spec.lean`.
+- **Contract-specific invariants.** Conservation, isolation, and well-formedness
+  lemmas for the contracts that need them (Ledger, SimpleToken, OwnedCounter).
+
+## See also
+
+- [Verification](/verification) — live theorem and proof-status inventory.
+- [Proof Techniques](/proof-techniques) — how proofs are structured, and what
+  is currently out of scope.

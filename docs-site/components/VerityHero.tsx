@@ -1,4 +1,4 @@
-const primaryLink = { href: '/guides/first-contract', label: 'Start with a contract' }
+const primaryLink = { href: '/first-contract', label: 'Start with a contract' }
 
 const paperLink = {
   href: 'https://lfglabs.dev/papers/verity.pdf',
