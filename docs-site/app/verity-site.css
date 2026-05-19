@@ -192,6 +192,36 @@ mark {
   padding: 0 0.18em;
 }
 
+/* Footnote / index typography. Currently unused in content but ready
+   for authors to drop in superscripted footnote markers or subscript
+   indices the way a LaTeX paper does. */
+article main sup,
+article main sub {
+  font-size: 0.72em;
+  line-height: 0;
+  vertical-align: baseline;
+  position: relative;
+  font-feature-settings: "tnum", "lnum";
+}
+
+article main sup {
+  top: -0.45em;
+}
+
+article main sub {
+  top: 0.25em;
+}
+
+/* <abbr> with a title gets a quiet dotted underline so initialisms
+   ("ABI", "EVM", "EDSL") that have author-supplied expansions read
+   as glossed terms. */
+article main abbr[title] {
+  text-decoration: underline dotted color-mix(in srgb, var(--verity-muted) 70%, transparent);
+  text-underline-offset: 0.22em;
+  text-decoration-thickness: 1px;
+  cursor: help;
+}
+
 /* Navbar — warm middle-tone between page cream and sidebar tan so it
    doesn't read as a stark white slab above the sidebar.
 
