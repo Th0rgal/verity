@@ -829,7 +829,59 @@ article > div:last-child > a[title]:hover svg {
 }
 
 article main hr {
-  border-color: var(--verity-rule);
+  border: 0;
+  height: 0;
+  margin: 2.5rem auto;
+  /* A centred dingbat-style rule: three small teal asterisms, like
+     a section break in a printed paper. Uses ::before with a flexible
+     content string so we don't need extra markup. */
+  text-align: center;
+  overflow: visible;
+  color: var(--verity-muted);
+}
+
+article main hr::before {
+  content: "·   ·   ·";
+  display: inline-block;
+  letter-spacing: 0.3em;
+  font-size: 1.1rem;
+  color: var(--verity-rule);
+}
+
+.dark article main hr::before {
+  color: var(--verity-rule);
+}
+
+/* Unordered-list bullet styling — replace the default round bullet
+   with a quieter en-dash so paragraphs in bulleted lists read as
+   research-paper enumerations instead of generic UI lists. Leaving
+   it on `::marker` keeps the bullet inline with the first line
+   without affecting indent. */
+article main ul {
+  list-style: none;
+  padding-left: 1.4rem;
+}
+
+article main ul > li {
+  position: relative;
+}
+
+article main ul > li::before {
+  content: "–";
+  position: absolute;
+  left: -1.1rem;
+  color: var(--verity-muted);
+  font-weight: 500;
+}
+
+/* Don't touch the nested list markers — they're rare and the default
+   is fine. */
+article main ul ul > li::before,
+article main ol ul > li::before {
+  content: "·";
+  left: -1rem;
+  font-size: 1.2em;
+  line-height: 1;
 }
 
 article main table {
