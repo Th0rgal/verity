@@ -14,13 +14,15 @@ For the *file layout* and authoring steps these examples follow, see [Add a Cont
 Single storage slot with get/set.
 
 ```verity
-def storedData : StorageSlot Uint256 := ⟨0⟩
+verity_contract SimpleStorage where
+  storage
+    storedData : Uint256 := slot 0
 
-def store (value : Uint256) : Contract Unit := do
-  setStorage storedData value
+  function store (value : Uint256) : Unit := do
+    setStorage storedData value
 
-def retrieve : Contract Uint256 := do
-  getStorage storedData
+  function retrieve () : Uint256 := do
+    return (← getStorage storedData)
 ```
 
 Proofs cover store/retrieve roundtrip and state isolation.
@@ -30,63 +32,76 @@ Proofs cover store/retrieve roundtrip and state isolation.
 Read-modify-write with increment and decrement.
 
 ```verity
-def count : StorageSlot Uint256 := ⟨0⟩
+verity_contract Counter where
+  storage
+    count : Uint256 := slot 0
 
-def increment : Contract Unit := do
-  let current ← getStorage count
-  setStorage count (add current 1)
+  function increment () : Unit := do
+    let current ← getStorage count
+    setStorage count (add current 1)
 
-def decrement : Contract Unit := do
-  let current ← getStorage count
-  setStorage count (sub current 1)
+  function decrement () : Unit := do
+    let current ← getStorage count
+    setStorage count (sub current 1)
 ```
 
-Proofs cover arithmetic, composition (two increments add 2), and decrement-at-zero behavior.
+Proofs cover arithmetic, composition (two increments add 2), and decrement-at-zero wraparound behavior.
 
 ## SafeCounter
 
-Same as Counter but uses checked arithmetic from `Stdlib/Math`.
+Same as Counter but uses checked arithmetic from `Stdlib.Math`.
 
 ```verity
-def increment : Contract Unit := do
-  let current ← getStorage count
-  let newCount ← requireSomeUint (safeAdd current 1) "Overflow"
-  setStorage count newCount
+verity_contract SafeCounter where
+  storage
+    count : Uint256 := slot 0
+
+  function increment () : Unit := do
+    let current ← getStorage count
+    let newCount ← requireSomeUint (safeAdd current 1) "Overflow"
+    setStorage count newCount
 ```
 
 Proofs cover overflow/underflow revert and bounds preservation.
 
 ## Owned
 
-Access control with an owner address and a `require` guard.
+Access control with an owner address and a `require` guard. `onlyOwner` is a same-contract helper that any function can call directly.
 
 ```verity
-def owner : StorageSlot Address := ⟨0⟩
+verity_contract Owned where
+  storage
+    owner : Address := slot 0
 
-def isOwner : Contract Bool := do
-  let sender ← msgSender
-  let currentOwner ← getStorageAddr owner
-  return sender == currentOwner
+  constructor (initialOwner : Address) := do
+    setStorageAddr owner initialOwner
 
-def onlyOwner : Contract Unit := do
-  let ownerCheck ← isOwner
-  require ownerCheck "Caller is not the owner"
+  function onlyOwner () : Unit := do
+    let sender       ← msgSender
+    let currentOwner ← getStorageAddr owner
+    require (sender == currentOwner) "Caller is not the owner"
+
+  function transferOwnership (newOwner : Address) : Unit := do
+    onlyOwner
+    setStorageAddr owner newOwner
 ```
 
-Proofs cover access control enforcement and ownership transfer.
+Proofs cover access-control enforcement and the full lifecycle (create, transfer, locked-out old owner).
 
 ## OwnedCounter
 
 Composes Owned and Counter. Increment/decrement require ownership.
 
 ```verity
-def owner : StorageSlot Address := ⟨0⟩
-def count : StorageSlot Uint256 := ⟨1⟩
+verity_contract OwnedCounter where
+  storage
+    owner : Address := slot 0
+    count : Uint256 := slot 1
 
-def increment : Contract Unit := do
-  onlyOwner
-  let current ← getStorage count
-  setStorage count (add current 1)
+  function increment () : Unit := do
+    onlyOwner
+    let current ← getStorage count
+    setStorage count (add current 1)
 ```
 
 Proofs cover cross-pattern composition, ownership transfer locking out old owner, and counter value surviving ownership transfer.
