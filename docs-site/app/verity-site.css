@@ -1619,6 +1619,13 @@ input:focus-visible,
   text-transform: uppercase;
 }
 
+/* In dark the bright phosphor accent felt loud above an already-busy
+   code panel; drop to the softer section-marker mint so the kicker
+   reads as a label rather than a stop sign. */
+.dark .code-switcher__caption span {
+  color: #7CD4C0;
+}
+
 .code-switcher__caption strong {
   color: var(--verity-heading);
   font-size: 0.92rem;
@@ -1893,6 +1900,13 @@ input:focus-visible,
   padding: 1rem 1.15rem;
   border-top: 2px solid var(--verity-accent);
   background: color-mix(in srgb, var(--verity-surface) 70%, transparent);
+}
+
+/* The 2px bright phosphor top rule felt like a highlighter strip in
+   dark mode. Soften to the section-marker mint so the callout reads
+   as "raised paper" not "alarm bar". */
+.dark .report-callout {
+  border-top-color: #7CD4C0;
 }
 
 .report-callout strong {
