@@ -351,7 +351,9 @@ Compiler.Modules.Calls.bubblingValueCall
 let digest := keccak256 offset size
 ```
 
-Elaborates to `Expr.keccak256`; lowers to Yul `keccak256(offset, size)`. Treated as axiomatized primitive in the current proof stack (`keccak256_memory_slice_matches_evm`). Use `--deny-axiomatized-primitives` for proof-strict runs.
+Elaborates to `Expr.keccak256`; lowers to Yul `keccak256(offset, size)`. The machine-readable trust report records the explicit primitive assumption `keccak256_memory_slice_matches_evm`.
+
+`Expr.keccak256` also remains an explicit proof boundary today: the compiler supports it directly, but the current proof stack still treats it as an axiomatized primitive instead of a fully modeled operation. When it appears, archive `--trust-report` and use `--deny-axiomatized-primitives` for proof-strict runs (see issue `#1411`).
 
 ### `tryCatch`
 
@@ -364,6 +366,10 @@ Lowers to a synthetic `letVar` + `ite` entering the catch block when the result 
 
 ### Low-level `call` / `staticcall` / `delegatecall`
 
-First-class forms exist in the compilation model (`Expr.call`, `Expr.staticcall`, `Expr.delegatecall`) but are not yet fully modeled by the proof interpreters. `delegatecall` is also isolated as a proxy/upgradeability boundary — use `--deny-proxy-upgradeability`. Linear-memory forms (`Expr.mload`, `Stmt.mstore`, `Stmt.calldatacopy`, `Stmt.returndataCopy`, `Expr.returndataOptionalBoolAt`) compile but are partially modeled — use `--deny-linear-memory-mechanics`.
+First-class forms exist in the compilation model (`Expr.call`, `Expr.staticcall`, `Expr.delegatecall`). They are not yet modeled by the current proof interpreters. In the machine-readable interpreter feature matrix, low-level call plumbing and returndata behavior remain a compiler-and-testing trust boundary rather than a proved semantic feature today.
+
+When the low-level form is `delegatecall`, the trust report now also isolates it as a dedicated proxy / upgradeability boundary; archive `--trust-report` and use `--deny-proxy-upgradeability` for proof-strict runs (see issue `#1420`).
+
+First-class linear-memory forms (`Expr.mload`, `Stmt.mstore`, `Stmt.calldatacopy`, `Stmt.returndataCopy`, `Expr.returndataOptionalBoolAt`) also compile today, but they are still only partially modeled by the current proof interpreters. When they appear, treat them as an explicit memory/ABI trust boundary, archive `--trust-report`, and use `--deny-linear-memory-mechanics` for proof-strict runs (see issue `#1411`).
 
 Prefer ECM wrappers when they fit. For the remaining unavoidable cases, attach a `localObligations` entry at the usage site and discharge it before shipping.

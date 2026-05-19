@@ -14,10 +14,12 @@ import { ReportCallout } from '../components/ReportCallout'
 
 <ReportCallout title="Where the trust comes from">
 A small, audited Lean EDSL with example contracts that compile to EVM artifacts.
-Every claim is machine-checked and every assumption is documented. The full
-three-layer breakdown — what's verified at each stage and what remains in the
-trust base — lives on the [Trust Model](/trust-model) page; the live theorem
-inventory is on [Verification Status](/verification).
+Every claim is machine-checked and every assumption is documented. Compilation
+correctness rides on `Compiler/Proofs/IRGeneration/Contract.lean` (generic
+whole-contract `CompilationModel -> IR` theorem for the current supported
+fragment) — no per-contract bridge axioms. The full three-layer breakdown lives
+on the [Trust Model](/trust-model) page; the live theorem inventory is on
+[Verification Status](/verification).
 </ReportCallout>
 
 ## The Three-Layer Structure

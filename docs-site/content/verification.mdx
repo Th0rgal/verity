@@ -42,7 +42,7 @@ Reusable proof infrastructure in `Verity/Proofs/Stdlib/`:
 
 ## Compiler proofs
 
-- **Layer 2 (whole-contract)**: `Compiler/Proofs/IRGeneration/Contract.lean` — `CompilationModel.compile` correctness for the supported fragment.
+- **Generic whole-contract Layer 2 theorem**: `Compiler/Proofs/IRGeneration/Contract.lean` — `CompilationModel.compile` correctness for the supported fragment.
 - **End-to-end**: `Compiler/Proofs/EndToEnd.lean`.
 - **Typed IR**: `Compiler/TypedIRCompilerCorrectness.lean` — 36 supported statement fragments including ABI-head tuples, bytes, fixed/dynamic arrays, and strings as word-typed inputs.
 - **Yul semantics + preservation**: `Compiler/Proofs/YulGeneration/`, with an EVMYulLean-bridged native backend in `Compiler/Proofs/YulGeneration/Backends/`.

@@ -11,7 +11,7 @@ TYPES_PATH = ROOT / "Compiler" / "CompilationModel" / "Types.lean"
 TARGET_FILES = {
     "ROADMAP": ROOT / "docs" / "ROADMAP.md",
     "COMPILER_DOC": ROOT / "docs-site" / "content" / "compiler.mdx",
-    "ADD_CONTRACT": ROOT / "docs-site" / "content" / "add-contract.mdx",
+    "ADD_CONTRACT": ROOT / "docs-site" / "content" / "guides" / "add-contract.mdx",
 }
 
 

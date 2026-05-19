@@ -153,11 +153,19 @@ constructor := some {
 
 **Expressions** cover literals, parameters, storage and mapping reads, EVM context (`caller`, `chainid`, `msgValue`, `blockTimestamp`, `blockNumber`, `blobbasefee`), memory primitives (`mload`, `keccak256`), low-level calls (`call`, `staticcall`, `delegatecall`), arithmetic, bitwise, comparisons, logical operators.
 
+> **Low-level call boundary**: the three call forms compile, but their runtime semantics are still outside the current proof-interpreter model. The call success / returndata mechanics remain validated by differential testing and tracked under issue `#1332`. `delegatecall` also remains a separate proxy / upgradeability trust boundary; archive `--trust-report` and add `--deny-proxy-upgradeability` if those semantics must stay outside the selected verification envelope (see issue `#1420`).
+>
+> **Linear-memory boundary**: Memory-oriented intrinsics (`mload`, `mstore`, `calldatacopy`, `returndataCopy`, `returndataOptionalBoolAt`) compile, but the current proof interpreters still model them only partially. When they appear, surface that boundary with `--trust-report` / `--deny-linear-memory-mechanics`; the remaining gap is tracked under issue `#1411`.
+>
+> **Axiomatized-primitive boundary**: The `keccak256` intrinsic also compiles, but it remains axiomatized in the current proof stack rather than fully modeled end to end. When it appears, archive `--trust-report` and add `--deny-axiomatized-primitives` if the selected contracts must stay inside the proved subset (see issue `#1411`).
+
 **Statements** cover local variables, storage and mapping writes, `require`, `return`, memory writes, returndata copy and revert bubbling, `stop`, `ite` branching, bounded `forEach` loops, event emission, and internal calls.
 
 Low-level calls, linear-memory primitives, `rawLog`, and `keccak256` compile but remain partially modeled in the proof interpreter. Functions or constructors that use direct assembly-shaped primitives without `localObligations [...]` fail closed under `--deny-axiomatized-primitives`.
 
 **Internal functions** via `isInternal := true` and `Stmt.internalCall`; **events** via the `events` block and `Stmt.emit` (topic0 computed from the event signature); **double mappings** via `mapping2`/`setMapping2`; **uint256-keyed mappings**; **dynamic, fixed-size, and bytes array parameters** with ABI offset-based decoding.
+
+For Morpho-style `mapping(K => Struct)` / `mapping(K1 => mapping(K2 => Struct))` layouts, declare `FieldType.mappingStruct` / `FieldType.mappingStruct2` and access members with `structMember "f" key "member"`, `structMember2 "f" k1 k2 "member"`, `setStructMember "f" key "member" val`, `setStructMember2 "f" k1 k2 "member" val`. Member offsets and packed sub-word widths are part of the declaration, so the generated Yul keeps Solidity's storage layout reviewable.
 
 ## Add a new contract
 
@@ -216,6 +224,8 @@ Not compiled: `ReentrancyExample` (inline proofs only). `CryptoHash` compiles vi
 ## Trust boundary
 
 Three verified layers — EDSL ↔ CompilationModel, CompilationModel ↔ IR, IR ↔ Yul. The `solc` Yul-to-bytecode step and the EVM execution model itself are trusted, not verified. See [Trust Model](/trust-model).
+
+**Layer 2 boundary today**: the generic whole-contract `CompilationModel -> IR` theorem is proved for the current explicit supported fragment. The former exact-state body-simulation axiom has been eliminated; the remaining dispatcher bridge is an explicit theorem hypothesis rather than a Lean axiom, so legacy contract-specific bridge theorems are wrappers above the generic theorem rather than independent assumptions.
 
 ## See also
 

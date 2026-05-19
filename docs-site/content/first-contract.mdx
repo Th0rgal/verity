@@ -170,7 +170,7 @@ lake exe verity-compiler             # writes artifacts/yul/TipJar.yul
 python3 scripts/check_yul.py
 ```
 
-Compilation correctness is generic: the framework's `Compiler/TypedIRCompilerCorrectness.lean` and `Compiler/Proofs/IRGeneration/Contract.lean` cover the supported fragment with no per-contract bridge proofs needed. See [Verification Status](/verification).
+Compilation correctness is generic: the framework's `Compiler/TypedIRCompilerCorrectness.lean` covers the supported fragment with no per-contract bridge proofs needed, and the compiler-level `CompilationModel -> IR` result now lives in `Compiler/Proofs/IRGeneration/Contract.lean`. See [Verification Status](/verification).
 
 ## Phase 6: Testing
 

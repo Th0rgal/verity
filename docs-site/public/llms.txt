@@ -14,6 +14,8 @@ EDSL  -->  CompilationModel  -->  IR  -->  Yul  -->  EVM bytecode
 
 Every transition inside the proof envelope is either fully verified or recorded as an explicit assumption in the per-build trust report. The Yul-to-bytecode step is delegated to `solc --strict-assembly`.
 
+**Layer 2**: Generic whole-contract theorem for the supported fragment. 0 axioms. 0 documented Lean axioms remain (AXIOMS.md).
+
 ## Quick facts
 
 <!-- BEGIN GENERATED QUICK FACTS -->
