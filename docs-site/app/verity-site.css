@@ -86,7 +86,7 @@
   --verity-rule: #1E2A26;
   --verity-rule-soft: #16241F;
   --verity-code-bg: #0B1614;
-  --verity-code-surface: #0A1311;
+  --verity-code-surface: #0F1B17;
   --verity-accent: #2DD4BF;
   --verity-accent-strong: #5EEAD4;
   --verity-accent-bright: #2DD4BF;
@@ -1704,12 +1704,13 @@ input:focus-visible,
 }
 
 /* Subtle accent wash on the Verity panel so the lift to a proof-carrying
-   surface reads visually as well as semantically. Apply to the visible pre
-   so the solid code-surface !important above doesn't obscure it. */
+   surface reads visually as well as semantically. The earlier 8% mix
+   compounded with the bright keyword tokens to make the dark panel feel
+   saturated; 4% reads as a hint without intensifying the teal-on-teal. */
 .code-switcher[data-active="verity"] .code-panel--verity .code-panel__pre,
 .code-switcher[data-active="verity"] .code-panel--verity .code-panel__pre > pre {
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--verity-accent) 8%, transparent), transparent 15rem),
+    linear-gradient(90deg, color-mix(in srgb, var(--verity-accent) 4%, transparent), transparent 15rem),
     var(--verity-code-surface) !important;
 }
 
