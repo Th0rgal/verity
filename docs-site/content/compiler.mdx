@@ -71,6 +71,7 @@ For proof-strict builds, deny flags lock down the trust surface. Each one fails 
 | `--deny-runtime-introspection` | Runtime calldata/returndata size and memory introspection |
 | `--deny-proxy-upgradeability` | `delegatecall` and proxy upgrade patterns |
 | `--deny-layout-incompatibility` | Candidate storage layout breaks baseline (paired with `--layout-compat-report`) |
+| `--deny-unsafe` | Catch-all: any of the above categories trips the build |
 
 See [Glossary](/glossary) for one-line definitions of each report.
 

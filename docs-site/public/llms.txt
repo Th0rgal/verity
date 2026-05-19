@@ -49,7 +49,7 @@ The dominant pattern is `_meets_spec`: each EDSL operation has a `_spec` predica
 
 - **Verified**: EDSL semantics, CompilationModel→IR, IR→Yul (three layers, zero `sorry`, zero active project-level Lean axioms per AXIOMS.md).
 - **Trusted**: Lean 4 kernel, solc, EVM spec alignment, deployment toolchain, and the ECM/local-obligation **assumptions** surfaced by `--trust-report` (e.g., `erc20_balanceOf_interface`, `evm_ecrecover_precompile`, `keccak256_memory_slice_matches_evm`).
-- Each build emits machine-readable `--trust-report`, `--assumption-report`, `--layout-report`, `--layout-compat-report`. Deny flags fail-closed on a specific assumption category: `--deny-unchecked-dependencies`, `--deny-assumed-dependencies`, `--deny-axiomatized-primitives`, `--deny-local-obligations`, `--deny-linear-memory-mechanics`, `--deny-event-emission`, `--deny-low-level-mechanics`, `--deny-runtime-introspection`, `--deny-proxy-upgradeability`, `--deny-layout-incompatibility`.
+- Each build emits machine-readable `--trust-report`, `--assumption-report`, `--layout-report`, `--layout-compat-report`. Deny flags fail-closed on a specific assumption category: `--deny-unchecked-dependencies`, `--deny-assumed-dependencies`, `--deny-axiomatized-primitives`, `--deny-local-obligations`, `--deny-linear-memory-mechanics`, `--deny-event-emission`, `--deny-low-level-mechanics`, `--deny-runtime-introspection`, `--deny-proxy-upgradeability`, `--deny-layout-incompatibility`. `--deny-unsafe` is the catch-all that trips on any of those.
 
 ## Agent benchmark
 
