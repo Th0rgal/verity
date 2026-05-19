@@ -23,7 +23,6 @@ export default {
   '-- explanation': { type: 'separator', title: 'Explanation' },
   'compiler-architecture': 'Compiler Architecture',
   'proof-techniques': 'Proof Techniques',
-  research: 'Research Log',
   faq: 'FAQ',
 
   '-- project': { type: 'separator', title: 'Project' },

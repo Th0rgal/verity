@@ -69,7 +69,7 @@ async function listDocs(dir: string = CONTENT_DIR, prefix: string = ""): Promise
  *
  * Examples:
  * - /api/docs/index.md → Raw markdown for homepage
- * - /api/docs/research → Raw markdown (extension optional)
+ * - /api/docs/compiler → Raw markdown (extension optional)
  */
 export async function GET(
   request: NextRequest,

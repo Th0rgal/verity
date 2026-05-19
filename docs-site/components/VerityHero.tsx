@@ -8,7 +8,7 @@ const paperLink = {
 const secondaryLinks = [
   { href: '/compiler', label: 'Compiler model' },
   { href: '/verification', label: 'Verification status' },
-  { href: '/research', label: 'Research notes' },
+  { href: '/faq', label: 'FAQ' },
 ]
 
 const facts = [

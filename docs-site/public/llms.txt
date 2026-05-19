@@ -46,11 +46,17 @@ inductive ContractResult (a : Type) where
 ## Documentation URLs
 
 - Main: https://veritylang.com/
-- Verification: https://veritylang.com/verification
-- Research: https://veritylang.com/research
+- Architecture overview: https://veritylang.com/architecture
+- Trust model: https://veritylang.com/trust-model
+- Verification status: https://veritylang.com/verification
+- Proof techniques: https://veritylang.com/proof-techniques
 - Examples: https://veritylang.com/examples
 - Core: https://veritylang.com/core
-- Compiler: https://veritylang.com/compiler
+- EDSL API reference: https://veritylang.com/edsl-api-reference
+- Compiler & CLI: https://veritylang.com/compiler
+- Compiler architecture: https://veritylang.com/compiler-architecture
+- Glossary: https://veritylang.com/glossary
+- FAQ: https://veritylang.com/faq
 - First contract guide: https://veritylang.com/first-contract
 - Solidity to Verity translation: https://veritylang.com/guides/solidity-to-verity
 - Production Solidity patterns: https://veritylang.com/guides/production-solidity-patterns

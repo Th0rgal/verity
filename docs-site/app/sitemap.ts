@@ -24,8 +24,6 @@ const ROUTES = [
   // Explanation
   '/compiler-architecture',
   '/proof-techniques',
-  '/research',
-  '/research/iterations',
   '/faq',
   // Project
   '/syntax-highlighting',
