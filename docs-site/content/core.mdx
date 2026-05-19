@@ -55,7 +55,7 @@ Six persistent storage spaces plus transient storage. `storage` for Uint256 valu
 
 ## ContractResult
 
-```lean
+```verity
 inductive ContractResult (α : Type) where
   | success : α → ContractState → ContractResult α
   | revert : String → ContractState → ContractResult α
@@ -67,7 +67,7 @@ Every contract operation returns either `success` with a value and updated state
 
 ## Contract monad
 
-```lean
+```verity
 abbrev Contract (α : Type) := ContractState → ContractResult α
 ```
 
