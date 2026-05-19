@@ -135,6 +135,7 @@ body {
   -webkit-tap-highlight-color: color-mix(in srgb, var(--verity-accent) 18%, transparent);
 }
 
+
 [class*="x:text-blue"],
 [class*="x:text-primary"] {
   color: var(--verity-accent) !important;
@@ -955,7 +956,11 @@ article main hr::before {
 }
 
 .dark article main hr::before {
-  color: var(--verity-rule);
+  /* The rule color (#1E2A26) is too dark for three small dots on a
+     deep-slate page; use the muted body color so the asterism is
+     legible as a section break without competing with the prose. */
+  color: var(--verity-muted);
+  opacity: 0.6;
 }
 
 /* Unordered-list bullet styling — replace the default round bullet
