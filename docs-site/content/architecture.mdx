@@ -50,9 +50,10 @@ the EVM spec, and the deployment pipeline are explicit trust assumptions.
 
 The EDSL is intentionally small. `Verity/Core.lean` provides `ContractState`,
 `ContractResult` (the success/revert algebra), the `Contract` monad with
-short-circuiting `bind`, five storage spaces (uint256, address, address-keyed
-mapping, uint256-keyed mapping, double mapping), `require`, and a curated set
-of `@[simp]` lemmas for proof automation. The `verity_contract` macro lowers
+short-circuiting `bind`, six persistent storage spaces (uint256, address,
+address-keyed mapping, uint256-keyed mapping, double mapping, dynamic arrays)
+plus EIP-1153 transient storage, `require`, and a curated set of `@[simp]`
+lemmas for proof automation. The `verity_contract` macro lowers
 human-friendly syntax to both an executable Lean definition and a
 `CompilationModel`, keeping the two in sync. See [`/edsl-api-reference`](/edsl-api-reference)
 for the full surface and [`/first-contract`](/first-contract) for a guided walkthrough.

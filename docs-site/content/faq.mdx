@@ -29,7 +29,7 @@ re-justifying that all of those are correct. Embedding the language inside
 Lean 4 inherits all of that for free: the same toolchain that elaborates
 contracts also checks the proofs about them.
 
-The core is intentionally small (`Verity/Core.lean`): five storage spaces, a
+The core is intentionally small (`Verity/Core.lean`): six storage spaces plus transient, a
 `Contract` monad, a `require` guard, and a curated set of `@[simp]` lemmas.
 Every primitive is shallow enough that the standard unfolding-then-`simp`
 recipe works for most properties. New surface syntax — `verity_contract`,
