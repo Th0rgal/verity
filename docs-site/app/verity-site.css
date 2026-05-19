@@ -758,7 +758,8 @@ article main a {
    you can still tell them apart on long reference pages. */
 article a:visited,
 article main a:visited {
-  color: color-mix(in srgb, var(--verity-accent) 75%, var(--verity-muted)) !important;
+  color: color-mix(in srgb, var(--verity-accent) 78%, var(--verity-muted)) !important;
+  text-decoration-color: color-mix(in srgb, var(--verity-accent) 30%, transparent) !important;
 }
 
 article a:hover,
