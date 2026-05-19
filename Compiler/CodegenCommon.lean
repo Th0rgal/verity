@@ -48,6 +48,12 @@ private def yulReturnRuntime : YulStmt :=
     YulExpr.call "datasize" [YulExpr.str "runtime"]
   ])
 
+def initFreeMemoryPointer : YulStmt :=
+  YulStmt.expr (YulExpr.call "mstore" [
+    YulExpr.lit Compiler.Constants.freeMemoryPointer,
+    YulExpr.lit 128
+  ])
+
 def mappingSlotFuncAt (scratchBase : Nat) : YulStmt :=
   let keyPtr := scratchBase
   let slotPtr := scratchBase + 32
@@ -134,7 +140,7 @@ def buildSwitch
 def runtimeCode (contract : IRContract) : List YulStmt :=
   let mapping := if contract.usesMapping then [mappingSlotFuncAt 0] else []
   let internals := contract.internalFunctions
-  mapping ++ internals ++ [buildSwitch contract.functions contract.fallbackEntrypoint contract.receiveEntrypoint]
+  mapping ++ internals ++ [initFreeMemoryPointer, buildSwitch contract.functions contract.fallbackEntrypoint contract.receiveEntrypoint]
 
 private def profileSortsOutput (profile : BackendProfile) : Bool :=
   match profile with
@@ -174,14 +180,14 @@ private def runtimeCodeWithEmitOptions (contract : IRContract) (options : YulEmi
   let internals := internalHelpersForProfile options.backendProfile contract.internalFunctions
   let sortCases := profileSortsDispatchCases options.backendProfile
   let switchStmt := buildSwitch contract.functions contract.fallbackEntrypoint contract.receiveEntrypoint sortCases
-  mapping ++ internals ++ [switchStmt]
+  mapping ++ internals ++ [initFreeMemoryPointer, switchStmt]
 
 private def deployCodeWithProfile (contract : IRContract) (profile : BackendProfile)
     (mappingSlotScratchBase : Nat := 0) : List YulStmt :=
   let valueGuard := if contract.constructorPayable then [] else [callvalueGuard]
   let mapping := if contract.usesMapping then [mappingSlotFuncAt mappingSlotScratchBase] else []
   let internals := internalHelpersForProfile profile contract.internalFunctions
-  valueGuard ++ mapping ++ internals ++ contract.deploy ++ [yulDatacopy, yulReturnRuntime]
+  [initFreeMemoryPointer] ++ valueGuard ++ mapping ++ internals ++ contract.deploy ++ [yulDatacopy, yulReturnRuntime]
 
 private def deployCode (contract : IRContract) : List YulStmt :=
   deployCodeWithProfile contract .semantic
