@@ -2286,6 +2286,12 @@ input:focus-visible,
     -webkit-hyphens: manual !important;
   }
 
+  /* Asterism hr — tighter vertical margin on phones so the section
+     break doesn't push two long sections too far apart. */
+  article main hr {
+    margin: 2rem auto !important;
+  }
+
   /* The serif body uses hyphenation; on narrow screens this can
      hyphenate every other line. Loosen so words break only on the rare
      overflow case. */
