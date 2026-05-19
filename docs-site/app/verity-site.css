@@ -1,5 +1,21 @@
 @import url("https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400..900&display=swap");
 
+/* Verity docs-site design system
+ *
+ *   Vibe — typography-first, minimalist, modeled on a LaTeX research
+ *   preprint with a cold-teal "sarcelle" accent (sibling to lfglabs.dev's
+ *   #2DD4BF). Headings are serif (Source Serif 4), UI chrome is humanist
+ *   sans (Source Sans 3), code is grotesk mono (Source Code Pro).
+ *
+ *   To re-skin: edit the --verity-* tokens in :root and .dark below.
+ *   Everything downstream (links, code, sidebar, hero, tables, search)
+ *   pulls from those tokens via color-mix() rules.
+ *
+ *   Mobile breakpoints land at 767px (phone) and 1024px (tablet). The
+ *   end of this file holds the responsive overrides — keep mobile-only
+ *   rules there rather than scattering @media blocks throughout.
+ */
+
 :root {
   color-scheme: light;
   /* Cool LaTeX-paper palette. The page reads as a preprint set on
