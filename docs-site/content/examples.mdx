@@ -111,24 +111,26 @@ Proofs cover cross-pattern composition, ownership transfer locking out old owner
 Mapping storage for per-address balances with deposit, withdraw, and transfer.
 
 ```verity
-def balances : StorageSlot (Address → Uint256) := ⟨0⟩
+verity_contract Ledger where
+  storage
+    balances : Address → Uint256 := slot 0
 
-def deposit (amount : Uint256) : Contract Unit := do
-  let sender ← msgSender
-  let currentBalance ← getMapping balances sender
-  setMapping balances sender (add currentBalance amount)  -- modular arithmetic (EVM)
+  function deposit (amount : Uint256) : Unit := do
+    let sender         ← msgSender
+    let currentBalance ← getMapping balances sender
+    setMapping balances sender (add currentBalance amount)   -- EVM modular arithmetic
 
-def transfer (to : Address) (amount : Uint256) : Contract Unit := do
-  let sender ← msgSender
-  let senderBalance ← getMapping balances sender
-  require (senderBalance >= amount) "Insufficient balance"
-  if sender == to then
-    pure ()
-  else
-    let recipientBalance ← getMapping balances to
-    let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance amount) "Recipient balance overflow"
-    setMapping balances sender (sub senderBalance amount)
-    setMapping balances to newRecipientBalance
+  function transfer (to : Address) (amount : Uint256) : Unit := do
+    let sender        ← msgSender
+    let senderBalance ← getMapping balances sender
+    require (senderBalance >= amount) "Insufficient balance"
+    if sender == to then
+      pure ()
+    else
+      let recipientBalance    ← getMapping balances to
+      let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance amount) "Recipient balance overflow"
+      setMapping balances sender (sub senderBalance amount)
+      setMapping balances to newRecipientBalance
 ```
 
 Proofs cover balance guards, deposit/withdraw/transfer sum equations, and deposit-withdraw cancellation.
@@ -138,30 +140,36 @@ Proofs cover balance guards, deposit/withdraw/transfer sum equations, and deposi
 Composes Owned and Ledger. Adds owner-controlled minting and supply tracking.
 
 ```verity
-def owner : StorageSlot Address := ⟨0⟩
-def balances : StorageSlot (Address → Uint256) := ⟨1⟩
-def totalSupply : StorageSlot Uint256 := ⟨2⟩
+verity_contract SimpleToken where
+  storage
+    owner       : Address := slot 0
+    balances    : Address → Uint256 := slot 1
+    totalSupply : Uint256 := slot 2
 
-def mint (to : Address) (amount : Uint256) : Contract Unit := do
-  onlyOwner
-  let currentBalance ← getMapping balances to
-  let newBalance ← requireSomeUint (safeAdd currentBalance amount) "Balance overflow"
-  let currentSupply ← getStorage totalSupply
-  let newSupply ← requireSomeUint (safeAdd currentSupply amount) "Supply overflow"
-  setMapping balances to newBalance
-  setStorage totalSupply newSupply
+  constructor (initialOwner : Address) := do
+    setStorageAddr owner initialOwner
+    setStorage totalSupply 0
 
-def transfer (to : Address) (amount : Uint256) : Contract Unit := do
-  let sender ← msgSender
-  let senderBalance ← getMapping balances sender
-  require (senderBalance >= amount) "Insufficient balance"
-  if sender == to then
-    pure ()
-  else
-    let recipientBalance ← getMapping balances to
-    let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance amount) "Recipient balance overflow"
-    setMapping balances sender (sub senderBalance amount)
-    setMapping balances to newRecipientBalance
+  function mint (to : Address) (amount : Uint256) : Unit := do
+    onlyOwner
+    let currentBalance ← getMapping balances to
+    let newBalance     ← requireSomeUint (safeAdd currentBalance amount) "Balance overflow"
+    let currentSupply  ← getStorage totalSupply
+    let newSupply      ← requireSomeUint (safeAdd currentSupply amount) "Supply overflow"
+    setMapping balances to newBalance
+    setStorage totalSupply newSupply
+
+  function transfer (to : Address) (amount : Uint256) : Unit := do
+    let sender        ← msgSender
+    let senderBalance ← getMapping balances sender
+    require (senderBalance >= amount) "Insufficient balance"
+    if sender == to then
+      pure ()
+    else
+      let recipientBalance    ← getMapping balances to
+      let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance amount) "Recipient balance overflow"
+      setMapping balances sender (sub senderBalance amount)
+      setMapping balances to newRecipientBalance
 ```
 
 Proofs cover mint/transfer correctness, supply conservation equations, and storage isolation across all three slot types.
