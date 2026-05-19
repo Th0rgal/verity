@@ -5164,6 +5164,10 @@ set_option maxRecDepth 4096 in
   expectTrue "erc20 safeTransfer ECM forwards revert returndata"
     (contains erc20SafeTransferYul "returndatacopy(0, 0, __st_rds)" &&
       contains erc20SafeTransferYul "revert(0, __st_rds)")
+  expectTrue "erc20 safeTransfer ECM uses OZ SafeERC20FailedOperation for bad optional bool returns"
+    (contains erc20SafeTransferYul "mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)" &&
+      contains erc20SafeTransferYul "extcodesize(token)" &&
+      contains erc20SafeTransferYul "revert(0, 36)")
   let erc20SafeTransferFromYul ←
     expectCompileToYul "erc20 safeTransferFrom smoke spec" erc20SafeTransferFromSmokeSpec
   expectTrue "erc20 safeTransferFrom ECM allocates calldata from the free-memory pointer"
@@ -5175,6 +5179,10 @@ set_option maxRecDepth 4096 in
   expectTrue "erc20 safeTransferFrom ECM forwards revert returndata"
     (contains erc20SafeTransferFromYul "returndatacopy(0, 0, __stf_rds)" &&
       contains erc20SafeTransferFromYul "revert(0, __stf_rds)")
+  expectTrue "erc20 safeTransferFrom ECM uses OZ SafeERC20FailedOperation for bad optional bool returns"
+    (contains erc20SafeTransferFromYul "mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)" &&
+      contains erc20SafeTransferFromYul "extcodesize(token)" &&
+      contains erc20SafeTransferFromYul "revert(0, 36)")
   let callWithValueYul ←
     expectCompileToYul "generic callWithValue smoke spec" callWithValueSmokeSpec
   expectTrue "callWithValue ECM lowers to an ETH-aware generic call"
