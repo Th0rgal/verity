@@ -692,34 +692,15 @@ theorem evalIRExpr_sar_of_eval
 
 theorem evalIRExpr_byte_of_eval
     {state : IRState}
-    {lhs rhs : YulExpr}
-    {a b : Nat}
-    (hlhs : evalIRExpr state lhs = some a)
-    (hrhs : evalIRExpr state rhs = some b) :
-    evalIRExpr state (YulExpr.call "byte" [lhs, rhs]) =
+    {index value : YulExpr}
+    {indexVal valueVal : Nat}
+    (hindex : evalIRExpr state index = some indexVal)
+    (hvalue : evalIRExpr state value = some valueVal) :
+    evalIRExpr state (YulExpr.call "byte" [index, value]) =
       some (Verity.Core.Uint256.byte
-        (Verity.Core.Uint256.ofNat (a % Compiler.Constants.evmModulus))
-        (Verity.Core.Uint256.ofNat (b % Compiler.Constants.evmModulus))).val := by
-  simp [evalIRExpr, evalIRCall, evalIRExprs, hlhs, hrhs,
-    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext,
-    Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean,
-    Verity.Core.Uint256.byte]
-  rw [← Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_byte_bridge
-    (fun _ => 0) 0 0 [] a b]
-  simp [Compiler.Proofs.YulGeneration.legacyEvalBuiltinCall,
-    Compiler.Proofs.YulGeneration.legacyEvalBuiltinCallWithContext]
-  by_cases hgt : 31 < a % Compiler.Constants.evmModulus
-  · simp [hgt]
-  · simp [hgt, Nat.shiftRight_eq_div_pow]
-    rw [show (255 : Nat) = 2 ^ 8 - 1 by omega]
-    rw [Nat.and_two_pow_sub_one_eq_mod]
-    have hlt :
-        (b % Compiler.Constants.evmModulus /
-            2 ^ ((31 - a % Compiler.Constants.evmModulus) * 8)) %
-          256 < Compiler.Constants.evmModulus :=
-      Nat.lt_trans (Nat.mod_lt _ (by decide : 0 < 256))
-        (by norm_num [Compiler.Constants.evmModulus])
-    rw [Nat.mod_eq_of_lt hlt]
+        (Verity.Core.Uint256.ofNat (indexVal % Compiler.Constants.evmModulus))
+        (Verity.Core.Uint256.ofNat (valueVal % Compiler.Constants.evmModulus))).val := by
+  simp [evalIRExpr, evalIRCall, evalIRExprs, hindex, hvalue]
 
 theorem evalIRExpr_signextend_of_eval
     {state : IRState}
@@ -1564,13 +1545,13 @@ theorem compileExpr_sar_ok
 
 theorem compileExpr_byte_ok
     {fields : List Field}
-    {lhs rhs : Expr}
-    {lhsIR rhsIR : YulExpr}
-    (hlhs : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
-    (hrhs : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR) :
-    CompilationModel.compileExpr fields .calldata (.byte lhs rhs) =
-      Except.ok (YulExpr.call "byte" [lhsIR, rhsIR]) := by
-  rw [CompilationModel.compileExpr, hlhs, hrhs]
+    {index value : Expr}
+    {indexIR valueIR : YulExpr}
+    (hindex : CompilationModel.compileExpr fields .calldata index = Except.ok indexIR)
+    (hvalue : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR) :
+    CompilationModel.compileExpr fields .calldata (.byte index value) =
+      Except.ok (YulExpr.call "byte" [indexIR, valueIR]) := by
+  rw [CompilationModel.compileExpr, hindex, hvalue]
   rfl
 
 theorem compileExpr_signextend_ok
@@ -2248,27 +2229,27 @@ private theorem evalExpr_sar_of_values
 private theorem evalExpr_byte_of_values
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
-    {lhs rhs : Expr}
-    {lhsVal rhsVal : Nat}
-    (hlhs : SourceSemantics.evalExpr fields runtime lhs = some lhsVal)
-    (hrhs : SourceSemantics.evalExpr fields runtime rhs = some rhsVal) :
-    SourceSemantics.evalExpr fields runtime (.byte lhs rhs) =
+    {index value : Expr}
+    {indexVal valueVal : Nat}
+    (hindex : SourceSemantics.evalExpr fields runtime index = some indexVal)
+    (hvalue : SourceSemantics.evalExpr fields runtime value = some valueVal) :
+    SourceSemantics.evalExpr fields runtime (.byte index value) =
       some (Verity.Core.Uint256.byte
-        (Verity.Core.Uint256.ofNat lhsVal)
-        (Verity.Core.Uint256.ofNat rhsVal)).val := by
+        (Verity.Core.Uint256.ofNat indexVal)
+        (Verity.Core.Uint256.ofNat valueVal)).val := by
   calc
-    SourceSemantics.evalExpr fields runtime (.byte lhs rhs)
+    SourceSemantics.evalExpr fields runtime (.byte index value)
         = (do
-            let lhs ← SourceSemantics.evalExpr fields runtime lhs
-            let rhs ← SourceSemantics.evalExpr fields runtime rhs
+            let index ← SourceSemantics.evalExpr fields runtime index
+            let value ← SourceSemantics.evalExpr fields runtime value
             pure (Verity.Core.Uint256.byte
-              (Verity.Core.Uint256.ofNat lhs)
-              (Verity.Core.Uint256.ofNat rhs)).val) := by
+              (Verity.Core.Uint256.ofNat index)
+              (Verity.Core.Uint256.ofNat value)).val) := by
               rfl
     _ = some (Verity.Core.Uint256.byte
-          (Verity.Core.Uint256.ofNat lhsVal)
-          (Verity.Core.Uint256.ofNat rhsVal)).val := by
-          simp [hlhs, hrhs]
+          (Verity.Core.Uint256.ofNat indexVal)
+          (Verity.Core.Uint256.ofNat valueVal)).val := by
+          simp [hindex, hvalue]
 
 private theorem evalExpr_signextend_of_values
     {fields : List Field}
@@ -2701,38 +2682,38 @@ theorem eval_compileExpr_byte_of_compiled
     {fields : List Field}
     {runtime : SourceSemantics.RuntimeState}
     {state : IRState}
-    {lhs rhs : Expr}
-    {lhsIR rhsIR : YulExpr}
-    (hlhsCompile : CompilationModel.compileExpr fields .calldata lhs = Except.ok lhsIR)
-    (hrhsCompile : CompilationModel.compileExpr fields .calldata rhs = Except.ok rhsIR)
-    (hlhsEval : evalIRExpr state lhsIR = some (SourceSemantics.evalExpr fields runtime lhs))
-    (hrhsEval : evalIRExpr state rhsIR = some (SourceSemantics.evalExpr fields runtime rhs))
-    (hlhsLt : SourceSemantics.evalExpr fields runtime lhs < Compiler.Constants.evmModulus)
-    (hrhsLt : SourceSemantics.evalExpr fields runtime rhs < Compiler.Constants.evmModulus) :
+    {index value : Expr}
+    {indexIR valueIR : YulExpr}
+    (hindexCompile : CompilationModel.compileExpr fields .calldata index = Except.ok indexIR)
+    (hvalueCompile : CompilationModel.compileExpr fields .calldata value = Except.ok valueIR)
+    (hindexEval : evalIRExpr state indexIR = some (SourceSemantics.evalExpr fields runtime index))
+    (hvalueEval : evalIRExpr state valueIR = some (SourceSemantics.evalExpr fields runtime value))
+    (hindexLt : SourceSemantics.evalExpr fields runtime index < Compiler.Constants.evmModulus)
+    (hvalueLt : SourceSemantics.evalExpr fields runtime value < Compiler.Constants.evmModulus) :
     evalIRExpr state
-      (CompilationModel.compileExpr fields .calldata (.byte lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
-        some (SourceSemantics.evalExpr fields runtime (.byte lhs rhs)) := by
-  have hcompile := compileExpr_byte_ok hlhsCompile hrhsCompile
-  rcases hlhsSrc : SourceSemantics.evalExpr fields runtime lhs with _ | lhsVal
-  · cases hEval : evalIRExpr state lhsIR <;> simp [hEval, hlhsSrc] at hlhsEval
-  · rcases hrhsSrc : SourceSemantics.evalExpr fields runtime rhs with _ | rhsVal
-    · cases hEval : evalIRExpr state rhsIR <;> simp [hEval, hrhsSrc] at hrhsEval
-    · have hlhsEval' := evalIRExpr_of_sourceEval_some hlhsEval hlhsSrc
-      have hrhsEval' := evalIRExpr_of_sourceEval_some hrhsEval hrhsSrc
-      have hlhsLt' : lhsVal < Compiler.Constants.evmModulus := by
-        simpa [hlhsSrc] using hlhsLt
-      have hrhsLt' : rhsVal < Compiler.Constants.evmModulus := by
-        simpa [hrhsSrc] using hrhsLt
+      (CompilationModel.compileExpr fields .calldata (.byte index value) |>.toOption.getD (YulExpr.lit 0)) =
+        some (SourceSemantics.evalExpr fields runtime (.byte index value)) := by
+  have hcompile := compileExpr_byte_ok hindexCompile hvalueCompile
+  rcases hindexSrc : SourceSemantics.evalExpr fields runtime index with _ | indexVal
+  · cases hEval : evalIRExpr state indexIR <;> simp [hEval, hindexSrc] at hindexEval
+  · rcases hvalueSrc : SourceSemantics.evalExpr fields runtime value with _ | valueVal
+    · cases hEval : evalIRExpr state valueIR <;> simp [hEval, hvalueSrc] at hvalueEval
+    · have hindexEval' := evalIRExpr_of_sourceEval_some hindexEval hindexSrc
+      have hvalueEval' := evalIRExpr_of_sourceEval_some hvalueEval hvalueSrc
+      have hindexLt' : indexVal < Compiler.Constants.evmModulus := by
+        simpa [hindexSrc] using hindexLt
+      have hvalueLt' : valueVal < Compiler.Constants.evmModulus := by
+        simpa [hvalueSrc] using hvalueLt
       have heval :
           evalIRExpr state
-            (CompilationModel.compileExpr fields .calldata (.byte lhs rhs) |>.toOption.getD (YulExpr.lit 0)) =
+            (CompilationModel.compileExpr fields .calldata (.byte index value) |>.toOption.getD (YulExpr.lit 0)) =
               some (Verity.Core.Uint256.byte
-                (Verity.Core.Uint256.ofNat (lhsVal % Compiler.Constants.evmModulus))
-                (Verity.Core.Uint256.ofNat (rhsVal % Compiler.Constants.evmModulus))).val := by
-        simpa [hcompile] using evalIRExpr_byte_of_eval hlhsEval' hrhsEval'
-      have hsrc := evalExpr_byte_of_values hlhsSrc hrhsSrc
+                (Verity.Core.Uint256.ofNat (indexVal % Compiler.Constants.evmModulus))
+                (Verity.Core.Uint256.ofNat (valueVal % Compiler.Constants.evmModulus))).val := by
+        simpa [hcompile] using evalIRExpr_byte_of_eval hindexEval' hvalueEval'
+      have hsrc := evalExpr_byte_of_values hindexSrc hvalueSrc
       rw [heval, hsrc]
-      simp [Nat.mod_eq_of_lt hlhsLt', Nat.mod_eq_of_lt hrhsLt']
+      simp [Nat.mod_eq_of_lt hindexLt', Nat.mod_eq_of_lt hvalueLt']
 
 theorem eval_compileExpr_signextend_of_compiled
     {fields : List Field}
@@ -4585,10 +4566,10 @@ theorem compileExpr_core_ok
       rcases ihR with ⟨rhsIR, hrhs⟩
       exact ⟨YulExpr.call "sar" [lhsIR, rhsIR], compileExpr_sar_ok hlhs hrhs⟩
   | byte hL hR ihL ihR =>
-      rename_i lhs rhs
-      rcases ihL with ⟨lhsIR, hlhs⟩
-      rcases ihR with ⟨rhsIR, hrhs⟩
-      exact ⟨YulExpr.call "byte" [lhsIR, rhsIR], compileExpr_byte_ok hlhs hrhs⟩
+      rename_i index value
+      rcases ihL with ⟨indexIR, hindex⟩
+      rcases ihR with ⟨valueIR, hvalue⟩
+      exact ⟨YulExpr.call "byte" [indexIR, valueIR], compileExpr_byte_ok hindex hvalue⟩
   | signextend hL hR ihL ihR =>
       rename_i lhs rhs
       rcases ihL with ⟨lhsIR, hlhs⟩
@@ -5137,35 +5118,35 @@ theorem eval_compileExpr_core_onExpr
         (evalExpr_lt_evmModulus_core_onExpr hL hexactL hbounded hpresentL hruntime)
         (evalExpr_lt_evmModulus_core_onExpr hR hexactR hbounded hpresentR hruntime)
   | byte hL hR ihL ihR =>
-      rename_i lhs rhs
-      rcases compileExpr_core_ok hL with ⟨lhsIR, hlhs⟩
-      rcases compileExpr_core_ok hR with ⟨rhsIR, hrhs⟩
-      have hexactL : bindingsExactlyMatchIRVarsOnExpr lhs runtime.bindings state :=
+      rename_i index value
+      rcases compileExpr_core_ok hL with ⟨indexIR, hindex⟩
+      rcases compileExpr_core_ok hR with ⟨valueIR, hvalue⟩
+      have hexactIndex : bindingsExactlyMatchIRVarsOnExpr index runtime.bindings state :=
         bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
           intro name hmem
           simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))
-      have hexactR : bindingsExactlyMatchIRVarsOnExpr rhs runtime.bindings state :=
+      have hexactValue : bindingsExactlyMatchIRVarsOnExpr value runtime.bindings state :=
         bindingsExactlyMatchIRVarsOnExpr_of_subset hexact (by
           intro name hmem
           simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))
-      have hpresentL := exprBoundNamesPresent_of_subset hpresent (by
+      have hpresentIndex := exprBoundNamesPresent_of_subset hpresent (by
         intro name hmem
         simpa [exprBoundNames] using List.mem_append.mpr (Or.inl hmem))
-      have hpresentR := exprBoundNamesPresent_of_subset hpresent (by
+      have hpresentValue := exprBoundNamesPresent_of_subset hpresent (by
         intro name hmem
         simpa [exprBoundNames] using List.mem_append.mpr (Or.inr hmem))
-      have hEvalL : evalIRExpr state lhsIR = some (SourceSemantics.evalExpr fields runtime lhs) := by
-        have htmp := ihL hexactL hbounded hpresentL hruntime
-        rw [hlhs] at htmp
+      have hEvalIndex : evalIRExpr state indexIR = some (SourceSemantics.evalExpr fields runtime index) := by
+        have htmp := ihL hexactIndex hbounded hpresentIndex hruntime
+        rw [hindex] at htmp
         simpa using htmp
-      have hEvalR : evalIRExpr state rhsIR = some (SourceSemantics.evalExpr fields runtime rhs) := by
-        have htmp := ihR hexactR hbounded hpresentR hruntime
-        rw [hrhs] at htmp
+      have hEvalValue : evalIRExpr state valueIR = some (SourceSemantics.evalExpr fields runtime value) := by
+        have htmp := ihR hexactValue hbounded hpresentValue hruntime
+        rw [hvalue] at htmp
         simpa using htmp
-      exact eval_compileExpr_byte_of_compiled hlhs hrhs
-        hEvalL hEvalR
-        (evalExpr_lt_evmModulus_core_onExpr hL hexactL hbounded hpresentL hruntime)
-        (evalExpr_lt_evmModulus_core_onExpr hR hexactR hbounded hpresentR hruntime)
+      exact eval_compileExpr_byte_of_compiled hindex hvalue
+        hEvalIndex hEvalValue
+        (evalExpr_lt_evmModulus_core_onExpr hL hexactIndex hbounded hpresentIndex hruntime)
+        (evalExpr_lt_evmModulus_core_onExpr hR hexactValue hbounded hpresentValue hruntime)
   | signextend hL hR ihL ihR =>
       rename_i lhs rhs
       rcases compileExpr_core_ok hL with ⟨lhsIR, hlhs⟩
@@ -5992,19 +5973,19 @@ theorem evalExpr_lt_evmModulus_core_onExpr
         · exact (Verity.Core.Int256.sar
             (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat lVal))
             (Verity.Core.Int256.ofUint256 (Verity.Core.Uint256.ofNat rVal))).toUint256.isLt
-  | @byte lhs rhs _ _ _ _ =>
-      show (do let lv ← SourceSemantics.evalExpr fields runtime lhs
-               let rv ← SourceSemantics.evalExpr fields runtime rhs
+  | @byte index value _ _ _ _ =>
+      show (do let indexVal ← SourceSemantics.evalExpr fields runtime index
+               let valueVal ← SourceSemantics.evalExpr fields runtime value
                pure (Verity.Core.Uint256.byte
-                 (Verity.Core.Uint256.ofNat lv)
-                 (Verity.Core.Uint256.ofNat rv)).val) < _
-      rcases SourceSemantics.evalExpr fields runtime lhs with _ | lVal
+                 (Verity.Core.Uint256.ofNat indexVal)
+                 (Verity.Core.Uint256.ofNat valueVal)).val) < _
+      rcases SourceSemantics.evalExpr fields runtime index with _ | indexVal
       · trivial
-      · rcases SourceSemantics.evalExpr fields runtime rhs with _ | rVal
+      · rcases SourceSemantics.evalExpr fields runtime value with _ | valueVal
         · trivial
         · exact (Verity.Core.Uint256.byte
-            (Verity.Core.Uint256.ofNat lVal)
-            (Verity.Core.Uint256.ofNat rVal)).isLt
+            (Verity.Core.Uint256.ofNat indexVal)
+            (Verity.Core.Uint256.ofNat valueVal)).isLt
   | @signextend lhs rhs _ _ _ _ =>
       show (do let lv ← SourceSemantics.evalExpr fields runtime lhs
                let rv ← SourceSemantics.evalExpr fields runtime rhs
@@ -6468,11 +6449,11 @@ theorem compileRequireFailCond_core_ok
             intro a b hEq
             cases hEq⟩
   | byte hL hR =>
-      rename_i lhs rhs
-      rcases compileExpr_core_ok (fields := fields) hL with ⟨lhsIR, hlhs⟩
-      rcases compileExpr_core_ok (fields := fields) hR with ⟨rhsIR, hrhs⟩
-      exact ⟨YulExpr.call "iszero" [YulExpr.call "byte" [lhsIR, rhsIR]], by
-        rw [CompilationModel.compileRequireFailCond, compileExpr_byte_ok hlhs hrhs]
+      rename_i index value
+      rcases compileExpr_core_ok (fields := fields) hL with ⟨indexIR, hindex⟩
+      rcases compileExpr_core_ok (fields := fields) hR with ⟨valueIR, hvalue⟩
+      exact ⟨YulExpr.call "iszero" [YulExpr.call "byte" [indexIR, valueIR]], by
+        rw [CompilationModel.compileRequireFailCond, compileExpr_byte_ok hindex hvalue]
         all_goals
           try rfl
           try
@@ -6946,13 +6927,13 @@ theorem eval_compileRequireFailCond_core_onExpr
       · simpa using finishIszeroEval (expr := .sar lhs rhs)
           (show ExprCompileCore (.sar lhs rhs) from ExprCompileCore.sar hL hR) hexact hpresent hexpr
   | byte hL hR =>
-      rename_i lhs rhs
+      rename_i index value
       rcases compileExpr_core_ok (fields := fields)
-          (show ExprCompileCore (.byte lhs rhs) from ExprCompileCore.byte hL hR) with ⟨exprIR, hexpr⟩
+          (show ExprCompileCore (.byte index value) from ExprCompileCore.byte hL hR) with ⟨exprIR, hexpr⟩
       refine ⟨YulExpr.call "iszero" [exprIR], ?_, ?_⟩
       · simp [CompilationModel.compileRequireFailCond, hexpr]
-      · simpa using finishIszeroEval (expr := .byte lhs rhs)
-          (show ExprCompileCore (.byte lhs rhs) from ExprCompileCore.byte hL hR) hexact hpresent hexpr
+      · simpa using finishIszeroEval (expr := .byte index value)
+          (show ExprCompileCore (.byte index value) from ExprCompileCore.byte hL hR) hexact hpresent hexpr
   | signextend hL hR =>
       rename_i lhs rhs
       rcases compileExpr_core_ok (fields := fields)

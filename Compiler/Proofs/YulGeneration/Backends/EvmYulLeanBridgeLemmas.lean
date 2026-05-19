@@ -769,6 +769,50 @@ EVMYulLean UInt256 semantics on all inputs. -/
   rw [verity_eval_byte_normalized, bridge_eval_byte_normalized]
   simp [EvmYul.UInt256.size, evmModulus]
 
+/-- Normalized EVMYulLean semantics for a pure `byte` call, stated in the same
+`Uint256.byte` form used by IR-generation correctness proofs. -/
+@[simp] theorem evalBuiltinCallViaEvmYulLean_byte_uint256
+    (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat)
+    (index value : Nat) :
+    evalBuiltinCallViaEvmYulLean storage sender selector calldata "byte" [index, value] =
+      some (Verity.Core.Uint256.byte
+        (Verity.Core.Uint256.ofNat (index % evmModulus))
+        (Verity.Core.Uint256.ofNat (value % evmModulus))).val := by
+  have hindexMod :
+      index % evmModulus % Verity.Core.Uint256.modulus = index % evmModulus := by
+    simp [Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS, evmModulus]
+  have hvalueMod :
+      value % evmModulus % Verity.Core.Uint256.modulus = value % evmModulus := by
+    simp [Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS, evmModulus]
+  simp [evalBuiltinCallViaEvmYulLean, Verity.Core.Uint256.byte, hindexMod, hvalueMod]
+  rw [← evalBuiltinCall_byte_bridge storage sender selector calldata index value]
+  simp [legacyEvalBuiltinCall, legacyEvalBuiltinCallWithContext]
+  by_cases hgt : 31 < index % evmModulus
+  · simp [hgt]
+  · simp [hgt, Nat.shiftRight_eq_div_pow]
+    rw [show (255 : Nat) = 2 ^ 8 - 1 by omega]
+    rw [Nat.and_two_pow_sub_one_eq_mod]
+    rw [show (2 ^ 8 : Nat) = 256 by norm_num]
+    have hlt :
+        (value % evmModulus / 2 ^ ((31 - index % evmModulus) * 8)) %
+          256 < Verity.Core.Uint256.modulus :=
+      Nat.lt_trans (Nat.mod_lt _ (by decide : 0 < 256))
+        (by norm_num [Verity.Core.Uint256.modulus, Verity.Core.UINT256_MODULUS])
+    rw [Nat.mod_eq_of_lt hlt]
+
+/-- Context wrapper for `evalBuiltinCallViaEvmYulLean_byte_uint256`. -/
+@[simp] theorem evalBuiltinCallWithEvmYulLeanContext_byte_uint256
+    (storage : IRStorageSlot → IRStorageWord)
+    (sender msgValue thisAddress blockTimestamp blockNumber chainId blobBaseFee selector : Nat)
+    (calldata : List Nat)
+    (index value : Nat) :
+    evalBuiltinCallWithEvmYulLeanContext storage sender msgValue thisAddress blockTimestamp
+      blockNumber chainId blobBaseFee selector calldata "byte" [index, value] =
+      some (Verity.Core.Uint256.byte
+        (Verity.Core.Uint256.ofNat (index % evmModulus))
+        (Verity.Core.Uint256.ofNat (value % evmModulus))).val := by
+  simp [evalBuiltinCallWithEvmYulLeanContext]
+
 @[simp] theorem evalBuiltinCallWithBackend_evmYulLean_byte_bridge
     (storage : IRStorageSlot → IRStorageWord) (sender selector : Nat) (calldata : List Nat) (i x : Nat) :
     evalBuiltinCallWithBackend .evmYulLean storage sender selector calldata "byte" [i, x] =

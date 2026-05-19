@@ -3835,6 +3835,8 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.YulGeneration.Backends.verity_eval_byte_normalized  -- private
   -- Compiler.Proofs.YulGeneration.Backends.bridge_eval_byte_normalized  -- private
   Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_byte_bridge
+  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean_byte_uint256
+  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext_byte_uint256
   Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_byte_bridge
   -- Compiler.Proofs.YulGeneration.Backends.verity_eval_slt_normalized  -- private
   -- Compiler.Proofs.YulGeneration.Backends.bridge_eval_slt_normalized  -- private
@@ -5582,4 +5584,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5296 theorems/lemmas (3606 public, 1690 private, 0 sorry'd)
+-- Total: 5298 theorems/lemmas (3608 public, 1690 private, 0 sorry'd)
