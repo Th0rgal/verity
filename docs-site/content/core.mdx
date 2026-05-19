@@ -134,9 +134,9 @@ let allow ← getMapping2 allowances owner spender -- Uint256
 let wrong ← getStorage owner  -- Type error: owner is Address, not Uint256
 ```
 
-## Spec helpers (`Verity/Specs/Common.lean`)
+## Spec helpers
 
-Specs express what a function **did not change**. `Common.lean` provides named predicates so specs don't repeat field-by-field equality. Import with `import Verity.Specs.Common` and `open Verity.Specs`.
+Specs express what a function **did not change**. `Verity/Specs/Common.lean` provides named predicates so specs don't repeat field-by-field equality. Import with `import Verity.Specs.Common` and `open Verity.Specs`.
 
 Three layers, narrowest first:
 
