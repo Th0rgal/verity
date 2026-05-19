@@ -53,7 +53,7 @@ The dominant pattern is `_meets_spec`: each EDSL operation has a `_spec` predica
 
 ## Agent benchmark
 
-[Th0rgal/verity-benchmark](https://github.com/Th0rgal/verity-benchmark) measures AI agent capability at proving contract specs in this framework: 30 tasks across six real-world protocols (Ethereum deposit, Lido VaultHub, Nexus Mutual RAMM, Kleros sortition, Paladin Votes, Damn Vulnerable DeFi). No `sorry`/`admit`/`axiom` placeholders allowed.
+[lfglabs-dev/verity-benchmark](https://github.com/lfglabs-dev/verity-benchmark) measures AI agent capability at proving contract specs in this framework: 30 tasks across six real-world protocols (Ethereum deposit, Lido VaultHub, Nexus Mutual RAMM, Kleros sortition, Paladin Votes, Damn Vulnerable DeFi). No `sorry`/`admit`/`axiom` placeholders allowed.
 
 ## Documentation index
 
