@@ -54,15 +54,15 @@ outside the proof envelope.
 
 ## Axioms and assumptions
 
-All axioms used anywhere in the proof tree are listed in
-[`AXIOMS.md`](https://github.com/lfglabs-dev/verity/blob/main/AXIOMS.md). That file
-is the source of truth. The compiler can also export a flat per-build
-inventory: `--assumption-report <path>` writes every assumption used by the
-selected contracts, grouped by contract and usage site, including any
-`local_obligations` declared at constructor or function granularity. Pair this
-with `--trust-report` to get the structured proof-boundary view alongside the
-flattened list — together they describe exactly what was assumed for a given
-compilation unit.
+[`AXIOMS.md`](https://github.com/lfglabs-dev/verity/blob/main/AXIOMS.md) is the authoritative registry of Lean axioms in the proof tree. Today it lists **zero active project-level axioms**: the last residual axiom (`solidityMappingSlot_lt_evmModulus`) was eliminated when the FFI-based `keccak256` call was replaced by the kernel-computable `KeccakEngine.keccak256` whose output length is proved by `squeeze256_size`.
+
+What remains outside the proof envelope is **assumptions**, not axioms:
+
+- **Externally Callable Modules (ECMs)** in `Compiler/Modules/*.lean` carry named assumptions like `erc20_balanceOf_interface`, `evm_ecrecover_precompile`, `keccak256_memory_slice_matches_evm`. These are trust-report metadata, not Lean axioms — they document that the call mechanics depend on the EVM behaving as specified.
+- **`local_obligations`** declared on a constructor or function carry a named refinement obligation at that exact usage site.
+- **Not-modeled features** (parts of low-level call mechanics, linear-memory primitives, raw `rawLog`, dynamic `keccak256` over memory) compile but the proof interpreter does not yet model their full semantics.
+
+The compiler exports the per-build view of all of this: `--assumption-report <path>` writes the flat inventory of every assumption that any selected contract depends on, grouped by contract and usage site. Pair it with `--trust-report` for the structured proof-boundary view, and add the matching `--deny-*` flag (`--deny-axiomatized-primitives`, `--deny-event-emission`, `--deny-linear-memory-mechanics`, `--deny-proxy-upgradeability`, `--deny-local-obligations`, `--deny-layout-incompatibility`) when a build must fail closed.
 
 ## What is trusted
 
@@ -77,9 +77,10 @@ compilation unit.
 - **Pre-computed function selectors.** Selectors are derived from
   `keccak256` of canonical signatures; CI cross-checks against
   `solc --hashes`.
-- **The axioms in [`AXIOMS.md`](https://github.com/lfglabs-dev/verity/blob/main/AXIOMS.md).**
-  Currently a short list, including the residual `keccak256` primitive and
-  a small number of EVM-side primitives.
+- **The ECM and `local_obligation` assumptions surfaced in `--trust-report`.**
+  Not Lean axioms, but trust-report metadata that documents where the proof
+  depends on external EVM behavior (e.g., `erc20_balanceOf_interface`,
+  `evm_ecrecover_precompile`, `keccak256_memory_slice_matches_evm`).
 
 ## What is verified
 
