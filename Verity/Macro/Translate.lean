@@ -2948,6 +2948,11 @@ private partial def inferPureExprType
       let valueTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value visitingConstants
       requireWordLikeType value "shift" valueTy
       pure .uint256
+  | `(term| byte $index $value) => do
+      requireWordLikeType index "byte index" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals index visitingConstants)
+      let valueTy ← inferPureExprType fields constDecls immutableDecls externalDecls params locals value visitingConstants
+      requireWordLikeType value "byte value" valueTy
+      pure .uint256
   | `(term| slt $a $b) | `(term| sgt $a $b) => do
       requireWordLikeType a "signed ordering comparison" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals a visitingConstants)
       requireWordLikeType b "signed ordering comparison" (← inferPureExprType fields constDecls immutableDecls externalDecls params locals b visitingConstants)
@@ -3998,6 +4003,7 @@ partial def translatePureExprWithTypes
   | `(term| shl $shift $value) => `(Compiler.CompilationModel.Expr.shl $(← translatePureExprWithTypes fields constDecls immutableDecls params locals shift visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value visitingConstants))
   | `(term| shr $shift $value) => `(Compiler.CompilationModel.Expr.shr $(← translatePureExprWithTypes fields constDecls immutableDecls params locals shift visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value visitingConstants))
   | `(term| sar $shift $value) => `(Compiler.CompilationModel.Expr.sar $(← translatePureExprWithTypes fields constDecls immutableDecls params locals shift visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value visitingConstants))
+  | `(term| byte $index $value) => `(Compiler.CompilationModel.Expr.byte $(← translatePureExprWithTypes fields constDecls immutableDecls params locals index visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value visitingConstants))
   | `(term| signextend $byteIndex $value) => `(Compiler.CompilationModel.Expr.signextend $(← translatePureExprWithTypes fields constDecls immutableDecls params locals byteIndex visitingConstants) $(← translatePureExprWithTypes fields constDecls immutableDecls params locals value visitingConstants))
   | `(term| $a == $b) => do
       let lhsTy ← inferPureExprType fields constDecls immutableDecls #[] params locals a visitingConstants

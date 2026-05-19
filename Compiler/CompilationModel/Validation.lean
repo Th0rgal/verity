@@ -295,7 +295,7 @@ def exprReadsStateOrEnv : Expr → Bool
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
-  | Expr.sar a b | Expr.signextend a b |
+  | Expr.sar a b | Expr.signextend a b | Expr.byte a b |
     Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b |
     Expr.logicalAnd a b | Expr.logicalOr a b |
     Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b |
@@ -320,7 +320,7 @@ def exprWritesState : Expr → Bool
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b |
     Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
-  | Expr.sar a b | Expr.signextend a b |
+  | Expr.sar a b | Expr.signextend a b | Expr.byte a b |
     Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b |
     Expr.logicalAnd a b | Expr.logicalOr a b |
     Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b |
@@ -514,6 +514,7 @@ def exprHasUntrackableWrites : Expr → Bool
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b
   | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b | Expr.sar a b
+  | Expr.byte a b
   | Expr.lt a b | Expr.gt a b | Expr.slt a b | Expr.sgt a b | Expr.eq a b
   | Expr.ge a b | Expr.le a b | Expr.signextend a b
   | Expr.logicalAnd a b | Expr.logicalOr a b
@@ -663,6 +664,7 @@ def exprContainsExternalCall : Expr → Bool
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b
   | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b | Expr.sar a b
+  | Expr.byte a b
   | Expr.lt a b | Expr.gt a b | Expr.slt a b | Expr.sgt a b | Expr.eq a b
   | Expr.ge a b | Expr.le a b | Expr.signextend a b
   | Expr.logicalAnd a b | Expr.logicalOr a b
@@ -742,6 +744,7 @@ def exprMayContainExternalCall : Expr → Bool
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b
   | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b | Expr.sar a b
+  | Expr.byte a b
   | Expr.lt a b | Expr.gt a b | Expr.slt a b | Expr.sgt a b | Expr.eq a b
   | Expr.ge a b | Expr.le a b | Expr.signextend a b
   | Expr.logicalAnd a b | Expr.logicalOr a b
@@ -1202,6 +1205,7 @@ def exprContainsAdtConstruct : Expr → Bool
   | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
   | Expr.mod a b | Expr.smod a b
   | Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b | Expr.sar a b
+  | Expr.byte a b
   | Expr.lt a b | Expr.gt a b | Expr.slt a b | Expr.sgt a b | Expr.eq a b
   | Expr.ge a b | Expr.le a b | Expr.signextend a b
   | Expr.logicalAnd a b | Expr.logicalOr a b

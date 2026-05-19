@@ -432,6 +432,7 @@ def compileExpr (fields : List Field)
   | Expr.shl s v     => return yulBinOp "shl" (← compileExpr fields dynamicSource s) (← compileExpr fields dynamicSource v)
   | Expr.shr s v     => return yulBinOp "shr" (← compileExpr fields dynamicSource s) (← compileExpr fields dynamicSource v)
   | Expr.sar s v     => return yulBinOp "sar" (← compileExpr fields dynamicSource s) (← compileExpr fields dynamicSource v)
+  | Expr.byte i v    => return yulBinOp "byte" (← compileExpr fields dynamicSource i) (← compileExpr fields dynamicSource v)
   | Expr.signextend b v =>
       return yulBinOp "signextend" (← compileExpr fields dynamicSource b) (← compileExpr fields dynamicSource v)
   | Expr.eq a b      => return yulBinOp "eq"  (← compileExpr fields dynamicSource a) (← compileExpr fields dynamicSource b)

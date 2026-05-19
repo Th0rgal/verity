@@ -427,6 +427,7 @@ inductive Expr
   | shl (shift value : Expr)
   | shr (shift value : Expr)
   | sar (shift value : Expr)
+  | byte (index value : Expr)
   | signextend (byteIndex value : Expr)
   | eq (a b : Expr)
   | ge (a b : Expr)

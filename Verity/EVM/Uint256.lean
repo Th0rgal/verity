@@ -29,6 +29,7 @@ abbrev not := Verity.Core.Uint256.not
 
 abbrev shl := Verity.Core.Uint256.shl
 abbrev shr := Verity.Core.Uint256.shr
+abbrev byte := Verity.Core.Uint256.byte
 
 abbrev willAddOverflow := Verity.Core.Uint256.willAddOverflow
 abbrev willSubUnderflow := Verity.Core.Uint256.willSubUnderflow

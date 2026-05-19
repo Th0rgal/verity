@@ -136,6 +136,13 @@ def not (a : Uint256) : Uint256 := ofNat (MAX_UINT256 - a.val)
 def shl (shift value : Uint256) : Uint256 := ofNat (value.val <<< shift.val)
 def shr (shift value : Uint256) : Uint256 := ofNat (value.val >>> shift.val)
 
+-- EVM BYTE(i, x): extract byte i from x, where byte 0 is most significant.
+def byte (index value : Uint256) : Uint256 :=
+  if index.val > 31 then
+    ofNat 0
+  else
+    ofNat ((value.val >>> ((31 - index.val) * 8)) &&& 0xff)
+
 -- EVM SIGNEXTEND(b, x): extend sign bit at byte position b
 def signextend (byteIdx value : Uint256) : Uint256 :=
   let b := byteIdx.val

@@ -109,6 +109,7 @@ def collectExprNames : Expr → List String
   | Expr.shl shift value => collectExprNames shift ++ collectExprNames value
   | Expr.shr shift value => collectExprNames shift ++ collectExprNames value
   | Expr.sar shift value => collectExprNames shift ++ collectExprNames value
+  | Expr.byte index value => collectExprNames index ++ collectExprNames value
   | Expr.signextend byteIndex value => collectExprNames byteIndex ++ collectExprNames value
   | Expr.eq a b => collectExprNames a ++ collectExprNames b
   | Expr.ge a b => collectExprNames a ++ collectExprNames b
