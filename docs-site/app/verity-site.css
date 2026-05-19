@@ -569,7 +569,11 @@ article main h1 {
 }
 
 /* Lead paragraph — the first paragraph after the h1 — gets a touch more
-   air and a slightly lighter weight, like a preprint abstract opener. */
+   air and a slightly lighter weight, like a preprint abstract opener.
+   `font-feature-settings: "lnum"` enables lining numerals so any digit
+   in the abstract sits on the baseline like normal text rather than
+   defaulting to old-style figures the serif's onum feature applies
+   elsewhere in the article. */
 article main h1 + p {
   font-size: 1.18rem !important;
   line-height: 1.6 !important;
@@ -579,6 +583,7 @@ article main h1 + p {
   margin-top: 0.6rem !important;
   margin-bottom: 1.8rem !important;
   max-width: 44rem !important;
+  font-feature-settings: "kern", "liga", "calt", "lnum";
 }
 
 article main h2 {
@@ -1713,6 +1718,38 @@ input:focus-visible,
      phones. */
   article main h3 :not(pre) > code {
     font-size: 0.95em !important;
+  }
+
+  /* Pagination row at the bottom of every doc page — wider tap area
+     plus a tiny extra height so a hurried finger can still hit
+     "Example Contracts" without zooming in. Also widen the visible
+     hit-state so both the chevron and label feel like one button. */
+  article > div:last-child > a[title] {
+    padding: 0.85rem 0 !important;
+    min-height: 2.6rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Numbered lists in articles (e.g. the "What to read next" list at
+     the bottom of getting-started) get monospace-figured numerals so
+     they line up cleanly under each other — small but very
+     research-paper. */
+  article main ol {
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  article main ol > li::marker {
+    color: var(--verity-muted);
+    font-weight: 500;
+  }
+
+  /* Lighten the inline-code chip border on phones so dense
+     paragraphs (research / EDSL reference) don't read as a wall of
+     boxes. */
+  article :not(pre) > code,
+  code.nextra-code:not(pre code) {
+    border-color: color-mix(in srgb, var(--verity-rule) 45%, transparent) !important;
   }
 
   article main > :not(.verity-hero):not(.code-compare):not(.report-callout) {
