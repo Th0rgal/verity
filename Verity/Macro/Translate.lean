@@ -115,6 +115,7 @@ structure ExternalDecl where
   name : String
   params : Array ValueType
   returnTys : Array ValueType
+  linkMode : Compiler.CompilationModel.ForeignLinkMode := .objectLinked
 
 /-- A user-defined semantic newtype declared in the `types` section.
     At the language level the type is distinct from its base type; at the
@@ -958,8 +959,35 @@ private def parseImmutable (newtypes : Array NewtypeDecl) (stx : Syntax) : Comma
       }
   | _ => throwErrorAt stx "invalid immutable declaration"
 
+private def parseExternalLinkMode (stx : Syntax) : CommandElabM Compiler.CompilationModel.ForeignLinkMode := do
+  match stx with
+  | `(verityExternalLinkMode| external) => pure .external
+  | `(verityExternalLinkMode| internal_yul) => pure .objectLinked
+  | `(verityExternalLinkMode| object_linked) => pure .objectLinked
+  | `(verityExternalLinkMode| inline) => pure .inline
+  | `(verityExternalLinkMode| compiler_runtime) => pure .compilerRuntime
+  | _ =>
+      throwErrorAt stx
+        "unsupported linked_as mode; expected external, internal_yul, object_linked, inline, or compiler_runtime"
+
 private def parseExternal (newtypes : Array NewtypeDecl) (structDecls : Array StructDecl) (adtDecls : Array AdtDecl) (stx : Syntax) : CommandElabM ExternalDecl := do
   match stx with
+  | `(verityExternal| external $name:ident ($[$params:term],*) -> ($[$returnTys:term],*) linked_as := $mode:verityExternalLinkMode) =>
+      pure {
+        ident := name
+        name := toString name.getId
+        params := ← params.mapM (valueTypeFromSyntax newtypes structDecls adtDecls)
+        returnTys := ← returnTys.mapM (valueTypeFromSyntax newtypes structDecls adtDecls)
+        linkMode := ← parseExternalLinkMode mode
+      }
+  | `(verityExternal| external $name:ident ($[$params:term],*) linked_as := $mode:verityExternalLinkMode) =>
+      pure {
+        ident := name
+        name := toString name.getId
+        params := ← params.mapM (valueTypeFromSyntax newtypes structDecls adtDecls)
+        returnTys := #[]
+        linkMode := ← parseExternalLinkMode mode
+      }
   | `(verityExternal| external $name:ident ($[$params:term],*) -> ($[$returnTys:term],*)) =>
       pure {
         ident := name
@@ -7168,13 +7196,21 @@ private def mkModelExternalTerm (ext : ExternalDecl) : CommandElabM Term := do
     | [] => `(none)
     | [retTy] => `(some $(← modelParamTypeTerm retTy))
     | _ => `(none)
-  `(Compiler.CompilationModel.ExternalFunction.mk
-      $(strTerm ext.name)
-      [ $[$paramTerms],* ]
-      $returnTypeTerm
-      [ $[$returnTerms],* ]
-      Compiler.ProofStatus.assumed
-      [])
+  let linkModeTerm ←
+    match ext.linkMode with
+    | .external => `(Compiler.CompilationModel.ForeignLinkMode.external)
+    | .objectLinked => `(Compiler.CompilationModel.ForeignLinkMode.objectLinked)
+    | .inline => `(Compiler.CompilationModel.ForeignLinkMode.inline)
+    | .compilerRuntime => `(Compiler.CompilationModel.ForeignLinkMode.compilerRuntime)
+  `( ({
+      name := $(strTerm ext.name)
+      params := [ $[$paramTerms],* ]
+      returnType := $returnTypeTerm
+      «returns» := [ $[$returnTerms],* ]
+      proofStatus := Compiler.ProofStatus.assumed
+      axiomNames := []
+      linkMode := $linkModeTerm
+    } : Compiler.CompilationModel.ExternalFunction) )
 
 private def mkModelLocalObligationTerm (obligation : LocalObligationDecl) : CommandElabM Term := do
   let proofStatusTerm ←

@@ -32,6 +32,29 @@ ExternalCallModule (Compiler/ECM.lean)
 Stmt.ecm (mod : ExternalCallModule) (args : List Expr)
 ```
 
+## Foreign Link Modes
+
+Foreign dependencies must declare whether they are a deployed boundary or code
+that becomes part of the generated artifact. Verity records this on every
+`linked_externals` declaration and surfaces it in trust and assumption reports:
+
+| Mode | Syntax | Use case | Artifact meaning |
+|------|--------|----------|------------------|
+| External ABI boundary | `linked_as := external` | Permit2, routers, verifier contracts, oracles | The dependency remains a real call boundary; adapters must preserve ABI return decoding and returndata bubbling. |
+| Object-linked Yul | `linked_as := internal_yul` or `linked_as := object_linked` | Poseidon-style deterministic helpers and imported Yul libraries | Matching helper functions are injected into the runtime artifact from `--link` libraries. |
+| Inline helper | `linked_as := inline` | Small pure helper bodies that a frontend/backend may inline | The helper remains visible as a foreign surface while the implementation is expected to be included at compile time. |
+| Compiler runtime | `linked_as := compiler_runtime` | ABI/runtime helpers owned by the Verity compiler | The helper is part of the compiler-owned runtime surface, not a protocol deployment boundary. |
+
+Omitting `linked_as` preserves the historical behavior and is equivalent to
+`linked_as := internal_yul`.
+
+Contracts compiled through the driver also emit one Yul comment per linked
+external, for example `verity linked external PoseidonT3_hash
+linkMode=objectLinked`, so the generated artifact carries the same mode
+metadata as the trust reports. A dependency declared `linked_as := external`
+must be lowered through an ABI-call ECM such as `Calls.withReturn`; raw
+`externalCall` / `externalCallBind` helper lowering is rejected for that mode.
+
 When the compiler encounters `Stmt.ecm mod args`, it:
 
 1. Validates argument count matches `mod.numArgs`

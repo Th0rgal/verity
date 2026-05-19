@@ -157,12 +157,19 @@ private def ensureLayoutCompatible (specs : List CompilationModel) : IO Unit := 
 
 private def writeContract
     (backend : CodegenBackend)
+    (spec : CompilationModel)
     (outDir : String)
     (contract : IRContract)
     (libraryPaths : List String)
     (verbose : Bool)
     (options : YulEmitOptions) : IO Yul.PatchPassReport := do
-  let (yulObj, patchReport) := backend.emitYulWithOptionsReport contract options
+  let (baseYulObj, patchReport) := backend.emitYulWithOptionsReport contract options
+  let linkModeComments :=
+    spec.externals.map fun ext =>
+      YulStmt.comment s!"verity linked external {ext.name} linkMode={ext.linkMode.toJsonString}"
+  let yulObj :=
+    { baseYulObj with
+      runtimeCode := linkModeComments ++ baseYulObj.runtimeCode }
 
   let libraries ← libraryPaths.mapM fun path => do
     if verbose then
@@ -228,7 +235,7 @@ def compileSpecsWithOptions
     match compile spec selectors with
     | .ok contract =>
         let contractLibs := if spec.externals.isEmpty then [] else libraryPaths
-        let patchReport ← writeContract backend outDir contract contractLibs verbose options
+        let patchReport ← writeContract backend spec outDir contract contractLibs verbose options
         match abiOutDir with
         | some dir =>
             Compiler.ABI.writeContractABIFile dir spec
