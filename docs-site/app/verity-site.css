@@ -1686,6 +1686,32 @@ input:focus-visible,
     display: none !important;
   }
 
+  /* The Nextra "Copy page" widget is a `float: inline-end` element
+     at the top of <article>. Its float scope extends down the entire
+     page, squeezing the hero, dek, CTAs, and facts strip into a
+     narrow ~70% column with 30% of dead space on the right.
+     Take it out of the flow on phones and pin it to the top-right
+     so only the kicker has to wrap around it. */
+  article {
+    position: relative;
+  }
+
+  article > [class*="x:rounded-md"]:has(> button) {
+    position: absolute !important;
+    top: 0.25rem !important;
+    right: 0.5rem !important;
+    z-index: 5;
+    float: none !important;
+    margin: 0 !important;
+  }
+
+  /* The kicker is the only line that sits at the same Y as the widget
+     and needs to keep clear of it. Pad its right side so its last item
+     doesn't slide under the widget. */
+  .verity-hero__head > .verity-kicker {
+    padding-right: 8rem;
+  }
+
   .verity-hero {
     padding-top: 1.25rem;
     padding-bottom: 1.5rem;
