@@ -7050,7 +7050,7 @@ private theorem compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_
     hNativeIR
 
 /-- Supported compiler output with no mapping helper reduces native runtime
-lowering to the single generated dispatcher shell. -/
+lowering to the generated `initFreeMemoryPointer; buildSwitch` runtime shell. -/
 theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
@@ -31671,9 +31671,9 @@ private theorem compile_preserves_native_evmYulLean_callDispatcher_of_generated_
         nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
           hNativeDispatcherExec)
 
-/-- Deprecated helper-free generated dispatcher wrapper over concrete
-dispatcher lowering, with the legacy canonical generated dispatcher-exec native
-premise.
+/-- Deprecated helper-free generated runtime wrapper over concrete
+init-prefixed dispatcher lowering, with the legacy canonical generated
+dispatcher-exec native premise.
 
 New code should target the concrete `nativeGeneratedCallDispatcherResultOf`
 result directly via
@@ -31695,7 +31695,8 @@ private theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDis
     (_hNoMapping : irContract.usesMapping = false)
     (_hLowerDispatcher :
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNative
-          [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok dispatcher)
     (hNativeDispatcherExec :
       nativeGeneratedDispatcherExecMatchesIROn irContract tx
@@ -31714,9 +31715,9 @@ private theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDis
       (nativeGeneratedCallDispatcherMatchesIROn_of_dispatcherExec
         hNativeDispatcherExec)
 
-/-- Deprecated mapping-helper generated dispatcher wrapper over concrete
-dispatcher lowering, with the legacy canonical generated dispatcher-exec native
-premise.
+/-- Deprecated mapping-helper generated runtime wrapper over concrete
+init-prefixed dispatcher lowering, with the legacy canonical generated
+dispatcher-exec native premise.
 
 New code should target the concrete `nativeGeneratedCallDispatcherResultOf`
 result directly via
@@ -31741,7 +31742,8 @@ private theorem compile_preserves_native_evmYulLean_of_lowered_generated_callDis
       Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
           (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
             (Compiler.emitYul irContract).runtimeCode)
-          0 [Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
+          0 [Compiler.CodegenCommon.initFreeMemoryPointer,
+            Compiler.CodegenCommon.buildSwitch irContract.functions none none] =
         .ok (dispatcher, nextSwitchId))
     (hNativeDispatcherExec :
       nativeGeneratedDispatcherExecMatchesIROn irContract tx

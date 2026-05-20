@@ -118,10 +118,10 @@ materializes pre-state storage for those slots.
   `lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive`
   in the native harness and by
   `lowerRuntimeContractNative_of_compile_ok_supported_noMapping` for compiled
-  supported contracts, reducing no-mapping runtimes to the single generated
-  dispatcher shell. The public
+  supported contracts, reducing no-mapping runtimes to the generated
+  `initFreeMemoryPointer; buildSwitch` runtime shell. The public
   `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping`
-  wrapper consumes that concrete dispatcher lowering directly, exposes the
+  wrapper consumes that concrete init-prefixed dispatcher lowering directly, exposes the
   generated `EvmYul.Yul.callDispatcher` result surface, and keeps the same full
   emitted-runtime lowering equality internal. The mapping-helper side of
   the same boundary is now named by `nativeMappingSlotFunctionDefinition` and
@@ -132,10 +132,11 @@ materializes pre-state storage for those slots.
   `lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved`
   in the native harness and by
   `lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved` for
-  compiled supported contracts, with the generated dispatcher lowered under the
-  full emitted-runtime reserved-name context. The public
+  compiled supported contracts, with the generated
+  `initFreeMemoryPointer; buildSwitch` dispatcher lowered under the full
+  emitted-runtime reserved-name context. The public
   `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping`
-  wrapper consumes that reserved-context dispatcher lowering directly, keeps the
+  wrapper consumes that reserved-context init-prefixed dispatcher lowering directly, keeps the
   reserved-context emitted-runtime lowering internal, and exposes the generated
   `EvmYul.Yul.callDispatcher` premise. Successful full native lowering
   can now also be peeled back to the concrete dispatcher lowering by
