@@ -11,7 +11,7 @@ open Compiler.Proofs.IRGeneration (IRStorageWord IRStorageSlot)
 /-!
 Native EVMYulLean builtin routing facts.
 
-The historical reference-oracle comparison layer has been removed. These lemmas
+The historical builtin-comparison layer has been removed. These lemmas
 record only the native `.evmYulLean` dispatch surface used by the public
 EndToEnd target and by reporting scripts that audit available builtin coverage.
 -/

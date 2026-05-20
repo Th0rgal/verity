@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FEATURE_MATRIX = ROOT / "artifacts" / "interpreter_feature_matrix.json"
-ADAPTER_REPORT = ROOT / "artifacts" / "evmyullean_adapter_report.json"
+NATIVE_LOWERING_REPORT = ROOT / "artifacts" / "evmyullean_native_lowering_report.json"
 TARGET_DOC = ROOT / "docs" / "INTERPRETER_FEATURE_MATRIX.md"
 PROVED_BUILTINS = [
     "add",
@@ -50,7 +50,7 @@ PROVED_BUILTINS = [
     "mappingSlot",
 ]
 # Fallback for tests that call helpers directly. The repository check derives
-# this list from artifacts/evmyullean_adapter_report.json so trust docs cannot
+# this list from artifacts/evmyullean_native_lowering_report.json so trust docs cannot
 # drift when the admitted bridge set changes.
 ADMITTED_BUILTINS: list[str] = []
 CONCRETE_ONLY_BUILTINS: list[str] = []
@@ -218,8 +218,8 @@ def main() -> int:
     if not FEATURE_MATRIX.exists():
         print(f"Missing: {FEATURE_MATRIX.relative_to(ROOT)}", file=sys.stderr)
         return 1
-    if not ADAPTER_REPORT.exists():
-        print(f"Missing: {ADAPTER_REPORT.relative_to(ROOT)}", file=sys.stderr)
+    if not NATIVE_LOWERING_REPORT.exists():
+        print(f"Missing: {NATIVE_LOWERING_REPORT.relative_to(ROOT)}", file=sys.stderr)
         return 1
     if not TARGET_DOC.exists():
         print(f"Missing: {TARGET_DOC.relative_to(ROOT)}", file=sys.stderr)
@@ -227,7 +227,7 @@ def main() -> int:
 
     try:
         matrix = load_feature_matrix(FEATURE_MATRIX)
-        admitted_builtins = load_admitted_builtins(ADAPTER_REPORT)
+        admitted_builtins = load_admitted_builtins(NATIVE_LOWERING_REPORT)
         builtin_features = validate_builtin_features(matrix, admitted_builtins)
     except (json.JSONDecodeError, ValueError) as exc:
         print(f"builtin bridge matrix sync failed: {exc}", file=sys.stderr)

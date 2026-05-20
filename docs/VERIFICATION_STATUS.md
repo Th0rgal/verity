@@ -149,8 +149,8 @@ external-call/function-table family carved out where needed.
 Native-runtime transition status: the public theorem target is native EVMYulLean dispatcher execution. The executable native EVMYulLean path lives in [`EvmYulLeanNativeHarness.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean). The public native EndToEnd surface is the native result comparison/composition surface, the generated call-dispatcher and dispatcher-exec theorem family, and the concrete SimpleStorage theorem; the fuel-indexed `nativeIRRuntimeMatchesIR` seams and positive dispatcher-exec match family are file-local instead of public theorem authority. The no-mapping and mapping generated-dispatcher wrappers consume concrete dispatcher lowering and construct full emitted-runtime native lowering internally, while the call-dispatcher variants expose the actual generated `EvmYul.Yul.callDispatcher` premise and derive the dispatcher-exec projection internally.
 
 Trust boundary (public EndToEnd target): native `EvmYul.Yul.callDispatcher`
-execution is the public semantic target. The old reference-oracle builtin
-comparison module has been removed; it is not a
+execution is the public semantic target. The old builtin-comparison module has
+been removed; it is not a
 runtime authority for public compiler correctness.
 
 Not yet proven in this module:

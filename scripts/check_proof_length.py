@@ -324,7 +324,6 @@ ALLOWLIST: set[str] = {
     # Call-surface decomposition kept as one structural recursion proof.
     "stmtOrListTouchesUnsupportedCallSurface_eq_featureOr",
     # --- Yul generation / Layer 3 proofs ---
-    "yulCodegen_preserves_semantics_via_reference_oracle",
     "stmt_and_stmts_equiv",
     "execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv",
     "exec_switchCaseBody_revert_of_short",
@@ -333,11 +332,9 @@ ALLOWLIST: set[str] = {
     "SwitchCaseBodyBridge",
     # Thin EVMYulLean EndToEnd wrapper; signature carries explicit body-closure
     # witnesses and the proof mostly forwards existing Layer-3 hypotheses.
-    "layer3_contract_preserves_semantics_evmYulLeanBackend",
     # --- End-to-end proofs ---
     # Thin public wrapper; the scanner counts the trailing Phase 4 summary
     # comment in its theorem span.
-    "simpleStorage_endToEnd_evmYulLeanBackend",
     # Native SimpleStorage wrapper keeps the dispatcher-agreement seam explicit
     # while delegating to the lowered native theorem; the long span is the public
     # hypothesis surface, not a large proof script.
@@ -375,21 +372,15 @@ ALLOWLIST: set[str] = {
     # BridgedSafeStmts witnesses before delegating to the function-bridge
     # variant. Splitting it would only move the hypothesis threading into a
     # single-use helper.
-    "layers2_3_ir_matches_yul_evmYulLean",
     # Native generic-route bridge closure has to expose the function, fallback,
     # receive, and internal-body BridgedStmts witnesses explicitly before
-    # applying the Yul backend equivalence. The proof is linear hypothesis
     # plumbing around one public transition theorem.
-    "interpretYulFromIR_evmYulLean_eq_on_bridged_bodies",
-    "layers2_3_ir_matches_yul_evmYulLeanFuelWrapperDefaultFuel",
-    "layers2_3_ir_matches_yul_evmYulLeanBackend",
     # --- Contract proofs (Contracts/) ---
     "constructor_increment_getCount",
     "add_one_preserves_order_iff_no_overflow",
     "sub_add_cancel_of_lt",
     "sub_add_cancel_left",
     "safeDiv_result_le_numerator",
-    # --- EVMYulLean bridge proofs (multi-layer UInt256→Fin→Nat reduction) ---
     "bridge_eval_byte_normalized",
     "sdiv_int256_eq_uint256Sdiv",
     "smod_int256_eq_uint256Smod",
@@ -411,7 +402,6 @@ ALLOWLIST: set[str] = {
     "signextend_uint256_eq",
     # backends_agree dispatch proof case-splits all 36 bridged builtins;
     # each branch is one line but 36 builtins + headers exceed 50 lines.
-    "backends_agree_on_bridged_builtins",
     # Native harness block-append lemmas are structural inductions over a Yul
     # block prefix with fuel normalization at each cons. The success, suffix
     # error, and prefix-error variants are intentionally parallel because they
@@ -422,50 +412,38 @@ ALLOWLIST: set[str] = {
     # proof but threads an error result from the selected body through the
     # generated case-chain fuel accounting.
     "exec_nativeSwitchCaseIfs_prefix_hit_error_fuel",
-    # Per-constructor straight-line statement backend equivalence: one short
     # case per `BridgedStraightStmt` constructor; the breadth of shapes
     # (comment/let/letMany/assign/leave/sstore_mapping/sstore_lit/
     # sstore_ident/mstore/tstore/stop/return/revert/funcDef) pushes the total
     # past 50 lines even with each case under a handful of tactics.
-    "execYulFuelWithBackend_eq_on_bridged_straight_stmt",
-    # Straight-line statement-list backend equivalence: fuel induction plus a
     # head/tail dispatch over the four YulExecResult constructors forces the
     # proof past the 50-line budget even with all stmt cases delegated to the
     # per-constructor helper lemma.
-    "execYulFuelWithBackend_eq_on_bridged_straight_stmts",
     # Block-wrapper theorem has a short proof, but the scanner counts the
     # following Phase 4 summary comment / next theorem's doc block in its
     # theorem span because section comments are attributed to the preceding
     # theorem.
-    "execYulFuelWithBackend_block_eq_on_bridged_straight_stmts",
     # If-body theorem has a short proof, but the scanner counts the trailing
     # switch theorem's doc block in its theorem span.
-    "execYulFuelWithBackend_if_eq_on_bridged_body",
     # Switch helper has a short proof, but the scanner counts the trailing
     # for theorem's doc block in its theorem span.
-    "execYulFuelWithBackend_switch_eq_on_bridged_cases",
     # For helper follows the executor's nested loop structure and exceeds the
     # default 50-line budget even though it delegates all list execution to
     # existing straight-line lemmas.
-    "execYulFuelWithBackend_for_eq_on_bridged_parts",
     # Default dispatch closure covers all four fallback/receive combinations;
     # each branch is a direct constructor proof for the generated wrapper.
     "defaultDispatchCase_bridged",
     # Recursive target theorem is the statement-level fuel induction over all
     # BridgedStmt constructors. Each branch mirrors one executor case and
     # delegates nested execution through the predecessor-fuel IH.
-    "execYulFuelWithBackend_eq_on_bridged_target",
     # Thin public wrapper, but the scanner counts the trailing Phase 4 summary
     # comment in its theorem span.
-    "execYulFuelWithBackend_eq_on_bridged_stmts",
     # Conditional emitted-runtime backend equality composes wrapper closure,
     # recursive target equality, and `.verity` executor recovery; the statement
     # is long because it carries all embedded-body closure hypotheses.
-    "emitYul_runtimeCode_evmYulLean_eq_on_bridged_bodies",
     # Conditional Layer-3 EVMYulLean theorem composes existing codegen
     # preservation with emitted-runtime backend equality; the scanner also
     # counts the trailing Phase 4 summary block in its theorem span.
-    "yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle",
     # Native signed division bridge mirrors the upstream signed arithmetic
     # spec split across sign/zero/divisor cases. The proof is a linear case
     # analysis over integer-range facts rather than reusable computation.
@@ -478,8 +456,7 @@ ALLOWLIST: set[str] = {
     # the scanner includes the following public runtime-harness doc block.
     "nativeDispatcherExecMatchesIRPositive_of_project_eq_match",
     # Historical private transition wrapper retained in the allowlist only for
-    # old reports; current native proofs no longer build a retarget module.
-    "interpretYulFromIR_evmYulLean_eq_on_bridged_bodies",
+    # old reports; current native proofs no longer build the removed module.
     # Scalar parameter body closure is a structural induction over the six
     # scalar ABI cases emitted by `genParamLoadBodyFrom`.
     "genParamLoadBodyFrom_calldataload_bridged",

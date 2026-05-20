@@ -2,7 +2,7 @@
   EvmYulLeanBridgeTest: compile-time smoke checks for the native EVMYulLean
   builtin surface.
 
-  The old Verity reference-oracle comparison target has been removed. These
+  The old Verity builtin-comparison target has been removed. These
   tests now exercise direct native dispatch and selected boundary values.
 
   Run: lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest

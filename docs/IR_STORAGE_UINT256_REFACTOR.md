@@ -132,8 +132,8 @@ Deliverables:
 - `simpleStorage_endToEnd_native_evmYulLean` consumes the direct per-case
   splitter without a retrieve-hit premise.
 
-Status: complete for the public native theorem. The compatibility proof remains
-only for the generic fuel-wrapper/reference-oracle cleanup.
+Status: complete for the public native theorem. Any remaining compatibility
+proof references are historical notes, not public proof authority.
 
 ### Phase 3 — discharge store hit
 
@@ -150,8 +150,8 @@ Deliverables:
 - `simpleStorage_endToEnd_native_evmYulLean` consumes the direct per-case
   splitter without a store-hit premise.
 
-Status: complete for the public native theorem. The compatibility proof remains
-only for the generic fuel-wrapper/reference-oracle cleanup.
+Status: complete for the public native theorem. Any remaining compatibility
+proof references are historical notes, not public proof authority.
 
 ### Phase 4 — generalize and retire the per-case bridge surface
 
@@ -159,7 +159,7 @@ Replace the per-contract SimpleStorage direct-match family with a generic,
 dispatcher-shape-driven bridge so future contracts inherit discharge
 automatically. The older non-`Match` SimpleStorage bridge family is
 compatibility-only and should disappear with the generic
-fuel-wrapper/reference-oracle cleanup.
+native-proof modularization cleanup.
 
 Deliverables:
 - Generic `nativeCallDispatcherBridge_of_typed_storage` lemma over the
@@ -174,8 +174,7 @@ Deliverables:
   `hStoreHit` premise and consumes
   `simpleStorageNativeCallDispatcherMatchBridge_of_per_case`.
 - `PrintAxioms` includes the direct match proofs for the public native theorem;
-  compatibility bridge proofs may remain only while the generic
-  fuel-wrapper/reference-oracle family remains.
+  compatibility bridge proofs are not part of the public native theorem.
 - `Contracts/SimpleStorage/Proofs/` spec theorems are unchanged.
 - A second contract (e.g. Counter) lifts to the native theorem under the
   generic Phase-4 surface without contract-specific bridge code.

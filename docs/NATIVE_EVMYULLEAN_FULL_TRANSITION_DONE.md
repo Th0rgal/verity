@@ -10,11 +10,10 @@ EVMYulLean dispatcher execution. Removed transition evidence used to record a
 Verity-side Yul statement-interpreter path through the EVMYulLean-backed builtin
 backend.
 
-The removed transition theorem name
-`yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle` marks
-the old shape that has now been deleted. The public compiler-correctness
-theorem targets native EVMYulLean execution directly through
-`EvmYul.Yul.callDispatcher`; that condition is satisfied on `main`.
+The removed backend-fuel theorem family marks the old shape that has now been
+deleted. The public compiler-correctness theorem targets native EVMYulLean
+execution directly through `EvmYul.Yul.callDispatcher`; that condition is
+satisfied on `main`.
 
 ## Current Baseline
 
@@ -27,8 +26,8 @@ The current baseline is:
   which executes through native EVMYulLean. Helper-free and mapping-helper
   generated-dispatcher wrappers consume concrete dispatcher lowering and build
   full emitted-runtime native lowering internally.
-- Lower Layer 3 transition modules no longer contain the reference-oracle
-  builtin comparison or the backend-parameterized builtin wrapper.
+- Lower Layer 3 transition modules no longer contain the old builtin
+  comparison path or the backend-parameterized builtin wrapper.
 - `simpleStorage_endToEnd_native_evmYulLean` is a concrete native theorem over
   the direct projected `EvmYul.Yul.callDispatcher` result, with no public
   retrieve-hit, store-hit, or selector-miss bridge premises.
@@ -49,8 +48,9 @@ CompilationModel
   -> public end-to-end theorem
 ```
 
-Historical differential tests may still compare against older execution paths,
-but the public semantic-preservation proof path must not depend on them.
+Differential tests may still compare generated code against external execution
+engines, but the public semantic-preservation proof path must not depend on an
+alternate Verity Yul interpreter.
 
 ## Non-Negotiable Completion Criteria
 
@@ -65,12 +65,12 @@ The transition is done only when all criteria in this section are true on
 - The theorem-facing native target is either `Native.interpretIRRuntimeNative`
   or a narrower wrapper that internally lowers to EVMYulLean and executes via
   `EvmYul.Yul.callDispatcher`.
-- No public theorem keeps a native-vs-custom-interpreter agreement premise such
+- No public theorem keeps a native-vs-alternate-interpreter agreement premise such
   as `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper`,
   `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper`, or an equivalent bridge
   assumption.
-- Any remaining comparison with older execution paths is explicitly marked as
-  differential testing, not as the authoritative proof target.
+- Any remaining comparison with non-proof execution engines is explicitly
+  marked as differential testing, not as the authoritative proof target.
 
 ### 2. Generated Fragment Characterization
 
@@ -160,9 +160,9 @@ The transition is done only when all criteria in this section are true on
 
 - `README.md`, `AUDIT.md`, `TRUST_ASSUMPTIONS.md`, and
   `docs/VERIFICATION_STATUS.md` describe native EVMYulLean as the
-  authoritative semantic target only after the theorem target has flipped.
-- Legacy custom-interpreter files are documented as reference-oracle or
-  regression infrastructure.
+  authoritative semantic target.
+- Removed alternate-interpreter paths do not appear in the checked-in proof tree
+  or theorem-facing reports.
 - EVMYulLean fork audit artifacts and capability reports are regenerated and
   checked.
 - The transition docs name all remaining excluded features and link them to
@@ -170,8 +170,8 @@ The transition is done only when all criteria in this section are true on
 
 ### 9. CI Enforcement
 
-- CI fails if the public compiler theorem drifts back to the custom
-  interpreter path.
+- CI fails if the public compiler theorem drifts away from the native
+  EVMYulLean dispatcher path.
 - CI checks the generated-fragment boundary, native transition docs, bridge
   coverage reports, fork audit artifacts, axiom report, proof-length metadata,
   and native smoke/regression tests.
@@ -212,14 +212,13 @@ Each PR should move exactly one durable boundary:
 4. Native statement/expression equivalence for one generated construct family.
 5. Dispatcher/native-switch preservation.
 6. Fuel sufficiency or fuel-parametric theorem layer.
-7. Generic native-vs-interpreter agreement for generated Yul.
-8. Public theorem target flip.
-9. CI/doc/trust-boundary cleanup after the flip.
-10. Legacy interpreter demotion or removal.
+7. Fuel adequacy and native execution modularity for generated Yul.
+8. Public theorem target maintenance.
+9. CI/doc/trust-boundary cleanup after proof-boundary changes.
+10. Keep removed interpreter/adapter surfaces out of the public proof path.
 
-Do not mix proof work with unrelated cleanup. Do not remove the custom
-interpreter until the public theorem target has flipped and at least one PR has
-kept it only as regression infrastructure.
+Do not mix proof work with unrelated cleanup. Do not reintroduce alternate
+interpreter paths as proof authority.
 
 ## Reusable Agent Prompt
 
