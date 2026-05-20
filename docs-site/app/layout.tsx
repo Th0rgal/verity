@@ -136,27 +136,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           sidebar={{ defaultMenuCollapseLevel: 1 }}
           toc={{ backToTop: true }}
           footer={
-            <footer className="verity-footer">
-              <p>
-                Verity is a research project by{' '}
-                <a href="https://lfglabs.dev" target="_blank" rel="noopener">
-                  LFG Labs
-                </a>
-                . Read the{' '}
-                <a href="https://lfglabs.dev/papers/verity.pdf" target="_blank" rel="noopener">
-                  paper
-                </a>
-                {' · '}
-                <a href="https://github.com/lfglabs-dev/verity" target="_blank" rel="noopener">
-                  GitHub
-                </a>
-                {' · '}
-                <a href="https://github.com/lfglabs-dev/verity-benchmark" target="_blank" rel="noopener">
-                  Benchmark
-                </a>
-                .
-              </p>
-            </footer>
+            <p className="verity-footer">
+              Built by{' '}
+              <a href="https://lfglabs.dev" target="_blank" rel="noopener">
+                LFG Labs
+              </a>
+            </p>
           }
         >
           {children}
