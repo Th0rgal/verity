@@ -15,8 +15,8 @@ export Compiler.Constants (evmModulus selectorModulus selectorShift)
 Shared Yul runtime data structures.
 
 This module intentionally contains only neutral transaction/result/state
-plumbing used by both the historical reference oracle and the native
-EVMYulLean harness. It does not define or import the legacy fuel interpreter.
+plumbing used by the native EVMYulLean harness. It does not define or import an
+executable semantics.
 -/
 
 structure YulState where

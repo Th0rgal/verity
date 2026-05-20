@@ -248,8 +248,8 @@ class BuiltinBridgeMatrixSyncTests(unittest.TestCase):
             check.CONCRETE_ONLY_BUILTINS = old_concrete
             check.DELEGATED_BUILTINS = old_delegated
 
-    def test_adapter_report_admitted_set_drives_validation(self) -> None:
-        """Repository check should use the adapter report, not the fallback constant."""
+    def test_native_lowering_report_admitted_set_drives_validation(self) -> None:
+        """Repository check should use the native lowering report, not the fallback constant."""
         features = _make_builtin_features()
         matrix = {"builtin_features": features}
         with self.assertRaisesRegex(ValueError, "smod should have sorry_dependent=true"):

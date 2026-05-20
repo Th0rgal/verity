@@ -9,13 +9,13 @@ WORKFLOW = ROOT / ".github" / "workflows" / "evmyullean-fork-conformance.yml"
 TRUST_ASSUMPTIONS = ROOT / "TRUST_ASSUMPTIONS.md"
 AXIOMS = ROOT / "AXIOMS.md"
 MAKEFILE = ROOT / "Makefile"
-ADAPTER_REPORT = ROOT / "artifacts" / "evmyullean_adapter_report.json"
+NATIVE_LOWERING_REPORT = ROOT / "artifacts" / "evmyullean_adapter_report.json"
 ROADMAP = ROOT / "docs" / "ROADMAP.md"
 
 
 class EvmYulLeanForkConformanceWorkflowTests(unittest.TestCase):
-    def test_concrete_bridge_test_count_matches_adapter_report(self) -> None:
-        report = json.loads(ADAPTER_REPORT.read_text(encoding="utf-8"))
+    def test_concrete_bridge_test_count_matches_native_lowering_report(self) -> None:
+        report = json.loads(NATIVE_LOWERING_REPORT.read_text(encoding="utf-8"))
         count = report["concrete_test_count"]
         test_count_re = re.compile(
             r"\b(\d+)\s+(?:concrete\s+)?(?:`native_decide`\s+|native_decide\s+)?"
@@ -53,7 +53,7 @@ class EvmYulLeanForkConformanceWorkflowTests(unittest.TestCase):
             "scripts/generate_evmyullean_adapter_report.py",
             "scripts/test_evmyullean_fork_conformance_workflow.py",
             "artifacts/evmyullean_adapter_report.json",
-            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
+            "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeLowering.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean",

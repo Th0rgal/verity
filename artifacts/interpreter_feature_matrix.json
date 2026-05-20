@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Interpreter feature-support matrix for Verity's three reference interpreters and the EVMYulLean adapter/builtin bridge.",
+  "description": "Interpreter feature-support matrix for Verity's reference interpreters and the native EVMYulLean builtin bridge.",
   "interpreters": {
     "SpecInterpreter_basic": {
       "file": "Verity/Proofs/Stdlib/SpecInterpreter.lean",

@@ -14,6 +14,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 import check_evmyullean_capability_boundary
 import evmyullean_capability
+import generate_evmyullean_capability_report
 import property_utils
 
 
@@ -49,7 +50,7 @@ class EVMYulLeanCapabilityExtractionTests(unittest.TestCase):
             builtins_file = Path(tmpdir) / "Builtins.lean"
             builtins_file.write_text(
                 "namespace X\n\n"
-                "def evalBuiltinCallWithBackendContext (func : String) : Option Nat :=\n"
+                "def evalBuiltinCallWithNonNativeContext (func : String) : Option Nat :=\n"
                 "  if func = \"address\" then some 1 else none\n\n"
                 "def evalBuiltinCallWithEvmYulLeanContext (func : String) : Option Nat :=\n"
                 "  if func = \"add\" then some 1 else none\n",
@@ -164,6 +165,32 @@ class EVMYulLeanCapabilityExtractionTests(unittest.TestCase):
                 self.assertIn("non-literal builtin dispatch", stderr.getvalue())
             finally:
                 check_evmyullean_capability_boundary.BUILTINS_FILE = old_builtins
+
+    def test_extract_native_lowering_gaps_detects_throw_interpolation(self) -> None:
+        with tempfile.TemporaryDirectory(dir=property_utils.ROOT) as tmpdir:
+            lowering_file = Path(tmpdir) / "NativeLowering.lean"
+            lowering_file.write_text(
+                "def lower : YulStmt -> Except String Unit\n"
+                "  | .comment _ => pure ()\n"
+                "  | .funcDef name _ _ _ =>\n"
+                "      throw s!\"native EVMYulLean statement lowering cannot inline function definition '{name}'\"\n",
+                encoding="utf-8",
+            )
+
+            old_lowering = generate_evmyullean_capability_report.NATIVE_LOWERING_FILE
+            generate_evmyullean_capability_report.NATIVE_LOWERING_FILE = lowering_file
+            try:
+                self.assertEqual(
+                    generate_evmyullean_capability_report.extract_native_lowering_gaps(),
+                    [
+                        {
+                            "node": "funcDef",
+                            "reason": "native EVMYulLean statement lowering cannot inline function definition '{name}'",
+                        }
+                    ],
+                )
+            finally:
+                generate_evmyullean_capability_report.NATIVE_LOWERING_FILE = old_lowering
 
 
 if __name__ == "__main__":

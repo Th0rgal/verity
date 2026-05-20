@@ -1,7 +1,12 @@
 {
-  "adapter_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean",
-  "count": 0,
-  "nodes": [],
+  "count": 1,
+  "native_lowering_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeLowering.lean",
+  "nodes": [
+    {
+      "node": "funcDef",
+      "reason": "native EVMYulLean statement lowering cannot inline function definition '{name}'; use lowerRuntimeContractNative"
+    }
+  ],
   "schema_version": 1,
   "source_report": "artifacts/evmyullean_capability_report.json"
 }

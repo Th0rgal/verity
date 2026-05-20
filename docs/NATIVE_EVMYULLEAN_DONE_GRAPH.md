@@ -133,7 +133,7 @@ N8 public Layer 3 theorem flip
     fail closed before theorem claims rely on them.
 - **Verification**:
   - `python3 scripts/check_native_transition_doc.py`
-  - Lean checks for `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean`
+  - Lean checks for `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeLowering.lean`
     and `EvmYulLeanNativeHarness.lean`.
 
 ### N1: Native State And Environment Bridge
@@ -331,15 +331,16 @@ N8 public Layer 3 theorem flip
 - **Urgency**: P0
 - **Depends on**: N6, N7, N9
 - **Blocks**: N10, N11
-- **Status**: not done. The public path still uses
-  `interpretYulRuntimeWithBackend .evmYulLean`.
+- **Status**: done. The public path targets native EVMYulLean dispatcher
+  execution rather than the removed backend-parameterized interpreter path.
 - **Definition of done**:
   - Layer 3 theorem statements and generated proof plumbing target
     `interpretIRRuntimeNative` or an equivalent native `callDispatcher` wrapper.
-  - The theorem no longer depends on the custom interpreter for the public
+  - The theorem no longer depends on an alternate interpreter for the public
     semantic claim.
 - **Verification**:
-  - `rg "interpretYulRuntimeWithBackend \\.evmYulLean" Compiler/Proofs/EndToEnd.lean`
+  - grep for the former backend-interpreter name in `Compiler/Proofs/EndToEnd.lean`
+    and confirm it has no matches.
   - `lake build Compiler.Proofs.EndToEnd`
 
 ### N9: Issue-Scope Semantic Closure
@@ -386,8 +387,8 @@ N8 public Layer 3 theorem flip
 - **Blocks**: eventual cleanup only
 - **Status**: not started.
 - **Definition of done**:
-  - The custom interpreter is documented and used as a regression/differential
-    oracle, not as the authoritative public proof target.
-  - Removal or shrinkage is deferred until native coverage is mature.
+  - The former Verity-side interpreter path is absent from the checked-in public proof tree.
+  - Historical comparisons, if reintroduced, stay outside the authoritative
+    public semantic-preservation path.
 - **Verification**:
   - Documentation and CI checks name the native path as authoritative.

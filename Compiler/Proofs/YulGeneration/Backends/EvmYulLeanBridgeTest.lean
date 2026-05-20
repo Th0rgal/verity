@@ -8,7 +8,6 @@
   Run: lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
 -/
 
-import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 
 namespace Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
@@ -33,7 +32,7 @@ private def nativeEval (func : String) (args : List Nat) : Option Nat :=
   evalBuiltinCallViaEvmYulLean testStorage testSender testSelector testCalldata func args
 
 private def nativeEvalWithContext (func : String) (args : List Nat) : Option Nat :=
-  evalBuiltinCallWithBackendContext .evmYulLean
+  evalBuiltinCallWithEvmYulLeanContext
     testStorage
     testSender
     testMsgValue

@@ -37,6 +37,5 @@ import Compiler.Proofs.IRGeneration.FunctionBody
 import Compiler.Proofs.IRGeneration.ParamLoading
 import Compiler.Proofs.IRGeneration.SupportedSpec
 import Compiler.Proofs.IRGeneration.SourceSemantics
-import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
 import Compiler.Proofs.YulGeneration.PatchRulesProofs
 import Compiler.Proofs.EndToEnd

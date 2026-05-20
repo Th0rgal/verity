@@ -75,7 +75,7 @@ def evalExpr :=
     def test_backend_wrapper_call_no_longer_satisfies_boundary(self) -> None:
         body = """import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
 def evalExpr :=
-  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackendContext
+  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithNonNativeContext
 """
         failures = self._run_boundary_check(body)
         self.assertTrue(any("missing call" in failure for failure in failures))

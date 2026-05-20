@@ -10,8 +10,8 @@ boundary checks change.
 - Lean proof placeholders: 0 `sorry` in compiler/proof modules.
 - Project-level Lean axioms: 0. See `AXIOMS.md`.
 - Authoritative safe-body Yul runtime target: pinned `lfglabs-dev/EVMYulLean`.
-- Legacy custom Yul execution files are retained as a reference oracle under
-  `Compiler/Proofs/YulGeneration/ReferenceOracle/`.
+- The previous reference-comparison modules have been removed from the live
+  proof tree; native EVMYulLean is the checked runtime boundary.
 - Yul-to-bytecode compilation remains trusted through pinned `solc` 0.8.33.
 - Gas safety is not modeled by the semantic preservation theorems.
 
@@ -20,16 +20,15 @@ boundary checks change.
 Status: full semantic integration for safe compiler-produced bodies.
 
 The EVMYulLean transition moved the safe-body EndToEnd runtime target from
-Verity's custom Yul builtin semantics to `interpretYulRuntimeWithBackend
-.evmYulLean`. The current proof surface has:
+Verity-owned Yul builtin scaffolding to native EVMYulLean runtime execution.
+The current proof surface has:
 
 - 36 of 36 builtin bridge theorems proven.
 - 0 admitted bridge lemmas.
 - `smod` and `sar` bridge equivalences fully discharged.
 - `compileStmtList_always_bridged` proven for `BridgedSafeStmts`.
-- Public `layers2_3_ir_matches_yul_evmYulLean` wrappers that derive raw
-  `BridgedStmts` body witnesses from `SupportedSpec`, static parameter
-  witnesses, and source-level safe-body witnesses.
+- Public native EndToEnd wrappers whose runtime target is
+  `EvmYul.Yul.callDispatcher`.
 
 The external-call/function-table family
 (`internalCall`, `internalCallAssign`, `externalCallBind`, and `ecm`) now has

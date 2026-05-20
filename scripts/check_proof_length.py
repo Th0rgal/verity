@@ -412,16 +412,6 @@ ALLOWLIST: set[str] = {
     # backends_agree dispatch proof case-splits all 36 bridged builtins;
     # each branch is one line but 36 builtins + headers exceed 50 lines.
     "backends_agree_on_bridged_builtins",
-    # Pure-context dispatch is the same 25-builtin case split specialized to
-    # context-free builtins; each branch delegates to an individual bridge.
-    "evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge",
-    # Backend-parameterized mirror of the legacy fuel-based executor; long by
-    # construction because it preserves all statement cases while swapping only
-    # expression backend.
-    "execYulFuelWithBackend",
-    # Recovery proof mirrors the executor's statement case split; each branch is
-    # direct simplification back to the legacy fuel-based executor.
-    "execYulFuelWithBackend_verity_eq",
     # Native harness block-append lemmas are structural inductions over a Yul
     # block prefix with fuel normalization at each cons. The success, suffix
     # error, and prefix-error variants are intentionally parallel because they

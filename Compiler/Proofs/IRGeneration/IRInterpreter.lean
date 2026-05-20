@@ -1056,7 +1056,7 @@ These are the IR-side companions to `NativePreservableStraightStmt`
 We use **option (b)** of the Layer A design: inline an IR-side analog predicate
 (`IRStmtPreservesObs`) here so that this module does not
 need to import the native-harness file (which would form a cycle via
-`Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter` →
+`Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness` →
 `Compiler.Proofs.IRGeneration.IRStorageWord`). The cross-cast from
 `NativePreservableStraightStmt` to `IRStmtPreservesObs` is deferred to
 `Compiler/Proofs/EndToEnd.lean` (Layer D's responsibility per the plan). -/

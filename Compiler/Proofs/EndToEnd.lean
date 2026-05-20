@@ -30,7 +30,7 @@
 
 Historical EVMYulLean backend-fuel retargeting lemmas remain isolated outside
 this public theorem spine; this file no longer exposes or composes EndToEnd
-wrappers over that proof-interpreter target.
+wrappers over that older transition target.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
@@ -79,7 +79,7 @@ the native harness' materialized-storage boundary. -/
 def sourceResultMatchesNativeOn
     (observableSlots : List Nat)
     (source : SourceSemantics.SourceContractResult)
-    (native : Except Compiler.Proofs.YulGeneration.Backends.AdapterError YulResult) :
+    (native : Except Compiler.Proofs.YulGeneration.Backends.NativeLoweringError YulResult) :
     Prop :=
   match native with
   | .ok yul =>
@@ -98,7 +98,7 @@ private theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_na
     {observableSlots : List Nat}
     {source : SourceSemantics.SourceContractResult}
     {ir : IRResult}
-    {native : Except Compiler.Proofs.YulGeneration.Backends.AdapterError YulResult}
+    {native : Except Compiler.Proofs.YulGeneration.Backends.NativeLoweringError YulResult}
     (hSourceIR :
       Compiler.Proofs.IRGeneration.FunctionBody.sourceResultMatchesIRResult
         source ir)
@@ -403,7 +403,7 @@ noncomputable def nativeGeneratedCallDispatcherResultOf
     (state : IRState)
     (observableSlots : List Nat)
     (nativeContract : EvmYul.Yul.Ast.YulContract) :
-    Except Compiler.Proofs.YulGeneration.Backends.AdapterError YulResult :=
+    Except Compiler.Proofs.YulGeneration.Backends.NativeLoweringError YulResult :=
   let fuel := Nat.succ (sizeOf (Compiler.emitYul contract).runtimeCode)
   let initial :=
     Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
@@ -457,7 +457,7 @@ theorem nativeResultsMatchOn_interpretIR_of_execIRFunction_guards
     (state : IRState)
     (observableSlots : List Nat)
     (fn : IRFunction)
-    (native : Except Compiler.Proofs.YulGeneration.Backends.AdapterError
+    (native : Except Compiler.Proofs.YulGeneration.Backends.NativeLoweringError
       YulResult)
     (hFind :
       contract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
@@ -484,7 +484,7 @@ theorem nativeResultsMatchOn_interpretIR_of_execIRFunction_dispatchGuards
     (state : IRState)
     (observableSlots : List Nat)
     (fn : IRFunction)
-    (native : Except Compiler.Proofs.YulGeneration.Backends.AdapterError
+    (native : Except Compiler.Proofs.YulGeneration.Backends.NativeLoweringError
       YulResult)
     (hFind :
       contract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
@@ -6837,9 +6837,9 @@ private theorem nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNativ
       irContract tx state observableSlots nativeContract
       (generatedRuntimeNativeFragment_of_compile_ok_supported hCompile hSupported)
       hLower hEnv
-  rw [hInterp]
   simp [nativeGeneratedCallDispatcherResultOf, Compiler.emitYul,
     Compiler.runtimeCode, Compiler.CodegenCommon.emitYul]
+  exact hInterp.symm
 
 private theorem nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNative_of_lowerRuntimeContractNative_supported_except_mapping_writes_stmt_safety
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
@@ -6869,9 +6869,9 @@ private theorem nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNativ
       (generatedRuntimeNativeFragment_of_compile_ok_supported_except_mapping_writes_stmt_safety
         hCompile hSupported hSafety)
       hLower hEnv
-  rw [hInterp]
   simp [nativeGeneratedCallDispatcherResultOf, Compiler.emitYul,
     Compiler.runtimeCode, Compiler.CodegenCommon.emitYul]
+  exact hInterp.symm
 
 /-- Source-level compiler correctness over the direct projected
 `EvmYul.Yul.callDispatcher` result.
@@ -33373,7 +33373,7 @@ private theorem simpleStorageNativeRuntimeDispatcherStmts_exists_init_block :
             simpa [Compiler.CodegenCommon.initFreeMemoryPointer,
               Compiler.CodegenCommon.buildSwitch, simpleStorageBuildSwitchBody,
               simpleStorageBuildSwitchSourceCases] using hInner
-          have hBad : (Except.error err : Except AdapterError
+          have hBad : (Except.error err : Except NativeLoweringError
               (List EvmYul.Yul.Ast.Stmt × Nat)) = .ok (lowered, finalNext) := by
             have hInnerMap :
                 Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
@@ -33494,9 +33494,9 @@ private theorem simpleStorageNativeRuntimeDispatcherStmts_exists_init_block :
                          Yul.YulExpr.lit 128])),
                   EvmYul.Yul.Ast.Stmt.Block inner],
                  innerNext) :
-                Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)) =
+                Except NativeLoweringError (List EvmYul.Yul.Ast.Stmt × Nat)) =
                 (Except.ok (lowered, finalNext) :
-                  Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)) := by
+                  Except NativeLoweringError (List EvmYul.Yul.Ast.Stmt × Nat)) := by
             have hInnerMap :
                 Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
                   (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames
@@ -41377,10 +41377,10 @@ theorem simpleStorage_source_endToEnd_native_evmYulLean_of_sourceIR
 /-! ## Universal Pure Arithmetic Bridge
 
 The pure arithmetic bridge proofs (`pure_add_bridge`, etc.) were removed
-after the legacy builtin dispatch grew `callvalue`/`calldatasize`
-support, making the old monolithic wrapper too large for the default
+after the older builtin-routing wrapper grew `callvalue`/`calldatasize`
+support, making the monolithic wrapper too large for the default
 heartbeat limit during type-checking. The proofs were mathematically
-correct but need the legacy builtin dispatch to be factored into smaller
+correct but need that builtin-routing surface to be factored into smaller
 pieces before they can be re-stated without timeout.
 
 See: `ArithmeticProfile.lean` and
@@ -41394,8 +41394,7 @@ The public native theorem surface in this file targets the direct projected
 `EvmYul.Yul.callDispatcher` result through `nativeGeneratedCallDispatcherResultOf`.
 The older `nativeIRRuntimeMatchesIR` and generated dispatcher-exec theorem
 families remain file-local transition evidence. EndToEnd no longer defines
-compatibility wrappers over the older backend-parameterized proof-interpreter
-surface.
+compatibility wrappers over the older backend-parameterized transition surface.
 
 The private retargeting module that previously recorded bridge-history facts
 has been removed (DoD 5 of the EVMYulLean transition).
@@ -41423,7 +41422,7 @@ expose the public surface this file needs.
   and execute equivalently under the EVMYulLean backend when the IR bodies it
   embeds satisfy `BridgedStmt`.
 - Layer 3 no longer keeps EndToEnd compatibility lemmas targeting the
-  proof-interpreter EVMYulLean backend; the public EndToEnd theorem family
+  older EVMYulLean backend-fuel surface; the public EndToEnd theorem family
   targets native dispatcher execution through the direct projected
   `nativeGeneratedCallDispatcherResultOf` result.
 - The historical Verity-backed public oracle-routed EndToEnd wrappers
@@ -41461,10 +41460,10 @@ expose the public surface this file needs.
   and needs separate simulation work before it can be admitted into the
   safe-body EndToEnd wrapper.
 
-The Phase 4 retargeting module has been removed; the equivalent
-proof-interpreter-backed retargeting theorems are no longer needed because the
-public EndToEnd surface targets EVMYulLean's native dispatcher execution
-directly via `nativeGeneratedCallDispatcherResultOf`.
+The Phase 4 retargeting module has been removed; the equivalent backend-fuel
+retargeting theorems are no longer needed because the public EndToEnd surface
+targets EVMYulLean's native dispatcher execution directly via
+`nativeGeneratedCallDispatcherResultOf`.
 -/
 
 end Compiler.Proofs.EndToEnd

@@ -12,15 +12,13 @@ namespace Compiler.Proofs.YulGeneration.Backends
 open Compiler.Yul
 open Compiler.Proofs.IRGeneration (IRStorageWord IRStorageSlot)
 
-abbrev AdapterError := String
+abbrev NativeLoweringError := String
 
 /-! ## Native EVMYulLean runtime lowering
 
-The historical `lowerExpr` path above is intentionally preserved because the
-existing bridge/report machinery reasons about the old structural adapter.
-The native runtime path below is the #1737 migration entry point: it lowers
-known Yul builtins to EVMYulLean primops (`.inl`) and leaves user/helper calls
-as Yul function calls (`.inr`).
+This module is the single native runtime lowering entry point. It lowers known
+Yul builtins to EVMYulLean primops (`.inl`) and leaves user/helper calls as Yul
+function calls (`.inr`).
 -/
 
 /-- Map runtime Yul builtin names to native EVMYulLean primops.
@@ -355,7 +353,7 @@ mutual
 def lowerStmtsNativeWithSwitchIds
     (reservedNames : List String)
     (nextSwitchId : Nat) :
-    List YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)
+    List YulStmt → Except NativeLoweringError (List EvmYul.Yul.Ast.Stmt × Nat)
   | [] => pure ([], nextSwitchId)
   | stmt :: rest => do
       let (stmts', nextSwitchId) ←
@@ -370,7 +368,7 @@ def lowerSwitchCasesNativeWithSwitchIds
     (reservedNames : List String)
     (nextSwitchId : Nat) :
     List (Nat × List YulStmt) →
-      Except AdapterError (List (Nat × List EvmYul.Yul.Ast.Stmt) × Nat)
+      Except NativeLoweringError (List (Nat × List EvmYul.Yul.Ast.Stmt) × Nat)
   | [] => pure ([], nextSwitchId)
   | (tag, block) :: rest => do
       let (block', nextSwitchId) ←
@@ -384,7 +382,7 @@ decreasing_by all_goals simp_wf; all_goals omega
 def lowerStmtGroupNativeWithSwitchIds
     (reservedNames : List String)
     (nextSwitchId : Nat) :
-    YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)
+    YulStmt → Except NativeLoweringError (List EvmYul.Yul.Ast.Stmt × Nat)
   | .comment _ => pure ([.Block []], nextSwitchId)
   | .let_ name value => pure ([.Let [name] (some (lowerExprNative value))], nextSwitchId)
   | .letMany names value => pure ([.Let names (some (lowerExprNative value))], nextSwitchId)
@@ -425,7 +423,7 @@ decreasing_by all_goals simp_wf; all_goals omega
 end
 
 def lowerStmtsNative :
-    List YulStmt → Except AdapterError (List EvmYul.Yul.Ast.Stmt)
+    List YulStmt → Except NativeLoweringError (List EvmYul.Yul.Ast.Stmt)
   | stmts => do
       let (lowered, _) ←
         lowerStmtsNativeWithSwitchIds (yulStmtsIdentifierNames stmts) 0 stmts
@@ -792,13 +790,13 @@ def lowerFunctionDefinitionNativeWithReserved
     (globalReservedNames : List String)
     (params rets : List String)
     (body : List YulStmt) :
-    Except AdapterError EvmYul.Yul.Ast.FunctionDefinition := do
+    Except NativeLoweringError EvmYul.Yul.Ast.FunctionDefinition := do
   let reservedNames := globalReservedNames ++ params ++ rets ++ yulStmtsIdentifierNames body
   let (body', _) ← lowerStmtsNativeWithSwitchIds reservedNames 0 body
   pure (.Def params rets body')
 
 def lowerFunctionDefinitionNative (params rets : List String) (body : List YulStmt) :
-    Except AdapterError EvmYul.Yul.Ast.FunctionDefinition := do
+    Except NativeLoweringError EvmYul.Yul.Ast.FunctionDefinition := do
   lowerFunctionDefinitionNativeWithReserved (yulStmtsIdentifierNames body) params rets body
 
 abbrev NativeFunctionMap :=
@@ -808,7 +806,7 @@ abbrev NativeFunctionMap :=
 private def insertNativeFunction
     (functions : NativeFunctionMap)
     (name : String) (definition : EvmYul.Yul.Ast.FunctionDefinition) :
-    Except AdapterError NativeFunctionMap :=
+    Except NativeLoweringError NativeFunctionMap :=
   if functions.lookup name |>.isSome then
     throw s!"duplicate native Yul function definition '{name}'"
   else
@@ -820,7 +818,7 @@ def lowerRuntimeContractNativeAux
     (dispatcherAcc : List EvmYul.Yul.Ast.Stmt)
     (functionsAcc : NativeFunctionMap)
     (nextSwitchId : Nat) :
-    Except AdapterError (List EvmYul.Yul.Ast.Stmt × NativeFunctionMap × Nat) := do
+    Except NativeLoweringError (List EvmYul.Yul.Ast.Stmt × NativeFunctionMap × Nat) := do
   match stmts with
   | [] => pure (dispatcherAcc.reverse, functionsAcc, nextSwitchId)
   | .funcDef name params rets body :: rest =>
@@ -917,7 +915,7 @@ theorem lowerRuntimeContractNativeAux_stmt_cons
 
 /-- Lower generated runtime Yul into an executable EVMYulLean contract shape. -/
 def lowerRuntimeContractNative (stmts : List YulStmt) :
-    Except AdapterError EvmYul.Yul.Ast.YulContract := do
+    Except NativeLoweringError EvmYul.Yul.Ast.YulContract := do
   let emptyFunctions : NativeFunctionMap := ∅
   let reservedNames := yulStmtsIdentifierNames stmts
   let (dispatcher, functions, _) ←
@@ -1041,7 +1039,7 @@ def evalPureBuiltinViaEvmYulLean
     derivation used by the native proof boundary; both backend projections
     ultimately compute `keccak256(abi.encode(key, baseSlot))`. Remaining
     context-dependent builtins (`caller`, `address`, `timestamp`, ...) are
-    routed at the `evalBuiltinCallWithBackendContext` level. -/
+    routed by `evalBuiltinCallWithEvmYulLeanContext`. -/
 def evalBuiltinCallViaEvmYulLean
     (storage : IRStorageSlot → IRStorageWord)
     (_sender : Nat)

@@ -105,15 +105,15 @@ def load_feature_matrix(path: Path) -> dict:
 
 
 def load_admitted_builtins(path: Path) -> list[str]:
-    """Load sorry-dependent bridge builtins from the adapter report artifact."""
+    """Load sorry-dependent bridge builtins from the native lowering report artifact."""
     report = json.loads(path.read_text(encoding="utf-8"))
     admitted = report.get("admitted_bridge_lemmas")
     if not isinstance(admitted, list) or not all(isinstance(name, str) for name in admitted):
-        raise ValueError("adapter report is missing admitted_bridge_lemmas")
+        raise ValueError("native lowering report is missing admitted_bridge_lemmas")
     unknown = sorted(set(admitted) - set(PROVED_BUILTINS))
     if unknown:
         raise ValueError(
-            "adapter report lists admitted bridge lemmas outside PROVED_BUILTINS: "
+            "native lowering report lists admitted bridge lemmas outside PROVED_BUILTINS: "
             f"{unknown}"
         )
     return [name for name in PROVED_BUILTINS if name in admitted]

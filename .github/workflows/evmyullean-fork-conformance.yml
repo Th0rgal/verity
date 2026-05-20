@@ -1,10 +1,9 @@
 name: EVMYulLean fork conformance
 
 # Weekly probe that the pinned lfglabs-dev/EVMYulLean fork still
-# satisfies Verity's bridge assumptions: the fork audit and adapter
-# report artifacts are in sync, adapter correctness still builds,
-# all universal bridge lemmas still build, the native transition harness still
-# builds, emitted dispatcher native/reference oracle coverage still passes, the
+# satisfies Verity's bridge assumptions: the fork audit and native lowering
+# report artifacts are in sync, all universal bridge lemmas still build, the
+# native transition harness still builds, emitted dispatcher native coverage still passes, the
 # public EndToEnd EVMYulLean target still builds, and all 0 concrete
 # `native_decide` bridge-equivalence tests still pass.
 #
@@ -29,7 +28,7 @@ on:
       - 'artifacts/evmyullean_fork_audit.json'
       - 'artifacts/evmyullean_adapter_report.json'
       - 'lake-manifest.json'
-      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeLowering.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean'
@@ -48,7 +47,7 @@ on:
       - 'artifacts/evmyullean_fork_audit.json'
       - 'artifacts/evmyullean_adapter_report.json'
       - 'lake-manifest.json'
-      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanAdapter.lean'
+      - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeLowering.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean'
       - 'Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean'
@@ -122,7 +121,7 @@ jobs:
               "make test-evmyullean-fork",
               "```",
               "",
-              "This guard checks the pinned EVMYulLean fork audit, checks the adapter report, rebuilds adapter correctness, the native transition harness, and the public EndToEnd target, and runs the concrete bridge-equivalence tests."
+              "This guard checks the pinned EVMYulLean fork audit, checks the native lowering report, rebuilds the native transition harness, and the public EndToEnd target, and runs the concrete bridge-equivalence tests."
             ];
             const body = bodyLines.join("\n");
 

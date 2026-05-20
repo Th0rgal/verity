@@ -20,7 +20,7 @@ Compiler.Proofs.IRGeneration.SupportedFragment
 Compiler.Proofs.IRGeneration.SupportedSpec
 #
 # Yul generation proofs
-Compiler.Proofs.YulGeneration.Backends.EvmYulLeanAdapter
+Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeLowering
 Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates

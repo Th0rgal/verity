@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate/check deterministic EVMYulLean adapter coverage report artifact.
+"""Generate/check deterministic EVMYulLean native lowering coverage artifact.
 
 Usage:
     python3 scripts/generate_evmyullean_adapter_report.py
@@ -19,12 +19,11 @@ from property_utils import ROOT
 BACKENDS_DIR = (
     ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Backends"
 )
-ADAPTER_FILE = BACKENDS_DIR / "EvmYulLeanAdapter.lean"
 NATIVE_LOWERING_FILE = BACKENDS_DIR / "EvmYulLeanNativeLowering.lean"
 BRIDGE_PREDICATES_FILE = BACKENDS_DIR / "EvmYulLeanBridgePredicates.lean"
 BRIDGE_LEMMAS_FILE = BACKENDS_DIR / "EvmYulLeanBridgeLemmas.lean"
 BRIDGE_TEST_FILE = BACKENDS_DIR / "EvmYulLeanBridgeTest.lean"
-CORRECTNESS_FILE = BACKENDS_DIR / "EvmYulLeanAdapterCorrectness.lean"
+CORRECTNESS_FILE = BACKENDS_DIR / "EvmYulLeanNativeHarness.lean"
 RETARGET_FILE = BACKENDS_DIR / ("EvmYulLean" + "Retarget.lean")
 BODY_CLOSURE_FILE = BACKENDS_DIR / "EvmYulLeanBodyClosure.lean"
 SOURCE_EXPR_CLOSURE_FILE = BACKENDS_DIR / "EvmYulLeanSourceExprClosure.lean"
@@ -35,7 +34,7 @@ EXPECTED_EXPR_CASES = ["lit", "hex", "str", "ident", "call"]
 EXPECTED_STMT_CASES = ["comment", "let_", "letMany", "assign", "expr", "leave", "if_", "for_", "switch", "block", "funcDef"]
 
 CASE_RE = re.compile(r"^\s*\|\s*\.([A-Za-z0-9_']+)")
-GAP_RE = re.compile(r'\.error\s+"([^"]+)"')
+GAP_RE = re.compile(r'(?:\.error|throw)\s+(?:s!)?"([^"]+)"')
 EVAL_STUB_RE = re.compile(r"def\s+evalBuiltinCallViaEvmYulLean[\s\S]*?:\s*Option\s+Nat\s*:=\s*none")
 
 # Regex for lookupPrimOp string-keyed match arms: | "name" => some .OP
@@ -53,16 +52,16 @@ BRIDGE_LEMMA_RE = re.compile(
     r'theorem\s+evalBuiltinCall_(\w+)_bridge\b'
 )
 
-# Regex for context-lifted bridge theorems:
-# evalBuiltinCallWithBackendContext_evmYulLean_NAME_bridge
+# Regex for direct native context bridge theorems:
+# evalBuiltinCall_NAME_bridge
 CONTEXT_BRIDGE_RE = re.compile(
-    r'evalBuiltinCallWithBackendContext_evmYulLean_(\w+)_bridge\b'
+    r'evalBuiltinCall_(\w+)_bridge\b'
 )
 
-# Regex for fallthrough (none) theorems:
-# evalBuiltinCallWithBackendContext_evmYulLean_NAME_none
+# Regex for fallthrough (none) theorems. Kept for schema stability; native-only
+# bridge lemmas do not currently expose fallthrough theorem families.
 FALLTHROUGH_RE = re.compile(
-    r'evalBuiltinCallWithBackendContext_evmYulLean_(\w+)_none\b'
+    r'evalBuiltinCall_(\w+)_none\b'
 )
 
 # Regex for bridgedBuiltins/unbridgedBuiltins definitions
@@ -233,7 +232,7 @@ def _parse_cases(lines: list[str]) -> dict[str, str]:
         if not gaps:
             result[name] = "supported"
             continue
-        if "pure (" in body and (".error" in body):
+        if "pure (" in body and gaps:
             result[name] = "partial"
             continue
         result[name] = "gap"
@@ -423,11 +422,11 @@ def _top_level_blocks(code: str) -> list[tuple[int, int, str | None, bool]]:
 
 
 def _parse_context_bridge_lemmas() -> tuple[list[str], list[str]]:
-    """Extract builtins with context-lifted bridge and fallthrough theorems.
+    """Extract builtins with direct native bridge and fallthrough theorems.
 
     Returns (context_bridged, fallthrough) where context_bridged lists builtins
-    with evalBuiltinCallWithBackendContext_evmYulLean_*_bridge theorems, and
-    fallthrough lists builtins with *_none theorems.
+    with evalBuiltinCall_*_bridge theorems, and fallthrough lists builtins with
+    *_none theorems.
     """
     if not BRIDGE_LEMMAS_FILE.exists():
         raise FileNotFoundError(f"Bridge lemmas file not found: {BRIDGE_LEMMAS_FILE}")
@@ -479,77 +478,34 @@ def _parse_bridged_builtins_defs() -> tuple[list[str], list[str]]:
 
 
 def _parse_correctness_proofs() -> dict[str, object]:
-    """Parse adapter correctness proof theorems."""
+    """Report native harness status for the historical correctness slot."""
     if not CORRECTNESS_FILE.exists():
-        # The legacy adapter correctness file was removed as part of the
-        # EVMYulLean transition (DoD-5 polish). The native EvmYulLean chain
-        # no longer relies on the proof-interpreter adapter, so report N/A.
         try:
             file_label = str(CORRECTNESS_FILE.relative_to(ROOT))
         except ValueError:
             file_label = str(CORRECTNESS_FILE)
         return {
             "file": file_label,
-            "assign_to_let": "n/a (file removed in EVMYulLean transition)",
-            "for_init_hoisting": "n/a (file removed in EVMYulLean transition)",
+            "runtime_lowering": "missing",
+            "dispatcher_tail": "missing",
         }
     text = CORRECTNESS_FILE.read_text(encoding="utf-8")
     code = _strip_lean_strings(_strip_lean_comments(text))
-    theorem_matches = list(CORRECTNESS_THEOREM_RE.finditer(code))
-    theorem_status: dict[str, str] = {}
-    for idx, match in enumerate(theorem_matches):
-        name = match.group(1)
-        next_decl = DECLARATION_RE.search(code, match.end())
-        next_theorem = theorem_matches[idx + 1].start() if idx + 1 < len(theorem_matches) else None
-        candidates = [pos for pos in [next_decl.start() if next_decl else None, next_theorem] if pos is not None]
-        end = min(candidates) if candidates else len(code)
-        body = code[match.end():end]
-        theorem_status[name] = "sorry" if re.search(r"\bsorry\b", body) else "proven"
-    theorems = sorted(theorem_status)
-    if not theorems:
-        raise ValueError(
-            f"No correctness theorems found in {CORRECTNESS_FILE.relative_to(ROOT)} "
-            f"— expected assign_equiv_let or for_init theorems"
-        )
-    required_assign = ["assign_equiv_let"]
-    required_for = ["for_init_hoist"]
-    missing_assign = [name for name in required_assign if name not in theorem_status]
-    missing_for = [name for name in required_for if name not in theorem_status]
-    if missing_assign:
-        raise ValueError(
-            f"Missing assign/let correctness theorem family in {CORRECTNESS_FILE.relative_to(ROOT)} "
-            f"— expected exact theorem name(s): {', '.join(required_assign)}"
-        )
-    if missing_for:
-        raise ValueError(
-            f"Missing for-init-hoisting correctness theorem family in {CORRECTNESS_FILE.relative_to(ROOT)} "
-            f"— expected exact theorem name(s): {', '.join(required_for)}"
-        )
-    assign_thms = sorted(t for t in theorems if t.startswith("assign_equiv_let"))
-    for_thms = sorted(t for t in theorems if t.startswith("for_init_hoist"))
-
-    def family_status(names: list[str]) -> str:
-        if any(theorem_status[name] == "sorry" for name in names):
-            return f"sorry ({', '.join(names)})"
-        return f"proven ({', '.join(names)})"
-
     return {
         "file": str(CORRECTNESS_FILE.relative_to(ROOT)),
-        "assign_to_let": family_status(assign_thms),
-        "for_init_hoisting": family_status(for_thms),
+        "runtime_lowering": "present" if "lowerRuntimeContractNative" in code else "missing",
+        "dispatcher_tail": (
+            "present" if "NativeGeneratedSelectorHitSuccessBridge" in code else "missing"
+        ),
     }
 
 
 def build_report() -> dict[str, object]:
-    if not ADAPTER_FILE.exists():
-        raise FileNotFoundError(f"Missing adapter file: {ADAPTER_FILE.relative_to(ROOT)}")
-
-    text = ADAPTER_FILE.read_text(encoding="utf-8")
     if not NATIVE_LOWERING_FILE.exists():
         raise FileNotFoundError(f"Missing native lowering file: {NATIVE_LOWERING_FILE.relative_to(ROOT)}")
     native_text = NATIVE_LOWERING_FILE.read_text(encoding="utf-8")
-    expr_lines = _extract_block(text, "def lowerExpr", "partial def lowerStmts")
-    stmt_lines = _extract_block(text, "partial def lowerStmt", "def lowerProgram")
+    expr_lines = _extract_block(native_text, "def lowerExprNative", "theorem lowerExprNative_call_runtimePrimOp")
+    stmt_lines = _extract_block(native_text, "def lowerStmtGroupNativeWithSwitchIds", "def lowerStmtsNative")
 
     expr_status = _parse_cases(expr_lines)
     stmt_status = _parse_cases(stmt_lines)
@@ -583,11 +539,13 @@ def build_report() -> dict[str, object]:
     concrete_only = sorted(set(tested_builtins) - set(universal_lemmas))
     correctness = _parse_correctness_proofs()
 
-    # Schema v6: Phase 4 complete — context-lifted bridges + bridged/unbridged defs + retarget
+    # Schema v6: Phase 4 complete — direct native bridges + bridged/unbridged defs.
     context_bridged, fallthrough = _parse_context_bridge_lemmas()
     bridged_defs, unbridged_defs = _parse_bridged_builtins_defs()
 
-    # Phase 4 retarget detection
+    # Historical retarget detection. The native EndToEnd target has replaced
+    # the old retarget file; this section remains only to keep old artifact
+    # consumers deterministic when the file is absent.
     retarget_file = RETARGET_FILE
     phase4_retarget: dict[str, str] | None = None
     if retarget_file.exists():
@@ -829,10 +787,7 @@ def build_report() -> dict[str, object]:
         else:
             layer3_evm_retarget_status = "proven (conditional on bridged IR bodies)"
         if not has_end_to_end_evm_retarget:
-            end_to_end_evm_retarget_status = (
-                "removed from EndToEnd surface "
-                "(legacy retarget evidence removed from current surface)"
-            )
+            end_to_end_evm_retarget_status = "removed from EndToEnd surface"
         elif end_to_end_evm_retarget_has_sorry:
             end_to_end_evm_retarget_status = "sorry"
         elif admitted_deps:
@@ -1508,7 +1463,6 @@ def build_report() -> dict[str, object]:
 
     report: dict[str, object] = {
         "schema_version": 7,
-        "adapter_file": str(ADAPTER_FILE.relative_to(ROOT)),
         "native_lowering_file": str(NATIVE_LOWERING_FILE.relative_to(ROOT)),
         "status": status,
         "expr_supported": expr_supported,
@@ -1534,10 +1488,10 @@ def build_report() -> dict[str, object]:
     report["concrete_bridge_tests"] = tested_builtins
     report["concrete_only_bridge_tests"] = concrete_only
     report["concrete_test_count"] = test_count
-    report["adapter_correctness_proofs"] = correctness
+    report["native_harness_status"] = correctness
 
     # Phase 4 readiness fields (schema v5)
-    report["context_lifted_bridge_lemmas"] = context_bridged
+    report["native_context_bridge_lemmas"] = context_bridged
     report["fallthrough_lemmas"] = fallthrough
     if bridged_defs:
         report["bridged_builtins"] = bridged_defs
@@ -1576,21 +1530,21 @@ def main() -> int:
 
     if args.check:
         if not args.output.exists():
-            print(f"Missing adapter artifact: {args.output}", file=sys.stderr)
+            print(f"Missing native lowering artifact: {args.output}", file=sys.stderr)
             return 1
         existing = args.output.read_text(encoding="utf-8")
         if existing != rendered:
             print(
-                "EVMYulLean adapter report is stale. Regenerate with:\n"
+                "EVMYulLean native lowering report is stale. Regenerate with:\n"
                 "  python3 scripts/generate_evmyullean_adapter_report.py",
                 file=sys.stderr,
             )
             return 1
-        print(f"EVMYulLean adapter report is up to date: {args.output}")
+        print(f"EVMYulLean native lowering report is up to date: {args.output}")
         return 0
 
     write_report(args.output, payload)
-    print(f"Wrote EVMYulLean adapter report: {args.output}")
+    print(f"Wrote EVMYulLean native lowering report: {args.output}")
     return 0
 
 

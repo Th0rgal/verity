@@ -105,10 +105,10 @@ test-python: ## Run Python unit tests
 test-foundry: ## Run Foundry differential tests (requires solc + forge + generated Yul)
 	FOUNDRY_PROFILE=difftest forge test
 
-test-evmyullean-fork: ## Probe EVMYulLean fork conformance (audit + adapter report + EndToEnd target)
+test-evmyullean-fork: ## Probe EVMYulLean fork conformance (audit + native lowering report + EndToEnd target)
 	@echo "Checking EVMYulLean fork pin + drift audit..."
 	python3 scripts/generate_evmyullean_fork_audit.py --check
-	@echo "Checking EVMYulLean adapter report..."
+	@echo "Checking EVMYulLean native lowering report..."
 	python3 scripts/generate_evmyullean_adapter_report.py --check
 	@echo "Building EVMYulLean bridge lemmas, native harness, and 0 concrete bridge tests..."
 	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas

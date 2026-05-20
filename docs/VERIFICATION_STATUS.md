@@ -97,18 +97,18 @@ Key files:
 executed through the native `EvmYul.Yul.callDispatcher` theorem stack. The
 public EndToEnd surface compares the projected native dispatcher result with
 IR/source semantics on the observable storage/log/result surface. The old
-fuel-parametric custom Yul executor and preservation/equivalence files are no
+fuel-parametric Verity-side Yul executor and preservation/equivalence files are no
 longer part of the checked-in proof tree.
 
 Key files: [`EndToEnd.lean`](../Compiler/Proofs/EndToEnd.lean), [`EvmYulLeanNativeHarness.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean), [`EvmYulLeanBodyClosure.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean), [`EvmYulLeanBridgeLemmas.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean), [`AXIOMS.md`](../AXIOMS.md)
 
 ### Phase 4: EVMYulLean Native Dispatcher (safe-body EndToEnd target)
 
-The retargeting module that bridged the legacy `.verity` proof-interpreter
-backend to the `.evmYulLean` backend, together with the old preservation and
-equivalence scaffolding, was **removed in DoD-5** of the EVMYulLean transition. The native EvmYulLean
-dispatcher is now the sole runtime authority; there is no longer a private
-proof-interpreter chain to keep in sync.
+The retargeting module that bridged the old `.verity` execution path to the
+`.evmYulLean` backend, together with the old preservation and equivalence
+scaffolding, was **removed in DoD-5** of the EVMYulLean transition. The native
+EvmYulLean dispatcher is now the sole runtime authority; there is no longer a
+parallel private execution chain to keep in sync.
 
 The retained content of Phase 4 is the body-closure layer that proves
 compiler-emitted runtime Yul satisfies `BridgedStmts` so that the public
@@ -140,7 +140,7 @@ closures unconditionally for the supported fragment.
 - `compileStmtList_internal_recursive_body_fragment_bridged`: mixed internal source-body fragments closed recursively under `Stmt.ite` compile to `BridgedStmts`
 - `compileStmtList_always_bridged`: universal aggregation theorem for `BridgedSafeStmts`; the external-call family (`internalCall`, `internalCallAssign`, `externalCallBind`, and `ecm`) remains outside the whitelist and behind explicit function-table hypotheses
 
-The backend-parameterized proof-interpreter bridge has been deleted. Body
+The backend-parameterized bridge has been deleted. Body
 closure now has a universal safe-body aggregation theorem for
 `BridgedSafeStmts`, while the public EndToEnd theorem family targets native
 dispatcher execution through `interpretIRRuntimeNative` and keeps the

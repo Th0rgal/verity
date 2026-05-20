@@ -1,26 +1,20 @@
 # Full Native EVMYulLean Transition: Definition Of Done
 
-This document defines what it means to finish the transition from Verity's
-custom Yul interpreter to native EVMYulLean execution as the authoritative
+This document records the completed transition from Verity's former Yul
+interpreter path to native EVMYulLean execution as the authoritative
 compiler-verification target.
 
-It is stricter than the current native EndToEnd surface. The SimpleStorage
-native theorem now discharges its retrieve, store, and selector bridge cases,
-and the public generated-dispatcher theorem family targets native EVMYulLean
-dispatcher execution. Lower transition evidence still records Verity's custom
-Yul statement interpreter path through the EVMYulLean-backed builtin backend:
-
-```lean
-interpretYulRuntimeWithBackend .evmYulLean
-```
+The SimpleStorage native theorem discharges its retrieve, store, and selector
+bridge cases, and the public generated-dispatcher theorem family targets native
+EVMYulLean dispatcher execution. Removed transition evidence used to record a
+Verity-side Yul statement-interpreter path through the EVMYulLean-backed builtin
+backend.
 
 The removed transition theorem name
 `yulCodegen_preserves_semantics_evmYulLeanBackend_via_reference_oracle` marks
-the old shape: composing Layer 3 through the reference oracle before rewriting
-to an EVMYulLean-backed builtin executor. The final transition is complete only
-when the public compiler-correctness theorem targets native EVMYulLean
-execution directly, or an equivalent wrapper whose only execution engine is
-`EvmYul.Yul.callDispatcher`.
+the old shape that has now been deleted. The public compiler-correctness
+theorem targets native EVMYulLean execution directly through
+`EvmYul.Yul.callDispatcher`; that condition is satisfied on `main`.
 
 ## Current Baseline
 
@@ -33,9 +27,8 @@ The current baseline is:
   which executes through native EVMYulLean. Helper-free and mapping-helper
   generated-dispatcher wrappers consume concrete dispatcher lowering and build
   full emitted-runtime native lowering internally.
-- Lower Layer 3 transition modules still contain isolated reference-oracle and
-  backend-wrapper evidence for the bridged fragment; that evidence is not the
-  public EndToEnd proof authority.
+- Lower Layer 3 transition modules no longer contain the reference-oracle
+  builtin comparison or the backend-parameterized builtin wrapper.
 - `simpleStorage_endToEnd_native_evmYulLean` is a concrete native theorem over
   the direct projected `EvmYul.Yul.callDispatcher` result, with no public
   retrieve-hit, store-hit, or selector-miss bridge premises.
@@ -56,8 +49,8 @@ CompilationModel
   -> public end-to-end theorem
 ```
 
-The custom Yul interpreter may remain temporarily as a regression oracle, but it
-must not be on the proof path for the public semantic-preservation claim.
+Historical differential tests may still compare against older execution paths,
+but the public semantic-preservation proof path must not depend on them.
 
 ## Non-Negotiable Completion Criteria
 
@@ -67,8 +60,8 @@ The transition is done only when all criteria in this section are true on
 ### 1. Public Theorem Target
 
 - The generic Layer 3 and end-to-end compiler-correctness theorem statements
-  target native EVMYulLean execution, not
-  `interpretYulRuntimeWithBackend .evmYulLean`.
+  target native EVMYulLean execution, not the removed backend-parameterized
+  interpreter path.
 - The theorem-facing native target is either `Native.interpretIRRuntimeNative`
   or a narrower wrapper that internally lowers to EVMYulLean and executes via
   `EvmYul.Yul.callDispatcher`.
@@ -76,8 +69,8 @@ The transition is done only when all criteria in this section are true on
   as `nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper`,
   `nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper`, or an equivalent bridge
   assumption.
-- Any remaining comparison with the custom interpreter is explicitly marked as
-  regression or differential testing, not as the authoritative proof target.
+- Any remaining comparison with older execution paths is explicitly marked as
+  differential testing, not as the authoritative proof target.
 
 ### 2. Generated Fragment Characterization
 
@@ -89,7 +82,7 @@ The transition is done only when all criteria in this section are true on
   event/log snippets, selector extraction, callvalue guards, calldata guards,
   and native switch temporaries.
 - Unsupported constructs fail closed before the public theorem claims semantic
-  preservation. They must not silently fall back to custom interpreter
+  preservation. They must not silently fall back to an alternate execution
   semantics.
 - The generated-fragment contract is tested by CI so new emitted Yul forms
   cannot bypass the native proof surface.
@@ -159,7 +152,7 @@ The transition is done only when all criteria in this section are true on
 - The public native theorem's `#print axioms` output contains only Lean
   foundational axioms such as `propext`, `Classical.choice`,
   `Lean.ofReduceBool`, or `Quot.sound`.
-- There are no hidden local assumptions that reintroduce custom interpreter
+- There are no hidden local assumptions that reintroduce alternate interpreter
   correctness, Nat storage-slot injectivity, unbounded storage values, or
   unconstrained environment defaults.
 
@@ -256,24 +249,18 @@ Before doing anything:
   5. Inspect current open PRs and relevant branches with gh.
 
 Goal:
-  Continue the transition from Verity's custom Yul interpreter to native
-  EVMYulLean as the authoritative public compiler-verification target.
+  Keep native EVMYulLean as the authoritative public compiler-verification
+  target.
 
 Current architecture:
-  The generic public path still uses:
-
-    interpretYulRuntimeWithBackend .evmYulLean
-
-  This is Verity's custom Yul statement interpreter with EVMYulLean-backed
-  builtin semantics. The native path exists through:
+  The public proof path runs through:
 
     Native.interpretRuntimeNative
     Native.interpretIRRuntimeNative
     EvmYul.Yul.callDispatcher
 
-  The transition is complete only when the generic public theorem targets the
-  native path directly and no public theorem assumes native-vs-custom
-  interpreter agreement.
+  The removed backend-fuel path must not be reintroduced as a theorem-facing
+  authority.
 
 Definition of done:
   Follow docs/NATIVE_EVMYULLEAN_FULL_TRANSITION_DONE.md exactly. Do not claim
@@ -295,13 +282,13 @@ Preferred work order:
   7. Generic generated-runtime native agreement.
   8. Public Layer 3 and EndToEnd theorem target flip.
   9. CI, docs, trust-boundary update.
-  10. Custom interpreter demotion/removal after it is no longer authoritative.
+  10. Keep removed interpreter/adapter surfaces out of the public proof path.
 
 Hard constraints:
   - Do not add public theorem assumptions merely to make proofs pass.
   - Do not use sorry, admit, axioms, unchecked declarations, or hidden local
     assumptions.
-  - Do not route the final public proof through Verity's custom Yul interpreter.
+  - Do not route the final public proof through an alternate Yul interpreter.
   - Do not weaken generated-fragment predicates to include constructs that the
     native proof does not actually cover.
   - Do not paper over environment, storage, memory, returndata, logs, gas, or
@@ -360,7 +347,6 @@ Work style:
 Before declaring the transition complete, verify these exact facts:
 
 ```bash
-! rg "interpretYulRuntimeWithBackend \\.evmYulLean" Compiler/Proofs/EndToEnd.lean
 ! rg "nativeIRRuntimeAgreesWithEvmYulLeanFuelWrapper|nativeCallDispatcherAgreesWithEvmYulLeanFuelWrapper" Compiler/Proofs/EndToEnd.lean
 ! rg "\\bsorry\\b|\\badmit\\b|^axiom " Compiler Verity Contracts
 python3 scripts/check_axioms.py
@@ -373,5 +359,5 @@ make check
 ```
 
 The first two `rg` commands should either find no public-theorem dependency on
-the custom interpreter path, or should find only documentation/comments and
-regression-oracle lemmas explicitly excluded from the public semantic target.
+the old backend-fuel path, or should find only documentation/comments and
+historical lemmas explicitly excluded from the public semantic target.

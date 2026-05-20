@@ -79,7 +79,7 @@ def main() -> None:
                         )
 
     # Check 2: Exactly 0 allowUnsafeReducibility (the prior single usage was
-    # tied to the legacy fuel-based executor, removed in the EVMYulLean
+    # tied to the removed fuel-based executor after the EVMYulLean
     # transition).
     expected_unsafe = 0
     unsafe_count = 0

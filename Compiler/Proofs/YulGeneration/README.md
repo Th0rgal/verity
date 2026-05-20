@@ -5,7 +5,7 @@ This directory contains the verification proofs for Layer 3 (IR → Yul) of the 
 **Status**: native EVMYulLean dispatcher execution is the public Layer 3
 target. The active end-to-end native surface is the
 `EvmYul.Yul.callDispatcher` theorem stack in `Compiler/Proofs/EndToEnd.lean`.
-The old fuel-parametric custom Yul executor, preservation stack, and private
+The old fuel-parametric Verity-side Yul executor, preservation stack, and private
 retarget bridge have been removed. Native EVMYulLean dispatch is the only
 checked-in builtin semantics surface.
 
@@ -27,7 +27,7 @@ checked-in builtin semantics surface.
   - Proves emitted Yul fragments satisfy native bridge predicates
 
 - **`Backends/EvmYulLeanBridgeLemmas.lean`** - Builtin agreement layer
-  - Proves the Verity-side builtin comparison oracle agrees with EVMYulLean
+  - Records native EVMYulLean builtin-routing facts used by bridge predicates
   - Covers the pure, environment, calldata, storage, and helper builtin cases
 
 - **`Backends/EvmYulLeanBridgePredicates.lean`** - Native bridge predicates
@@ -43,11 +43,11 @@ checked-in builtin semantics surface.
 
 ## Native Boundary
 
-The public compiler-correctness path does not compose through a custom Yul
+The public compiler-correctness path does not compose through a Verity-side Yul
 interpreter. It lowers generated runtime Yul into EVMYulLean and compares the
 projected native dispatcher result with IR/source semantics. Legacy builtin
-comparison lemmas are retained only to discharge bridge predicates for emitted
-fragments.
+comparison semantics have been removed; bridge predicates now discharge against
+native EVMYulLean routing facts.
 
 ## References
 

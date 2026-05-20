@@ -19,10 +19,10 @@ match proofs for selector miss, retrieve hit, and store hit.
 Those two cases cannot be discharged inside the current public theorem
 signature because of a type-level mismatch:
 
-- The Verity proof oracle `interpretYulRuntimeWithBackend .evmYulLean` reads
-  from `IRState.storage : Nat → Nat` (see
+- The removed Verity proof oracle path used to read from
+  `IRState.storage : Nat → Nat` (see
   [`Compiler/Proofs/IRGeneration/IRInterpreter.lean`](../Compiler/Proofs/IRGeneration/IRInterpreter.lean)).
-  The carrier is unbounded.
+  That carrier was unbounded.
 - The native path executes against EVMYulLean's `SharedState`, whose
   storage carrier is `UInt256`. The native projection
   (`projectStorageFromState` → `extractStorage` → `.toNat` in

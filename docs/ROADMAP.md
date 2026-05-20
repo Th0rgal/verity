@@ -28,9 +28,9 @@ This tracker is the execution order for migration-oriented compiler work. Later 
 | P2 | Interop + verification docs hardening | [#585](https://github.com/lfglabs-dev/verity/issues/585), [#586](https://github.com/lfglabs-dev/verity/issues/586) | blocked by P0/P1 outputs | Generated verification artifact consumed by docs + published interop support profile |
 
 Current P0 baseline artifact coverage:
-- `artifacts/evmyullean_capability_report.json` tracks builtin overlap boundaries and explicit unsupported adapter nodes.
-- `artifacts/evmyullean_unsupported_nodes.json` provides a dedicated machine-readable unsupported-node list for adapter-lowering gaps.
-- `artifacts/evmyullean_adapter_report.json` tracks adapter AST-lowering coverage (`supported`/`partial`/`gap`) and runtime seam status.
+- `artifacts/evmyullean_capability_report.json` tracks builtin overlap boundaries and explicit unsupported native-lowering nodes.
+- `artifacts/evmyullean_unsupported_nodes.json` provides a dedicated machine-readable unsupported-node list for native-lowering gaps.
+- `artifacts/evmyullean_adapter_report.json` tracks native AST-lowering coverage (`supported`/`partial`/`gap`) and runtime boundary status.
 
 Current P1 foundation coverage (Issue #582):
 - Deterministic expression patch DSL + pass engine in `Compiler/Yul/PatchFramework.lean`
@@ -278,6 +278,7 @@ Execution priorities:
 - Builtin bridge: 36 of 36 builtins bridged (25 pure + 11 context/env/storage/helper), with all 36 fully proven and 0 sorry'd
 - Native bridge smoke tests + 36 context-lifted native routing theorems + 0 concrete bridge tests
 - `bridgedBuiltins` definition enumerates all 36 builtins covered by the native EVMYulLean dispatch surface
+- `selfBalance` / Yul `selfbalance()` is surfaced as a partially modeled runtime-introspection boundary in trust reports and is rejected by `--deny-runtime-introspection` until the native account-balance bridge is proved (issue [#1836](https://github.com/lfglabs-dev/verity/issues/1836)).
 - Unbridged: none; `mappingSlot` is bridged via the shared keccak-faithful `abstractMappingSlot` derivation
 - Phase 2 state bridge scaffolding: type conversions, storage round-trip, env field bridges (0 sorry)
 - **Phase 4 (native dispatcher closure)**: `EvmYulLeanBodyClosure.lean` proves universal `compileStmtList_always_bridged` coverage for `BridgedSafeStmts`; the external-call family remains carved out behind explicit function-table simulation work. `EvmYulLeanSourceExprClosure.lean` proves scalar leaf closure (`compileExpr_bridgedSource_leaf`) and source-expression closure (`compileExpr_bridgedSource`) for arithmetic/comparison/bit-operation expressions, parameter length identifiers, storage, storage-array length, ADT tag/field reads, mapping reads through the abstract `mappingSlot` bridge, calldata/memory/transient reads, and syntactic `keccak256(offset, size)` emission in the `BridgedSourceExpr` fragment. `mappingSlot` remains an abstraction boundary for mapping-slot memory+keccak equivalence, while `keccak256` remains a source-semantics boundary for full end-to-end expression correctness until the source evaluator models memory-slice hashing.

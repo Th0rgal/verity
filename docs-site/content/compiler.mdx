@@ -153,7 +153,7 @@ constructor := some {
 
 **Expressions** cover literals, parameters, storage and mapping reads, EVM context (`caller`, `chainid`, `msgValue`, `blockTimestamp`, `blockNumber`, `blobbasefee`), memory primitives (`mload`, `keccak256`), low-level calls (`call`, `staticcall`, `delegatecall`), arithmetic, bitwise, comparisons, logical operators.
 
-> **Low-level call boundary**: the three call forms compile, but their runtime semantics are still outside the current proof-interpreter model. The call success / returndata mechanics remain validated by differential testing and tracked under issue `#1332`. `delegatecall` also remains a separate proxy / upgradeability trust boundary; archive `--trust-report` and add `--deny-proxy-upgradeability` if those semantics must stay outside the selected verification envelope (see issue `#1420`).
+> **Low-level call boundary**: the three call forms compile, but their runtime semantics are still outside the current native verified runtime model. The call success / returndata mechanics remain validated by differential testing and tracked under issue `#1332`. `delegatecall` also remains a separate proxy / upgradeability trust boundary; archive `--trust-report` and add `--deny-proxy-upgradeability` if those semantics must stay outside the selected verification envelope (see issue `#1420`).
 >
 > **Linear-memory boundary**: Memory-oriented intrinsics (`mload`, `mstore`, `calldatacopy`, `returndataCopy`, `returndataOptionalBoolAt`) compile, but the current proof interpreters still model them only partially. When they appear, surface that boundary with `--trust-report` / `--deny-linear-memory-mechanics`; the remaining gap is tracked under issue `#1411`.
 >

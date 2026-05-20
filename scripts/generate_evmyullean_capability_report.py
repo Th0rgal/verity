@@ -23,21 +23,25 @@ from evmyullean_capability import (
 )
 from property_utils import ROOT
 
-ADAPTER_FILE = ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Backends" / "EvmYulLeanAdapter.lean"
+NATIVE_LOWERING_FILE = (
+    ROOT / "Compiler" / "Proofs" / "YulGeneration" / "Backends" / "EvmYulLeanNativeLowering.lean"
+)
 DEFAULT_OUTPUT = ROOT / "artifacts" / "evmyullean_capability_report.json"
 DEFAULT_UNSUPPORTED_OUTPUT = ROOT / "artifacts" / "evmyullean_unsupported_nodes.json"
 
 
-def extract_adapter_gaps() -> list[dict[str, str]]:
-    if not ADAPTER_FILE.exists():
-        raise FileNotFoundError(f"Missing adapter file: {ADAPTER_FILE.relative_to(ROOT)}")
+def extract_native_lowering_gaps() -> list[dict[str, str]]:
+    if not NATIVE_LOWERING_FILE.exists():
+        raise FileNotFoundError(
+            f"Missing native lowering file: {NATIVE_LOWERING_FILE.relative_to(ROOT)}"
+        )
 
     branch_re = re.compile(r"^\s*\|\s*\.(?P<node>[A-Za-z0-9_]+)\b")
-    gap_re = re.compile(r'\.error\s+"adapter gap: (?P<reason>[^"]+)"')
+    gap_re = re.compile(r'(?:\.error|throw)\s+(?:s!)?"(?P<reason>[^"]+)"')
 
     current_node: str | None = None
     gaps: list[dict[str, str]] = []
-    for line in ADAPTER_FILE.read_text(encoding="utf-8").splitlines():
+    for line in NATIVE_LOWERING_FILE.read_text(encoding="utf-8").splitlines():
         branch_match = branch_re.match(line)
         if branch_match:
             current_node = branch_match.group("node")
@@ -45,7 +49,9 @@ def extract_adapter_gaps() -> list[dict[str, str]]:
 
         gap_match = gap_re.search(line)
         if gap_match and current_node:
-            gaps.append({"node": current_node, "reason": gap_match.group("reason")})
+            gap = {"node": current_node, "reason": gap_match.group("reason")}
+            if gap not in gaps:
+                gaps.append(gap)
             current_node = None
 
     return gaps
@@ -61,7 +67,7 @@ def build_report() -> dict[str, object]:
 
     unknown = sorted(found_set - allowed_set)
     unsupported_present = sorted(found_set & EVMYULLEAN_UNSUPPORTED_BUILTINS)
-    adapter_gaps = extract_adapter_gaps()
+    native_lowering_gaps = extract_native_lowering_gaps()
 
     return {
         "schema_version": 2,
@@ -73,9 +79,9 @@ def build_report() -> dict[str, object]:
         "unsupported_builtins": sorted(EVMYULLEAN_UNSUPPORTED_BUILTINS),
         "unknown_builtins_present": unknown,
         "unsupported_builtins_present": unsupported_present,
-        "adapter_file": str(ADAPTER_FILE.relative_to(ROOT)),
-        "adapter_lowering_status": "partial" if adapter_gaps else "complete",
-        "unsupported_adapter_nodes": adapter_gaps,
+        "native_lowering_file": str(NATIVE_LOWERING_FILE.relative_to(ROOT)),
+        "native_lowering_status": "partial" if native_lowering_gaps else "complete",
+        "unsupported_native_lowering_nodes": native_lowering_gaps,
     }
 
 
@@ -88,9 +94,9 @@ def build_unsupported_nodes_report(payload: dict[str, object]) -> dict[str, obje
     return {
         "schema_version": 1,
         "source_report": str(DEFAULT_OUTPUT.relative_to(ROOT)),
-        "adapter_file": payload["adapter_file"],
-        "nodes": payload["unsupported_adapter_nodes"],
-        "count": len(payload["unsupported_adapter_nodes"]),
+        "native_lowering_file": payload["native_lowering_file"],
+        "nodes": payload["unsupported_native_lowering_nodes"],
+        "count": len(payload["unsupported_native_lowering_nodes"]),
     }
 
 

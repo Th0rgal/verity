@@ -5,10 +5,6 @@ namespace Compiler.Proofs.YulGeneration.Backends
 
 open Compiler.Proofs.IRGeneration (IRStorageWord IRStorageSlot)
 
-inductive BuiltinBackend where
-  | evmYulLean
-  deriving DecidableEq, Repr
-
 /-- Native EVMYulLean-backed builtin evaluation with full execution context.
 
 This is the native-default builtin surface used by public IR/Yul proof entry
@@ -72,33 +68,6 @@ def evalBuiltinCallWithEvmYulLean
     (func : String)
     (argVals : List Nat) : Option Nat :=
   evalBuiltinCallWithEvmYulLeanContext storage sender 0 0 0 0 0 0 selector calldata func argVals
-
-def evalBuiltinCallWithBackendContext
-    (_backend : BuiltinBackend)
-    (storage : IRStorageSlot → IRStorageWord)
-    (sender : Nat)
-    (msgValue : Nat)
-    (thisAddress : Nat)
-    (blockTimestamp : Nat)
-    (blockNumber : Nat)
-    (chainId : Nat)
-    (blobBaseFee : Nat)
-    (selector : Nat)
-    (calldata : List Nat)
-    (func : String)
-    (argVals : List Nat) : Option Nat :=
-  evalBuiltinCallWithEvmYulLeanContext storage sender msgValue thisAddress
-    blockTimestamp blockNumber chainId blobBaseFee selector calldata func argVals
-
-def evalBuiltinCallWithBackend
-    (backend : BuiltinBackend)
-    (storage : IRStorageSlot → IRStorageWord)
-    (sender : Nat)
-    (selector : Nat)
-    (calldata : List Nat)
-    (func : String)
-    (argVals : List Nat) : Option Nat :=
-  evalBuiltinCallWithBackendContext backend storage sender 0 0 0 0 0 0 selector calldata func argVals
 
 def evalBuiltinCall
     (storage : IRStorageSlot → IRStorageWord)

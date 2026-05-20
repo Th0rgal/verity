@@ -21,6 +21,29 @@ if str(SCRIPT_DIR) not in sys.path:
 import generate_evmyullean_adapter_report as gen
 
 
+class ParseNativeLoweringCasesTests(unittest.TestCase):
+    def test_parse_cases_marks_throw_interpolation_as_gap(self) -> None:
+        lines = textwrap.dedent("""\
+            def lowerStmtGroupNativeWithSwitchIds : YulStmt -> Except String Unit
+              | .comment _ => pure ()
+              | .funcDef name _ _ _ =>
+                  throw s!"native EVMYulLean statement lowering cannot inline function definition '{name}'"
+        """).splitlines()
+
+        self.assertEqual(
+            gen._parse_cases(lines),
+            {"comment": "supported", "funcDef": "gap"},
+        )
+        self.assertEqual(
+            gen._parse_gap_messages(lines),
+            {
+                "funcDef": [
+                    "native EVMYulLean statement lowering cannot inline function definition '{name}'"
+                ]
+            },
+        )
+
+
 class ParseBridgeLemmasTests(unittest.TestCase):
     """Tests for _parse_bridge_lemmas sorry detection."""
 
@@ -491,7 +514,7 @@ class ParseCorrectnessProofsTests(unittest.TestCase):
 
     def _write_correctness_file(self, text: str) -> Path:
         self._tmpdir = tempfile.TemporaryDirectory()
-        p = Path(self._tmpdir.name) / "AdapterCorrectness.lean"
+        p = Path(self._tmpdir.name) / "NativeHarness.lean"
         p.write_text(textwrap.dedent(text), encoding="utf-8")
         return p
 
@@ -499,88 +522,34 @@ class ParseCorrectnessProofsTests(unittest.TestCase):
         if hasattr(self, "_tmpdir"):
             self._tmpdir.cleanup()
 
-    def test_extracts_assign_and_for_theorems(self) -> None:
+    def test_reports_present_native_harness_markers(self) -> None:
         p = self._write_correctness_file("""\
-            theorem assign_equiv_let : True := by
-              trivial
-            theorem for_init_hoist : True := by
-              trivial
+            def lowerRuntimeContractNative := 1
+            inductive NativeGeneratedSelectorHitSuccessBridge where
+              | done
         """)
         with patch.object(gen, "CORRECTNESS_FILE", p), \
              patch.object(gen, "ROOT", Path(self._tmpdir.name)):
             result = gen._parse_correctness_proofs()
-        self.assertIn("assign_to_let", result)
-        self.assertIn("for_init_hoisting", result)
-        self.assertIn("proven", result["assign_to_let"])
-        self.assertIn("proven", result["for_init_hoisting"])
+        self.assertEqual(result["runtime_lowering"], "present")
+        self.assertEqual(result["dispatcher_tail"], "present")
 
-    def test_marks_correctness_family_sorry_when_body_contains_sorry(self) -> None:
+    def test_missing_native_harness_markers_report_missing(self) -> None:
         p = self._write_correctness_file("""\
-            theorem assign_equiv_let : True := by
-              trivial
-            theorem for_init_hoist : True := by
-              sorry
+            def helper := 42
         """)
         with patch.object(gen, "CORRECTNESS_FILE", p), \
              patch.object(gen, "ROOT", Path(self._tmpdir.name)):
             result = gen._parse_correctness_proofs()
-        self.assertIn("proven", result["assign_to_let"])
-        self.assertIn("sorry", result["for_init_hoisting"])
+        self.assertEqual(result["runtime_lowering"], "missing")
+        self.assertEqual(result["dispatcher_tail"], "missing")
 
-    def test_ignores_correctness_theorem_names_inside_strings(self) -> None:
-        p = self._write_correctness_file('''\
-            def msg : String :=
-              "theorem assign_equiv_let : True := by trivial\\ntheorem for_init_hoist : True := by trivial"
-        ''')
-        with patch.object(gen, "CORRECTNESS_FILE", p), \
-             patch.object(gen, "ROOT", Path(self._tmpdir.name)):
-            with self.assertRaises(ValueError, msg="No correctness theorems found"):
-                gen._parse_correctness_proofs()
-
-    def test_requires_exact_correctness_theorem_names(self) -> None:
-        p = self._write_correctness_file("""\
-            theorem assign_equiv_let_decoy : True := by
-              trivial
-            theorem for_init_hoist_decoy : True := by
-              trivial
-        """)
-        with patch.object(gen, "CORRECTNESS_FILE", p), \
-             patch.object(gen, "ROOT", Path(self._tmpdir.name)):
-            with self.assertRaisesRegex(ValueError, "assign_equiv_let"):
-                gen._parse_correctness_proofs()
-
-    def test_empty_theorems_raises(self) -> None:
-        p = self._write_correctness_file("""\
-            -- no theorems here, just comments
-            def helper := 42
-        """)
-        with patch.object(gen, "CORRECTNESS_FILE", p), \
-             patch.object(gen, "ROOT", Path(self._tmpdir.name)):
-            with self.assertRaises(ValueError, msg="No correctness theorems found"):
-                gen._parse_correctness_proofs()
-
-    def test_ignores_theorems_inside_block_comments(self) -> None:
-        p = self._write_correctness_file("""\
-            /-
-            theorem assign_equiv_let := by
-              trivial
-            theorem for_init_hoist := by
-              trivial
-            -/
-            def helper := 42
-        """)
-        with patch.object(gen, "CORRECTNESS_FILE", p), \
-             patch.object(gen, "ROOT", Path(self._tmpdir.name)):
-            with self.assertRaises(ValueError, msg="No correctness theorems found"):
-                gen._parse_correctness_proofs()
-
-    def test_missing_file_returns_na(self) -> None:
-        """After the EVMYulLean transition, the correctness file is removed and
-        the report records 'n/a' rather than raising."""
+    def test_missing_file_reports_missing(self) -> None:
+        """The native harness status is fail-closed when the source file is absent."""
         with patch.object(gen, "CORRECTNESS_FILE", Path("/nonexistent/Correctness.lean")):
             result = gen._parse_correctness_proofs()
-        self.assertIn("n/a", result["assign_to_let"])
-        self.assertIn("n/a", result["for_init_hoisting"])
+        self.assertEqual(result["runtime_lowering"], "missing")
+        self.assertEqual(result["dispatcher_tail"], "missing")
 
 
 class ExtractBlockTests(unittest.TestCase):
@@ -657,19 +626,19 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "credited no builtins"):
                 gen.build_report()
 
-    def test_context_lifted_bridge_lemmas_present(self) -> None:
+    def test_native_context_bridge_lemmas_present(self) -> None:
         report = gen.build_report()
-        context = report.get("context_lifted_bridge_lemmas", [])
+        context = report.get("native_context_bridge_lemmas", [])
         self.assertTrue(
             context,
-            "context_lifted_bridge_lemmas should be non-empty",
+            "native_context_bridge_lemmas should be non-empty",
         )
-        # Every context-lifted bridge should be a real bridged builtin.
+        # Every native context bridge should be a real bridged builtin.
         bridged = set(report.get("bridged_builtins", []))
         for b in context:
             self.assertIn(
                 b, bridged,
-                f"context-lifted bridge {b!r} not in bridged_builtins",
+                f"native context bridge {b!r} not in bridged_builtins",
             )
 
     def test_fallthrough_lemmas_match_unbridged(self) -> None:
@@ -1128,8 +1097,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertEqual(phase4["status"], "universal-safe-body-closure")
         self.assertEqual(
             phase4["layers2_3_ir_matches_yul_evmYulLeanBackend"],
-            "removed from EndToEnd surface "
-            "(legacy retarget evidence removed from current surface)",
+            "removed from EndToEnd surface",
         )
 
     def _retarget_all_proven(self) -> str:
@@ -1336,8 +1304,7 @@ class RepoArtifactConsistencyTests(unittest.TestCase):
         self.assertEqual(phase4["status"], "universal-safe-body-closure")
         self.assertEqual(
             phase4["layers2_3_ir_matches_yul_evmYulLeanBackend"],
-            "removed from EndToEnd surface "
-            "(legacy retarget evidence removed from current surface)",
+            "removed from EndToEnd surface",
         )
 
     def test_universal_body_closure_with_admitted_deps_does_not_flip(self) -> None:
@@ -1403,9 +1370,9 @@ class ParseContextBridgeLemmasTests(unittest.TestCase):
 
     def test_extracts_context_bridge_and_fallthrough(self) -> None:
         p = self._write_lemma_file("""\
-            @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_add_bridge := by sorry
-            theorem evalBuiltinCallWithBackendContext_evmYulLean_pure_bridge := by sorry
-            @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_sload_none := by sorry
+            @[simp] theorem evalBuiltinCall_add_bridge := by sorry
+            theorem evalBuiltinCall_pure_bridge := by sorry
+            @[simp] theorem evalBuiltinCall_sload_none := by sorry
         """)
         with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
             context, fallthrough = gen._parse_context_bridge_lemmas()
@@ -1415,9 +1382,9 @@ class ParseContextBridgeLemmasTests(unittest.TestCase):
     def test_ignores_commented_theorems(self) -> None:
         p = self._write_lemma_file("""\
             /-
-            @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_fake_bridge := by sorry
+            @[simp] theorem evalBuiltinCall_fake_bridge := by sorry
             -/
-            @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_add_bridge := by sorry
+            @[simp] theorem evalBuiltinCall_add_bridge := by sorry
         """)
         with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
             context, fallthrough = gen._parse_context_bridge_lemmas()
@@ -1427,9 +1394,9 @@ class ParseContextBridgeLemmasTests(unittest.TestCase):
     def test_ignores_string_literal_theorem_text(self) -> None:
         p = self._write_lemma_file('''\
             def msg : String :=
-              "theorem evalBuiltinCallWithBackendContext_evmYulLean_fake_bridge := by sorry"
+              "theorem evalBuiltinCall_fake_bridge := by sorry"
 
-            @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_add_bridge := by sorry
+            @[simp] theorem evalBuiltinCall_add_bridge := by sorry
         ''')
         with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
             context, fallthrough = gen._parse_context_bridge_lemmas()
@@ -1439,11 +1406,11 @@ class ParseContextBridgeLemmasTests(unittest.TestCase):
     def test_ignores_nested_local_context_theorem(self) -> None:
         p = self._write_lemma_file("""\
             theorem wrapper : True := by
-              local theorem evalBuiltinCallWithBackendContext_evmYulLean_fake_bridge : True := by
+              local theorem evalBuiltinCall_fake_bridge : True := by
                 trivial
               trivial
 
-            @[simp] theorem evalBuiltinCallWithBackendContext_evmYulLean_add_bridge := by sorry
+            @[simp] theorem evalBuiltinCall_add_bridge := by sorry
         """)
         with patch.object(gen, "BRIDGE_LEMMAS_FILE", p):
             context, fallthrough = gen._parse_context_bridge_lemmas()
