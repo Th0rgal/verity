@@ -23,74 +23,66 @@ def evalExpr :=
   Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
 """
 
-    def _run_boundary_check(self, ir_body: str, sem_body: str) -> list[str]:
+    def _run_boundary_check(self, ir_body: str, extra_body: str | None = None) -> list[str]:
         with tempfile.TemporaryDirectory(dir=property_utils.ROOT) as tmpdir:
             root = Path(tmpdir)
             proofs = root / "Compiler" / "Proofs"
-            builtins = proofs / "YulGeneration" / "ReferenceOracle" / "Builtins.lean"
             ir = proofs / "IRGeneration" / "IRInterpreter.lean"
-            sem = proofs / "YulGeneration" / "ReferenceOracle" / "Semantics.lean"
-            builtins.parent.mkdir(parents=True, exist_ok=True)
+            extra = proofs / "IRGeneration" / "ExtraInterpreter.lean"
             ir.parent.mkdir(parents=True, exist_ok=True)
-            sem.parent.mkdir(parents=True, exist_ok=True)
+            extra.parent.mkdir(parents=True, exist_ok=True)
 
-            builtins.write_text("-- builtin boundary module\n", encoding="utf-8")
             ir.write_text(ir_body, encoding="utf-8")
-            sem.write_text(sem_body, encoding="utf-8")
+            if extra_body is not None:
+                extra.write_text(extra_body, encoding="utf-8")
 
             old_root = check_yul.ROOT
             old_proofs = check_yul.PROOFS_DIR
-            old_builtins = check_yul.BUILTINS_FILE
             old_runtime = check_yul.RUNTIME_INTERPRETERS
             check_yul.ROOT = root
             check_yul.PROOFS_DIR = proofs
-            check_yul.BUILTINS_FILE = builtins
-            check_yul.RUNTIME_INTERPRETERS = [ir, sem]
+            check_yul.RUNTIME_INTERPRETERS = [ir] if extra_body is None else [ir, extra]
             try:
                 return check_yul.collect_builtin_boundary_failures()
             finally:
                 check_yul.ROOT = old_root
                 check_yul.PROOFS_DIR = old_proofs
-                check_yul.BUILTINS_FILE = old_builtins
                 check_yul.RUNTIME_INTERPRETERS = old_runtime
 
     def test_comment_only_decoy_does_not_satisfy_boundary(self) -> None:
-        body = """import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
--- decoy only: Compiler.Proofs.YulGeneration.evalBuiltinCall
+        body = """import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
+-- decoy only: Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
 def evalExpr := 0
 """
-        failures = self._run_boundary_check(self.NATIVE_BODY, body)
+        failures = self._run_boundary_check(body)
         self.assertTrue(any("missing call" in failure for failure in failures))
 
     def test_string_literal_decoy_does_not_satisfy_boundary(self) -> None:
-        body = """import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
-def evalExpr := "Compiler.Proofs.YulGeneration.evalBuiltinCall"
+        body = """import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
+def evalExpr := "Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext"
 """
-        failures = self._run_boundary_check(self.NATIVE_BODY, body)
+        failures = self._run_boundary_check(body)
         self.assertTrue(any("missing call" in failure for failure in failures))
 
-    def test_eval_builtin_call_with_backend_satisfies_boundary(self) -> None:
-        body = """import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
+    def test_native_builtin_call_satisfies_boundary(self) -> None:
+        body = """import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
 def evalExpr :=
-  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackend
+  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext
 """
-        failures = self._run_boundary_check(self.NATIVE_BODY, body)
+        failures = self._run_boundary_check(body)
         self.assertEqual(failures, [])
 
-    def test_eval_builtin_call_with_backend_context_satisfies_boundary(self) -> None:
+    def test_reference_oracle_call_no_longer_satisfies_boundary(self) -> None:
         body = """import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
 def evalExpr :=
   Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
 """
-        failures = self._run_boundary_check(self.NATIVE_BODY, body)
-        self.assertEqual(failures, [])
+        failures = self._run_boundary_check(body)
+        self.assertTrue(any("missing import" in failure for failure in failures))
+        self.assertTrue(any("missing call" in failure for failure in failures))
 
     def test_native_ir_interpreter_boundary(self) -> None:
-        legacy_body = """import Compiler.Proofs.YulGeneration.ReferenceOracle.Builtins
-def evalExpr :=
-  Compiler.Proofs.YulGeneration.evalBuiltinCallWithBackendContext
-"""
-        failures = self._run_boundary_check(self.NATIVE_BODY, legacy_body)
+        failures = self._run_boundary_check(self.NATIVE_BODY)
         self.assertEqual(failures, [])
 
     def test_inline_dispatch_regex_covers_env_builtins(self) -> None:

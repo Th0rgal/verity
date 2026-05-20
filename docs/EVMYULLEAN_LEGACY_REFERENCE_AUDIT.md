@@ -32,7 +32,9 @@ authority. It still uses legacy/reference code in three narrower ways:
 
 The largest remaining cleanup opportunity is to finish demoting the builtin
 comparison oracle stack to conformance-only coverage. `IRGeneration/FunctionBody.lean`
-now consumes direct EVMYulLean builtin facts, so `ReferenceOracle/Builtins.lean`
+now consumes direct EVMYulLean builtin facts, and `scripts/check_yul.py`
+enforces the native `EvmYulLeanBuiltinSemantics` boundary rather than requiring
+the reference oracle as the builtin boundary. `ReferenceOracle/Builtins.lean`
 is no longer on that production proof import path. Removing it outright would
 still break the legacy bridge test, the bridge lemma module, and axiom-report
 coverage.
@@ -51,6 +53,7 @@ coverage.
 | Builtin reference oracle | `ReferenceOracle/Builtins.lean` | Keep as conformance/reporting scaffolding until replaced | Directly imported by `EvmYulLeanBridgeLemmas.lean`, `EvmYulLeanBridgeTest.lean`, and `PrintAxioms.lean`; defines `legacyEvalBuiltinCall*` and backend comparison dispatch. |
 | Builtin bridge lemmas | `EvmYulLeanBridgeLemmas.lean` | Keep as conformance/reporting scaffolding until replaced | Proves EVMYulLean builtin behavior agrees with legacy builtin formulas; imported by bridge tests and `PrintAxioms.lean`, but no longer by `IRGeneration/FunctionBody.lean`. |
 | Builtin bridge test | `EvmYulLeanBridgeTest.lean` | Keep as conformance test, or move under a test-only namespace | Referenced by `Makefile` and fork conformance workflow. No production proof imports it. |
+| Yul builtin-boundary CI check | `scripts/check_yul.py` | Native boundary enforced | The checker now requires `IRInterpreter.lean` to import `EvmYulLeanBuiltinSemantics` and call `evalBuiltinCallWithEvmYulLeanContext`; reference-oracle calls no longer satisfy this boundary. |
 | Reference state re-export | removed | Removed in the cleanup PR | It had no direct imports and only re-exported `RuntimeTypes`. |
 | Removed retarget stack | `EvmYulLeanRetarget.lean`, older adapter-correctness modules | Already removed | Only mentioned in docs/comments. |
 | Stale build references | removed | Removed in the cleanup PR | Targeted verification and runner benchmarks now point at current native proof modules. |
