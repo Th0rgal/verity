@@ -79,7 +79,7 @@ the native harness' materialized-storage boundary. -/
 def sourceResultMatchesNativeOn
     (observableSlots : List Nat)
     (source : SourceSemantics.SourceContractResult)
-    (native : Except Compiler.Proofs.YulGeneration.Backends.AdapterError YulResult) :
+    (native : Except Compiler.Proofs.YulGeneration.Backends.NativeLoweringError YulResult) :
     Prop :=
   match native with
   | .ok yul =>
@@ -98,7 +98,7 @@ private theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_na
     {observableSlots : List Nat}
     {source : SourceSemantics.SourceContractResult}
     {ir : IRResult}
-    {native : Except Compiler.Proofs.YulGeneration.Backends.AdapterError YulResult}
+    {native : Except Compiler.Proofs.YulGeneration.Backends.NativeLoweringError YulResult}
     (hSourceIR :
       Compiler.Proofs.IRGeneration.FunctionBody.sourceResultMatchesIRResult
         source ir)
@@ -403,7 +403,7 @@ noncomputable def nativeGeneratedCallDispatcherResultOf
     (state : IRState)
     (observableSlots : List Nat)
     (nativeContract : EvmYul.Yul.Ast.YulContract) :
-    Except Compiler.Proofs.YulGeneration.Backends.AdapterError YulResult :=
+    Except Compiler.Proofs.YulGeneration.Backends.NativeLoweringError YulResult :=
   let fuel := Nat.succ (sizeOf (Compiler.emitYul contract).runtimeCode)
   let initial :=
     Compiler.Proofs.YulGeneration.Backends.Native.initialState nativeContract
@@ -457,7 +457,7 @@ theorem nativeResultsMatchOn_interpretIR_of_execIRFunction_guards
     (state : IRState)
     (observableSlots : List Nat)
     (fn : IRFunction)
-    (native : Except Compiler.Proofs.YulGeneration.Backends.AdapterError
+    (native : Except Compiler.Proofs.YulGeneration.Backends.NativeLoweringError
       YulResult)
     (hFind :
       contract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
@@ -484,7 +484,7 @@ theorem nativeResultsMatchOn_interpretIR_of_execIRFunction_dispatchGuards
     (state : IRState)
     (observableSlots : List Nat)
     (fn : IRFunction)
-    (native : Except Compiler.Proofs.YulGeneration.Backends.AdapterError
+    (native : Except Compiler.Proofs.YulGeneration.Backends.NativeLoweringError
       YulResult)
     (hFind :
       contract.functions.find? (fun fn => fn.selector == tx.functionSelector) =
@@ -6837,9 +6837,9 @@ private theorem nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNativ
       irContract tx state observableSlots nativeContract
       (generatedRuntimeNativeFragment_of_compile_ok_supported hCompile hSupported)
       hLower hEnv
-  rw [hInterp]
   simp [nativeGeneratedCallDispatcherResultOf, Compiler.emitYul,
     Compiler.runtimeCode, Compiler.CodegenCommon.emitYul]
+  exact hInterp.symm
 
 private theorem nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNative_of_lowerRuntimeContractNative_supported_except_mapping_writes_stmt_safety
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
@@ -6869,9 +6869,9 @@ private theorem nativeGeneratedCallDispatcherResultOf_eq_interpretIRRuntimeNativ
       (generatedRuntimeNativeFragment_of_compile_ok_supported_except_mapping_writes_stmt_safety
         hCompile hSupported hSafety)
       hLower hEnv
-  rw [hInterp]
   simp [nativeGeneratedCallDispatcherResultOf, Compiler.emitYul,
     Compiler.runtimeCode, Compiler.CodegenCommon.emitYul]
+  exact hInterp.symm
 
 /-- Source-level compiler correctness over the direct projected
 `EvmYul.Yul.callDispatcher` result.
@@ -33373,7 +33373,7 @@ private theorem simpleStorageNativeRuntimeDispatcherStmts_exists_init_block :
             simpa [Compiler.CodegenCommon.initFreeMemoryPointer,
               Compiler.CodegenCommon.buildSwitch, simpleStorageBuildSwitchBody,
               simpleStorageBuildSwitchSourceCases] using hInner
-          have hBad : (Except.error err : Except AdapterError
+          have hBad : (Except.error err : Except NativeLoweringError
               (List EvmYul.Yul.Ast.Stmt × Nat)) = .ok (lowered, finalNext) := by
             have hInnerMap :
                 Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
@@ -33494,9 +33494,9 @@ private theorem simpleStorageNativeRuntimeDispatcherStmts_exists_init_block :
                          Yul.YulExpr.lit 128])),
                   EvmYul.Yul.Ast.Stmt.Block inner],
                  innerNext) :
-                Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)) =
+                Except NativeLoweringError (List EvmYul.Yul.Ast.Stmt × Nat)) =
                 (Except.ok (lowered, finalNext) :
-                  Except AdapterError (List EvmYul.Yul.Ast.Stmt × Nat)) := by
+                  Except NativeLoweringError (List EvmYul.Yul.Ast.Stmt × Nat)) := by
             have hInnerMap :
                 Compiler.Proofs.YulGeneration.Backends.lowerStmtsNativeWithSwitchIds
                   (Compiler.Proofs.YulGeneration.Backends.yulStmtsIdentifierNames

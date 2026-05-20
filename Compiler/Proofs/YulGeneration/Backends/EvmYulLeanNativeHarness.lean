@@ -2494,12 +2494,12 @@ theorem generatedRuntimeNativeFragment_emitYul_runtimeCode_noFallback_noReceive
     contract hInternalBodies
   simp [generatedRuntimeNativeFragment, hNames, hDispatcher, hBodies]
 
-def unsupportedGeneratedRuntimeNativeFragmentError : AdapterError :=
+def unsupportedGeneratedRuntimeNativeFragmentError : NativeLoweringError :=
   "native EVMYulLean generated runtime fragment check failed"
 
 def validateGeneratedRuntimeNativeFragment
     (runtimeCode : List YulStmt) :
-    Except AdapterError Unit :=
+    Except NativeLoweringError Unit :=
   if generatedRuntimeNativeFragment runtimeCode then
     .ok ()
   else
@@ -2658,22 +2658,22 @@ def nativeBlobBaseFeeRepresentable (fee : Nat) : Bool :=
 def nativeChainIdRepresentable (chainId : Nat) : Bool :=
   chainId == EvmYul.chainId
 
-def unsupportedNativeBlobBaseFeeError : AdapterError :=
+def unsupportedNativeBlobBaseFeeError : NativeLoweringError :=
   "native EVMYulLean blobbasefee requires representable blobBaseFee; \
   current bridge supports only EVMYulLean minimum blob gas price"
 
-def unsupportedNativeChainIdError : AdapterError :=
+def unsupportedNativeChainIdError : NativeLoweringError :=
   "native EVMYulLean chainid requires representable chainId; \
   current bridge supports only EVMYulLean global chain id"
 
-def unsupportedNativeHeaderBuiltinError : AdapterError :=
+def unsupportedNativeHeaderBuiltinError : NativeLoweringError :=
   "native EVMYulLean selected runtime path uses a header/account builtin that \
   is not represented in Verity's YulTransaction bridge"
 
 def validateNativeRuntimeEnvironment
     (runtimeCode : List YulStmt)
     (tx : YulTransaction) :
-    Except AdapterError Unit :=
+    Except NativeLoweringError Unit :=
   if nativeRuntimePathUsesBuiltin "chainid" runtimeCode tx &&
       !nativeChainIdRepresentable tx.chainId then
     .error unsupportedNativeChainIdError
@@ -13652,7 +13652,7 @@ theorem nativeSwitchMatchedFlag_of_revived_body_final
           at hRevive ⊢
   exact hRawRevived.trans (hPreserves fuel initial final hInitial hExec)
 
-/-- `_revived` `.Block` constructor adapter — mirrors the OLD-form
+/-- `_revived` `.Block` constructor wrapper — mirrors the OLD-form
 `NativeStmtPreservesWord_block`. `.Block body` exec and a list-body
 preservation share the same definition shape, so the witness is the
 hypothesis directly. -/
@@ -15384,7 +15384,7 @@ theorem NativeStmtPreservesWord_revived_empty_block
 
 /-- `_revived` form for the `.Block [.Leave]` shape produced by E4's
 lowering of an IR `[.block [.leave]]` body. Composes the `_revived` block
-adapter with the `_revived` singleton + leave lemma. -/
+wrapper with the `_revived` singleton + leave lemma. -/
 theorem NativeStmtPreservesWord_revived_block_leave
     (name : EvmYul.Identifier)
     (value : EvmYul.Literal)
@@ -37178,7 +37178,7 @@ def interpretRuntimeNative
     (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (events : List (List Nat) := []) :
-    Except AdapterError YulResult := do
+    Except NativeLoweringError YulResult := do
   validateGeneratedRuntimeNativeFragment runtimeCode
   let contract ← lowerRuntimeContractNative runtimeCode
   validateNativeRuntimeEnvironment runtimeCode tx
@@ -37195,7 +37195,7 @@ def interpretRuntimeNative
     (storage : IRStorageSlot → IRStorageWord)
     (observableSlots : List Nat)
     (events : List (List Nat))
-    (err : AdapterError)
+    (err : NativeLoweringError)
     (hFragment : generatedRuntimeNativeFragment runtimeCode = true)
     (hLower : lowerRuntimeContractNative runtimeCode = .error err) :
     interpretRuntimeNative fuel runtimeCode tx storage observableSlots events =
@@ -37293,7 +37293,7 @@ def interpretRuntimeNative
     (observableSlots : List Nat)
     (events : List (List Nat))
     (contract : EvmYul.Yul.Ast.YulContract)
-    (err : AdapterError)
+    (err : NativeLoweringError)
     (hFragment : generatedRuntimeNativeFragment runtimeCode = true)
     (hLower : lowerRuntimeContractNative runtimeCode = .ok contract)
     (hEnv : validateNativeRuntimeEnvironment runtimeCode tx = .error err) :
@@ -37307,7 +37307,7 @@ def interpretRuntimeNative
 
 This is the executable target that #1737 will promote into the public theorem
 path once the state/result bridge lemmas are proved. It intentionally returns
-`Except AdapterError YulResult` today because native lowering can still fail
+`Except NativeLoweringError YulResult` today because native lowering can still fail
 closed for duplicate helper definitions or unsupported runtime shapes.
 
 The observable slot set is explicit because the public theorem compares only
@@ -37321,7 +37321,7 @@ def interpretIRRuntimeNative
     (tx : Compiler.Proofs.IRGeneration.IRTransaction)
     (state : Compiler.Proofs.IRGeneration.IRState)
     (observableSlots : List Nat) :
-    Except AdapterError YulResult :=
+    Except NativeLoweringError YulResult :=
   interpretRuntimeNative fuel (Compiler.emitYul contract).runtimeCode
     (YulTransaction.ofIR tx) state.storage observableSlots state.events
 
@@ -37342,7 +37342,7 @@ def interpretIRRuntimeNative
     (tx : Compiler.Proofs.IRGeneration.IRTransaction)
     (state : Compiler.Proofs.IRGeneration.IRState)
     (observableSlots : List Nat)
-    (err : AdapterError)
+    (err : NativeLoweringError)
     (hFragment :
       generatedRuntimeNativeFragment (Compiler.emitYul contract).runtimeCode = true)
     (hLower : lowerRuntimeContractNative (Compiler.emitYul contract).runtimeCode =
@@ -37455,7 +37455,7 @@ lowering, so native-facing theorem statements record both that native execution
 returns a `YulResult` and that this result matches IR execution. -/
 private def nativeResultsMatch
     (ir : IRResult)
-    (native : Except AdapterError YulResult) :
+    (native : Except NativeLoweringError YulResult) :
     Prop :=
   match native with
   | .ok yul =>
@@ -37470,7 +37470,7 @@ private def nativeResultsMatch
 def nativeResultsMatchOn
     (observableSlots : List Nat)
     (ir : IRResult)
-    (native : Except AdapterError YulResult) :
+    (native : Except NativeLoweringError YulResult) :
     Prop :=
   match native with
   | .ok yul =>
