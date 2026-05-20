@@ -5,10 +5,12 @@
 <h1 align="center">Verity</h1>
 
 <p align="center">
-  <strong>A formally verified smart contract compiler. Read the <a href="https://lfglabs.dev/papers/verity.pdf">paper</a>.</strong>
+  <strong>A formally verified smart contract compiler for Ethereum, written in Lean 4.</strong><br/>
+  Documentation: <a href="https://veritylang.com">veritylang.com</a> &nbsp;·&nbsp; Paper: <a href="https://lfglabs.dev/papers/verity.pdf">verity.pdf</a> &nbsp;·&nbsp; Built by <a href="https://lfglabs.dev">LFG Labs</a>
 </p>
 
 <p align="center">
+  <a href="https://veritylang.com"><img src="https://img.shields.io/badge/docs-veritylang.com-0a7d7d.svg" alt="Verity documentation"></a>
   <a href="https://github.com/lfglabs-dev/verity/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://github.com/lfglabs-dev/verity"><img src="https://img.shields.io/badge/built%20with-Lean%204-blueviolet.svg" alt="Built with Lean 4"></a>
   <a href="https://github.com/lfglabs-dev/verity/blob/main/docs/VERIFICATION_STATUS.md"><img src="https://img.shields.io/badge/verification%20status-live-brightgreen.svg" alt="Verification status"></a>
@@ -17,7 +19,7 @@
 
 ---
 
-Verity is a formally verified smart contract compiler written in [Lean 4](https://lean-lang.org/). You write contracts in an embedded DSL, state what they should do, prove those properties hold, and compile to EVM bytecode. The compiler itself is proven to preserve semantics across three verified layers.
+**Verity** is a formally verified smart contract compiler written in [Lean 4](https://lean-lang.org/). You write contracts in an embedded DSL, state what they should do, prove those properties hold, and compile to EVM bytecode. The compiler itself is proven to preserve semantics across three verified layers. Full documentation lives at [**veritylang.com**](https://veritylang.com).
 
 <!-- BEGIN GENERATED STATS -->
 | Metric | Value |
