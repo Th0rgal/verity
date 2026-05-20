@@ -1,0 +1,90 @@
+---
+title: Architecture Overview
+description: A single-page map of the Verity system, from EDSL source down to EVM bytecode.
+---
+
+# Architecture Overview
+
+Verity is a Lean-4 embedded DSL for writing smart contracts that compile to EVM
+bytecode and come with machine-checked correctness proofs. Each layer of the
+system has a specific responsibility: the **EDSL** is where humans write
+contracts and theorems; the **CompilationModel** is the declarative typed
+specification the compiler consumes; the **IR** is the intermediate form the
+proofs target; **Yul** is the textual EVM dialect emitted to disk; and the
+deployable **EVM** bytecode is produced by `solc` from Yul. Every transition is
+either proved in Lean or recorded as an explicit assumption in the trust report.
+
+## Pipeline
+
+```
+EDSL  -->  CompilationModel  -->  IR  -->  Yul  -->  EVM
+```
+
+**EDSL.** The source layer. Contracts are written using `verity_contract` (or
+the lower-level `Contract` monad) against `Verity/Core.lean`. Specs, invariants,
+and proofs live next to the implementation in `Contracts/<Name>/`. Read by the
+human author; consumed by the elaborator to build a `CompilationModel`. Layer 1
+proves the EDSL implementation refines its `CompilationModel`.
+
+**CompilationModel.** The declarative typed-IR layer (`Compiler/CompilationModel.lean`).
+A `CompilationModel` carries fields, events, errors, the constructor, function
+bodies as `Expr`/`Stmt`, externals, and local obligations. Written by the
+compiler (or by hand for legacy specs); read by the IR generator. Layer 2
+proves that the IR generated from any `CompilationModel` in the supported
+fragment preserves its semantics.
+
+**IR.** The typed intermediate representation that sits between
+`CompilationModel` and Yul (`Compiler/Proofs/IRGeneration/`). Generated
+automatically; read by the Yul code generator and by the Layer 2 / Layer 3
+proofs. The end-to-end correctness theorem is stated at this level.
+
+**Yul.** The textual EVM dialect emitted by `Compiler/Codegen.lean` and the Yul
+pretty-printer in `Compiler/Yul/*.lean`. Written to `artifacts/yul/*.yul`; read
+by `solc --strict-assembly`. Layer 3 proves IR-to-Yul preservation.
+
+**EVM.** The final deployable bytecode. Produced by `solc` from Yul; deployed by
+`forge create` or any standard toolchain. Not in the proof envelope: `solc`,
+the EVM spec, and the deployment pipeline are explicit trust assumptions.
+
+## Source layer (EDSL)
+
+The EDSL is intentionally small. `Verity/Core.lean` provides `ContractState`,
+`ContractResult` (the success/revert algebra), the `Contract` monad with
+short-circuiting `bind`, six persistent storage spaces (uint256, address,
+address-keyed mapping, uint256-keyed mapping, double mapping, dynamic arrays)
+plus EIP-1153 transient storage, `require`, and a curated set of `@[simp]`
+lemmas for proof automation. The `verity_contract` macro lowers
+human-friendly syntax to both an executable Lean definition and a
+`CompilationModel`, keeping the two in sync. See [`/edsl-api-reference`](/edsl-api-reference)
+for the full surface and [`/first-contract`](/first-contract) for a guided walkthrough.
+
+## Pipeline (CompilationModel → Yul)
+
+The compiler runs a fixed sequence per contract: storage-slot inference,
+selector lookup, IR generation, Yul AST construction, and pretty-printing. The
+same binary emits machine-readable audit artifacts: `--trust-report`,
+`--assumption-report`, `--layout-report`, and `--layout-compat-report`. The
+linker (`Compiler/Linker.lean`) splices external Yul libraries (`--link`) into
+the runtime section after validating that every non-builtin call site is
+satisfied. See [`/compiler`](/compiler) for the pipeline narrative and CLI reference.
+
+## Verification layers (1 / 2 / 3)
+
+Verity organizes its correctness story in three layers. **Layer 1** is the
+frontend bridge: an EDSL implementation is proven equivalent to its
+`CompilationModel`. **Layer 2** is the compiler middle: a generic
+whole-contract theorem in `Compiler/Proofs/IRGeneration/Contract.lean` proves
+that `CompilationModel.compile` produces IR with matching semantics for the
+current supported fragment. **Layer 3** is the backend: `IR → Yul` preserves
+semantics, with the dispatcher bridge exposed as an explicit hypothesis rather
+than a Lean axiom. See [`/trust-model`](/trust-model) for what is verified and
+what is trusted at each layer, and [`/verification`](/verification) for the
+live theorem inventory.
+
+## Where to next
+
+- [Getting Started](/getting-started) — local setup and your first verification run.
+- [First Contract](/first-contract) — guided spec-to-proof walkthrough.
+- [Compiler & CLI](/compiler) — the pipeline in detail, plus CLI flags.
+- [Trust Model](/trust-model) — what you trust when you trust a Verity contract.
+- [EDSL API Reference](/edsl-api-reference) — canonical primitive reference.

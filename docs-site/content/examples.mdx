@@ -1,47 +1,30 @@
 ---
-title: Example Contracts
-description: 12 contracts covering storage, arithmetic, access control, mappings, composition, and security
+title: Examples Gallery
+description: Sample contracts, ordered by the pattern each introduces — single-slot storage through full token composition.
 ---
 
-# Example Contracts
+# Examples Gallery
 
-A small set of contracts, each introducing a new pattern. They build on each other: SimpleStorage uses one slot, Counter adds arithmetic, Owned adds access control, and SimpleToken combines all three.
+A small set of contracts, each introducing a new pattern. They build on each other: SimpleStorage uses one slot, Counter adds arithmetic, Owned adds access control, SimpleToken combines all three.
 
-## How to organize a contract
+Each contract is verified end-to-end against the generic whole-contract Layer 2 theorem in `Compiler/Proofs/IRGeneration/Contract.lean` for the current supported fragment — there are no per-contract bridge axioms.
 
-- **Spec**: `Verity/Specs/<Name>/Spec.lean`
-- **Invariants**: `Verity/Specs/<Name>/Invariants.lean`
-- **Implementation**: `Verity/Examples/<Name>.lean`
-- **Basic proofs**: `Verity/Proofs/<Name>/Basic.lean`
-- **Advanced proofs**: `Verity/Proofs/<Name>/Correctness.lean`
-- **Compilation correctness**: `Compiler/TypedIRCompilerCorrectness.lean` + `Compiler/Proofs/IRGeneration/Contract.lean` for the current supported fragment.
-- **Reusable proof infra**: `Verity/Proofs/Stdlib/`
-
-Example (SimpleStorage):
-- Spec: `Contracts/SimpleStorage/Spec.lean`
-- Implementation: `Contracts/SimpleStorage/SimpleStorage.lean`
-- Basic proofs: `Contracts/SimpleStorage/Proofs/Basic.lean`
-- Correctness proofs: `Contracts/SimpleStorage/Proofs/Correctness.lean`
-
-## Authoring checklist
-
-1. Define behavior in `Contracts/<Name>/Spec.lean`.
-2. Add invariants in `Contracts/<Name>/Invariants.lean` if needed.
-3. Implement the EDSL contract in `Contracts/<Name>/<Name>.lean`.
-4. Prove spec adherence in `Contracts/<Name>/Proofs/Basic.lean` using `Verity/Proofs/Stdlib/` helpers.
+For the *file layout* and authoring steps these examples follow, see [Add a Contract](/guides/add-contract). For a guided walkthrough that builds one from scratch, see [Your First Contract](/first-contract).
 
 ## SimpleStorage
 
 Single storage slot with get/set.
 
 ```verity
-def storedData : StorageSlot Uint256 := ⟨0⟩
+verity_contract SimpleStorage where
+  storage
+    storedData : Uint256 := slot 0
 
-def store (value : Uint256) : Contract Unit := do
-  setStorage storedData value
+  function store (value : Uint256) : Unit := do
+    setStorage storedData value
 
-def retrieve : Contract Uint256 := do
-  getStorage storedData
+  function retrieve () : Uint256 := do
+    return (← getStorage storedData)
 ```
 
 Proofs cover store/retrieve roundtrip and state isolation.
@@ -51,63 +34,76 @@ Proofs cover store/retrieve roundtrip and state isolation.
 Read-modify-write with increment and decrement.
 
 ```verity
-def count : StorageSlot Uint256 := ⟨0⟩
+verity_contract Counter where
+  storage
+    count : Uint256 := slot 0
 
-def increment : Contract Unit := do
-  let current ← getStorage count
-  setStorage count (add current 1)
+  function increment () : Unit := do
+    let current ← getStorage count
+    setStorage count (add current 1)
 
-def decrement : Contract Unit := do
-  let current ← getStorage count
-  setStorage count (sub current 1)
+  function decrement () : Unit := do
+    let current ← getStorage count
+    setStorage count (sub current 1)
 ```
 
-Proofs cover arithmetic, composition (two increments add 2), and decrement-at-zero behavior.
+Proofs cover arithmetic, composition (two increments add 2), and decrement-at-zero wraparound behavior.
 
 ## SafeCounter
 
-Same as Counter but uses checked arithmetic from `Stdlib/Math`.
+Same as Counter but uses checked arithmetic from `Stdlib.Math`.
 
 ```verity
-def increment : Contract Unit := do
-  let current ← getStorage count
-  let newCount ← requireSomeUint (safeAdd current 1) "Overflow"
-  setStorage count newCount
+verity_contract SafeCounter where
+  storage
+    count : Uint256 := slot 0
+
+  function increment () : Unit := do
+    let current ← getStorage count
+    let newCount ← requireSomeUint (safeAdd current 1) "Overflow"
+    setStorage count newCount
 ```
 
 Proofs cover overflow/underflow revert and bounds preservation.
 
 ## Owned
 
-Access control with an owner address and a `require` guard.
+Access control with an owner address and a `require` guard. `onlyOwner` is a same-contract helper that any function can call directly.
 
 ```verity
-def owner : StorageSlot Address := ⟨0⟩
+verity_contract Owned where
+  storage
+    owner : Address := slot 0
 
-def isOwner : Contract Bool := do
-  let sender ← msgSender
-  let currentOwner ← getStorageAddr owner
-  return sender == currentOwner
+  constructor (initialOwner : Address) := do
+    setStorageAddr owner initialOwner
 
-def onlyOwner : Contract Unit := do
-  let ownerCheck ← isOwner
-  require ownerCheck "Caller is not the owner"
+  function onlyOwner () : Unit := do
+    let sender       ← msgSender
+    let currentOwner ← getStorageAddr owner
+    require (sender == currentOwner) "Caller is not the owner"
+
+  function transferOwnership (newOwner : Address) : Unit := do
+    onlyOwner
+    setStorageAddr owner newOwner
 ```
 
-Proofs cover access control enforcement and ownership transfer.
+Proofs cover access-control enforcement and the full lifecycle (create, transfer, locked-out old owner).
 
 ## OwnedCounter
 
 Composes Owned and Counter. Increment/decrement require ownership.
 
 ```verity
-def owner : StorageSlot Address := ⟨0⟩
-def count : StorageSlot Uint256 := ⟨1⟩
+verity_contract OwnedCounter where
+  storage
+    owner : Address := slot 0
+    count : Uint256 := slot 1
 
-def increment : Contract Unit := do
-  onlyOwner
-  let current ← getStorage count
-  setStorage count (add current 1)
+  function increment () : Unit := do
+    onlyOwner
+    let current ← getStorage count
+    setStorage count (add current 1)
 ```
 
 Proofs cover cross-pattern composition, ownership transfer locking out old owner, and counter value surviving ownership transfer.
@@ -117,24 +113,26 @@ Proofs cover cross-pattern composition, ownership transfer locking out old owner
 Mapping storage for per-address balances with deposit, withdraw, and transfer.
 
 ```verity
-def balances : StorageSlot (Address → Uint256) := ⟨0⟩
+verity_contract Ledger where
+  storage
+    balances : Address → Uint256 := slot 0
 
-def deposit (amount : Uint256) : Contract Unit := do
-  let sender ← msgSender
-  let currentBalance ← getMapping balances sender
-  setMapping balances sender (add currentBalance amount)  -- modular arithmetic (EVM)
+  function deposit (amount : Uint256) : Unit := do
+    let sender         ← msgSender
+    let currentBalance ← getMapping balances sender
+    setMapping balances sender (add currentBalance amount)   -- EVM modular arithmetic
 
-def transfer (to : Address) (amount : Uint256) : Contract Unit := do
-  let sender ← msgSender
-  let senderBalance ← getMapping balances sender
-  require (senderBalance >= amount) "Insufficient balance"
-  if sender == to then
-    pure ()
-  else
-    let recipientBalance ← getMapping balances to
-    let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance amount) "Recipient balance overflow"
-    setMapping balances sender (sub senderBalance amount)
-    setMapping balances to newRecipientBalance
+  function transfer (to : Address) (amount : Uint256) : Unit := do
+    let sender        ← msgSender
+    let senderBalance ← getMapping balances sender
+    require (senderBalance >= amount) "Insufficient balance"
+    if sender == to then
+      pure ()
+    else
+      let recipientBalance    ← getMapping balances to
+      let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance amount) "Recipient balance overflow"
+      setMapping balances sender (sub senderBalance amount)
+      setMapping balances to newRecipientBalance
 ```
 
 Proofs cover balance guards, deposit/withdraw/transfer sum equations, and deposit-withdraw cancellation.
@@ -144,39 +142,75 @@ Proofs cover balance guards, deposit/withdraw/transfer sum equations, and deposi
 Composes Owned and Ledger. Adds owner-controlled minting and supply tracking.
 
 ```verity
-def owner : StorageSlot Address := ⟨0⟩
-def balances : StorageSlot (Address → Uint256) := ⟨1⟩
-def totalSupply : StorageSlot Uint256 := ⟨2⟩
+verity_contract SimpleToken where
+  storage
+    owner       : Address := slot 0
+    balances    : Address → Uint256 := slot 1
+    totalSupply : Uint256 := slot 2
 
-def mint (to : Address) (amount : Uint256) : Contract Unit := do
-  onlyOwner
-  let currentBalance ← getMapping balances to
-  let newBalance ← requireSomeUint (safeAdd currentBalance amount) "Balance overflow"
-  let currentSupply ← getStorage totalSupply
-  let newSupply ← requireSomeUint (safeAdd currentSupply amount) "Supply overflow"
-  setMapping balances to newBalance
-  setStorage totalSupply newSupply
+  constructor (initialOwner : Address) := do
+    setStorageAddr owner initialOwner
+    setStorage totalSupply 0
 
-def transfer (to : Address) (amount : Uint256) : Contract Unit := do
-  let sender ← msgSender
-  let senderBalance ← getMapping balances sender
-  require (senderBalance >= amount) "Insufficient balance"
-  if sender == to then
-    pure ()
-  else
-    let recipientBalance ← getMapping balances to
-    let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance amount) "Recipient balance overflow"
-    setMapping balances sender (sub senderBalance amount)
-    setMapping balances to newRecipientBalance
+  function mint (to : Address) (amount : Uint256) : Unit := do
+    onlyOwner
+    let currentBalance ← getMapping balances to
+    let newBalance     ← requireSomeUint (safeAdd currentBalance amount) "Balance overflow"
+    let currentSupply  ← getStorage totalSupply
+    let newSupply      ← requireSomeUint (safeAdd currentSupply amount) "Supply overflow"
+    setMapping balances to newBalance
+    setStorage totalSupply newSupply
+
+  function transfer (to : Address) (amount : Uint256) : Unit := do
+    let sender        ← msgSender
+    let senderBalance ← getMapping balances sender
+    require (senderBalance >= amount) "Insufficient balance"
+    if sender == to then
+      pure ()
+    else
+      let recipientBalance    ← getMapping balances to
+      let newRecipientBalance ← requireSomeUint (safeAdd recipientBalance amount) "Recipient balance overflow"
+      setMapping balances sender (sub senderBalance amount)
+      setMapping balances to newRecipientBalance
 ```
 
 Proofs cover mint/transfer correctness, supply conservation equations, and storage isolation across all three slot types.
+
+## Vault (minimal ERC-4626)
+
+A conservative ERC-4626-style vault with 1:1 asset/share accounting. Deposits mint shares equal to assets; withdrawals burn 1:1. The shape exercises the canonical vault surface without complicating the share-price math.
+
+```verity
+verity_contract Vault where
+  storage
+    totalAssetsSlot   : Uint256 := slot 0
+    totalSupplySlot   : Uint256 := slot 1
+    shareBalancesSlot : Address → Uint256 := slot 2
+
+  constructor () := do
+    setStorage totalAssetsSlot 0
+    setStorage totalSupplySlot 0
+
+  function deposit (assets : Uint256) : Unit := do
+    let sender ← msgSender
+    let currentShares ← getMapping shareBalancesSlot sender
+    let newShares ← requireSomeUint (safeAdd currentShares assets) "Share balance overflow"
+    let currentAssets ← getStorage totalAssetsSlot
+    let newAssets ← requireSomeUint (safeAdd currentAssets assets) "Total assets overflow"
+    let currentSupply ← getStorage totalSupplySlot
+    let newSupply ← requireSomeUint (safeAdd currentSupply assets) "Total supply overflow"
+    setMapping shareBalancesSlot sender newShares
+    setStorage totalAssetsSlot newAssets
+    setStorage totalSupplySlot newSupply
+```
+
+The spec layer (`deposit_spec`, `withdraw_spec`, isolation predicates) lives in `Contracts/Vault/Spec.lean`. Native IR-lowering proofs are checked in [`Contracts/Vault/Proofs/Native.lean`](https://github.com/lfglabs-dev/verity/blob/main/Contracts/Vault/Proofs/Native.lean); deeper Basic/Correctness/Conservation coverage is tracked under issue [#1163](https://github.com/lfglabs-dev/verity/issues/1163).
 
 ## ReentrancyExample
 
 Two parallel bank contracts, one vulnerable, one safe, demonstrating that reentrancy is a *provable* property, not just a testing concern.
 
-```lean
+```verity
 -- Vulnerable: external call before state update
 -- Modeled by subtracting totalSupply twice, balance once
 theorem vulnerable_attack_exists :
@@ -200,7 +234,7 @@ Proofs cover: existential attack witness (vulnerability is provably exploitable)
 
 ## CryptoHash
 
-Unverified example demonstrating external library linking via the [Linker](/compiler#linker). Has no specs or proofs; it exists to show how external Yul helper functions integrate with compiled output. See the [Linking Libraries](/guides/linking-libraries) guide for a walkthrough.
+Unverified example demonstrating external library linking via the [Linker](/compiler#linker). Has no specs or proofs; it exists to show how external Yul helper functions integrate with compiled output. See the [Linking External Libraries](/guides/linking-libraries) guide for a walkthrough.
 
 ```verity
 -- Placeholder hash for proofs (replaced with real Poseidon at compile time)
@@ -215,30 +249,30 @@ def storeHashTwo (a b : Uint256) : Contract Unit := do
 
 The EDSL uses a placeholder function (`add`) for the hash. At compile time, the [Linker](/guides/linking-libraries) replaces the compiled output with a call to the real Poseidon library via `Expr.externalCall` in the CompilationModel layer.
 
-Source: [`Contracts/CryptoHash/Contract.lean`](https://github.com/Th0rgal/verity/blob/main/Contracts/CryptoHash/Contract.lean)
+Source: [`Contracts/CryptoHash/Contract.lean`](https://github.com/lfglabs-dev/verity/blob/main/Contracts/CryptoHash/Contract.lean)
 
-## ERC20 (Foundation Scaffold)
+## ERC20
 
-Baseline-verified ERC20 foundation scaffold with executable logic (`mint`, `transfer`, `approve`, `transferFrom`) and formal spec/invariant modules.
+Baseline-verified ERC20 with `mint`, `transfer`, `approve`, `transferFrom` and formal spec/invariant modules. Source: [`Contracts/ERC20/`](https://github.com/lfglabs-dev/verity/tree/main/Contracts/ERC20).
 
-Source:
-- Implementation: [`Contracts/ERC20/ERC20.lean`](https://github.com/Th0rgal/verity/blob/main/Contracts/ERC20/ERC20.lean)
-- Spec: [`Contracts/ERC20/Spec.lean`](https://github.com/Th0rgal/verity/blob/main/Contracts/ERC20/Spec.lean)
-- Invariants: [`Contracts/ERC20/Invariants.lean`](https://github.com/Th0rgal/verity/blob/main/Contracts/ERC20/Invariants.lean)
+## ERC721
 
-## Pattern progression
+Standards-shaped NFT contract demonstrating multi-mapping storage: uint-keyed `owners` and `tokenApprovals`, address-keyed `balances`, and double-mapping `operatorApprovals`. Exercises `getMappingUint`, `getMapping2`, `addressToWord`/`wordToAddress`, and constructor parameters.
 
-1. **SimpleStorage**: single slot
-2. **Counter**: arithmetic
-3. **SafeCounter**: stdlib integration
-4. **Owned**: access control
-5. **OwnedCounter**: composition (Owned + Counter)
-6. **Ledger**: mapping storage
-7. **SimpleToken**: full composition (Owned + Ledger + supply tracking)
-8. **ReentrancyExample**: vulnerability modeling and safety proofs
-9. **CryptoHash**: external library linking (unverified)
-10. **ERC20**: standards-oriented token scaffold with baseline proofs and specs/invariants
+```verity
+verity_contract ERC721 where
+  storage
+    owner             : Address := slot 0
+    totalSupply       : Uint256 := slot 1
+    nextTokenId       : Uint256 := slot 2
+    balances          : Address → Uint256 := slot 3
+    owners            : Uint256 → Uint256 := slot 4
+    tokenApprovals    : Uint256 → Uint256 := slot 5
+    operatorApprovals : Address → Address → Uint256 := slot 6
+```
+
+Source: [`Contracts/ERC721/`](https://github.com/lfglabs-dev/verity/tree/main/Contracts/ERC721).
 
 ## Source
 
-All contracts are in [`Contracts/`](https://github.com/Th0rgal/verity/tree/main/Contracts).
+All contracts: [`Contracts/`](https://github.com/lfglabs-dev/verity/tree/main/Contracts).

@@ -1,62 +1,85 @@
 ---
-title: Compiler
-description: EDSL to EVM compilation with automatic IR generation
+title: Compiler & CLI
+description: The Verity compiler — pipeline, CLI usage, and the CompilationModel surface.
 ---
 
-# Compiler
+# Compiler & CLI
 
-**Automatic compilation from verified EDSL to EVM bytecode.**
+How verified EDSL contracts become deployable EVM bytecode, plus the CLI reference. For the trust boundary, see [Trust Model](/trust-model).
 
-## Overview
+## Pipeline
 
-The Verity compiler transforms `CompilationModel` models into deployable EVM bytecode. No manual IR writing is required.
+```
+EDSL Contract  →  CompilationModel  →  IR  →  Yul  →  EVM Bytecode
+```
 
-**Pipeline**: EDSL Contract → CompilationModel → IR → Yul → EVM Bytecode
+`CompilationModel` is the declarative surface: storage fields, function bodies, constructor params, events. The compiler infers slots, looks up selectors, lowers expressions/statements to IR, generates Yul, and hands off to `solc` for the final bytecode step.
 
-The CLI can also emit machine-readable audit artifacts alongside Yul/ABI output:
-- `--trust-report <path>` writes proof-boundary and assumption data.
-- `--assumption-report <path>` writes a flattened assumption inventory grouped by contract and usage site.
-- `--layout-report <path>` writes resolved storage-slot metadata, including effective alias writes and reserved-slot policies for upgrade/layout reviews.
-- `--layout-compat-report <path>` compares the first selected contract as the baseline layout and the second as the candidate upgrade layout, then writes a machine-readable compatibility summary.
+> Verity has two **distinct** "spec" concepts:
+> 1. **Logical specs** in `Contracts/<Name>/Spec.lean` — `Prop` statements used for proofs.
+> 2. **Compiler specs** in `Compiler/Specs.lean` — `CompilationModel` values used for code generation.
 
-Important: Verity has two different "spec" concepts.
+### Modules
 
-1. Logical specs in `Verity/Specs/<Name>/Spec.lean` are `Prop` statements used for proofs.
-2. Compiler specs in `Compiler/Specs.lean` are `CompilationModel` values used for code generation.
+| Module | Role |
+|--------|------|
+| `Compiler/CompilationModel.lean` | Declarative DSL: expressions, statements, constructors, storage inference. |
+| `Compiler/Specs.lean` | The validated contract specs, registered via `allSpecs`. |
+| `Compiler/Selector.lean` | Canonical selector computation; kernel-checkable `keccak256_first_4_bytes`; CI cross-check against `solc --hashes`. |
+| `Compiler/Codegen.lean` | IR → Yul: dispatcher, mapping-slot helper, deploy/runtime split. |
+| `Compiler/Linker.lean` | External Yul library linking with reference validation. |
+| `Compiler/Yul/*` | Yul AST and pretty printer. |
 
-`CompilationModel` is not only an ABI. It also contains storage fields and function bodies (`Expr`/`Stmt`).
+## Compile all contracts
 
-## Trust Model
+```bash
+cd /path/to/verity
+export PATH="$HOME/.elan/bin:$PATH"
 
-### What's Verified (Zero Trust Required)
-- **Layer 1 frontend bridge**: EDSL behavior is proven equivalent to its `CompilationModel`.
-- **Layer 2 boundary today**: the generic whole-contract `CompilationModel -> IR` theorem is proved for the current explicit supported fragment.
-- **Layer 2 framework proof**: the former exact-state body-simulation axiom has been eliminated, and legacy contract-specific bridge theorems now sit above the generic compiler theorem as example wrappers.
-- **Layer 3 framework proof**: `IR -> Yul` preserves semantics, with the remaining dispatch bridge exposed as an explicit theorem hypothesis rather than a Lean axiom.
-- **Machine-checked proofs**: see [VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the current proof-status snapshot and [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md) for documented axioms.
-- **Interpreter semantics**: Spec, IR, and Yul semantics defined and linked in Lean
+lake build verity-compiler
+lake exe verity-compiler           # writes artifacts/yul/*.yul
+```
 
-The per-contract files in `Contracts/<Name>/Proofs/` are separate contract-specification proofs. They show that a given contract satisfies its human-readable spec; they are not the definition of Layer 1 in the compiler stack.
+For contracts that use external libraries (e.g. Poseidon):
 
-### What's Tested (High Confidence)
-- **Compilation correctness**: Foundry unit and differential tests cover compiled contracts
-- **Output validation**: Generated Yul is exercised against expected runtime behavior
-- **Constructor handling**: Bytecode argument loading is covered in tests
-- **Storage layout**: Automatic slot inference validated by examples
+```bash
+lake exe verity-compiler --link examples/external-libs/PoseidonT3.yul -o artifacts/yul/
+```
 
-### What's Assumed (Trust Required)
-- **Yul compiler**: Solidity's `solc` compiles Yul to bytecode correctly
-- **EVM semantics**: Ethereum's execution model matches the spec used in proofs
-- **Function selectors**: Pre-computed `keccak256` hashes are correct
+See the [Linking External Libraries](/guides/linking-libraries) guide.
 
-### Roadmap
-Roadmap, milestones, and progress updates live in `docs-site/content/research.mdx` and `docs-site/content/research/iterations.mdx`.
+## Audit artifacts
+
+The CLI emits machine-readable audit artifacts alongside Yul/ABI:
+
+- `--trust-report <path>` — proof-boundary and assumption data.
+- `--assumption-report <path>` — flattened assumption inventory grouped by contract and usage site. Direct assembly-shaped primitives without any `local_obligations [...]` fail closed.
+- `--layout-report <path>` — resolved storage-slot metadata, alias writes, reserved-slot policy.
+- `--layout-compat-report <path>` — baseline vs candidate layout compatibility for upgrade reviews. Pair with `--deny-layout-incompatibility` to fail closed on incompatible upgrades.
+
+For proof-strict builds, deny flags lock down the trust surface. Each one fails the build closed when the corresponding category of assumption appears:
+
+| Flag | Fails closed on |
+|------|-----------------|
+| `--deny-unchecked-dependencies` | Module dependencies that haven't been checked |
+| `--deny-assumed-dependencies` | Dependencies marked as assumed rather than verified |
+| `--deny-axiomatized-primitives` | Primitives still treated as axioms (e.g., raw `keccak256`) |
+| `--deny-local-obligations` | Any undischarged `local_obligations [...]` |
+| `--deny-linear-memory-mechanics` | `mload` / `mstore` / `calldatacopy` / `returndatacopy` use |
+| `--deny-event-emission` | `rawLog` and not-yet-modeled event emission |
+| `--deny-low-level-mechanics` | Raw `call` / `staticcall` / `delegatecall` constructs |
+| `--deny-runtime-introspection` | Runtime calldata/returndata size and memory introspection |
+| `--deny-proxy-upgradeability` | `delegatecall` and proxy upgrade patterns |
+| `--deny-layout-incompatibility` | Candidate storage layout breaks baseline (paired with `--layout-compat-report`) |
+| `--deny-unsafe` | Catch-all: any of the above categories trips the build |
+
+See [Glossary](/glossary) for one-line definitions of each report.
 
 ## Example: SimpleStorage
 
-### EDSL Implementation
+**EDSL** (`Contracts/SimpleStorage/SimpleStorage.lean`):
+
 ```verity
--- Verity/Examples/SimpleStorage.lean
 def storedData : StorageSlot Uint256 := ⟨0⟩
 
 def store (value : Uint256) : Contract Unit := do
@@ -66,15 +89,12 @@ def retrieve : Contract Uint256 := do
   getStorage storedData
 ```
 
-### Declarative Specification
+**CompilationModel** (`Compiler/Specs.lean`):
+
 ```verity
--- Compiler/Specs.lean
 def simpleStorageSpec : CompilationModel := {
   name := "SimpleStorage"
-  fields := [
-    { name := "storedData", ty := FieldType.uint256 }
-  ]
-  constructor := none
+  fields := [{ name := "storedData", ty := FieldType.uint256 }]
   functions := [
     { name := "store"
       params := [{ name := "value", ty := ParamType.uint256 }]
@@ -87,751 +107,129 @@ def simpleStorageSpec : CompilationModel := {
     { name := "retrieve"
       params := []
       returnType := some FieldType.uint256
-      body := [
-        Stmt.return (Expr.storage "storedData")
-      ]
+      body := [Stmt.return (Expr.storage "storedData")]
     }
   ]
 }
 ```
 
-### Generated IR
-```lean
--- Automatically generated (no manual writing)
-{ name := "SimpleStorage"
-  deploy := []
-  functions := [
-    { name := "store"
-      selector := 0x6057361d
-      params := [{ name := "value", ty := IRType.uint256 }]
-      ret := IRType.unit
-      body := [
-        YulStmt.let_ "value" (YulExpr.call "calldataload" [YulExpr.lit 4]),
-        YulStmt.expr (YulExpr.call "sstore" [YulExpr.lit 0, YulExpr.ident "value"]),
-        YulStmt.expr (YulExpr.call "stop" [])
-      ]
-    },
-    { name := "retrieve"
-      selector := 0x2e64cec1
-      params := []
-      ret := IRType.uint256
-      body := [
-        YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.call "sload" [YulExpr.lit 0]]),
-        YulStmt.expr (YulExpr.call "return" [YulExpr.lit 0, YulExpr.lit 32])
-      ]
-    }
-  ]
-  usesMapping := false
-}
-```
+**Generated Yul** (`artifacts/yul/SimpleStorage.yul`):
 
-### Generated Yul
 ```yul
-// artifacts/yul/SimpleStorage.yul
 object "SimpleStorage" {
+  code { datacopy(0, dataoffset("runtime"), datasize("runtime"))
+         return(0, datasize("runtime")) }
+  object "runtime" {
     code {
-        datacopy(0, dataoffset("runtime"), datasize("runtime"))
-        return(0, datasize("runtime"))
+      switch shr(224, calldataload(0))
+      case 0x6057361d { let value := calldataload(4); sstore(0, value); stop() }
+      case 0x2e64cec1 { mstore(0, sload(0)); return(0, 32) }
+      default { revert(0, 0) }
     }
-    object "runtime" {
-        code {
-            switch shr(224, calldataload(0))
-            case 0x6057361d {
-                /* store() */
-                let value := calldataload(4)
-                sstore(0, value)
-                stop()
-            }
-            case 0x2e64cec1 {
-                /* retrieve() */
-                mstore(0, sload(0))
-                return(0, 32)
-            }
-            default {
-                revert(0, 0)
-            }
-        }
-    }
+  }
 }
 ```
 
-### Deployed Bytecode
-```bash
-# Compile Yul to bytecode
-solc --strict-assembly SimpleStorage.yul
+## CompilationModel surface
 
-# Deploy to Ethereum (local, testnet, or mainnet)
-forge create SimpleStorage --from 0x... --private-key ...
-```
+**Storage inference**: slots assigned in field order; no manual slot management.
 
-## Compiler Architecture
-
-### Modules
-
-**`Compiler/CompilationModel.lean`**
-- Declarative contract DSL
-- Expression language: `literal`, `param`, `storage`, `mapping`, `mappingWord`, `mappingPackedWord`, `structMember`, `structMember2`, `mapping2`, `mappingUint`, `caller`, `msgValue`, `blockTimestamp`, `blockNumber`, `blobbasefee`, `localVar`, `externalCall`, `internalCall`, `arrayLength`, `arrayElement`, arithmetic, bitwise, comparisons, logical operators
-- Statement language: `letVar`, `assignVar`, `setStorage`, `setMapping`, `setMappingWord`, `setMappingPackedWord`, `setStructMember`, `setStructMember2`, `setMapping2`, `setMappingUint`, `require`, `return`, `stop`, `ite`, `forEach`, `emit`, `internalCall`
-- Automatic IR generation from specs
-- Constructor parameter handling (bytecode argument loading)
-- Storage slot inference (field order → slots 0, 1, 2, ...)
-
-**`Compiler/Specs.lean`**
-- Specifications for the example contracts
-- Concise, type-safe, maintainable
-
-**`Compiler/Selector.lean`**
-- Canonical function selector computation from `FunctionSpec`
-- Type-safe Solidity signature generation from `FunctionSpec`
-
-**`Compiler/Selectors.lean`**
-- Kernel-computable `keccak256_first_4_bytes` definition via the vendored unrolled Keccak engine
-- Fixed selector regressions plus CI cross-checks against `solc --hashes`
-
-**`Compiler/Codegen.lean`**
-- IR → Yul code generation
-- Dispatcher generation (function selector switch)
-- Mapping slot computation helper
-- Deploy code + runtime code separation
-
-**`Compiler/Linker.lean`**
-- External Yul library linking
-- Line-based parser for extracting function definitions from `.yul` files
-- Injection of library functions into runtime code section
-- Validation of external references (`validateExternalReferences`)
-
-**`Compiler/Yul/*.lean`** (Yul AST + pretty printer)
-- Yul abstract syntax tree
-- Pretty printer (Yul → text)
-
-### Compilation Process
-
-1. **Specification**: Write declarative `CompilationModel`
-2. **Storage Inference**: Assign slots 0, 1, 2, ... based on field order
-3. **Selector Lookup**: Retrieve pre-computed function selectors
-4. **IR Generation**: Compile expressions/statements to IR
-5. **Code Generation**: Transform IR to Yul AST
-6. **Pretty Print**: Render Yul AST as text
-7. **Yul Compilation**: Use Solidity compiler (solc) to generate bytecode
-
-## Features
-
-### Automatic Storage Slot Inference ✅
 ```verity
 fields := [
-  { name := "owner", ty := FieldType.address },     -- slot 0
-  { name := "balances", ty := FieldType.mappingTyped (.simple .address) },  -- slot 1
-  { name := "totalSupply", ty := FieldType.uint256 } -- slot 2
+  { name := "owner",       ty := FieldType.address },                            -- slot 0
+  { name := "balances",    ty := FieldType.mappingTyped (.simple .address) },    -- slot 1
+  { name := "totalSupply", ty := FieldType.uint256 }                             -- slot 2
 ]
 ```
 
-No manual slot management needed. Compiler assigns slots based on field order.
+**Constructor parameters**: loaded from end of deployment bytecode (Solidity convention).
 
-### Constructor Parameters ✅
 ```verity
 constructor := some {
   params := [{ name := "initialOwner", ty := ParamType.address }]
-  body := [
-    Stmt.setStorage "owner" (Expr.constructorArg 0)
-  ]
+  body := [Stmt.setStorage "owner" (Expr.constructorArg 0)]
 }
 ```
 
-Arguments loaded from end of deployment bytecode (Solidity convention).
+**Expressions** cover literals, parameters, storage and mapping reads, EVM context (`caller`, `chainid`, `msgValue`, `blockTimestamp`, `blockNumber`, `blobbasefee`), memory primitives (`mload`, `keccak256`), low-level calls (`call`, `staticcall`, `delegatecall`), arithmetic, bitwise, comparisons, logical operators.
 
-### Function Selectors ✅
-```lean
-"store(uint256)" → 0x6057361d
-"retrieve()" → 0x2e64cec1
-```
+> **Low-level call boundary**: the three call forms compile, but their runtime semantics are still outside the current proof-interpreter model. The call success / returndata mechanics remain validated by differential testing and tracked under issue `#1332`. `delegatecall` also remains a separate proxy / upgradeability trust boundary; archive `--trust-report` and add `--deny-proxy-upgradeability` if those semantics must stay outside the selected verification envelope (see issue `#1420`).
+>
+> **Linear-memory boundary**: Memory-oriented intrinsics (`mload`, `mstore`, `calldatacopy`, `returndataCopy`, `returndataOptionalBoolAt`) compile, but the current proof interpreters still model them only partially. When they appear, surface that boundary with `--trust-report` / `--deny-linear-memory-mechanics`; the remaining gap is tracked under issue `#1411`.
+>
+> **Axiomatized-primitive boundary**: The `keccak256` intrinsic also compiles, but it remains axiomatized in the current proof stack rather than fully modeled end to end. When it appears, archive `--trust-report` and add `--deny-axiomatized-primitives` if the selected contracts must stay inside the proved subset (see issue `#1411`).
 
-Pre-computed from Solidity keccak256. Extensible for new functions.
+**Statements** cover local variables, storage and mapping writes, `require`, `return`, memory writes, returndata copy and revert bubbling, `stop`, `ite` branching, bounded `forEach` loops, event emission, and internal calls.
 
-### Type-Safe DSL ✅
+Low-level calls, linear-memory primitives, `rawLog`, and `keccak256` compile but remain partially modeled in the proof interpreter. Functions or constructors that use direct assembly-shaped primitives without `localObligations [...]` fail closed under `--deny-axiomatized-primitives`.
 
-The CompilationModel DSL provides a complete expression and statement language for specifying contract behavior.
+**Internal functions** via `isInternal := true` and `Stmt.internalCall`; **events** via the `events` block and `Stmt.emit` (topic0 computed from the event signature); **double mappings** via `mapping2`/`setMapping2`; **uint256-keyed mappings**; **dynamic, fixed-size, and bytes array parameters** with ABI offset-based decoding.
 
-**Expressions** (`Expr`): key constructors:
+For Morpho-style `mapping(K => Struct)` / `mapping(K1 => mapping(K2 => Struct))` layouts, declare `FieldType.mappingStruct` / `FieldType.mappingStruct2` and access members with `structMember "f" key "member"`, `structMember2 "f" k1 k2 "member"`, `setStructMember "f" key "member" val`, `setStructMember2 "f" k1 k2 "member" val`. Member offsets and packed sub-word widths are part of the declaration, so the generated Yul keeps Solidity's storage layout reviewable.
 
-| Constructor | Description | Yul Output |
-|-------------|-------------|------------|
-| `literal n` | Integer constant (mod 2^256) | `n` |
-| `param "x"` | Function parameter | `x` (from calldata) |
-| `constructorArg i` | Deploy-time argument | `argN` (from bytecode) |
-| `storage "f"` | Read storage field | `sload(slot)` |
-| `mapping "f" key` | Read mapping entry | `sload(mappingSlot(slot, key))` |
-| `mappingWord "f" key offset` | Read mapping member word | `sload(add(mappingSlot(slot, key), offset))` |
-| `mappingPackedWord "f" key offset {offset=o,width=w}` | Read packed bits from mapping member word | `and(shr(o, sload(add(mappingSlot(slot, key), offset))), mask)` |
-| `structMember "f" key "member"` | Read named member of `mapping(K => Struct)` | same lowering as `mappingWord` / `mappingPackedWord` after member lookup |
-| `structMember2 "f" k1 k2 "member"` | Read named member of `mapping(K1 => mapping(K2 => Struct))` | same lowering as nested mapping word/payload access after member lookup |
-| `mapping2 "f" k1 k2` | Read nested mapping (e.g., allowances) | `sload(mappingSlot(mappingSlot(slot, k1), k2))` |
-| `mappingUint "f" key` | Read uint256-keyed mapping | `sload(mappingSlot(slot, key))` |
-| `caller` | Transaction sender | `caller()` |
-| `contractAddress` | Current contract address | `address()` |
-| `chainid` | Current chain ID | `chainid()` |
-| `msgValue` | Sent ETH value | `callvalue()` |
-| `blockTimestamp` | Current block timestamp | `timestamp()` |
-| `blockNumber` | Current block number | `number()` |
-| `blobbasefee` | Current blob base fee (EIP-7516) | `blobbasefee()` |
-| `mload offset` | Read word from memory | `mload(offset)` |
-| `keccak256 offset size` | Hash memory slice | `keccak256(offset, size)` |
-| `call ...` | Low-level call primitive | `call(...)` |
-| `staticcall ...` | Low-level static call primitive | `staticcall(...)` |
-| `delegatecall ...` | Low-level delegate call primitive | `delegatecall(...)` |
-| `returndataSize` | Bytes in returndata buffer | `returndatasize()` |
-| `returndataOptionalBoolAt offset` | ERC20 optional-bool helper | `returndatasize()/mload` pattern |
-| `localVar "x"` | Reference local variable | `x` |
-| `externalCall "f" args` | Call linked library function | `f(args...)` |
-| `internalCall "f" args` | Call internal contract function | `internal_f(args...)` |
-| `arrayLength "arr"` | Length of dynamic array parameter | `arr_length` |
-| `arrayElement "arr" idx` | Checked element of dynamic array parameter (reverts if `idx >= arr_length`) | `__verity_array_element_*_checked(arr_data_offset, arr_length, idx)` |
-| `add a b` | Addition | `add(a, b)` |
-| `sub a b` | Subtraction | `sub(a, b)` |
-| `mul a b` | Multiplication | `mul(a, b)` |
-| `div a b` | Division | `div(a, b)` |
-| `mod a b` | Modulo | `mod(a, b)` |
-| `bitAnd a b` | Bitwise AND | `and(a, b)` |
-| `bitOr a b` | Bitwise OR | `or(a, b)` |
-| `bitXor a b` | Bitwise XOR | `xor(a, b)` |
-| `bitNot a` | Bitwise NOT | `not(a)` |
-| `shl s v` | Shift left | `shl(s, v)` |
-| `shr s v` | Shift right | `shr(s, v)` |
-| `eq a b` | Equal | `eq(a, b)` |
-| `gt a b` | Greater than | `gt(a, b)` |
-| `lt a b` | Less than | `lt(a, b)` |
-| `ge a b` | Greater or equal | `iszero(lt(a, b))` |
-| `le a b` | Less or equal | `iszero(gt(a, b))` |
+## Add a new contract
 
-Low-level call expressions compile to the expected Yul builtins, but their runtime semantics are still outside the current proof-interpreter model. Today they are a partial feature: codegen exists, while call success / returndata mechanics remain validated by differential testing and tracked under issue `#1332`.
+1. Declare it with `verity_contract` in `Contracts/<Name>/<Name>.lean`:
 
-`delegatecall` also remains a separate proxy / upgradeability trust boundary; archive `--trust-report` and add `--deny-proxy-upgradeability` if those semantics must stay outside the selected verification envelope (see issue `#1420`).
-| `logicalAnd a b` | Short-circuit logical AND | `and(iszero(iszero(a)), iszero(iszero(b)))` |
-| `logicalOr a b` | Short-circuit logical OR | `or(iszero(iszero(a)), iszero(iszero(b)))` |
-| `logicalNot a` | Logical NOT | `iszero(a)` |
+   ```verity
+   verity_contract MyContract where
+     storage
+       value : Uint256 := slot 0
+     function setValue (x : Uint256) : Unit := do
+       setStorage value x
+     function getValue () : Uint256 := do
+       return (← getStorage value)
+   ```
 
-Use typed intrinsics (`Expr.mload`, `Expr.keccak256`, `Expr.contractAddress`, `Expr.chainid`, `Stmt.mstore`) instead of `Expr.externalCall` for these opcodes. Builtin names routed through `externalCall` remain rejected by interop validation.
+   Stateless contracts may leave the `storage` block empty.
 
-Memory-oriented intrinsics (`mload`, `mstore`, `calldatacopy`, `returndataCopy`, `returndataOptionalBoolAt`) compile, but the current proof interpreters still model them only partially. For audit-oriented or proof-strict builds, surface that boundary with `--trust-report` / `--deny-linear-memory-mechanics`; the remaining gap is tracked under issue `#1411`.
+2. Register it in `Compiler/Specs.lean` under `allSpecs`:
 
-Raw `rawLog` event emission also compiles, but the current proof interpreters still treat it as a not-modeled feature rather than a proved event semantics layer. For audit-oriented or proof-strict builds, archive `--trust-report` and add `--deny-event-emission` if the selected contracts must stay inside the proved subset.
+   ```lean
+   Contracts.MyContract.spec
+   ```
 
-The `keccak256` intrinsic also compiles, but it remains axiomatized in the current proof stack rather than fully modeled end to end. For audit-oriented or proof-strict builds, archive `--trust-report` and add `--deny-axiomatized-primitives` if the selected contracts must stay inside the proved subset (see issue `#1411`).
+3. Recompile:
 
-The trust-report surface also supports localized `localObligations` on a function or constructor. Use these when a small unsafe/assembly-shaped boundary still needs a user-supplied refinement contract without turning the whole compilation unit into an opaque trust blob. Direct raw low-level calls, returndata choreography, and manual memory/calldata primitives are expected to carry at least one such obligation on the enclosing constructor or function. For proof-strict builds, add `--deny-local-obligations` so any undischarged local obligation fails closed. When audit tooling needs a flat machine-readable list instead of the full nested trust report, archive `--assumption-report` alongside `--trust-report`.
+   ```bash
+   lake build verity-compiler
+   lake exe verity-compiler
+   ```
 
-For upgradeability reviews, pair `--layout-compat-report` with `--deny-layout-incompatibility`. That path compares the first selected contract against the second, preserves all baseline field slots/types/alias writes, and fails closed if the candidate moves or mutates persisted storage fields while still writing the JSON compatibility report for audit trails.
+Handwritten `Compiler.Specs.*Spec` definitions are retained for migration only; they are not the canonical compile path.
 
-For Morpho-style `mapping(K => Struct)` / `mapping(K1 => mapping(K2 => Struct))` layouts, declare `FieldType.mappingStruct` / `FieldType.mappingStruct2` and access named members through `Expr.structMember` / `Expr.structMember2`. The `verity_contract` surface now exposes matching storage forms:
+For the full authoring checklist (specs, invariants, proofs, tests), see [First Contract](/first-contract).
 
-```lean
-positions : MappingStruct(Address,[
-  supplyShares @word 0 packed(0,128),
-  borrowShares @word 0 packed(128,128),
-  delegate @word 1
-]) := slot 0
-approvals : MappingStruct2(Address,Address,[
-  allowance @word 0 packed(0,128),
-  nonce @word 1
-]) := slot 1
-```
-
-Members can carry packed bit metadata, so common `uint128`-style packed subfields stay declarative instead of becoming hand-written masking arithmetic in user code.
-
-For ERC-7201 and other namespaced layouts, `verity_contract` can switch the
-active storage root inside the `storage` block. Use one namespace item per
-source root, then declare fields below it:
-
-```lean
-storage
-  storage_namespace erc7201 "unlink.storage.State"
-  state : StorageStruct [
-    nextLeafIndex : Uint256 @word 0,
-    merkleTree : StorageStruct [
-      root : Uint256 @word 0,
-      depth : Uint256 @word 1
-    ] @word 1,
-    verifierRouter : Address @word 10
-  ] := slot 0
-
-  storage_namespace erc7201 "unlink.storage.UnlinkPoolRelayers"
-  relayersSlot : Address -> Uint256 := slot 0
-```
-
-`StorageStruct` is for explicit storage layout trees. Named `struct`
-declarations remain the ABI/source type surface for parameters and local values.
-Use `MappingStruct(...)` / `MappingStruct2(...)` when the source has
-`mapping(K => Struct)` rather than a top-level storage struct root.
-
-**Statements** (`Stmt`): key constructors:
-
-| Constructor | Description | Yul Output |
-|-------------|-------------|------------|
-| `letVar "x" expr` | Declare local variable | `let x := expr` |
-| `assignVar "x" expr` | Reassign existing variable | `x := expr` |
-| `setStorage "f" expr` | Write storage field | `sstore(slot, expr)` |
-| `setMapping "f" key val` | Write mapping entry | `sstore(mappingSlot(slot, key), val)` |
-| `setMappingWord "f" key offset val` | Write mapping member word | `sstore(add(mappingSlot(slot, key), offset), val)` |
-| `setMappingPackedWord "f" key offset {offset=o,width=w} val` | Packed mapping member write (RMW) | `slotWord := sload(...); sstore(..., or(and(slotWord, not(mask<<o)), shl(o, and(val, mask))))` |
-| `setStructMember "f" key "member" val` | Write named member of `mapping(K => Struct)` | same lowering as mapping word / packed-word writes after member lookup |
-| `setStructMember2 "f" k1 k2 "member" val` | Write named member of nested struct mapping | same lowering as nested mapping word / packed-word writes after member lookup |
-| `setMapping2 "f" k1 k2 val` | Write nested mapping entry | `sstore(mappingSlot(mappingSlot(slot, k1), k2), val)` |
-| `setMappingUint "f" key val` | Write uint256-keyed mapping | `sstore(mappingSlot(slot, key), val)` |
-| `require cond "msg"` | Guard with revert message | `if iszero(cond) { revert(...) }` |
-| `mstore offset value` | Write memory word | `mstore(offset, value)` |
-| `return expr` | Return value | `mstore(0, expr) return(0, 32)` |
-| `returndataCopy d s n` | Copy returndata bytes | `returndatacopy(d, s, n)` |
-| `revertReturndata` | Bubble revert payload | `returndatacopy(0,0,n); revert(0,n)` |
-| `stop` | End execution | `stop()` |
-| `ite cond then else` | If/else branching | `if cond { then } if iszero(cond) { else }` |
-| `forEach "i" count body` | Bounded loop | `for { let i := 0 } lt(i, count) { i := add(i,1) } { body }` |
-| `emit "Event" args` | Emit event | `log1(ptr, size, topic0)` |
-| `internalCall "f" args` | Call internal function (statement) | `internal_f(args...)` |
-
-**Example**, combining multiple features:
-```verity
--- Balance check with require
-Stmt.require (Expr.ge (Expr.mapping "balances" Expr.caller) (Expr.param "amount")) "Insufficient",
-Stmt.setMapping "balances" Expr.caller
-  (Expr.sub (Expr.mapping "balances" Expr.caller) (Expr.param "amount")),
-Stmt.stop
-```
-
-```verity
--- If/else branching
-Stmt.ite (Expr.eq Expr.caller (Expr.storage "owner"))
-  [Stmt.setStorage "paused" (Expr.literal 1), Stmt.stop]
-  [Stmt.stop]  -- non-owner: no-op
-```
-
-```verity
--- Bounded loop over array
-Stmt.forEach "i" (Expr.arrayLength "recipients")
-  [Stmt.setMapping "balances" (Expr.arrayElement "recipients" (Expr.localVar "i"))
-    (Expr.param "amount")]
-```
-
-### Code Optimization ✅
-```yul
-// Before (manual): Unnecessary variable
-let current := sload(0)
-sstore(0, add(current, 1))
-
-// After (automatic): Inlined expression
-sstore(0, add(sload(0), 1))
-```
-
-Automatic expression inlining reduces bytecode size and gas costs.
-
-### External Library Linking ✅
-
-Link production cryptographic libraries (or any external Yul functions) into compiled contracts using the `--link` flag:
+## Test compiled contracts
 
 ```bash
-lake exe verity-compiler \
-    --link examples/external-libs/PoseidonT3.yul \
-    --link examples/external-libs/PoseidonT4.yul \
-    -o artifacts/yul
+FOUNDRY_PROFILE=difftest forge test       # FFI enables Yul compilation
+lake build                                # verifies all Lean proofs
 ```
 
-**How it works**: The linker parses `.yul` files, extracts function definitions, and injects them into the runtime `code {}` section of each compiled contract. This lets you prove properties about contract logic using simple placeholder functions in Lean, then swap in production-grade implementations at compile time.
+## Validated contracts
 
-**Library file format**: External libraries should contain plain Yul function definitions (no `object` wrapper):
-```yul
-function PoseidonT3_hash(a, b) -> result {
-    // Production implementation here
-    result := /* ... */
-}
-```
+| Contract | What it shows |
+|----------|---------------|
+| SimpleStorage | Basic storage operations |
+| Counter | Arithmetic |
+| Owned | Access control with constructor args |
+| OwnedCounter | Pattern composition |
+| Ledger | Mapping balances |
+| SimpleToken | ERC20-like token with constructor |
+| SafeCounter | Checked arithmetic with underflow protection |
 
-**Validation**: The `validateExternalReferences` function checks that all non-builtin function calls in the contract are satisfied by linked libraries, catching missing dependencies at compile time.
+Not compiled: `ReentrancyExample` (inline proofs only). `CryptoHash` compiles via `--link` with external Poseidon and is validated in CI.
 
-See [`examples/external-libs/`](https://github.com/Th0rgal/verity/tree/main/examples/external-libs) for example library files.
+## Trust boundary
 
-### Backend Profiles
+Three verified layers — EDSL ↔ CompilationModel, CompilationModel ↔ IR, IR ↔ Yul. The `solc` Yul-to-bytecode step and the EVM execution model itself are trusted, not verified. See [Trust Model](/trust-model).
 
-The compiler supports an opt-in backend profile for deterministic output-shape normalization:
+**Layer 2 boundary today**: the generic whole-contract `CompilationModel -> IR` theorem is proved for the current explicit supported fragment. The former exact-state body-simulation axiom has been eliminated; the remaining dispatcher bridge is an explicit theorem hypothesis rather than a Lean axiom, so legacy contract-specific bridge theorems are wrappers above the generic theorem rather than independent assumptions.
 
-```bash
-# Default semantic profile
-lake exe verity-compiler --backend-profile semantic
+## See also
 
-# Sort dispatch `case` blocks by selector
-lake exe verity-compiler --backend-profile solidity-parity-ordering
-
-# Sort selector cases + enable deterministic patch pass
-lake exe verity-compiler-patched --backend-profile solidity-parity
-```
-
-### If/Else Branching
-
-Conditional logic for contract functions:
-
-```verity
--- Simple if (no else)
-Stmt.ite (Expr.eq Expr.caller (Expr.storage "owner"))
-  [Stmt.setStorage "paused" (Expr.literal 1)]
-  []
-
--- If/else with both branches
-Stmt.ite (Expr.gt (Expr.param "amount") (Expr.literal 0))
-  [Stmt.setMapping "balances" Expr.caller
-    (Expr.add (Expr.mapping "balances" Expr.caller) (Expr.param "amount"))]
-  [-- else: revert on zero amount
-   Stmt.require (Expr.literal 0) "Amount must be positive"]
-```
-
-Compiles to a block-scoped condition variable to avoid re-evaluation after state mutation:
-```yul
-{
-    let __ite_cond := eq(caller(), sload(0))
-    if __ite_cond { sstore(1, 1) }
-    if iszero(__ite_cond) { /* else branch */ }
-}
-```
-
-### Bounded Loops
-
-Iterate over array parameters or fixed counts:
-
-```verity
--- Iterate over a dynamic array
-Stmt.forEach "i" (Expr.arrayLength "recipients")
-  [Stmt.setMapping "balances"
-    (Expr.arrayElement "recipients" (Expr.localVar "i"))
-    (Expr.add
-      (Expr.mapping "balances" (Expr.arrayElement "recipients" (Expr.localVar "i")))
-      (Expr.param "amount"))]
-```
-
-Compiles to a Yul `for` loop:
-```yul
-for { let i := 0 } lt(i, recipients_length) { i := add(i, 1) } {
-    sstore(mappingSlot(0, calldataload(add(recipients_data_offset, mul(i, 32)))),
-           add(sload(mappingSlot(0, calldataload(add(recipients_data_offset, mul(i, 32))))), amount))
-}
-```
-
-### Internal Functions
-
-Define reusable logic shared across multiple external functions. Internal functions compile to Yul `function` definitions and are **not** exposed via selector dispatch:
-
-The examples in this section use the lower-level `CompilationModel` API directly. In `verity_contract` source, call same-contract helpers with ordinary function-call syntax instead:
-
-```lean
-helper arg
-let result ← helper arg
-let (lhs, rhs) ← helperPair arg
-```
-
-Those source forms lower to `Stmt.internalCall`, `Stmt.internalCallAssign`, or `Expr.internalCall` in the compilation model.
-
-```verity
-def mySpec : CompilationModel := {
-  name := "MyContract"
-  fields := [{ name := "balances", ty := FieldType.mappingTyped (.simple .address) }]
-  functions := [
-    -- Internal helper (not exposed)
-    { name := "addBalance"
-      params := [{ name := "addr", ty := ParamType.address },
-                 { name := "amt", ty := ParamType.uint256 }]
-      returnType := none
-      body := [
-        Stmt.setMapping "balances" (Expr.param "addr")
-          (Expr.add (Expr.mapping "balances" (Expr.param "addr"))
-                    (Expr.param "amt"))
-      ]
-      isInternal := true  -- Not dispatched externally
-    },
-    -- External function that calls the helper
-    { name := "deposit"
-      params := []
-      returnType := none
-      body := [
-        Stmt.internalCall "addBalance" [Expr.caller, Expr.msgValue],
-        Stmt.stop
-      ]
-    }
-  ]
-}
-```
-
-Internal functions that return values use `__ret` assignment instead of EVM `RETURN`:
-```verity
--- Internal function returning a value
-{ name := "getBalance"
-  params := [{ name := "addr", ty := ParamType.address }]
-  returnType := some FieldType.uint256
-  body := [Stmt.return (Expr.mapping "balances" (Expr.param "addr"))]
-  isInternal := true
-}
-
--- Call it from an expression context
-Stmt.letVar "bal" (Expr.internalCall "getBalance" [Expr.caller])
-```
-
-### Event Emission
-
-Emit EVM events for standards compliance (ERC20 Transfer/Approval, etc.):
-
-```verity
-def tokenSpec : CompilationModel := {
-  name := "Token"
-  fields := [{ name := "balances", ty := FieldType.mappingTyped (.simple .address) }]
-  events := [
-    { name := "Transfer"
-      params := [
-        { name := "from", ty := ParamType.address, kind := EventParamKind.indexed },
-        { name := "to", ty := ParamType.address, kind := EventParamKind.indexed },
-        { name := "amount", ty := ParamType.uint256, kind := EventParamKind.unindexed }
-      ]
-    }
-  ]
-  functions := [
-    { name := "transfer"
-      params := [{ name := "to", ty := ParamType.address },
-                 { name := "amount", ty := ParamType.uint256 }]
-      returnType := none
-      body := [
-        -- ... transfer logic ...
-        Stmt.emit "Transfer" [Expr.caller, Expr.param "to", Expr.param "amount"],
-        Stmt.stop
-      ]
-    }
-  ]
-}
-```
-
-Event topic0 is computed from the event signature (e.g., `keccak256("Transfer(address,address,uint256)")`). The compiler generates `log1` opcodes for events.
-
-### Nested Mappings (Double Mappings)
-
-For ERC20 allowances and similar patterns requiring `mapping(address => mapping(address => uint256))`:
-
-```verity
-fields := [
-  { name := "allowances", ty := FieldType.mappingTyped (MappingType.nested .address .address) }
-]
-
--- Read: allowances[owner][spender]
-Expr.mapping2 "allowances" (Expr.param "owner") (Expr.param "spender")
-
--- Write: allowances[owner][spender] = amount
-Stmt.setMapping2 "allowances" (Expr.param "owner") (Expr.param "spender") (Expr.param "amount")
-```
-
-Storage layout: `keccak256(spender . keccak256(owner . slot))`; matches Solidity nested mapping layout.
-
-### Uint256-Keyed Mappings
-
-For mappings keyed by numeric values instead of addresses:
-
-```verity
-fields := [
-  { name := "data", ty := FieldType.mappingTyped (MappingType.simple .uint256) }
-]
-
--- Read: data[tokenId]
-Expr.mappingUint "data" (Expr.param "tokenId")
-
--- Write: data[tokenId] = value
-Stmt.setMappingUint "data" (Expr.param "tokenId") (Expr.param "value")
-```
-
-### Array and Bytes Parameters
-
-Dynamic arrays, fixed arrays, and bytes parameters for batch operations:
-
-```verity
--- Dynamic array parameter
-{ name := "recipients", ty := ParamType.array ParamType.address }
-
--- Fixed-size array parameter
-{ name := "values", ty := ParamType.fixedArray ParamType.uint256 3 }
-
--- Dynamic bytes parameter
-{ name := "data", ty := ParamType.bytes }
-
--- Access array elements in function body
-Expr.arrayLength "recipients"          -- number of elements
-Expr.arrayElement "recipients" (Expr.localVar "i")  -- element at index i
-```
-
-Dynamic arrays use ABI offset-based decoding. The compiler generates `_length` and `_data_offset` local variables automatically.
-
-## Usage
-
-### Compile All Contracts
-```bash
-cd /path/to/verity
-export PATH="$HOME/.elan/bin:$PATH"
-
-# Build compiler
-lake build verity-compiler
-
-# Generate Yul for all contracts
-lake exe verity-compiler
-
-# Output: artifacts/yul/*.yul
-```
-
-### Test Compiled Contracts
-```bash
-# Run all Foundry tests (difftest profile enables FFI for Yul compilation)
-FOUNDRY_PROFILE=difftest forge test
-
-# Expected: all current difftest suites pass
-```
-
-### Add New Contract
-
-1. **Add a macro contract declaration** in `Contracts/<Name>/<Name>.lean`:
-```verity
-verity_contract MyContract where
-  storage
-    value : Uint256 := slot 0
-  function setValue (x : Uint256) : Unit := do
-    setStorage value x
-  function getValue () : Uint256 := do
-    return (← getStorage value)
-```
-
-If a contract is stateless, the `storage` block may be left empty instead of inventing a dummy slot.
-
-2. **Register it in** `Compiler/Specs.lean` **under** `allSpecs`:
-```lean
-Contracts.MyContract.spec
-```
-
-3. **Recompile**:
-```bash
-lake build verity-compiler
-lake exe verity-compiler
-```
-
-4. **Done!** Contract generated in `artifacts/yul/MyContract.yul`
-
-Legacy note: handwritten `Compiler.Specs.*Spec` definitions are retained only for
-migration/special workflows and are not the canonical CLI compile path.
-
-Time: **~5 minutes** (vs ~30 minutes manual IR)
-
-## Test Results
-
-### All Tests Pass ✅
-
-**Lean Proofs**: `lake build` verifies the current proof set. See [VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the live totals.
-```bash
-$ lake build
-Build completed successfully.
-```
-
-**Foundry Tests**: `FOUNDRY_PROFILE=difftest forge test` exercises the current test suite.
-```bash
-$ FOUNDRY_PROFILE=difftest forge test
-...
-```
-
-**Coverage**: Unit, property, and differential tests across EDSL and compiled Yul. See `test/` for suites.
-
-### Validated Contracts
-
-All current example contracts compile and pass tests:
-- ✅ **SimpleStorage**: Basic storage operations
-- ✅ **Counter**: Arithmetic operations
-- ✅ **Owned**: Access control with constructor args
-- ✅ **OwnedCounter**: Pattern composition with constructor
-- ✅ **Ledger**: Mapping-based balances
-- ✅ **SimpleToken**: ERC20-like token with constructor
-- ✅ **SafeCounter**: Checked arithmetic with underflow protection
-
-**Not compiled**: ReentrancyExample (proofs are embedded inline, no compiler spec). CryptoHash compiles via `--link` with external Poseidon libraries and is validated in CI.
-
-## Comparison: Manual vs Automatic
-
-### Lines of Code
-- **Before**: Manual IR for all contracts (brittle to maintain)
-- **After**: Declarative specs for all contracts (stable, reusable)
-- **Reduction**: Manual IR eliminated
-
-### Time to Add Contract
-- **Before**: Manual IR requires more steps (write IR, test, debug)
-- **After**: Declarative specs reduce the setup and iteration work
-- **Improvement**: Faster authoring and less surface for mistakes
-
-### Code Quality
-- **Before**: Manual Yul construction, error-prone
-- **After**: Type-safe DSL, compile-time validation
-- **Result**: More optimized, safer, maintainable
-
-### Example: Owned Contract
-
-**Before** (manual IR):
-```lean
-private def ownedContract : IRContract :=
-  let deployBody := [
-    stmtLet "argsOffset" (call "sub" [call "codesize" [], lit 32]),
-    stmtExpr (call "codecopy" [lit 0, ident "argsOffset", lit 32]),
-    stmtLet "initialOwner" (call "and" [call "mload" [lit 0], hex addressMask]),
-    sstoreSlot 0 (ident "initialOwner")
-  ]
-  let transferBody := onlyOwnerCheck 0 ++ [
-    stmtLet "newOwner" (calldataAddress 4),
-    sstoreSlot 0 (ident "newOwner"),
-    stop
-  ]
-  let getOwnerBody := returnUint (sloadSlot 0)
-  { name := "Owned"
-    deploy := deployBody
-    functions := [
-      fn "transferOwnership" 0xf2fde38b [addrParam "newOwner"] IRType.unit transferBody,
-      fn "getOwner" 0x893d20e8 [] IRType.address getOwnerBody
-    ]
-    usesMapping := false }
-```
-
-**After** (declarative spec):
-```verity
-def ownedSpec : CompilationModel := {
-  name := "Owned"
-  fields := [
-    { name := "owner", ty := FieldType.address }
-  ]
-  constructor := some {
-    params := [{ name := "initialOwner", ty := ParamType.address }]
-    body := [
-      Stmt.setStorage "owner" (Expr.constructorArg 0)
-    ]
-  }
-  functions := [
-    { name := "transferOwnership"
-      params := [{ name := "newOwner", ty := ParamType.address }]
-      returnType := none
-      body := [
-        Stmt.require (Expr.eq Expr.caller (Expr.storage "owner")) "Not owner",
-        Stmt.setStorage "owner" (Expr.param "newOwner"),
-        Stmt.stop
-      ]
-    },
-    { name := "getOwner"
-      params := []
-      returnType := some FieldType.address
-      body := [
-        Stmt.return (Expr.storage "owner")
-      ]
-    }
-  ]
-}
-```
-
-**Improvements**:
-- 33% shorter
-- Type-safe expressions
-- No manual Yul construction
-- Automatic slot/selector management
-
-## Links
-
-- [Research & Development](/research): Design decisions and proof techniques
-- [Examples](/examples): current example contracts and walkthroughs
-- [Verification](/verification): live proof/test status and verification structure
-- [GitHub Repository](https://github.com/Th0rgal/verity): Source code
+- [Trust Model](/trust-model) — what the audit artifacts bound.
+- [Verification Status](/verification) — theorem inventory.
+- [Examples](/examples) — the validated contract set with code excerpts.
+- [Linking External Libraries](/guides/linking-libraries).

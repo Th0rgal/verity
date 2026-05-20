@@ -1,3 +1,8 @@
+---
+title: Production Solidity Patterns
+description: Agent-facing checklist for porting non-trivial Solidity contracts — reusable surfaces, oracle/spec boundaries, and ECM usage.
+---
+
 # Production Solidity Translation Patterns
 
 This guide is for agents porting non-trivial Solidity contracts into Verity. Use
@@ -103,7 +108,7 @@ contract UnlinkPool is Initializable, UUPSUpgradeable,
 
 Verity pattern:
 
-```lean
+```verity
 verity_contract Pool where
   storage
     initializedSlot : Uint256 := slot 0
@@ -130,7 +135,7 @@ review possible without re-reading every inherited source file.
 
 ### Use modifiers for reusable guards
 
-```lean
+```verity
 modifier onlyRelayer := do
   let sender <- msgSender
   let active <- getMapping relayersSlot sender
@@ -157,7 +162,7 @@ for (uint256 i = 0; i < notes.length;) {
 
 Verity pattern:
 
-```lean
+```verity
 function sumNoteAmounts (notes : Array Note) : Uint256 := do
   let mut totalAmount := 0
   forEach "i" (arrayLength notes) (do
@@ -174,7 +179,7 @@ bespoke fold helper unless the source contract has an abstract fold-like helper.
 For helpers like `_realCommitments`, first count, allocate exactly once, then
 fill:
 
-```lean
+```verity
 let len := arrayLength newCommitments
 let mut count := 0
 forEach "i" len (do
@@ -213,7 +218,7 @@ VerifierRouter.Circuit memory c =
 
 Use a single external returning the same logical record:
 
-```lean
+```verity
 linked_externals
   external getCircuit(Address, Uint256) -> (Circuit)
   external getCircuit_try(Address, Uint256) -> (Bool, Circuit)
@@ -221,7 +226,7 @@ linked_externals
 
 Then keep the pool checks in Verity:
 
-```lean
+```verity
 let (success, circuit) <- tryExternalCall "getCircuit" [verifierRouter, txn.circuitId]
 requireError success PoolCircuitNotRegistered()
 requireError (circuit.verifier != 0) PoolCircuitNotRegistered()
@@ -235,7 +240,7 @@ The external boundary is the registry read, not the validation sequence.
 
 Poseidon hash calls can be externals:
 
-```lean
+```verity
 linked_externals
   external poseidonT3(Uint256, Uint256) -> (Uint256)
   external poseidonT4(Uint256, Uint256, Uint256) -> (Uint256)
@@ -243,7 +248,7 @@ linked_externals
 
 But callers should still perform visible checks around them:
 
-```lean
+```verity
 requireError ((npk != 0) && (npk < SNARK_SCALAR_FIELD)) PoolInvalidNoteNPK()
 let leaf <- hashNote npk token amount
 setMemoryArrayElement newLeaves i leaf
@@ -257,14 +262,14 @@ whole deposit is correct.
 
 Use standard precompile and call modules before writing `unsafe` Yul:
 
-```lean
+```verity
 let pairOk <- ecmCall Compiler.Modules.Precompiles.bn256PairingModule [0, 384, 0]
 requireError (pairOk == 1) PoolPrecompileUnavailable()
 ```
 
 For arbitrary adapter execution:
 
-```lean
+```verity
 ecmDo Compiler.Modules.Calls.bubblingValueCallNoOutputModule
   [target, value, inputOffset, inputSize]
 ```

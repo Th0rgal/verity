@@ -49,17 +49,19 @@ FORK_AUDIT = {
     "schema_version": 1,
     "fork_url": "https://github.com/lfglabs-dev/EVMYulLean",
     "upstream_url": "https://github.com/NethermindEth/EVMYulLean",
-    "pinned_commit": "b353c7583ea36e49dbbffd57f5b25f4d01226e15",
+    "pinned_commit": "7785a9bba344db917e42b7f1033ee8346197bb40",
     "upstream_base": "047f63070309f436b66c61e276ab3b6d1169265a",
-    "fork_ahead_by": 3,
+    "fork_ahead_by": 4,
     "fork_behind_by": 0,
     "divergence_summary": (
-        "Fork is exactly 3 commits ahead of upstream/main. All commits are "
+        "Fork is exactly 4 commits ahead of upstream/main. All commits are "
         "non-semantic: one visibility change (private -> default) on an "
         "internal exponentiation accumulator, one Lean 4.22.0 deprecation "
         "fix (nativeLibDir -> staticLibDir) in the lakefile, and one FFI "
         "body exposure for ByteArray.zeroes that matches the extern zero-fill "
-        "behavior. None of these commits changes EVM/Yul execution semantics, "
+        "behavior, and one checkpoint-state projection exposure that makes "
+        "existing saved shared-state/store fields visible to downstream proofs. "
+        "None of these commits changes EVM/Yul execution semantics, "
         "so upstream Ethereum conformance test coverage continues to apply "
         "transitively."
     ),
@@ -138,6 +140,32 @@ FORK_AUDIT = {
                 "semantics or the extern symbol used by compiled code."
             ),
         },
+        {
+            "sha": "7785a9bba344db917e42b7f1033ee8346197bb40",
+            "title": "Expose checkpoint state projections",
+            "file": "EvmYul/Yul/StateOps.lean",
+            "category": "visibility",
+            "semantic_change": False,
+            "rationale": (
+                "Expose the saved shared-state and varstore inside Yul "
+                "checkpoint states through existing projection helpers. "
+                "Downstream proofs need these projections after revived "
+                "control-flow paths; the change reads data already stored in "
+                "the checkpoint and does not alter execution, checkpoint "
+                "construction, or revival behavior."
+            ),
+            "diff_summary": (
+                "1 file changed, 20 insertions(+), 5 deletions(-): refine "
+                "`toSharedState`, `executionEnv`, `toMachineState`, `toState`, "
+                "and `store` to project from checkpoint states instead of "
+                "falling back to `default`. No execution rule changes."
+            ),
+            "trust_impact": (
+                "Low. This changes proof-facing state query behavior on "
+                "checkpoint values only; it does not change Yul/EVM execution "
+                "semantics or runtime state transitions."
+            ),
+        },
     ],
     "audit_methodology": [
         "1. Clone lfglabs-dev/EVMYulLean at pinned commit into a local worktree.",
@@ -161,9 +189,9 @@ FORK_AUDIT = {
     "trust_boundary": (
         "Verity's effective trust boundary for Yul/EVM semantics is "
         "(upstream NethermindEth/EVMYulLean at commit "
-        "047f63070309f436b66c61e276ab3b6d1169265a) plus the 2 "
-        "visibility/toolchain fork commits enumerated above. Neither "
-        "fork commit touches EVM/Yul execution semantics, so upstream "
+        "047f63070309f436b66c61e276ab3b6d1169265a) plus the 4 "
+        "visibility/toolchain fork commits enumerated above. None of these "
+        "fork commits touches EVM/Yul execution semantics, so upstream "
         "Ethereum conformance test coverage applies transitively."
     ),
 }

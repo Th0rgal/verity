@@ -2,21 +2,28 @@ import type { MetadataRoute } from 'next'
 
 const ROUTES = [
   '',
+  // Introduction
+  '/architecture',
+  '/trust-model',
+  // Tutorials
   '/getting-started',
-  '/examples',
-  '/core',
-  '/add-contract',
-  '/compiler',
-  '/verification',
-  '/edsl-api-reference',
-  '/research',
-  '/research/iterations',
-  '/guides/first-contract',
+  '/first-contract',
+  // How-To Guides
+  '/guides/add-contract',
   '/guides/solidity-to-verity',
   '/guides/production-solidity-patterns',
-  '/guides/debugging-proofs',
   '/guides/linking-libraries',
-  '/guides/verity-syntax-highlighting',
+  '/guides/debugging-proofs',
+  // Reference
+  '/examples',
+  '/core',
+  '/edsl-api-reference',
+  '/compiler',
+  '/verification',
+  '/glossary',
+  // Explanation
+  '/proof-techniques',
+  '/faq',
 ]
 
 export default function sitemap(): MetadataRoute.Sitemap {

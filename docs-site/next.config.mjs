@@ -54,4 +54,20 @@ export default withNextra({
   images: {
     formats: ["image/avif", "image/webp"],
   },
+  // Redirect legacy URLs to the new IA so old bookmarks / external
+  // links don't 404 after the restructure.
+  async redirects() {
+    return [
+      { source: "/guides/first-contract", destination: "/first-contract", permanent: true },
+      { source: "/add-contract", destination: "/guides/add-contract", permanent: true },
+      // Compiler architecture merged into /compiler.
+      { source: "/compiler-architecture", destination: "/compiler", permanent: true },
+      // Syntax highlighting moved to the docs-site README (contributor reference, not user docs).
+      { source: "/guides/verity-syntax-highlighting", destination: "/", permanent: true },
+      { source: "/syntax-highlighting", destination: "/", permanent: true },
+      // Research log retired.
+      { source: "/research", destination: "/", permanent: true },
+      { source: "/research/iterations", destination: "/", permanent: true },
+    ];
+  },
 });

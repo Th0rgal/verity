@@ -996,6 +996,7 @@ private def assumptionJson (entry : ExternalFunction) : String :=
   jsonObject [
     ("name", jsonString entry.name),
     ("status", proofStatusString entry.proofStatus),
+    ("linkMode", jsonString entry.linkMode.toJsonString),
     ("axioms", jsonArray (entry.axiomNames.map jsonString))
   ]
 
@@ -1040,6 +1041,7 @@ private structure AssumptionReportEntry where
   status : ProofStatus
   detail : String := ""
   assumption : String := ""
+  linkMode : String := ""
   moduleName : String := ""
   axioms : List String := []
 
@@ -1052,6 +1054,7 @@ private def assumptionReportEntryJson (entry : AssumptionReportEntry) : String :
     ("status", proofStatusString entry.status),
     ("detail", jsonString entry.detail),
     ("assumption", jsonString entry.assumption),
+    ("linkMode", jsonString entry.linkMode),
     ("module", jsonString entry.moduleName),
     ("axioms", jsonArray (entry.axioms.map jsonString))
   ]
@@ -1243,6 +1246,7 @@ private def assumptionReportEntriesForSite (site : UsageSiteSummary) : List Assu
         siteName := site.name
         name := ext.name
         status := ext.proofStatus
+        linkMode := ext.linkMode.toJsonString
         axioms := ext.axiomNames })
   let moduleEntries :=
     site.modules.map (fun mod =>
@@ -1371,7 +1375,7 @@ def emitVerboseUsageSiteLines (specs : List CompilationModel) : List String :=
                     if ext.axiomNames.isEmpty then "(no declared axioms)"
                     else String.intercalate ", " ext.axiomNames
                   extAcc ++
-                    [s!"    [linked:{ext.name}][{ext.proofStatus.toJsonString}] {renderedAxioms}"])
+                    [s!"    [linked:{ext.name}][{ext.proofStatus.toJsonString}][{ext.linkMode.toJsonString}] {renderedAxioms}"])
                 []
             let ecmAxiomLines :=
               site.modules.foldl

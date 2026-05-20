@@ -37,21 +37,22 @@ npm start
 
 ```
 docs-site/
-├── app/
-│   └── api/
-│       └── docs/[...slug]/route.ts  # API for serving markdown
-├── content/                          # Documentation pages (MDX)
+├── app/api/docs/[...slug]/route.ts  # API for serving markdown
+├── content/                         # Documentation pages (MDX)
 │   ├── index.mdx                    # Homepage
-│   ├── research.mdx                 # Research log
-│   ├── iterations.mdx               # Iteration summaries
 │   ├── examples.mdx                 # Example contracts
 │   ├── core.mdx                     # Core architecture
 │   └── _meta.js                     # Navigation config
-├── public/
-│   └── llms.txt                     # AI agent index
+├── public/llms.txt                  # AI agent index
 ├── proxy.ts                         # Middleware for AI agent detection
 └── next.config.mjs                  # Next.js config with Nextra
 ```
+
+## Verity syntax highlighting
+
+`verity` code fences use a Verity-specific TextMate grammar and the LFGLabs Cream theme. Contract structure is visually explicit (`verity_contract`, section headers, `linked_externals`, typed `external` declarations, `modifier`, `function`), Solidity-like control surfaces are highlighted by semantic role (`with onlyRelayer`, `nonreentrant(...)`, `forEach`, `requireError`, `tryExternalCall`, `abiEncode`, `emit`), and domain-level signals (field access, typed external returns, event names, custom errors) receive dedicated scopes.
+
+The scope contract is checked by `npm run check:highlighting`. Snippets that show contract DSL code must use the `verity` fence, not generic `lean`.
 
 ## AI Agent Support
 

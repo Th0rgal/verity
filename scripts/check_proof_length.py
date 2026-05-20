@@ -1073,6 +1073,34 @@ ALLOWLIST: set[str] = {
     # the preserved selected-hit chain; the long span is the prefix induction
     # needed to prove later cases/default are unreachable after a halt.
     "exec_nativeSwitchCaseIfs_prefix_hit_error_fuel",
+    # PR #1915 init-prefixed dispatcher bridge. These proofs are generated-code
+    # shape peel/reduction endpoints for `initFreeMemoryPointer; buildSwitch`.
+    # They keep the concrete init `mstore(0x40, 128)` state transition, selector
+    # switch lowering, and SimpleStorage closed-form reductions explicit; splitting
+    # further would mainly create one-use wrappers around the same generated
+    # dispatcher case analysis.
+    "sizeOf_emitYul_runtimeCode_mapping_ge_lowered_cases_length_plus25",
+    "lowerStmtsNative_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_ok_prefixed_block",
+    "nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_atFuel",
+    "nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive",
+    "nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds_atFuel",
+    "nativeDispatcherExecMatchesIRPositive_of_initFreeMemoryPointer_buildSwitch_selector_miss_noFallback_noReceive_withSwitchIds",
+    "simpleStorageNativeRuntimeDispatcherStmts_exists_init_block",
+    "simpleStorageNativeContract_dispatcherExec_storeHit_error_via_reduction",
+    "simpleStorageNativeContract_dispatcherExec_retrieveHit_error_via_reduction",
+    "exec_switchCaseBody_payable_prefix_postInitFreeMemory_eq",
+    "exec_switchCaseBody_payable_calldata_revert_postInitFreeMemory_fuel",
+    "exec_switchCaseBody_nonpayable_prefix_postInitFreeMemory_eq",
+    "exec_switchCaseBody_nonpayable_calldata_revert_postInitFreeMemory_fuel",
+    "exec_switchCaseBody_nonpayable_callvalue_revert_postInitFreeMemory_fuel",
+    "exec_lowerNativeSwitchBlock_selector_find_hit_error_store_fuel",
+    "exec_lowerNativeSwitchBlock_selector_find_hit_error_postInitFreeMemory_store_fuel",
+    "exec_lowerNativeSwitchBlock_selector_find_hit_finalMatched_postInitFreeMemory_store_fuel",
+    "exec_block_lowerNativeSwitchBlock_revert_default_postInitFreeMemory_hasSelectorState_projectResult_eq",
+    "exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_error_projectResult_eq",
+    "exec_block_lowerNativeSwitchBlock_selector_find_hit_postInitFreeMemory_hasSelectorState_ok_projectResult_eq_finalMatched",
+    "contractDispatcherExecResult_initFreeMemoryPointer_buildSwitch_noFallback_noReceive_peel",
+    "lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved",
 }
 
 # PR #1822 native EVMYulLean generic-dispatcher closure. These regexes cover

@@ -1,8 +1,7 @@
 export default {
-  'first-contract': 'Adding Your First Contract',
-  'solidity-to-verity': 'Solidity to Verity Translation',
+  'add-contract': 'Add a Contract',
+  'solidity-to-verity': 'Port from Solidity',
   'production-solidity-patterns': 'Production Solidity Patterns',
-  'verity-syntax-highlighting': 'Verity Syntax Highlighting',
-  'linking-libraries': 'Linking External Libraries',
-  'debugging-proofs': 'Proof Debugging Handbook',
+  'linking-libraries': 'Link External Libraries',
+  'debugging-proofs': 'Debug Failing Proofs',
 };

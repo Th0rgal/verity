@@ -9,7 +9,10 @@ figure[data-rehype-pretty-code-figure] pre[data-language="verity"] {
 }
 
 .dark figure[data-rehype-pretty-code-figure] pre {
-  background: var(--verity-code-bg) !important;
+  /* Match the standalone-figure surface to the same --verity-code-surface
+     the rest of the site uses (and that the mobile right-edge fade ends
+     at), so there's no seam where the gradient meets the panel bg. */
+  background: var(--verity-code-surface) !important;
   border: 1px solid var(--verity-rule) !important;
   color: var(--verity-ink) !important;
 }
@@ -19,20 +22,21 @@ figure[data-rehype-pretty-code-figure] pre[data-language="verity"] {
 }
 
 /* Dark-theme syntax remap: the bundled shiki theme is warm-amber. Push
-   highlights to cool teal/cyan/slate so code reads cold like the rest of
-   the dark theme. */
+   highlights to cool slate-teal so code reads cold like the rest of
+   the dark theme, but kept desaturated so the panel doesn't feel
+   over-saturated when many tokens land on screen. */
 .dark figure[data-rehype-pretty-code-figure] span[style*="#D9B7FF"],
 .dark figure[data-rehype-pretty-code-figure] span[style*="#D5B3FF"] {
-  color: #7DD3C0 !important;
+  color: #9FBEB6 !important;
 }
 
 .dark figure[data-rehype-pretty-code-figure] span[style*="#91C9FF"],
 .dark figure[data-rehype-pretty-code-figure] span[style*="#86D6C8"] {
-  color: #A3E1D4 !important;
+  color: #A8BCB6 !important;
 }
 
 .dark figure[data-rehype-pretty-code-figure] span[style*="#A3E1D4"] {
-  color: #82E0CC !important;
+  color: #9FBEB6 !important;
 }
 
 .dark figure[data-rehype-pretty-code-figure] span[style*="#D7E4F2"] {
@@ -40,7 +44,7 @@ figure[data-rehype-pretty-code-figure] pre[data-language="verity"] {
 }
 
 figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code {
-  line-height: 1.62;
+  line-height: 1.72;
 }
 
 figure[data-rehype-pretty-code-figure] pre[data-language="verity"] code > span {

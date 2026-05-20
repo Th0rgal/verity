@@ -1,0 +1,214 @@
+---
+title: Adding Your First Contract
+description: Step-by-step tutorial for creating a verified smart contract in Verity
+---
+
+# Adding Your First Contract to Verity
+
+**Time Required**: 2-3 hours for first contract
+**Prerequisites**: Basic familiarity with Lean 4 syntax and smart contract concepts
+
+> **New to Lean 4?** You'll need `do` notation, `def`/`theorem`, and basic tactics (`simp`, `intro`, `constructor`). Start with [Theorem Proving in Lean 4](https://leanprover.github.io/theorem_proving_in_lean4/) (chapters 1–5) and [Functional Programming in Lean](https://lean-lang.org/functional_programming_in_lean/) (chapter 4 on `do` and monads).
+
+This tutorial walks you through creating a complete verified smart contract from scratch. We build a **TipJar**, a simple balance ledger where users deposit tips and check balances. It uses the core EDSL features (mappings, `msgSender`, `require`, arithmetic) while staying small enough to prove fully on the first attempt.
+
+## Overview
+
+Every contract follows this path:
+
+```
+Specification → Implementation → Proofs → Compilation → Testing
+     (30m)          (45m)         (1-2h)      (auto)      (30m)
+```
+
+## Phase 1: Setup
+
+```bash
+python3 scripts/generate_contract.py TipJar \
+  --fields "tips:mapping" \
+  --functions "tip(uint256),getBalance(address)"
+```
+
+This creates all required files:
+- `Contracts/TipJar/Spec.lean` — formal specification
+- `Contracts/TipJar/Invariants.lean` — state invariants
+- `Contracts/TipJar/SpecProofs.lean` — compilation correctness re-export
+- `Contracts/TipJar/TipJar.lean` — EDSL implementation
+- `Contracts/TipJar/Proofs/Basic.lean` — basic correctness proofs
+- `Contracts/TipJar/Proofs/Correctness.lean` — advanced correctness proofs
+- `test/PropertyTipJar.t.sol` — Foundry tests
+
+Our goal: users deposit a tip (adding to their balance) via `tip(uint256)`, anyone reads a balance via `getBalance(address)`. Balances use EVM modular arithmetic; for Solidity ^0.8 checked behavior, add `require` guards (see `SafeCounter`).
+
+## Phase 2: Specification
+
+Specifications describe **what** the contract should do, not **how**.
+
+Open `Contracts/TipJar/Spec.lean`:
+
+```verity
+import Verity.Specs.Common
+import Verity.Macro
+import Verity.EVM.Uint256
+
+namespace Contracts.TipJar.Spec
+
+open Verity
+open Verity.EVM.Uint256
+
+/-- tip: increases sender's balance by amount -/
+def tip_spec (amount : Uint256) (s s' : ContractState) : Prop :=
+  s'.storageMap 0 s.sender = add (s.storageMap 0 s.sender) amount ∧
+  storageMapUnchangedExceptKeyAtSlot 0 s.sender s s' ∧
+  sameStorageAddrContext s s'
+
+/-- getBalance: returns balance at given address, no state change -/
+def getBalance_spec (addr : Address) (result : Uint256) (s : ContractState) : Prop :=
+  result = s.storageMap 0 addr
+
+end Contracts.TipJar.Spec
+```
+
+`s` is initial state, `s'` final. `storageMap 0` is the mapping at slot 0. `storageMapUnchangedExceptKeyAtSlot` and `sameStorageAddrContext` come from [`Verity/Specs/Common.lean`](/core#spec-helpers); see the spec-helper reference for picking the right predicate for what your function actually writes.
+
+## Phase 3: Implementation
+
+Open `Contracts/TipJar/TipJar.lean`:
+
+```verity
+import Contracts.Common
+
+namespace Contracts.TipJar
+
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+def tips : StorageSlot (Address → Uint256) := ⟨0⟩
+
+def tip (amount : Uint256) : Contract Unit := do
+  let sender ← msgSender
+  let currentBalance ← getMapping tips sender
+  setMapping tips sender (add currentBalance amount)
+
+def getBalance (addr : Address) : Contract Uint256 := do
+  getMapping tips addr
+
+end Contracts.TipJar
+```
+
+Full primitive catalogue: [EDSL API Reference](/edsl-api-reference).
+
+```bash
+lake build Contracts.TipJar
+```
+
+## Phase 4: Prove Correctness
+
+Open `Contracts/TipJar/Proofs/Basic.lean`:
+
+```verity
+import Contracts.TipJar.Spec
+import Contracts.TipJar.Invariants
+import Verity.Proofs.Stdlib.Automation
+
+namespace Contracts.TipJar.Proofs
+
+open Verity
+open Verity.EVM.Uint256
+open Contracts.TipJar
+open Contracts.TipJar.Spec
+
+theorem tip_meets_spec (s : ContractState) (amount : Uint256) :
+    tip_spec amount s (((tip amount).run s).snd) := by
+  simp [tip, tip_spec, tips, msgSender, getMapping, setMapping, bind,
+        Specs.storageMapUnchangedExceptKeyAtSlot,
+        Specs.sameStorageAddrContext, Specs.sameStorage, Specs.sameStorageAddr,
+        Specs.sameContext]
+  refine ⟨?_, ?_, ?_⟩ <;> simp [Contract.run]
+
+theorem getBalance_correct (s : ContractState) (addr : Address) :
+    getBalance_spec addr (((getBalance addr).run s).fst) s := by
+  simp [getBalance, getBalance_spec, tips, getMapping]
+
+theorem getBalance_preserves_state (s : ContractState) (addr : Address) :
+    ((getBalance addr).run s).snd = s := by
+  simp [getBalance, tips, getMapping]
+
+end Contracts.TipJar.Proofs
+```
+
+```bash
+lake build
+grep -r "sorry" Contracts/TipJar/    # should be empty
+```
+
+Stuck on a proof? See the [Proof Debugging Handbook](/guides/debugging-proofs).
+
+## Phase 5: Add to Compiler
+
+Define the contract with `verity_contract` in `Contracts/<Name>/<Name>.lean`, then register `Contracts.<Name>.spec` in `Compiler/Specs.lean` under `allSpecs`:
+
+```verity
+verity_contract TipJar where
+  storage
+    tips : Address -> Uint256 := slot 0
+
+  function tip (amount : Uint256) : Unit := do
+    let sender <- msgSender
+    let current ← getMapping tips sender
+    setMapping tips sender (add current amount)
+
+  function getBalance (addr : Address) : Uint256 := do
+    return (← getMapping tips addr)
+```
+
+Function selectors are computed automatically. Verify them against `solc --hashes` with `python3 scripts/check_selectors.py`.
+
+```bash
+lake build verity-compiler
+lake exe verity-compiler             # writes artifacts/yul/TipJar.yul
+python3 scripts/check_yul.py
+```
+
+Compilation correctness is generic: the framework's `Compiler/TypedIRCompilerCorrectness.lean` covers the supported fragment with no per-contract bridge proofs needed, and the compiler-level `CompilationModel -> IR` result now lives in `Compiler/Proofs/IRGeneration/Contract.lean`. See [Verification Status](/verification).
+
+## Phase 6: Testing
+
+The scaffold generator writes `test/PropertyTipJar.t.sol` with property tests that exercise the deployed Yul against the proven theorems. Run:
+
+```bash
+FOUNDRY_PROFILE=difftest forge test --match-contract TipJar -vv
+python3 scripts/report_property_coverage.py --format=markdown
+```
+
+Tests use `deployYul("TipJar")` to deploy from `artifacts/yul/TipJar.yul` (via `solc` through `vm.ffi`), `vm.prank` to set `msg.sender`, and `vm.load`/`vm.store` for direct storage access. Mapping slots follow Solidity's `keccak256(abi.encode(key, baseSlot))` layout.
+
+## Phase 7: Validation
+
+```bash
+lake build                                      # all proofs check
+grep -r "sorry" Contracts/TipJar/               # empty
+FOUNDRY_PROFILE=difftest forge test --match-contract TipJar
+python3 scripts/check_selectors.py
+python3 scripts/check_property_manifest.py
+python3 scripts/check_storage_layout.py
+```
+
+Add imports to your `All.lean`:
+
+```verity
+import Contracts.TipJar.Spec
+import Contracts.TipJar.Invariants
+import Contracts.TipJar.TipJar
+import Contracts.TipJar.Proofs.Basic
+import Contracts.TipJar.Proofs.Correctness
+```
+
+The scaffold generator prints these exact lines — copy them directly.
+
+## Next steps
+
+- Add access control with `require` + owner pattern — see `Contracts/OwnedCounter/`.
+- Add a `withdraw` with balance checks — see `Contracts/Ledger/`.
+- Study `SimpleStorage`, `Counter`, `Ledger`, `OwnedCounter` for progressive patterns.
+- [Core Architecture](/core) and [EDSL API Reference](/edsl-api-reference) for the full surface.

@@ -1087,6 +1087,7 @@ unsafe def runTests : IO Unit := do
   let patchReportDir := s!"/tmp/verity-compile-driver-test-{nonce}-reports/patch"
   let patchReportPath := s!"{patchReportDir}/patch-report.tsv"
   let missingLib := "/tmp/definitely-missing-library.yul"
+  let linkedLib := s!"/tmp/verity-compile-driver-test-{nonce}-poseidon.yul"
   let earlySuccessfulAbi := s!"{abiDir}/AbiSmoke.abi.json"
 
   IO.FS.createDirAll outDir
@@ -1113,6 +1114,17 @@ unsafe def runTests : IO Unit := do
   if !hasEarlySuccessfulAbi then
     throw (IO.userError s!"✗ expected ABI artifact for early successful contract, missing: {earlySuccessfulAbi}")
   IO.println "✓ ABI artifacts still emitted for contracts compiled before failure"
+
+  IO.FS.writeFile linkedLib
+    "function PoseidonT3_hash(a, b) -> out {\n    out := add(a, b)\n}\n"
+  compileSpecsWithOptions [linkedLibrarySpec] outDir false [linkedLib] {} none none none none
+  expectFileContains
+    "compileSpecsWithOptions emits linked helper and link-mode artifact metadata"
+    s!"{outDir}/LinkedLibrarySmoke.yul"
+    [ "verity linked external PoseidonT3_hash linkMode=objectLinked"
+    , "function PoseidonT3_hash(a, b) -> out"
+    , "let h := PoseidonT3_hash(a, b)"
+    ]
 
   compileSpecsWithOptions [stringAbiSmokeSpec] stringOutDir false [] {} none none none (some stringAbiDir)
   expectFileContains
@@ -1231,6 +1243,8 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ trust report emits linked external name")
   if !contains trustReport "\"status\":\"assumed\"" then
     throw (IO.userError "✗ trust report emits linked external status")
+  if !contains trustReport "\"linkMode\":\"objectLinked\"" then
+    throw (IO.userError "✗ trust report emits linked external link mode")
   if !contains trustReport "\"axioms\":[\"poseidon_t3_deterministic\"]" then
     throw (IO.userError "✗ trust report emits linked external axioms")
   if !contains trustReport "\"module\":\"testCall\"" || !contains trustReport "\"assumption\":\"test_call_interface\"" then
@@ -1288,7 +1302,7 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ verbose trust report localizes function usage sites")
   if !contains verboseUsageSiteReport "low-level mechanics: staticcall, returndataSize, returndataCopy" then
     throw (IO.userError "✗ verbose trust report preserves per-function low-level mechanics")
-  if !contains verboseUsageSiteReport "[linked:PoseidonT3_hash][assumed] poseidon_t3_deterministic" then
+  if !contains verboseUsageSiteReport "[linked:PoseidonT3_hash][assumed][objectLinked] poseidon_t3_deterministic" then
     throw (IO.userError "✗ verbose trust report localizes linked external assumptions")
   if !contains verboseUsageSiteReport "[ecm:testCall][assumed] test_call_interface" then
     throw (IO.userError "✗ verbose trust report localizes ECM assumptions")
@@ -1388,11 +1402,13 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ assumption report emits contract name")
   if !contains assumptionReport "\"category\":\"axiomatizedPrimitive\",\"siteKind\":\"function\",\"siteName\":\"exercise\",\"name\":\"keccak256\",\"status\":\"assumed\",\"detail\":\"\",\"assumption\":\"keccak256_memory_slice_matches_evm\"" then
     throw (IO.userError "✗ assumption report emits primitive assumption entries")
-  if !contains assumptionReport "\"category\":\"linkedExternal\",\"siteKind\":\"function\",\"siteName\":\"exercise\",\"name\":\"PoseidonT3_hash\",\"status\":\"assumed\"" then
+  if !contains assumptionReport "\"category\":\"linkedExternal\",\"siteKind\":\"function\",\"siteName\":\"exercise\",\"name\":\"PoseidonT3_hash\",\"status\":\"assumed\"" ||
+      !contains assumptionReport "\"linkMode\":\"objectLinked\"" then
     throw (IO.userError "✗ assumption report emits linked external entries")
   if !contains assumptionReport "\"category\":\"ecmModule\",\"siteKind\":\"function\",\"siteName\":\"exercise\",\"name\":\"testCall\",\"status\":\"assumed\"" then
     throw (IO.userError "✗ assumption report emits ECM module entries")
-  if !contains assumptionReport "\"category\":\"ecmAxiom\",\"siteKind\":\"function\",\"siteName\":\"exercise\",\"name\":\"test_call_interface\",\"status\":\"assumed\",\"detail\":\"\",\"assumption\":\"\",\"module\":\"testCall\"" then
+  if !contains assumptionReport "\"category\":\"ecmAxiom\",\"siteKind\":\"function\",\"siteName\":\"exercise\",\"name\":\"test_call_interface\",\"status\":\"assumed\"" ||
+      !contains assumptionReport "\"module\":\"testCall\"" then
     throw (IO.userError "✗ assumption report emits ECM axiom entries")
   if !contains assumptionReport "\"category\":\"localObligation\",\"siteKind\":\"function\",\"siteName\":\"unsafeEdge\",\"name\":\"manual_delegatecall_refinement\",\"status\":\"assumed\",\"detail\":\"Caller must separately prove the handwritten assembly path refines the intended state transition.\"" then
     throw (IO.userError "✗ assumption report emits localized local-obligation entries")

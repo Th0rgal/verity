@@ -86,7 +86,7 @@
   --verity-rule: #1E2A26;
   --verity-rule-soft: #16241F;
   --verity-code-bg: #0B1614;
-  --verity-code-surface: #0A1311;
+  --verity-code-surface: #0F1B17;
   --verity-accent: #2DD4BF;
   --verity-accent-strong: #5EEAD4;
   --verity-accent-bright: #2DD4BF;
@@ -105,6 +105,24 @@ html[dir] {
   background: var(--verity-bg);
   font-family: var(--verity-font-prose);
   text-rendering: optimizeLegibility;
+  /* Smooth scrolling for TOC anchor jumps; in conjunction with the
+     scroll-margin-top on h2/h3 this means clicking a TOC entry slides
+     the section heading into view under the sticky navbar instead of
+     snapping abruptly behind it. */
+  scroll-behavior: smooth;
+}
+
+/* Honour user preference for reduced motion: turn off smooth scroll
+   and the slide-in transitions on CTAs / arrows / panels. */
+@media (prefers-reduced-motion: reduce) {
+  html, html:root, html[dir] {
+    scroll-behavior: auto;
+  }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 body {
@@ -112,7 +130,11 @@ body {
   background: var(--verity-page);
   color: var(--verity-ink);
   font-family: var(--verity-font-prose);
+  /* iOS Safari's default tap highlight is a translucent grey rect;
+     replace with a faint teal that matches the palette. */
+  -webkit-tap-highlight-color: color-mix(in srgb, var(--verity-accent) 18%, transparent);
 }
+
 
 [class*="x:text-blue"],
 [class*="x:text-primary"] {
@@ -149,7 +171,56 @@ body {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--verity-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--verity-accent) 30%, transparent);
+  color: var(--verity-heading);
+}
+
+.dark ::selection {
+  /* On a deep slate background the 30% mix reads almost black; use a
+     stronger teal-on-ink combo so highlighted text remains legible. */
+  background: color-mix(in srgb, var(--verity-accent) 38%, var(--verity-bg));
+  color: var(--verity-heading);
+}
+
+/* <mark> — semantically-highlighted text inside the article body.
+   Currently unused but content authors might wrap a key term in a
+   <mark> and expect a subtle yellow-highlighter. Use our palette so
+   it reads as "emphasised" without breaking the cold theme. */
+article main mark,
+mark {
+  background: color-mix(in srgb, var(--verity-accent) 22%, transparent);
+  color: var(--verity-heading);
+  padding: 0 0.18em;
+}
+
+/* Footnote / index typography. Currently unused in content but ready
+   for authors to drop in superscripted footnote markers or subscript
+   indices the way a LaTeX paper does. */
+article main sup,
+article main sub {
+  font-size: 0.72em;
+  line-height: 0;
+  vertical-align: baseline;
+  position: relative;
+  font-feature-settings: "tnum", "lnum";
+}
+
+article main sup {
+  top: -0.45em;
+}
+
+article main sub {
+  top: 0.25em;
+}
+
+/* <abbr> with a title gets a quiet dotted underline so initialisms
+   ("ABI", "EVM", "EDSL") that have author-supplied expansions read
+   as glossed terms. */
+article main abbr[title] {
+  text-decoration: underline dotted color-mix(in srgb, var(--verity-muted) 70%, transparent);
+  text-underline-offset: 0.22em;
+  text-decoration-thickness: 1px;
+  cursor: help;
 }
 
 /* Navbar — warm middle-tone between page cream and sidebar tan so it
@@ -189,8 +260,14 @@ header.nextra-navbar > div:first-child {
   font-feature-settings: "kern", "liga", "calt";
 }
 
-.verity-brand:hover {
+.verity-brand:hover,
+.verity-brand:focus-visible {
   color: var(--verity-accent);
+}
+
+.verity-brand:active {
+  color: var(--verity-accent-strong, var(--verity-accent));
+  opacity: 0.85;
 }
 
 .verity-brand img {
@@ -543,6 +620,10 @@ article main p {
   font-size: 1.045rem !important;
   line-height: 1.72 !important;
   color: var(--verity-ink) !important;
+  /* Modern browsers: `text-wrap: pretty` lets the browser balance the
+     last few lines of a paragraph so we don't end on a single
+     "widow" word. Falls back gracefully on Safari. */
+  text-wrap: pretty;
 }
 
 article main h1,
@@ -559,6 +640,13 @@ article main h6 {
   line-height: 1.16 !important;
   text-wrap: balance;
   border: 0 !important;
+  /* Anchor links / TOC clicks jump to a section heading. Without
+     scroll-margin the heading lands flush against the top of the
+     viewport (and on doc pages it slides under the sticky navbar).
+     Push the scroll target down by the navbar height + a small
+     breathing-room offset so the heading reads as the top of its
+     section. */
+  scroll-margin-top: calc(var(--nextra-navbar-height, 64px) + 0.75rem);
 }
 
 article main h1 {
@@ -569,7 +657,11 @@ article main h1 {
 }
 
 /* Lead paragraph — the first paragraph after the h1 — gets a touch more
-   air and a slightly lighter weight, like a preprint abstract opener. */
+   air and a slightly lighter weight, like a preprint abstract opener.
+   `font-feature-settings: "lnum"` enables lining numerals so any digit
+   in the abstract sits on the baseline like normal text rather than
+   defaulting to old-style figures the serif's onum feature applies
+   elsewhere in the article. */
 article main h1 + p {
   font-size: 1.18rem !important;
   line-height: 1.6 !important;
@@ -579,6 +671,7 @@ article main h1 + p {
   margin-top: 0.6rem !important;
   margin-bottom: 1.8rem !important;
   max-width: 44rem !important;
+  font-feature-settings: "kern", "liga", "calt", "lnum";
 }
 
 article main h2 {
@@ -655,6 +748,18 @@ article main a {
   font-weight: 600;
   text-decoration-color: color-mix(in srgb, var(--verity-accent) 45%, transparent) !important;
   text-underline-offset: 0.16em;
+  /* Finer hairline-style underline that doesn't fight the serif. */
+  text-decoration-thickness: 1px;
+  -webkit-tap-highlight-color: color-mix(in srgb, var(--verity-accent) 15%, transparent);
+}
+
+/* Override the browser default :visited (often purple) — visited
+   links stay in our palette but pick up a touch of muted weight so
+   you can still tell them apart on long reference pages. */
+article a:visited,
+article main a:visited {
+  color: color-mix(in srgb, var(--verity-accent) 78%, var(--verity-muted)) !important;
+  text-decoration-color: color-mix(in srgb, var(--verity-accent) 30%, transparent) !important;
 }
 
 article a:hover,
@@ -667,6 +772,29 @@ article main a:hover,
 
 .subheading-anchor {
   color: var(--verity-muted) !important;
+  /* The Nextra subheading anchor is a `#` that appears beside a
+     heading on hover (desktop). Subtly fade it in so it doesn't
+     blink-attack the reader, and on mobile (where the heading is
+     never hovered) keep it hidden so we don't reserve gutter space
+     for it. */
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+article main h1:hover .subheading-anchor,
+article main h2:hover .subheading-anchor,
+article main h3:hover .subheading-anchor,
+article main h4:hover .subheading-anchor,
+article main h5:hover .subheading-anchor,
+article main h6:hover .subheading-anchor,
+.subheading-anchor:focus-visible {
+  opacity: 1;
+}
+
+@media (max-width: 767px) {
+  .subheading-anchor {
+    display: none !important;
+  }
 }
 
 /* The right-rail "Question? Give us feedback / Edit this page" footer
@@ -765,8 +893,158 @@ article > div:last-child > a[title]:hover svg {
   transform: translateX(0.15rem);
 }
 
+/* Disclosure widgets — <details><summary> — render as quiet
+   research-paper "footnote" blocks: a 1px rule top + bottom, a
+   teal triangle marker, and content padded under the summary.
+   Currently unused in content but ready for FAQ-style or
+   "Show proof" expanders. */
+article main details {
+  margin: 1.25rem 0;
+  border-top: 1px solid var(--verity-rule);
+  border-bottom: 1px solid var(--verity-rule);
+  padding: 0.85rem 0;
+}
+
+article main details > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  font-family: var(--verity-font-display);
+  font-weight: 600;
+  color: var(--verity-heading);
+  font-size: 1.05rem;
+  letter-spacing: -0.005em;
+  position: relative;
+}
+
+article main details > summary::-webkit-details-marker {
+  display: none;
+}
+
+article main details > summary::before {
+  content: "▸";
+  color: var(--verity-accent);
+  font-size: 0.78em;
+  transition: transform 0.15s ease;
+  display: inline-block;
+  width: 1em;
+}
+
+article main details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+article main details > summary:focus-visible {
+  outline-offset: 4px;
+}
+
+article main details[open] > *:not(summary) {
+  margin-top: 0.7rem;
+}
+
 article main hr {
-  border-color: var(--verity-rule);
+  border: 0;
+  height: 0;
+  margin: 2.5rem auto;
+  /* A centred dingbat-style rule: three small teal asterisms, like
+     a section break in a printed paper. Uses ::before with a flexible
+     content string so we don't need extra markup. */
+  text-align: center;
+  overflow: visible;
+  color: var(--verity-muted);
+}
+
+article main hr::before {
+  content: "·   ·   ·";
+  display: inline-block;
+  letter-spacing: 0.3em;
+  font-size: 1.1rem;
+  color: var(--verity-rule);
+}
+
+.dark article main hr::before {
+  /* The rule color (#1E2A26) is too dark for three small dots on a
+     deep-slate page; use the muted body color so the asterism is
+     legible as a section break without competing with the prose. */
+  color: var(--verity-muted);
+  opacity: 0.6;
+}
+
+/* Unordered-list bullet styling — replace the default round bullet
+   with a quieter en-dash so paragraphs in bulleted lists read as
+   research-paper enumerations instead of generic UI lists. Leaving
+   it on `::marker` keeps the bullet inline with the first line
+   without affecting indent. */
+article main ul {
+  list-style: none;
+  padding-left: 1.4rem;
+}
+
+article main ul > li {
+  position: relative;
+}
+
+article main ul > li::before {
+  content: "–";
+  position: absolute;
+  left: -1.1rem;
+  color: var(--verity-muted);
+  font-weight: 500;
+}
+
+/* Suppress the en-dash on lists that already provide their own
+   visual structure (hero secondary links, the homepage reading list,
+   etc.). Those lists are styled as link/card rows, not paragraph
+   enumerations, so a bullet on the left reads as an artifact. */
+.verity-hero__more,
+.verity-reading-list {
+  padding-left: 0;
+}
+
+.verity-hero__more > li::before,
+.verity-reading-list > li::before {
+  content: none;
+}
+
+/* Don't touch the nested list markers — they're rare and the default
+   is fine. */
+article main ul ul > li::before,
+article main ol ul > li::before {
+  content: "·";
+  left: -1rem;
+  font-size: 1.2em;
+  line-height: 1;
+}
+
+/* GFM task-list items ("- [x] Done") render as <li class="task-list-item">
+   with an <input type="checkbox"> child. Our en-dash ::before marker
+   would collide with the checkbox, producing a "– ☐ Done" visual
+   double-bullet. Suppress the marker on task-list rows and let the
+   checkbox itself be the marker; also remove the bullet-clearing
+   left padding so the checkbox sits at the same x as the en-dash
+   markers on regular bullets. */
+article main ul > li.task-list-item::before,
+article main ul > li:has(> input[type="checkbox"])::before {
+  content: none;
+}
+
+article main ul:has(> li.task-list-item),
+article main ul:has(> li > input[type="checkbox"]) {
+  padding-left: 0;
+  list-style: none;
+}
+
+article main ul > li.task-list-item,
+article main ul > li:has(> input[type="checkbox"]) {
+  padding-left: 0;
+}
+
+article main ul > li > input[type="checkbox"] {
+  accent-color: var(--verity-accent);
+  margin-right: 0.45em;
+  vertical-align: -0.08em;
 }
 
 article main table {
@@ -869,9 +1147,13 @@ code.nextra-code:not(pre code) {
   padding: 0.05em 0.36em !important;
   /* Allow line-break inside long inline-code identifiers so they
      don't push the surrounding paragraph past the gutter on narrow
-     viewports. */
+     viewports. `break-word` (without anywhere) breaks at natural
+     boundaries first — slashes, dots, dashes — and only resorts to
+     mid-character when nothing else fits, avoiding single-letter
+     orphans like ".lea / n". */
   word-break: break-word;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: none;
 }
 
 .dark article :not(pre) > code,
@@ -879,6 +1161,29 @@ code.nextra-code:not(pre code) {
   background: color-mix(in srgb, var(--verity-surface-strong) 80%, transparent) !important;
   border-color: var(--verity-rule) !important;
   color: var(--verity-heading) !important;
+}
+
+/* When an inline chip sits inside a link, hovering the link shows a
+   gentle teal-tinted chip background so the chip reads as "part of
+   the interactive element" instead of decoration that floats next
+   to it. The transition is declared on the chip-in-link base state
+   (not just the :hover override) so the fade is symmetric — hover-in
+   and hover-out both animate.
+
+   Nextra renders chip-in-link as <a><code>...</code></a> directly,
+   so the selector targets <code> as a direct child of <a>. */
+article main a > code,
+article main a > :not(pre) > code {
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+article main a:hover > code,
+article main a:focus-visible > code,
+article main a:hover > :not(pre) > code,
+article main a:focus-visible > :not(pre) > code {
+  background: color-mix(in srgb, var(--verity-accent) 14%, var(--verity-surface)) !important;
+  border-color: color-mix(in srgb, var(--verity-accent) 35%, var(--verity-rule)) !important;
+  color: var(--verity-accent) !important;
 }
 
 /* When an inline code chip sits in a heading or strong, drop the chip
@@ -902,6 +1207,13 @@ article main blockquote,
   border-radius: 0 !important;
   color: var(--verity-ink) !important;
   box-shadow: none !important;
+}
+
+/* Dark mode: drop the left bar to the softer section-marker mint so
+   the callout aligns with the rest of the eased dark palette. */
+.dark article main blockquote,
+.dark .nextra-callout {
+  border-left-color: #7CD4C0 !important;
 }
 
 button,
@@ -961,6 +1273,16 @@ input:focus-visible,
 
   .verity-hero .verity-kicker span {
     margin: 0 0.3em;
+  }
+
+  /* On these very narrow screens the Copy-page widget can drop to
+     about 100px so the kicker doesn't stack into four lines. The
+     !important is necessary because the broader (max-width: 767px)
+     media query later in the file targets the same selector with
+     equal specificity, and the later-source rule would otherwise
+     win at ≤360px. */
+  .verity-hero__head > .verity-kicker {
+    padding-right: 6rem !important;
   }
 }
 
@@ -1056,6 +1378,15 @@ input:focus-visible,
   font-feature-settings: "kern", "liga", "calt", "ss01";
 }
 
+/* In dark mode the accent-strong is the same bright mint we use for
+   code keywords. The italic phrase reads as the same "hot" token in
+   the hero, which is fine — it's a single short phrase, not a wall
+   of code — but soften the saturation a touch so the hero feels
+   inviting rather than electric. */
+.dark .verity-hero__dek em {
+  color: #7CD4C0;
+}
+
 .verity-hero__links {
   display: flex;
   flex-direction: column;
@@ -1148,6 +1479,18 @@ input:focus-visible,
 
 .verity-hero__cta:hover span {
   transform: translateX(0.18rem);
+}
+
+/* Tap feedback on phones — :hover is unreliable on touch, so give
+   both buttons a visible :active state that reads as "pressed". */
+.verity-hero__cta:active {
+  transform: translateY(1px);
+  background: var(--verity-accent-strong, var(--verity-accent)) !important;
+}
+
+.verity-hero__paper:active {
+  transform: translateY(1px);
+  background: color-mix(in srgb, var(--verity-accent) 18%, transparent) !important;
 }
 
 .verity-hero__cta:focus-visible,
@@ -1350,6 +1693,13 @@ input:focus-visible,
   text-transform: uppercase;
 }
 
+/* In dark the bright phosphor accent felt loud above an already-busy
+   code panel; drop to the softer section-marker mint so the kicker
+   reads as a label rather than a stop sign. */
+.dark .code-switcher__caption span {
+  color: #7CD4C0;
+}
+
 .code-switcher__caption strong {
   color: var(--verity-heading);
   font-size: 0.92rem;
@@ -1394,6 +1744,14 @@ input:focus-visible,
 .code-switcher__tabs button[data-active="true"] {
   background: var(--verity-accent);
   color: var(--verity-accent-ink);
+}
+
+/* Only apply the :active press background to tabs that are NOT the
+   currently-selected tab — otherwise it overrides the full-accent
+   active-tab background with a 60% mix, causing a visible contrast
+   dip when the user taps the already-active tab. */
+.code-switcher__tabs button:not([data-active="true"]):active {
+  background: color-mix(in srgb, var(--verity-accent) 60%, var(--verity-surface));
 }
 
 .code-switcher__tabs button:focus-visible {
@@ -1448,7 +1806,7 @@ input:focus-visible,
   color: var(--verity-ink) !important;
   font-family: var(--verity-font-code);
   font-size: 0.85rem;
-  line-height: 1.65;
+  line-height: 1.72;
   tab-size: 2;
   white-space: pre;
   border: 0 !important;
@@ -1487,12 +1845,13 @@ input:focus-visible,
 }
 
 /* Subtle accent wash on the Verity panel so the lift to a proof-carrying
-   surface reads visually as well as semantically. Apply to the visible pre
-   so the solid code-surface !important above doesn't obscure it. */
+   surface reads visually as well as semantically. The earlier 8% mix
+   compounded with the bright keyword tokens to make the dark panel feel
+   saturated; 4% reads as a hint without intensifying the teal-on-teal. */
 .code-switcher[data-active="verity"] .code-panel--verity .code-panel__pre,
 .code-switcher[data-active="verity"] .code-panel--verity .code-panel__pre > pre {
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--verity-accent) 8%, transparent), transparent 15rem),
+    linear-gradient(90deg, color-mix(in srgb, var(--verity-accent) 4%, transparent), transparent 15rem),
     var(--verity-code-surface) !important;
 }
 
@@ -1588,11 +1947,29 @@ input:focus-visible,
 }
 
 @media (max-width: 767px) {
+  /* On phones, lay the reading-list row as a single column. The title
+     goes on top with the arrow right-aligned next to it, and the note
+     drops below as a quiet second line. Previously the arrow was
+     orphaning to its own line because grid-row was constraining it. */
   .verity-reading-list__row {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr auto !important;
+    grid-template-rows: auto auto;
+    gap: 0.15rem 0.6rem;
+    padding: 0.95rem 0.2rem !important;
+  }
+  .verity-reading-list__title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .verity-reading-list__arrow {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
   }
   .verity-reading-list__note {
-    grid-column: 1 / -1;
+    grid-column: 1 / -1 !important;
+    grid-row: 2;
+    font-size: 0.92rem !important;
   }
 }
 
@@ -1601,6 +1978,13 @@ input:focus-visible,
   padding: 1rem 1.15rem;
   border-top: 2px solid var(--verity-accent);
   background: color-mix(in srgb, var(--verity-surface) 70%, transparent);
+}
+
+/* The 2px bright phosphor top rule felt like a highlighter strip in
+   dark mode. Soften to the section-marker mint so the callout reads
+   as "raised paper" not "alarm bar". */
+.dark .report-callout {
+  border-top-color: #7CD4C0;
 }
 
 .report-callout strong {
@@ -1672,7 +2056,109 @@ input:focus-visible,
 
   article main {
     font-size: 1rem !important;
-    line-height: 1.68 !important;
+    line-height: 1.7 !important;
+  }
+
+  article main h2 {
+    font-size: clamp(1.55rem, 6vw, 1.95rem) !important;
+    margin-top: 2.5rem !important;
+    padding-top: 1rem !important;
+  }
+
+  article main h3 {
+    font-size: 1.22rem !important;
+    margin-top: 1.85rem !important;
+  }
+
+  /* Allow chip-style h3s (an inline-code identifier as the heading) to
+     not blow up the line-height by capping their inline-code size on
+     phones. */
+  article main h3 :not(pre) > code {
+    font-size: 0.95em !important;
+  }
+
+  /* Pagination row at the bottom of every doc page — wider tap area
+     plus a tiny extra height so a hurried finger can still hit
+     "Example Contracts" without zooming in. Also widen the visible
+     hit-state so both the chevron and label feel like one button. */
+  article > div:last-child > a[title] {
+    padding: 0.85rem 0 !important;
+    min-height: 2.6rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Numbered lists in articles (e.g. the "What to read next" list at
+     the bottom of getting-started) get monospace-figured numerals so
+     they line up cleanly under each other — small but very
+     research-paper. */
+  article main ol {
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  article main ol > li::marker {
+    color: var(--verity-muted);
+    font-weight: 500;
+  }
+
+  /* Lighten the inline-code chip border on phones so dense
+     paragraphs (research / EDSL reference) don't read as a wall of
+     boxes. And shrink the chip a hair so long file paths like
+     `Compiler/Proofs/IRGeneration/Contract.lean` fit on a single
+     line in the article column instead of orphaning a single letter
+     ("Contract.lea" + "n") to the next line. */
+  article :not(pre) > code,
+  code.nextra-code:not(pre code) {
+    border-color: color-mix(in srgb, var(--verity-rule) 45%, transparent) !important;
+    font-size: 0.8em !important;
+    padding: 0.05em 0.32em !important;
+    /* Treat the chip as an atomic inline-block: it either fits on the
+       current line or wraps as a whole to a new line. This kills the
+       "one orphan letter" wrap that was happening when a path got
+       broken mid-word as a last resort. When the chip is still too
+       long for one line (rare — only on very long paths), the chip
+       becomes horizontally scrollable so the user can swipe to read
+       the rest, instead of clipping content with an ellipsis that
+       has no tap affordance. */
+    display: inline-block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    vertical-align: baseline;
+    /* Hide the inline-scrollbar — the swipe affordance is enough. */
+    scrollbar-width: none;
+  }
+
+  article :not(pre) > code::-webkit-scrollbar,
+  code.nextra-code:not(pre code)::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* For chip-style h3 headings (e.g. `getStorage` / `setStorage`) we
+     still want the chip to be fully visible rather than scrollable. */
+  article main h3 :not(pre) > code {
+    overflow: visible !important;
+  }
+
+  /* Inside table cells the article-column ellipsis doesn't help —
+     the table already provides horizontal scroll. Let chips show full
+     text there so a hurried reader sees the path without scrolling
+     past the chip ellipsis they couldn't tap on. */
+  article main td :not(pre) > code,
+  article main th :not(pre) > code {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+
+  /* Tighter cell padding on phones so a 4-column reference table
+     keeps more horizontal space for actual content. */
+  article main th,
+  article main td {
+    padding: 0.55rem 0.6rem !important;
+    font-size: 0.92rem !important;
+    line-height: 1.45 !important;
   }
 
   article main > :not(.verity-hero):not(.code-compare):not(.report-callout) {
@@ -1705,6 +2191,14 @@ input:focus-visible,
     margin: 0 !important;
   }
 
+  /* On the very narrowest viewports (fold-style phones, ~280-360px)
+     shrink the Copy-page widget so the kicker has enough horizontal
+     space to fit on two lines instead of four. */
+  article > [class*="x:rounded-md"]:has(> button) button {
+    font-size: 0.78rem !important;
+    padding: 0.35rem 0.55rem !important;
+  }
+
   /* The kicker is the only line that sits at the same Y as the widget
      and needs to keep clear of it. Pad its right side so its last item
      doesn't slide under the widget. */
@@ -1715,7 +2209,15 @@ input:focus-visible,
   .verity-hero {
     padding-top: 1.25rem;
     padding-bottom: 1.5rem;
-    gap: 1.75rem;
+    gap: 1.25rem;
+  }
+
+  .verity-hero__head > h1 + .verity-hero__dek {
+    margin-top: 1rem;
+  }
+
+  .verity-hero__head > .verity-hero__dek + .verity-hero__links {
+    margin-top: 1.5rem;
   }
 
   .verity-hero__head {
@@ -1746,9 +2248,30 @@ input:focus-visible,
     min-height: 2.85rem;
   }
 
+  /* Slightly bigger paper icon on phones so the CTA reads as
+     "open this PDF" rather than "view a tiny outline of paper". */
+  .verity-hero__paper svg {
+    width: 1rem;
+    height: 1.25rem;
+  }
+
   .verity-hero__more {
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.45rem;
+  }
+
+  .verity-hero__more a {
+    /* Bigger tap target on phones without changing visual weight. */
+    padding: 0.2rem 0;
+    min-height: 1.85rem;
+  }
+
+  /* Quieter breadcrumb on doc pages so it reads as a small spine
+     locator rather than a competing label above the h1. */
+  .nextra-breadcrumb {
+    font-size: 0.7rem !important;
+    letter-spacing: 0.04em;
+    opacity: 0.85;
   }
 
   .code-compare {
@@ -1782,18 +2305,22 @@ input:focus-visible,
   }
 
   /* Fade the right edge of horizontally-scrolling code so it reads as
-     scrollable rather than cut-off. */
-  .code-switcher__panels {
+     scrollable rather than cut-off. The same treatment applies to
+     stand-alone shiki figures (getting-started, EDSL reference, etc.)
+     where a long line otherwise just clips at the chip border. */
+  .code-switcher__panels,
+  figure[data-rehype-pretty-code-figure] {
     position: relative;
   }
 
-  .code-switcher__panels::after {
+  .code-switcher__panels::after,
+  figure[data-rehype-pretty-code-figure]::after {
     content: "";
     position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 1.75rem;
+    top: 1px;
+    right: 1px;
+    bottom: 1px;
+    width: 1.5rem;
     pointer-events: none;
     background: linear-gradient(
       to right,
@@ -1806,6 +2333,36 @@ input:focus-visible,
     display: block;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    /* Tabular numerals so columns of digits (Iteration #, etc.) stay
+       aligned across rows. */
+    font-feature-settings: "tnum", "lnum";
+    /* Thin teal scrollbar to match code blocks. */
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--verity-accent) 30%, transparent) transparent;
+  }
+
+  article main table::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  article main table::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--verity-accent) 30%, transparent);
+  }
+
+  /* Don't hyphenate inside table cells on phones — wrapping a short
+     word like "property" as "prop-/erty" reads as truncated text on
+     a phone screen and the column has the width to wrap naturally
+     instead. */
+  article main td,
+  article main th {
+    hyphens: manual !important;
+    -webkit-hyphens: manual !important;
+  }
+
+  /* Asterism hr — tighter vertical margin on phones so the section
+     break doesn't push two long sections too far apart. */
+  article main hr {
+    margin: 2rem auto !important;
   }
 
   /* The serif body uses hyphenation; on narrow screens this can

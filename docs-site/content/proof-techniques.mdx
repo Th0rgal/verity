@@ -1,0 +1,101 @@
+---
+title: Proof Techniques
+description: How Verity contracts are proved correct, and what's currently out of scope.
+---
+
+# Proof Techniques
+
+This page collects the proof patterns used throughout `Contracts/<Name>/Proofs/`
+and the `Verity/Proofs/Stdlib/` automation modules, plus the current set of
+known limitations. The companion live status page is [`/verification`](/verification).
+
+## Guard modeling
+
+The `ContractResult` type models Solidity's `require` explicitly:
+
+```verity
+inductive ContractResult (α : Type) where
+  | success : α → ContractState → ContractResult α
+  | revert : String → ContractState → ContractResult α
+
+def require (condition : Bool) (message : String) : Contract Unit :=
+  fun s => if condition
+           then ContractResult.success () s
+           else ContractResult.revert message s
+```
+
+This lets proofs reason about both the success path and the revert path of
+guard-protected operations.
+
+## Proof techniques
+
+**Full unfolding** is the main approach. For guarded operations, unfold the
+entire do-notation chain through `bind`/`pure`/`Contract.run`/`ContractResult.snd`,
+then `simp [h_guard]` to resolve the guard condition.
+
+```verity
+simp only [operation, onlyOwner, isOwner, owner,
+  msgSender, getStorageAddr, setStorage,
+  Verity.bind, Bind.bind, Pure.pure,
+  Contract.run, ContractResult.snd]
+simp [h_owner]
+```
+
+It works because the EDSL is shallow: every contract function is a composition
+of core primitives.
+
+**Private unfold helpers**: for complex operations, a private theorem
+pre-computes the exact result state when guards pass. Main proofs then
+`rw [op_unfold]` to get the concrete state.
+
+```verity
+private theorem increment_unfold (s : ContractState)
+  (h_owner : s.sender = s.storageAddr 0) :
+  (increment.run s) = ContractResult.success () { ... } := by
+  simp only [increment, ...]; simp [h_owner]
+```
+
+`private theorem` isn't accessible from other files, so isolation proofs in
+separate files must repeat the full unfolding.
+
+**Boolean equality conversion**: `beq_iff_eq` converts between `(x == y) = true`
+and `x = y`.
+
+**Slot preservation**: `intro slot h_neq h_eq; exact absurd h_eq h_neq` is the
+standard pattern for "this operation doesn't touch slot `n`" lemmas.
+
+**List sum reasoning**: `omega` cannot handle `List.sum` or nonlinear
+multiplication, so conservation proofs use explicit
+`Nat.add_assoc`/`Nat.add_comm`/`Nat.add_left_comm` rewrite chains.
+
+**countOcc helpers**: `simp [countOcc, if_pos rfl]` produces `if True then 1 else 0`
+which doesn't reduce. Pre-proven `countOcc_cons_eq` / `countOcc_cons_ne` helpers
+avoid this.
+
+**No Mathlib**: tactics such as `push_neg`, `set`, `ring`, and `linarith` are
+unavailable. Use `by_cases`, explicit witnesses, and manual `Nat.*` lemma
+chains.
+
+## Arithmetic semantics
+
+All core arithmetic is EVM-compatible. `Uint256` wraps at `2^256`, so `+`,
+`-`, `*`, `/`, and `%` match EVM behavior by default.
+
+Two approaches coexist for overflow safety:
+
+- **Counter**: bare `add`/`sub` (modular arithmetic, EVM-accurate).
+- **SafeCounter / Ledger / SimpleToken**: `safeAdd` / `safeSub` from
+  `Stdlib/Math.lean` return `Option`, reverting on overflow/underflow.
+
+`MAX_UINT256 := 2^256 - 1`. Safe arithmetic checks this bound before returning
+`some`.
+
+## Known limitations
+
+No multi-contract interaction, no reentrancy modeling, no gas modeling. The CompilationModel supports events and double mappings, but EDSL-level proofs for those are still limited. Conservation is proven as exact `countOcc`-based sum equations, not as a global invariant over all addresses; transfer theorems treat self-transfer as a no-op. `ContractResult.fst` returns `default` on revert (requires `[Inhabited α]`), so proofs using `.fst` show `success` first. Mathlib tactics (`set`, `ring`, `linarith`) are unavailable.
+
+## See also
+
+- [Verification](/verification) — live theorem inventory and proof-status snapshot.
+- [Glossary](/glossary) — definitions of `ContractResult`, `local_obligations`, and other load-bearing terms.
+- [Trust Model](/trust-model) — what the proof techniques here actually buy you.

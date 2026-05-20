@@ -1,12 +1,22 @@
 # Verity
 
-> **For AI agents:** This file provides a complete overview. Add `.md` to any docs page URL to get raw markdown.
+> Lean 4 framework for writing smart contracts that compile to EVM bytecode and carry machine-checked correctness proofs.
+> Add `.md` to any docs URL on veritylang.com to get raw markdown (saves tokens). Or fetch `/api/docs/_all` for everything concatenated.
 
-## Overview
+## What it is
 
-Lean 4 framework for writing smart contracts with machine-checked proofs. Three-layer verified compilation: EDSL -> CompilationModel -> IR -> Yul -> EVM bytecode. Zero axioms, zero sorry.
+Three-layer verified compilation:
 
-## Quick Facts
+```
+EDSL  -->  CompilationModel  -->  IR  -->  Yul  -->  EVM bytecode
+       (Layer 1)             (Layer 2)  (Layer 3)  (solc, trusted)
+```
+
+Every transition inside the proof envelope is either fully verified or recorded as an explicit assumption in the per-build trust report. The Yul-to-bytecode step is delegated to `solc --strict-assembly`.
+
+**Layer 2**: Generic whole-contract theorem for the supported fragment. 0 axioms. 0 documented Lean axioms remain (AXIOMS.md).
+
+## Quick facts
 
 <!-- BEGIN GENERATED QUICK FACTS -->
 - **Language**: Lean 4.22.0
@@ -19,39 +29,67 @@ Lean 4 framework for writing smart contracts with machine-checked proofs. Three-
 - **Repository**: https://github.com/lfglabs-dev/verity
 <!-- END GENERATED QUICK FACTS -->
 
-## Verification Layers
-
-- **Layer 1** (EDSL -> CompilationModel): Per-contract bridge theorems. Generic typed-IR core.
-- **Layer 2** (CompilationModel -> IR): Generic whole-contract theorem for the supported fragment. 0 axioms.
-- **Layer 3** (IR -> Yul): Generic statement/function equivalence. Dispatch bridge is an explicit hypothesis.
-- **External** (Yul -> bytecode): Trusted. Compiled by solc v0.8.33. Validated by differential testing.
-
-## Trust Boundary
-
-- **Verified**: EDSL -> CompilationModel -> IR -> Yul (3 layers, 0 axioms, 0 sorry)
-- **Trusted**: Yul -> bytecode (solc), Lean 4 kernel, EVM specification alignment
-- See [TRUST_ASSUMPTIONS.md](https://github.com/lfglabs-dev/verity/blob/main/TRUST_ASSUMPTIONS.md) and [AXIOMS.md](https://github.com/lfglabs-dev/verity/blob/main/AXIOMS.md)
-
-## Key Types
+## Key types
 
 ```lean
--- Contracts are state-passing functions
-abbrev Contract a := ContractState -> ContractResult a
+abbrev Contract α := ContractState → ContractResult α
 
-inductive ContractResult (a : Type) where
-  | success : a -> ContractState -> ContractResult a
-  | revert : String -> ContractState -> ContractResult a
+inductive ContractResult (α : Type) where
+  | success : α → ContractState → ContractResult α
+  | revert  : String → ContractState → ContractResult α
 ```
 
-## Documentation URLs
+`ContractState` carries six persistent storage spaces (`storage`, `storageAddr`, `storageMap`, `storageMapUint`, `storageMap2`, `storageArray`), transient storage, EVM context (`sender`, `thisAddress`, `msgValue`, `blockTimestamp`, `blockNumber`, `chainId`, `blobBaseFee`, `selfBalance`), calldata, memory, `knownAddresses` for conservation proofs, and an append-only `events` log.
 
-- Main: https://veritylang.com/
-- Verification: https://veritylang.com/verification
-- Research: https://veritylang.com/research
-- Examples: https://veritylang.com/examples
-- Core: https://veritylang.com/core
-- Compiler: https://veritylang.com/compiler
-- First contract guide: https://veritylang.com/guides/first-contract
-- Solidity to Verity translation: https://veritylang.com/guides/solidity-to-verity
-- Production Solidity patterns: https://veritylang.com/guides/production-solidity-patterns
-- Add `.md` to any URL for raw markdown (saves tokens).
+Every primitive is a `Contract α`. Read-only primitives never revert; write primitives return `success ()`; only `require` (and `requireSomeUint`, `revertError`) may emit `revert`. The custom `bind` short-circuits on revert.
+
+## How proofs are written
+
+The dominant pattern is `_meets_spec`: each EDSL operation has a `_spec` predicate, and a single `simp` with the operation, slot names, and spec definition closes the goal. For guard-protected operations, unfold the full `bind`/`Contract.run`/`ContractResult.snd` chain then pass the guard hypothesis to `simp`. See `/proof-techniques` and `/guides/debugging-proofs`.
+
+## Trust boundary
+
+- **Verified**: EDSL semantics, CompilationModel→IR, IR→Yul (three layers, zero `sorry`, zero active project-level Lean axioms per AXIOMS.md).
+- **Trusted**: Lean 4 kernel, solc, EVM spec alignment, deployment toolchain, and the ECM/local-obligation **assumptions** surfaced by `--trust-report` (e.g., `erc20_balanceOf_interface`, `evm_ecrecover_precompile`, `keccak256_memory_slice_matches_evm`).
+- Each build emits machine-readable `--trust-report`, `--assumption-report`, `--layout-report`, `--layout-compat-report`. Deny flags fail-closed on a specific assumption category: `--deny-unchecked-dependencies`, `--deny-assumed-dependencies`, `--deny-axiomatized-primitives`, `--deny-local-obligations`, `--deny-linear-memory-mechanics`, `--deny-event-emission`, `--deny-low-level-mechanics`, `--deny-runtime-introspection`, `--deny-proxy-upgradeability`, `--deny-layout-incompatibility`. `--deny-unsafe` is the catch-all that trips on any of those.
+
+## Agent benchmark
+
+[lfglabs-dev/verity-benchmark](https://github.com/lfglabs-dev/verity-benchmark) measures AI agent capability at proving contract specs in this framework: 30 tasks across six real-world protocols (Ethereum deposit, Lido VaultHub, Nexus Mutual RAMM, Kleros sortition, Paladin Votes, Damn Vulnerable DeFi). No `sorry`/`admit`/`axiom` placeholders allowed.
+
+## Documentation index
+
+Introduction:
+- https://veritylang.com/architecture — single-page system map
+- https://veritylang.com/trust-model — what is verified vs trusted
+
+Tutorials:
+- https://veritylang.com/getting-started — local setup
+- https://veritylang.com/first-contract — guided spec→proof walkthrough (TipJar)
+
+How-to:
+- https://veritylang.com/guides/add-contract
+- https://veritylang.com/guides/solidity-to-verity
+- https://veritylang.com/guides/production-solidity-patterns — modifiers, ERC-7201 namespaces, ECMs, oracle patterns
+- https://veritylang.com/guides/linking-libraries — `--link` for external Yul (Poseidon, etc.)
+- https://veritylang.com/guides/debugging-proofs
+
+Reference:
+- https://veritylang.com/examples — SimpleStorage / Counter / SafeCounter / Owned / OwnedCounter / Ledger / SimpleToken / Vault / ERC721 / ReentrancyExample / CryptoHash / ERC20
+- https://veritylang.com/core — ContractState, Contract monad, spec helpers (`sameAddrMapContext` etc.)
+- https://veritylang.com/edsl-api-reference — every primitive, plus `verity_contract` macro features
+- https://veritylang.com/compiler — pipeline, CLI flags, audit artifacts
+- https://veritylang.com/verification — per-contract theorem inventory
+- https://veritylang.com/glossary
+
+Explanation:
+- https://veritylang.com/proof-techniques — guard modeling, unfolding, list-sum reasoning
+- https://veritylang.com/faq
+
+## Working effectively in this codebase
+
+- Lean files in `Contracts/<Name>/` are the source of truth; docs prose can lag.
+- For *what* exists: `lake build` + `grep ^theorem Contracts/.../Proofs/*.lean`.
+- For *how* to add a contract: scaffold via `python3 scripts/generate_contract.py <Name> --fields ... --functions ...`, then follow `/first-contract`.
+- For *trust* questions: read the per-build `--trust-report` JSON, then cross-reference with `AXIOMS.md`.
+- The `_meets_spec` pattern is the load-bearing convention; deviate only when you must.

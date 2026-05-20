@@ -17,9 +17,8 @@ TARGETS = {
     "DOCS_SITE_COMPILER": ROOT / "docs-site" / "content" / "compiler.mdx",
     "DOCS_SITE_INDEX": ROOT / "docs-site" / "content" / "index.mdx",
     "DOCS_SITE_EXAMPLES": ROOT / "docs-site" / "content" / "examples.mdx",
-    "DOCS_SITE_FIRST_CONTRACT": ROOT / "docs-site" / "content" / "guides" / "first-contract.mdx",
+    "DOCS_SITE_FIRST_CONTRACT": ROOT / "docs-site" / "content" / "first-contract.mdx",
     "DOCS_SITE_VERIFICATION": ROOT / "docs-site" / "content" / "verification.mdx",
-    "DOCS_SITE_RESEARCH": ROOT / "docs-site" / "content" / "research.mdx",
     "LLMS": ROOT / "docs-site" / "public" / "llms.txt",
 }
 
@@ -77,10 +76,6 @@ def expected_snippets() -> dict[str, list[str]]:
         ],
         "DOCS_SITE_VERIFICATION": [
             "**Generic whole-contract Layer 2 theorem**: `Compiler/Proofs/IRGeneration/Contract.lean`",
-        ],
-        "DOCS_SITE_RESEARCH": [
-            "Supported-fragment generic theorem in place.",
-            "`Compiler/Proofs/IRGeneration/Contract.lean`",
         ],
         "LLMS": [
             "Generic whole-contract theorem for the supported fragment. 0 axioms.",
@@ -141,12 +136,6 @@ def forbidden_snippets() -> dict[str, list[str]]:
         ],
         "DOCS_SITE_FIRST_CONTRACT": [
             "18 proof terms currently use `sorry`",
-        ],
-        "DOCS_SITE_RESEARCH": [
-            "Complete for all 7 contracts",
-            "`Verity/Examples/X.lean`",
-            "`Compiler/TypedIRCompilerCorrectness.lean` — Compilation correctness (generic theorem, 36 supported fragments)",
-            "Partial generic coverage only.",
         ],
         "LLMS": [
             "CompilationModel -> IR preservation",

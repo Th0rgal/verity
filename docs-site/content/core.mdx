@@ -21,32 +21,41 @@ structure StorageSlot (α : Type) where
 
 `Uint256` is a dedicated 256-bit modular integer type, so `+`, `-`, `*`, `/`, and `%` wrap exactly like the EVM.
 
-> **Note**: This matches EVM wrapping semantics, not Solidity's default checked arithmetic (^0.8). Use `require` guards to match Solidity behavior. See [TRUST_ASSUMPTIONS.md](https://github.com/Th0rgal/verity/blob/main/TRUST_ASSUMPTIONS.md#8-arithmetic-semantics-wrapping-vs-checked) for details.
+> **Note**: This matches EVM wrapping semantics, not Solidity's default checked arithmetic (^0.8). Use `require` guards to match Solidity behavior. See [TRUST_ASSUMPTIONS.md](https://github.com/lfglabs-dev/verity/blob/main/TRUST_ASSUMPTIONS.md#8-arithmetic-semantics-wrapping-vs-checked) for details.
 
 ## ContractState
 
 ```verity
 structure ContractState where
-  storage : Nat → Uint256                         -- Uint256 storage
-  storageAddr : Nat → Address                      -- Address storage
-  storageMap : Nat → Address → Uint256            -- Mapping storage (address-keyed)
-  storageMapUint : Nat → Uint256 → Uint256        -- Mapping storage (uint256-keyed)
-  storageMap2 : Nat → Address → Address → Uint256 -- Double mapping storage
-  sender : Address
-  thisAddress : Address
-  msgValue : Uint256
-  blockTimestamp : Uint256
-  knownAddresses : Nat → FiniteAddressSet          -- Tracked addresses per slot
-  events : List Event := []                        -- Emitted events (append-only)
+  -- Persistent storage spaces, indexed by slot
+  storage         : Nat → Uint256                          -- uint256 slots
+  storageAddr     : Nat → Address                          -- address slots
+  storageMap      : Nat → Address → Uint256                -- address-keyed mapping
+  storageMapUint  : Nat → Uint256 → Uint256                -- uint-keyed mapping
+  storageMap2     : Nat → Address → Address → Uint256      -- double mapping
+  storageArray    : Nat → List Uint256                     -- dynamic in-storage arrays
+  -- EIP-1153 transient storage
+  transientStorage : Nat → Uint256
+  -- EVM context
+  sender, thisAddress : Address
+  msgValue, selfBalance : Uint256
+  blockTimestamp, blockNumber, chainId, blobBaseFee : Uint256
+  -- Calldata and memory
+  calldataSize : Uint256
+  calldata : List Nat
+  memory   : Nat → Uint256
+  -- Bookkeeping
+  knownAddresses : Nat → FiniteAddressSet                  -- tracked per slot, for conservation
+  events         : List Event                              -- append-only log
 ```
 
-Five independent storage spaces: `storage` for Uint256 values, `storageAddr` for addresses, `storageMap` for address-keyed mappings (e.g., `balances[owner]`), `storageMapUint` for uint256-keyed mappings, and `storageMap2` for double mappings (e.g., `allowances[owner][spender]`). Each is indexed by a natural number (the slot).
+Six persistent storage spaces plus transient storage. `storage` for Uint256 values, `storageAddr` for addresses, `storageMap` / `storageMapUint` / `storageMap2` for the three mapping shapes, `storageArray` for dynamic arrays. Each is indexed by a natural number (the slot).
 
-The state also carries: the `sender` address, the contract's own `thisAddress`, EVM context fields (`msgValue`, `blockTimestamp`), `knownAddresses` for tracking which addresses have been seen per slot (used in conservation proofs), and an append-only `events` log.
+`knownAddresses` tracks which addresses have been seen per slot and is used by conservation proofs. EVM context fields (`msgValue`, `blockTimestamp`, `blockNumber`, `chainId`, `blobBaseFee`, `selfBalance`) and calldata/memory are modeled so EDSL proofs can reason about them; the `verity_contract` macro routes context accessors and `tstore`/`tload` through these fields.
 
 ## ContractResult
 
-```lean
+```verity
 inductive ContractResult (α : Type) where
   | success : α → ContractState → ContractResult α
   | revert : String → ContractState → ContractResult α
@@ -54,11 +63,11 @@ inductive ContractResult (α : Type) where
 
 Every contract operation returns either `success` with a value and updated state, or `revert` with an error message and the state at the point of failure.
 
-> **Important**: On revert, the returned state may include mutations from operations that executed *before* the revert. This differs from EVM semantics where REVERT discards all state changes. Contracts must follow the **checks-before-effects pattern** — all `require` guards before any `setStorage`/`setMapping` calls — to ensure the revert state equals the original input state. See [TRUST_ASSUMPTIONS.md](https://github.com/Th0rgal/verity/blob/main/TRUST_ASSUMPTIONS.md) and [#254](https://github.com/Th0rgal/verity/issues/254) for details.
+> **Important**: On revert, the returned state may include mutations from operations that executed *before* the revert. This differs from EVM semantics where REVERT discards all state changes. Contracts must follow the **checks-before-effects pattern** — all `require` guards before any `setStorage`/`setMapping` calls — to ensure the revert state equals the original input state. See [TRUST_ASSUMPTIONS.md](https://github.com/lfglabs-dev/verity/blob/main/TRUST_ASSUMPTIONS.md) and [#254](https://github.com/lfglabs-dev/verity/issues/254) for details.
 
 ## Contract monad
 
-```lean
+```verity
 abbrev Contract (α : Type) := ContractState → ContractResult α
 ```
 
@@ -73,79 +82,13 @@ def bind (ma : Contract α) (f : α → Contract β) : Contract β :=
 
 This gives do-notation with automatic failure propagation. A failed `require` stops the whole chain.
 
-## Storage operations
+## Primitives
 
-Five pairs of get/set functions, one per storage type:
+The core types above are operated on by a small surface of EDSL primitives — storage get/set, mapping get/set, context accessors (`msgSender`, `msgValue`, `blockTimestamp`, `contractAddress`), event emission, and the `require` guard. Those are documented in the [EDSL API Reference](/edsl-api-reference); the prose here only covers the *type layer* and the monad, not the operation catalogue.
 
-| Storage type | Get | Set | Slot type |
-|---|---|---|---|
-| Uint256 | `getStorage` | `setStorage` | `StorageSlot Uint256` |
-| Address | `getStorageAddr` | `setStorageAddr` | `StorageSlot Address` |
-| Mapping (address-keyed) | `getMapping` | `setMapping` | `StorageSlot (Address → Uint256)` |
-| Mapping (uint256-keyed) | `getMappingUint` | `setMappingUint` | `StorageSlot (Uint256 → Uint256)` |
-| Double mapping | `getMapping2` | `setMapping2` | `StorageSlot (Address → Address → Uint256)` |
+The shape of every primitive is the same: it's a `Contract α` value, which is `ContractState → ContractResult α`. Read-only primitives like `msgSender` and `getStorage` always emit `ContractResult.success`; write primitives like `setStorage` return `success ()` with a modified `ContractState`. `require` is the one operation that may emit `ContractResult.revert`, preserving the original state.
 
-All follow the same pattern — read from or write to the corresponding `ContractState` field:
-
-```verity
-def getStorage (s : StorageSlot Uint256) : Contract Uint256 :=
-  fun state => ContractResult.success (state.storage s.slot) state
-
-def setStorage (s : StorageSlot Uint256) (value : Uint256) : Contract Unit :=
-  fun state => ContractResult.success ()
-    { state with storage := fun slot =>
-        if slot == s.slot then value else state.storage slot }
-```
-
-Mapping operations take key arguments:
-
-```verity
--- Address-keyed mapping (e.g., balances[owner])
-let bal ← getMapping balances owner
-setMapping balances owner newBal
-
--- Uint256-keyed mapping
-let val ← getMappingUint prices tokenId
-setMappingUint prices tokenId newPrice
-
--- Double mapping (e.g., allowances[owner][spender])
-let allow ← getMapping2 allowances owner spender
-setMapping2 allowances owner spender newAllow
-```
-
-> `setMapping` also inserts the key into `knownAddresses` for that slot, enabling conservation proofs that sum over all balances.
-
-## Context accessors
-
-Read-only functions for accessing transaction context:
-
-```verity
-let sender ← msgSender           -- Transaction sender address
-let self ← contractAddress        -- This contract's address
-let value ← msgValue             -- ETH value sent with call
-let time ← blockTimestamp         -- Current block timestamp
-```
-
-These return values from `ContractState` without modifying state.
-
-## Event emission
-
-```verity
-emitEvent "Transfer" [amount] [senderBal, recipientBal]
-```
-
-`emitEvent name args indexedArgs` appends to the `events` log. The `indexedArgs` parameter is optional (defaults to `[]`).
-
-## Require guard
-
-```verity
-def require (condition : Bool) (message : String) : Contract Unit :=
-  fun s => if condition
-           then ContractResult.success () s
-           else ContractResult.revert message s
-```
-
-Returns `success` when the condition holds, `revert` with the message when it doesn't.
+> `setMapping` (and its keyed variants) also inserts the key into `knownAddresses` for that slot, enabling conservation proofs that sum over all balances.
 
 ## Simp lemmas
 
@@ -191,75 +134,22 @@ let allow ← getMapping2 allowances owner spender -- Uint256
 let wrong ← getStorage owner  -- Type error: owner is Address, not Uint256
 ```
 
-## Spec helpers (`Verity/Specs/Common.lean`)
+## Spec helpers
 
-Specs express what a function **did not change**. `Common.lean` provides named predicates so specs don't repeat field-by-field equality.
+Specs express what a function **did not change**. `Verity/Specs/Common.lean` provides named predicates so specs don't repeat field-by-field equality. Import with `import Verity.Specs.Common` and `open Verity.Specs`.
 
-Import with `import Verity.Specs.Common` and `open Verity.Specs`.
+Three layers, narrowest first:
 
-### Atomic helpers (single field)
+- **Atomic** — one field at a time: `sameStorage`, `sameStorageAddr`, `sameStorageMap`, `sameStorageMapUint`, `sameStorageMap2`, `sameContext`.
+- **Mixed** (most common in practice) — two storage checks + `sameContext`:
+  - `sameAddrMapContext` — use when only `setStorage` (uint256 slot) writes.
+  - `sameStorageMapContext` — use when only `setStorageAddr` writes.
+  - `sameStorageAddrContext` — use when only `setMapping` writes.
+- **Composite** (strictest) — everything except one storage type: `sameExceptStorage`, `sameExceptStorageAddr`, `sameExceptStorageMap`, `sameExceptStorageMapUint`, `sameExceptStorageMap2`. `sameAllStorage` covers context-only writes. All composites include `sameContext`.
+- **Fine-grained** — for single-entry mapping updates: `storageUnchangedExcept slot`, `storageAddrUnchangedExcept slot`, `storageMapUnchangedExceptKeyAtSlot slot addr`, `storageMapUnchangedExceptKeysAtSlot slot a1 a2` (transfers), `storageMapUintUnchangedExceptSlot`, `storageMapUintUnchangedExceptKey`, `storageMap2UnchangedExceptSlot`.
 
-| Helper | Asserts |
-|--------|---------|
-| `sameStorage s s'` | `s'.storage = s.storage` |
-| `sameStorageAddr s s'` | `s'.storageAddr = s.storageAddr` |
-| `sameStorageMap s s'` | `s'.storageMap = s.storageMap` |
-| `sameStorageMapUint s s'` | `s'.storageMapUint = s.storageMapUint` |
-| `sameStorageMap2 s s'` | `s'.storageMap2 = s.storageMap2` |
-| `sameContext s s'` | sender, thisAddress, msgValue, blockTimestamp unchanged |
-
-### Composite helpers
-
-Use these instead of conjunctions of atomics:
-
-| Helper | Meaning | Use when operation only writes... |
-|--------|---------|-----------------------------------|
-| `sameAllStorage s s'` | All 5 storage types unchanged | Context fields only |
-| `sameExceptStorage s s'` | Everything except `storage` unchanged | `setStorage` |
-| `sameExceptStorageAddr s s'` | Everything except `storageAddr` unchanged | `setStorageAddr` |
-| `sameExceptStorageMap s s'` | Everything except `storageMap` unchanged | `setMapping` |
-| `sameExceptStorageMapUint s s'` | Everything except `storageMapUint` unchanged | `setMappingUint` |
-| `sameExceptStorageMap2 s s'` | Everything except `storageMap2` unchanged | `setMapping2` |
-
-All composites include `sameContext`.
-
-### Mixed storage+context helpers
-
-These combine two atomic storage checks with `sameContext`. They are the most commonly used helpers in practice — appearing in nearly every spec:
-
-| Helper | Meaning | Use when operation only writes... |
-|--------|---------|-----------------------------------|
-| `sameAddrMapContext s s'` | `sameStorageAddr ∧ sameStorageMap ∧ sameContext` | `setStorage` (uint256 slot only) |
-| `sameStorageMapContext s s'` | `sameStorage ∧ sameStorageMap ∧ sameContext` | `setStorageAddr` (address slot only) |
-| `sameStorageAddrContext s s'` | `sameStorage ∧ sameStorageAddr ∧ sameContext` | `setMapping` (mapping only) |
-
-**Example**: A counter's `increment` spec modifies a uint256 storage slot, so the unchanged-state predicate is `sameAddrMapContext` (address storage, mapping storage, and context are all unchanged).
-
-### Fine-grained helpers (specific slot or key)
-
-For operations that modify a single entry in a mapping:
-
-| Helper | Asserts |
-|--------|---------|
-| `storageUnchangedExcept slot s s'` | All uint256 slots except `slot` unchanged |
-| `storageAddrUnchangedExcept slot s s'` | All address slots except `slot` unchanged |
-| `storageMapUnchangedExceptKeyAtSlot slot addr s s'` | Mapping unchanged except `slot`/`addr` |
-| `storageMapUnchangedExceptKeysAtSlot slot a1 a2 s s'` | Mapping unchanged except `slot`/`a1`/`a2` (transfers) |
-| `storageMapUintUnchangedExceptSlot slot s s'` | Uint256-keyed mapping unchanged except `slot` |
-| `storageMapUintUnchangedExceptKey slot key s s'` | Uint256-keyed mapping at `slot` unchanged except `key` |
-| `storageMap2UnchangedExceptSlot slot s s'` | Double mapping unchanged except `slot` |
-
-### Choosing the right helper
-
-| Operation | Mixed (most common) | Composite (strictest) | Fine-grained |
-|-----------|---------------------|----------------------|--------------|
-| `setStorage count v` | `sameAddrMapContext` | `sameExceptStorage` | `storageUnchangedExcept count.slot` |
-| `setStorageAddr owner v` | `sameStorageMapContext` | `sameExceptStorageAddr` | `storageAddrUnchangedExcept owner.slot` |
-| `setMapping balances addr v` | `sameStorageAddrContext` | `sameExceptStorageMap` | `storageMapUnchangedExceptKeyAtSlot balances.slot addr` |
-| ERC20 transfer (two keys) | `sameStorageAddrContext` | `sameExceptStorageMap` | `storageMapUnchangedExceptKeysAtSlot balances.slot from to` |
-| `setMappingUint prices id v` | — | `sameExceptStorageMapUint` | `storageMapUintUnchangedExceptKey prices.slot id` |
-| Read-only (`getStorage`, etc.) | — | `sameAllStorage ∧ sameContext` | — |
+A counter's `increment` writes only the uint256 count slot, so the unchanged-state predicate is `sameAddrMapContext`. An ERC20 `transfer` (two mapping keys) uses `storageMapUnchangedExceptKeysAtSlot balances.slot from to`.
 
 ## Source
 
-[`Verity/Core.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Core.lean) · [`Verity/Specs/Common.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Specs/Common.lean)
+[`Verity/Core.lean`](https://github.com/lfglabs-dev/verity/blob/main/Verity/Core.lean) · [`Verity/Specs/Common.lean`](https://github.com/lfglabs-dev/verity/blob/main/Verity/Specs/Common.lean)

@@ -27,6 +27,41 @@ open Compiler.Yul
 open Compiler.ECM
 open Compiler.CompilationModel (Stmt Expr freeMemoryPointer)
 
+/-- The OpenZeppelin v5 `SafeERC20FailedOperation(address)` selector,
+    left-shifted into the ABI error selector word. -/
+private def safeERC20FailedOperationSelectorWord : Nat :=
+  0x5274afe700000000000000000000000000000000000000000000000000000000
+
+/-- Revert with OpenZeppelin v5's `SafeERC20FailedOperation(address)` custom error. -/
+private def revertSafeERC20FailedOperation (tokenExpr : YulExpr) : List YulStmt := [
+  YulStmt.expr (YulExpr.call "mstore" [YulExpr.lit 0, YulExpr.hex safeERC20FailedOperationSelectorWord]),
+  YulStmt.expr (YulExpr.call "mstore" [
+    YulExpr.lit 4,
+    YulExpr.call "and" [tokenExpr, YulExpr.lit Compiler.Constants.addressMask]
+  ]),
+  YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.lit 36])
+]
+
+/-- Post-call guard for OpenZeppelin-style optional-bool ERC-20 operations.
+    A successful call is accepted only if it returned exactly `true`, or returned
+    no data and the token address has code. Failing calls are bubbled earlier. -/
+private def requireOptionalBoolSuccess
+    (tokenExpr returnPtr : YulExpr) : List YulStmt := [
+  YulStmt.if_
+    (YulExpr.call "iszero" [
+      YulExpr.call "eq" [YulExpr.call "mload" [returnPtr], YulExpr.lit 1]
+    ]) [
+      YulStmt.if_
+        (YulExpr.call "iszero" [
+          YulExpr.call "and" [
+            YulExpr.call "iszero" [YulExpr.call "returndatasize" []],
+            YulExpr.call "gt" [YulExpr.call "extcodesize" [tokenExpr], YulExpr.lit 0]
+          ]
+        ])
+        (revertSafeERC20FailedOperation tokenExpr)
+    ]
+]
+
 /-- Shared implementation for read-only ERC-20 calls that return one
     ABI-encoded `uint256` word. -/
 private def readUint256Module
@@ -106,6 +141,7 @@ def safeTransferModule : ExternalCallModule where
       | [t, to, a] => pure (t, to, a)
       | _ => throw "safeTransfer expects 3 arguments (token, to, amount)"
     let selectorWord := 0xa9059cbb00000000000000000000000000000000000000000000000000000000
+    let optionalBoolGuard := requireOptionalBoolSuccess tokenExpr (YulExpr.ident "__st_ptr")
     pure [YulStmt.block ([
       YulStmt.let_ "__st_ptr" (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]),
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__st_ptr", YulExpr.hex selectorWord]),
@@ -129,12 +165,8 @@ def safeTransferModule : ExternalCallModule where
         YulStmt.let_ "__st_rds" (YulExpr.call "returndatasize" []),
         YulStmt.expr (YulExpr.call "returndatacopy" [YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__st_rds"]),
         YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__st_rds"])
-      ],
-      YulStmt.if_ (YulExpr.call "eq" [YulExpr.call "returndatasize" [], YulExpr.lit 32]) [
-        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.call "mload" [YulExpr.ident "__st_ptr"]])
-          (revertWithMessage "transfer returned false")
       ]
-    ])]
+    ] ++ optionalBoolGuard)]
 
 /-- Convenience: create a `Stmt.ecm` for safeTransfer. -/
 def safeTransfer (token to amount : Expr) : Stmt :=
@@ -154,6 +186,7 @@ def safeTransferFromModule : ExternalCallModule where
       | [t, f, to, a] => pure (t, f, to, a)
       | _ => throw "safeTransferFrom expects 4 arguments (token, from, to, amount)"
     let selectorWord := 0x23b872dd00000000000000000000000000000000000000000000000000000000
+    let optionalBoolGuard := requireOptionalBoolSuccess tokenExpr (YulExpr.ident "__stf_ptr")
     pure [YulStmt.block ([
       YulStmt.let_ "__stf_ptr" (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]),
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__stf_ptr", YulExpr.hex selectorWord]),
@@ -178,12 +211,8 @@ def safeTransferFromModule : ExternalCallModule where
         YulStmt.let_ "__stf_rds" (YulExpr.call "returndatasize" []),
         YulStmt.expr (YulExpr.call "returndatacopy" [YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__stf_rds"]),
         YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__stf_rds"])
-      ],
-      YulStmt.if_ (YulExpr.call "eq" [YulExpr.call "returndatasize" [], YulExpr.lit 32]) [
-        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.call "mload" [YulExpr.ident "__stf_ptr"]])
-          (revertWithMessage "transferFrom returned false")
       ]
-    ])]
+    ] ++ optionalBoolGuard)]
 
 /-- Convenience: create a `Stmt.ecm` for safeTransferFrom. -/
 def safeTransferFrom (token fromAddr to amount : Expr) : Stmt :=
@@ -203,6 +232,7 @@ def safeApproveModule : ExternalCallModule where
       | [t, s, a] => pure (t, s, a)
       | _ => throw "safeApprove expects 3 arguments (token, spender, amount)"
     let selectorWord := 0x095ea7b300000000000000000000000000000000000000000000000000000000
+    let optionalBoolGuard := requireOptionalBoolSuccess tokenExpr (YulExpr.ident "__sa_ptr")
     pure [YulStmt.block ([
       YulStmt.let_ "__sa_ptr" (YulExpr.call "mload" [YulExpr.lit freeMemoryPointer]),
       YulStmt.expr (YulExpr.call "mstore" [YulExpr.ident "__sa_ptr", YulExpr.hex selectorWord]),
@@ -226,12 +256,8 @@ def safeApproveModule : ExternalCallModule where
         YulStmt.let_ "__sa_rds" (YulExpr.call "returndatasize" []),
         YulStmt.expr (YulExpr.call "returndatacopy" [YulExpr.lit 0, YulExpr.lit 0, YulExpr.ident "__sa_rds"]),
         YulStmt.expr (YulExpr.call "revert" [YulExpr.lit 0, YulExpr.ident "__sa_rds"])
-      ],
-      YulStmt.if_ (YulExpr.call "eq" [YulExpr.call "returndatasize" [], YulExpr.lit 32]) [
-        YulStmt.if_ (YulExpr.call "iszero" [YulExpr.call "mload" [YulExpr.ident "__sa_ptr"]])
-          (revertWithMessage "approve returned false")
       ]
-    ])]
+    ] ++ optionalBoolGuard)]
 
 /-- Convenience: create a `Stmt.ecm` for safeApprove. -/
 def safeApprove (token spender amount : Expr) : Stmt :=

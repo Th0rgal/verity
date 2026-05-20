@@ -1,3 +1,8 @@
+---
+title: Solidity to Verity
+description: Practical mappings for porting a Solidity contract into the verity_contract surface — first-pass syntax, restructuring patterns, and a worked walkthrough.
+---
+
 # Solidity-to-Verity Translation Guide
 
 This guide is the practical path for converting a Solidity contract into the
@@ -37,10 +42,12 @@ Use this table as your first-pass conversion checklist.
 | `x = y - z` (checked) | `let d <- requireSomeUint (safeSub y z) "underflow"` then `setStorage xSlot d` |
 | `x = y * z` (checked) | `let p <- requireSomeUint (safeMul y z) "overflow"` then `setStorage xSlot p` |
 | `x = y / z` (checked) | `let q <- requireSomeUint (safeDiv y z) "division by zero"` then `setStorage xSlot q` |
-| `balances[a]` | `let m <- getStorage balances; pure (m a)` |
-| `balances[a] = v` | `let m <- getStorage balances; setStorage balances (fun k => if k == a then v else m k)` |
-| `emit Transfer(from, to, amount)` | `emit "Transfer" [from, to, amount]` |
-| `return v;` | `pure v` |
+| `balances[a]` | `let v ← getMapping balances a` |
+| `balances[a] = v` | `setMapping balances a v` |
+| `allowances[a][b]` | `let v ← getMapping2 allowances a b` |
+| `tokenOwners[id]` (address-valued uint-keyed) | `let owner ← getMappingUintAddr tokenOwners id` |
+| `emit Transfer(from, to, amount)` | `emitEvent "Transfer" [amount] [addressToWord from, addressToWord to]` |
+| `return v;` | `pure v` (or `return v` inside `verity_contract`) |
 
 ## 2. Patterns That Need Restructuring
 
@@ -206,25 +213,19 @@ def totalSupply : StorageSlot Uint256 := ⟨1⟩
 ### Step B: Translate the function body
 
 ```verity
-def transfer (to : Address) (amount : Uint256) : Contract Bool := do
-  let sender <- msgSender
-  let current <- getStorage balances
-
-  let senderBal := current sender
+def transfer (to : Address) (amount : Uint256) : Contract Unit := do
+  let sender    ← msgSender
+  let senderBal ← getMapping balances sender
   require (senderBal >= amount) "insufficient"
-
-  let newSender <- requireSomeUint (safeSub senderBal amount) "underflow"
-  let toBal := current to
-  let newTo <- requireSomeUint (safeAdd toBal amount) "overflow"
-
-  setStorage balances (fun a =>
-    if a == sender then newSender
-    else if a == to then newTo
-    else current a)
-
-  emit [sender.toNat, to.toNat, amount.toNat]
-  pure true
+  let newSender ← requireSomeUint (safeSub senderBal amount) "underflow"
+  let toBal     ← getMapping balances to
+  let newTo     ← requireSomeUint (safeAdd toBal amount) "overflow"
+  setMapping balances sender newSender
+  setMapping balances to newTo
+  emitEvent "Transfer" [amount] [addressToWord sender, addressToWord to]
 ```
+
+Use `getMapping` / `setMapping` for individual entries — there is no whole-mapping read or function-shaped write in the EDSL. Keep `require` guards before any `setMapping` mutation so the revert state equals the input state.
 
 ### Step C: Write the spec shape
 
@@ -235,30 +236,36 @@ For this transfer path, typical specs include:
 3. Total supply is unchanged.
 4. If guard fails, result is `revert` and state is preserved.
 
-Example spec skeleton:
+Specs are `Prop`-valued predicates over the pre/post `ContractState`, not records. The canonical shape (used across `Contracts/<Name>/Spec.lean`) is `<op>_spec args s s' : Prop`:
 
-```lean
-def transferSpec (to : Address) (amount : Uint256) : ContractSpec :=
-  { pre := fun s => (s.storageMap balances s.sender) >= amount
-    post := fun s r s' =>
-      r = true /\
-      s'.storageMap balances s.sender = (s.storageMap balances s.sender) - amount /\
-      s'.storageMap balances to = (s.storageMap balances to) + amount }
+```verity
+def transfer_spec (to : Address) (amount : Uint256) (s s' : ContractState) : Prop :=
+  s'.storageMap balances.slot s.sender =
+    sub (s.storageMap balances.slot s.sender) amount ∧
+  s'.storageMap balances.slot to =
+    add (s.storageMap balances.slot to) amount ∧
+  storageMapUnchangedExceptKeysAtSlot balances.slot s.sender to s s' ∧
+  sameStorageAddrContext s s'
 ```
+
+Pick the right "unchanged" helper from [`Verity.Specs.Common`](/core#spec-helpers) for the actual write set. Conservation specs (`balanceSum` equations) go here too when the contract needs them.
 
 ### Step D: Prove with existing automation
 
-Typical proof shape:
+Use the `_meets_spec` convention — single `simp` with the operation, slot names, spec definition, and any guard hypothesis:
 
-1. `unfold transfer`
-2. `simp` through `require`, `bind`, `getStorage`, `setStorage`
-3. discharge arithmetic/branch conditions
-4. finish with storage equality goals
+```verity
+theorem transfer_meets_spec (s : ContractState) (to : Address) (amount : Uint256)
+    (h_funds : s.storageMap balances.slot s.sender >= amount) :
+    let s' := ((transfer to amount).run s).snd
+    transfer_spec to amount s s' := by
+  simp [transfer, transfer_spec, balances, msgSender, getMapping, setMapping,
+        bind, h_funds,
+        Specs.storageMapUnchangedExceptKeysAtSlot,
+        Specs.sameStorageAddrContext]
+```
 
-Use examples in:
-
-- `Verity/Proofs/SimpleToken/Basic.lean`
-- `Verity/Proofs/ERC20/Basic.lean`
+Real-world references: [`Contracts/SimpleToken/Proofs/Basic.lean`](https://github.com/lfglabs-dev/verity/blob/main/Contracts/SimpleToken/Proofs/Basic.lean) and [`Contracts/ERC20/Proofs/Basic.lean`](https://github.com/lfglabs-dev/verity/blob/main/Contracts/ERC20/Proofs/Basic.lean).
 
 ## 4. Common Pitfalls
 
@@ -302,7 +309,7 @@ A selector mismatch can make proofs pass while runtime dispatch is wrong.
 
 If you are starting from zero, pair this with:
 
-- [Adding Your First Contract](/guides/first-contract)
+- [Adding Your First Contract](/first-contract)
 - [Production Solidity Patterns](/guides/production-solidity-patterns)
-- [Compiler](/compiler)
-- [Formal Verification](/verification)
+- [Compiler & CLI](/compiler)
+- [Verification Status](/verification)

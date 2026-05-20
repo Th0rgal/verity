@@ -253,7 +253,8 @@ def storeEchoModelUsesDeclaredExternal : Bool :=
          returnType := some ParamType.uint256
          returns := [ParamType.uint256]
          proofStatus := Compiler.ProofStatus.assumed
-         axiomNames := [] }] => true
+         axiomNames := []
+         linkMode := Compiler.CompilationModel.ForeignLinkMode.objectLinked }] => true
     | _ => false) &&
     match MacroExternal.storeEcho_modelBody with
     | [Stmt.letVar "echoed" (Expr.externalCall "echo" [Expr.param "next"]),
@@ -272,6 +273,99 @@ def storeEchoExecutableUsesStub : Bool :=
 example : storeEchoExecutableUsesStub = true := by native_decide
 
 end MacroExternalSmoke
+
+namespace MacroExternalLinkModeSmoke
+
+open Contracts
+open Verity hiding pure bind
+open Verity.EVM.Uint256
+
+verity_contract MacroExternalLinkModes where
+  storage
+    value : Uint256 := slot 0
+  linked_externals
+    external oracleEcho(Uint256) -> (Uint256) linked_as := external
+    external poseidonHash(Uint256, Uint256) -> (Uint256) linked_as := internal_yul
+    external inlineAdd(Uint256, Uint256) -> (Uint256) linked_as := inline
+    external abiRuntime(Uint256) -> (Uint256) linked_as := compiler_runtime
+
+def parsedExternalLinkModes : Bool :=
+  MacroExternalLinkModes.spec.externals.map (fun ext => (ext.name, ext.linkMode.toJsonString)) =
+    [ ("oracleEcho", "external")
+    , ("poseidonHash", "objectLinked")
+    , ("inlineAdd", "inline")
+    , ("abiRuntime", "compilerRuntime")
+    ]
+
+example : parsedExternalLinkModes = true := by native_decide
+
+def linkModeTrustSurfaceSpec : CompilationModel := {
+  name := "LinkModeTrustSurface"
+  fields := []
+  «constructor» := none
+  externals := [
+    { name := "oracleEcho"
+      params := [ParamType.uint256]
+      returnType := some ParamType.uint256
+      returns := [ParamType.uint256]
+      axiomNames := []
+      linkMode := .external },
+    { name := "poseidonHash"
+      params := [ParamType.uint256, ParamType.uint256]
+      returnType := some ParamType.uint256
+      returns := [ParamType.uint256]
+      axiomNames := []
+      linkMode := .objectLinked },
+    { name := "inlineAdd"
+      params := [ParamType.uint256, ParamType.uint256]
+      returnType := some ParamType.uint256
+      returns := [ParamType.uint256]
+      axiomNames := []
+      linkMode := .inline },
+    { name := "abiRuntime"
+      params := [ParamType.uint256]
+      returnType := some ParamType.uint256
+      returns := [ParamType.uint256]
+      axiomNames := []
+      linkMode := .compilerRuntime }
+  ]
+  functions := [
+    { name := "exercise"
+      params := [{ name := "next", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [
+        Stmt.letVar "a" (Expr.externalCall "oracleEcho" [Expr.param "next"]),
+        Stmt.letVar "b" (Expr.externalCall "poseidonHash" [Expr.param "next", Expr.param "next"]),
+        Stmt.letVar "c" (Expr.externalCall "inlineAdd" [Expr.localVar "b", Expr.param "next"]),
+        Stmt.letVar "d" (Expr.externalCall "abiRuntime" [Expr.localVar "c"]),
+        Stmt.return (Expr.localVar "d")
+      ]
+    }
+  ]
+}
+
+def externalModeRawCallSpec : CompilationModel := {
+  name := "ExternalModeRawCall"
+  fields := []
+  «constructor» := none
+  externals := [
+    { name := "oracleEcho"
+      params := [ParamType.uint256]
+      returnType := some ParamType.uint256
+      returns := [ParamType.uint256]
+      axiomNames := []
+      linkMode := .external }
+  ]
+  functions := [
+    { name := "bad"
+      params := [{ name := "next", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      body := [Stmt.return (Expr.externalCall "oracleEcho" [Expr.param "next"])]
+    }
+  ]
+}
+
+end MacroExternalLinkModeSmoke
 
 namespace DynamicBytesEqUsageAnalysisSmoke
 
@@ -4996,7 +5090,13 @@ set_option maxRecDepth 4096 in
       contains externalCallWithReturnYul "mstore(add(__ecwr_ptr, 4), asset)" &&
       contains externalCallWithReturnYul "mstore(64, add(__ecwr_ptr, 64))" &&
       contains externalCallWithReturnYul "staticcall(gas(), target, __ecwr_ptr, 36, __ecwr_ptr, 32)" &&
+      contains externalCallWithReturnYul "returndatacopy(0, 0, __ecwr_rds)" &&
+      contains externalCallWithReturnYul "revert(0, __ecwr_rds)" &&
       contains externalCallWithReturnYul "answer := mload(__ecwr_ptr)")
+  expectCompileErrorContains
+    "external link mode rejects raw linked-helper lowering"
+    MacroExternalLinkModeSmoke.externalModeRawCallSpec
+    "linked_as := external"
   let bubblingValueCallYul ←
     expectCompileToYul "bubbling value call smoke spec" bubblingValueCallSmokeSpec
   expectTrue "bubbling value call ECM lowers to call, not staticcall"
@@ -5064,6 +5164,10 @@ set_option maxRecDepth 4096 in
   expectTrue "erc20 safeTransfer ECM forwards revert returndata"
     (contains erc20SafeTransferYul "returndatacopy(0, 0, __st_rds)" &&
       contains erc20SafeTransferYul "revert(0, __st_rds)")
+  expectTrue "erc20 safeTransfer ECM uses OZ SafeERC20FailedOperation for bad optional bool returns"
+    (contains erc20SafeTransferYul "mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)" &&
+      contains erc20SafeTransferYul "extcodesize(token)" &&
+      contains erc20SafeTransferYul "revert(0, 36)")
   let erc20SafeTransferFromYul ←
     expectCompileToYul "erc20 safeTransferFrom smoke spec" erc20SafeTransferFromSmokeSpec
   expectTrue "erc20 safeTransferFrom ECM allocates calldata from the free-memory pointer"
@@ -5075,6 +5179,10 @@ set_option maxRecDepth 4096 in
   expectTrue "erc20 safeTransferFrom ECM forwards revert returndata"
     (contains erc20SafeTransferFromYul "returndatacopy(0, 0, __stf_rds)" &&
       contains erc20SafeTransferFromYul "revert(0, __stf_rds)")
+  expectTrue "erc20 safeTransferFrom ECM uses OZ SafeERC20FailedOperation for bad optional bool returns"
+    (contains erc20SafeTransferFromYul "mstore(0, 0x5274afe700000000000000000000000000000000000000000000000000000000)" &&
+      contains erc20SafeTransferFromYul "extcodesize(token)" &&
+      contains erc20SafeTransferFromYul "revert(0, 36)")
   let callWithValueYul ←
     expectCompileToYul "generic callWithValue smoke spec" callWithValueSmokeSpec
   expectTrue "callWithValue ECM lowers to an ETH-aware generic call"
@@ -5323,7 +5431,14 @@ set_option maxRecDepth 4096 in
   let macroExternalTrustReport := emitTrustReportJson [MacroExternalSmoke.MacroExternal.spec]
   expectTrue "macro externals surface in the trust report"
     (contains macroExternalTrustReport "\"linkedExternals\"" &&
-      contains macroExternalTrustReport "\"echo\"")
+      contains macroExternalTrustReport "\"echo\"" &&
+      contains macroExternalTrustReport "\"linkMode\":\"objectLinked\"")
+  let macroLinkModeTrustReport := emitTrustReportJson [MacroExternalLinkModeSmoke.linkModeTrustSurfaceSpec]
+  expectTrue "macro external link modes surface in the trust report"
+    (contains macroLinkModeTrustReport "\"linkMode\":\"external\"" &&
+      contains macroLinkModeTrustReport "\"linkMode\":\"objectLinked\"" &&
+      contains macroLinkModeTrustReport "\"linkMode\":\"inline\"" &&
+      contains macroLinkModeTrustReport "\"linkMode\":\"compilerRuntime\"")
   let macroPowTrustReport := emitTrustReportJson [Contracts.Smoke.Uint256PowSmoke.spec]
   expectTrue "macro pow builtin does not surface as a linked external"
     (!contains macroPowTrustReport builtinExpName)

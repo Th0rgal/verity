@@ -7,6 +7,7 @@
 import Compiler.CompilationModel.Compile
 import Compiler.CompilationModel.ParamLoading
 import Compiler.CompilationModel.ScopeValidation
+import Compiler.CompilationModel.TrustSurface
 
 namespace Compiler.CompilationModel
 
@@ -248,6 +249,11 @@ def compileConstructor (fields : List Field) (events : List EventDef) (errors : 
 private def validateCompileInputsBeforeFieldWriteConflict
     (spec : CompilationModel) : Except String Unit := do
   validateIdentifierShapes spec
+  match (collectUsedExternalAssumptions spec).find? (fun ext => ext.linkMode == .external) with
+  | some ext =>
+      throw s!"Compilation error: {spec.name} uses raw linked-helper lowering for external ABI dependency '{ext.name}'. `linked_as := external` dependencies must lower through an ABI-call ECM such as Compiler.Modules.Calls.withReturn so returndata and revert data are preserved."
+  | none =>
+      pure ()
   match firstInvalidSlotAliasRange spec.slotAliasRanges with
   | some (idx, range) =>
       throw s!"Compilation error: slotAliasRanges[{idx}] has invalid source interval {range.sourceStart}..{range.sourceEnd} in {spec.name} ({issue623Ref}). slotAliasRanges require sourceStart <= sourceEnd."

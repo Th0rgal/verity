@@ -14,11 +14,12 @@ import { ReportCallout } from '../components/ReportCallout'
 
 <ReportCallout title="Where the trust comes from">
 A small, audited Lean EDSL with example contracts that compile to EVM artifacts.
-Every claim is machine-checked and every assumption is documented. Read the docs
-as a short manual: start with a contract, inspect the compiler, then check the
-theorem and assumption inventory. Layer 2 proof status is tracked in
-`Compiler/Proofs/IRGeneration/Contract.lean` (generic whole-contract
-`CompilationModel -> IR` theorem for the current supported fragment).
+Every claim is machine-checked and every assumption is documented. Compilation
+correctness rides on `Compiler/Proofs/IRGeneration/Contract.lean` (generic
+whole-contract `CompilationModel -> IR` theorem for the current supported
+fragment) — no per-contract bridge axioms. The full three-layer breakdown lives
+on the [Trust Model](/trust-model) page; the live theorem inventory is on
+[Verification Status](/verification).
 </ReportCallout>
 
 ## The Three-Layer Structure
@@ -67,12 +68,12 @@ Lean checks every proof at compile time. A broken proof is a broken build.
 import { ReadingList } from '../components/ReadingList'
 
 <ReadingList items={[
+  { href: '/architecture', title: 'Architecture Overview', note: 'One screen: EDSL → CompilationModel → IR → Yul → EVM.' },
   { href: '/getting-started', title: 'Getting Started', note: 'Local setup and your first verification run.' },
-  { href: '/guides/first-contract', title: 'First Contract', note: 'A guided spec-to-proof walkthrough.' },
-  { href: '/compiler', title: 'Compiler', note: 'The EDSL-to-EVM pipeline and trust model.' },
-  { href: '/verification', title: 'Verification', note: 'Theorem inventory and proof status.' },
-  { href: '/guides/solidity-to-verity', title: 'Solidity to Verity', note: 'Translation patterns from Solidity.' },
-  { href: '/guides/production-solidity-patterns', title: 'Production patterns', note: 'Modifiers, externals, ABI, events, oracles.' },
+  { href: '/first-contract', title: 'Your First Contract', note: 'A guided spec-to-proof walkthrough.' },
+  { href: '/trust-model', title: 'Trust Model', note: 'What is verified, what is trusted, and the Layer 1/2/3 framing.' },
+  { href: '/verification', title: 'Verification Status', note: 'Theorem inventory and proof status.' },
+  { href: '/faq', title: 'FAQ', note: 'Why Lean, why an EDSL, how Verity compares to other formal-methods tools.' },
 ]} />
 
 <Callout type="info">

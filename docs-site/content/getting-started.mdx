@@ -50,42 +50,27 @@ forge --version
 ## 3. Clone and build
 
 ```bash
-git clone https://github.com/Th0rgal/verity.git
+git clone https://github.com/lfglabs-dev/verity.git
 cd verity
 lake build                # Downloads dependencies and verifies the current proof set
 ```
 
 The first build downloads Mathlib and compiles everything — expect **20–45 minutes** on first run (Mathlib is large). Subsequent builds are incremental and much faster (seconds to minutes).
 
-## Explore a proof (5 minutes)
+## Explore a proof
 
-While the first build runs (or after it completes), get a feel for what Verity does:
+Once the build completes, the core loop is **write a contract in Lean → prove it correct → compile it to EVM bytecode**:
 
-Before reading files, keep this map:
-
-1. `Verity/Examples/*`: EDSL implementation, executable Lean code.
-2. `Verity/Specs/*`: logical behavior specs (`Prop`) and invariants.
-3. `Compiler/Specs.lean`: `CompilationModel` compiler models that generate IR/Yul.
-
-**1. Open an example contract** — [`Verity/Examples/SimpleStorage.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Examples/SimpleStorage.lean):
-```verity
--- A contract with a single uint256 storage slot
-def store (value : Uint256) : Contract Unit := setStorage storedData value
-def retrieve : Contract Uint256 := getStorage storedData
-```
-
-**2. See its proven theorems** — [`Verity/Proofs/SimpleStorage/Basic.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Proofs/SimpleStorage/Basic.lean) contains theorems like `store_meets_spec` and `retrieve_preserves_state`, each machine-checked by Lean with zero `sorry`. Build just that file to confirm:
 ```bash
-lake build Verity.Proofs.SimpleStorage.Basic    # Verifies in seconds
+lake build Contracts.SimpleStorage.Proofs.Basic    # verifies theorems in seconds
+lake exe verity-compiler                            # writes artifacts/yul/SimpleStorage.yul
 ```
 
-**3. See it compile to EVM bytecode** — after `lake build` completes:
-```bash
-lake exe verity-compiler    # Outputs Yul to artifacts/yul/
-cat artifacts/yul/SimpleStorage.yul
-```
+Three directories to keep in mind:
 
-This is the core loop: **write a contract in Lean → prove it correct → compile it to EVM bytecode**.
+1. `Contracts/<Name>/<Name>.lean` — EDSL implementation, executable Lean code.
+2. `Contracts/<Name>/Spec.lean`, `Invariants.lean`, `Proofs/` — logical specs (`Prop`) and proofs.
+3. `Compiler/Specs.lean` — `CompilationModel` values that generate IR/Yul.
 
 ## 4. Run the test suite
 
@@ -107,19 +92,7 @@ python3 scripts/generate_contract.py TipJar \
   --functions "tip(uint256),getBalance(address)"
 ```
 
-This creates all the scaffold files you need:
-
-| File | Purpose |
-|------|---------|
-| `Verity/Examples/TipJar.lean` | EDSL implementation |
-| `Verity/Specs/TipJar/Spec.lean` | Formal specification |
-| `Verity/Specs/TipJar/Invariants.lean` | State invariants |
-| `Verity/Specs/TipJar/Proofs.lean` | Layer 2 proof re-export |
-| `Verity/Proofs/TipJar/Basic.lean` | Basic correctness proofs |
-| `Verity/Proofs/TipJar/Correctness.lean` | Advanced proofs |
-| `test/PropertyTipJar.t.sol` | Solidity property tests |
-
-Follow the printed instructions to register the contract in `Verity/All.lean` and `Compiler/Specs.lean`, then see the [First Contract tutorial](/guides/first-contract) for a full walkthrough.
+This writes EDSL implementation, specs, invariants, proofs, and a Foundry property test under `Contracts/TipJar/` and `test/`. Follow the printed instructions to register the contract in `Compiler/Specs.lean`, then see the [First Contract tutorial](/first-contract) for the full walkthrough.
 
 ## 6. Compile to Yul/EVM
 
@@ -140,5 +113,5 @@ See the [Linking Libraries guide](/guides/linking-libraries) for details.
 
 1. **[Example Contracts](/examples)** — Progressive examples from single-slot storage to token transfers
 2. **[Core Architecture](/core)** — The Contract monad, state model, and design decisions
-3. **[First Contract tutorial](/guides/first-contract)** — Hands-on guide building a TipJar from scratch
+3. **[First Contract tutorial](/first-contract)** — Hands-on guide building a TipJar from scratch
 4. **[Compiler reference](/compiler)** — Full CompilationModel DSL documentation

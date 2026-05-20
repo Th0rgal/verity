@@ -5,292 +5,95 @@ description: Canonical reference for Verity contract-building primitives
 
 # EDSL API Reference
 
-This page is the canonical API reference for primitives used to write Verity contracts.
+Canonical reference for primitives used to write Verity contracts.
 
-## Imports
-
-```lean
+```verity
 import Verity
 open Verity
 open Verity.EVM.Uint256
 open Verity.Stdlib.Math
 ```
 
-## `verity_contract` Local Obligations
+Every primitive is a `Contract α = ContractState → ContractResult α`. Read-only primitives never revert; write primitives return `success ()`; only `require` and `requireSomeUint` (and `revertError`) may emit `ContractResult.revert`. Proof lemmas for every primitive live in `Verity/Core.lean` (one `_run` lemma per primitive) and `Verity/Proofs/Stdlib/Automation.lean` / `Verity/Proofs/Stdlib/MappingAutomation.lean` (`_runState` / `_runValue` mirrors). See [Core Architecture](/core) for the model.
 
-Use `local_obligations [...]` on constructors or functions when a small unsafe or refinement-shaped boundary must stay explicit in the generated trust report. Direct assembly-shaped primitives such as raw low-level calls, returndata forwarding, and manual memory/calldata operations are expected to carry at least one local obligation at that exact usage site.
+## Storage
 
-```verity
-function unsafeEdge ()
-  local_obligations [manual_delegatecall_refinement := assumed "Caller must separately prove the handwritten assembly path."]
-  : Unit := do
-  pure ()
-```
-
-Each entry lowers into `spec.constructor.localObligations` or `FunctionSpec.localObligations`, shows up in `--trust-report`, and participates in `--deny-local-obligations`. If a constructor or function uses direct assembly-shaped primitives without any `local_obligations [...]`, compilation now fails closed.
-
-## Storage Operations
-
-### `getStorage` / `setStorage`
-
-**Signature**
+| Function | Type |
+|----------|------|
+| `getStorage` / `setStorage` | `StorageSlot Uint256 → …` |
+| `getStorageAddr` / `setStorageAddr` | `StorageSlot Address → …` |
+| `getMapping` / `setMapping` | `StorageSlot (Address → Uint256) → Address → …` |
+| `getMappingAddr` / `setMappingAddr` | Address-keyed mapping with address values (`wordToAddress` under the hood) |
+| `getMappingUint` / `setMappingUint` | `StorageSlot (Uint256 → Uint256) → Uint256 → …` |
+| `getMappingUintAddr` / `setMappingUintAddr` | Uint-keyed mapping with address values |
+| `getMapping2` / `setMapping2` | `StorageSlot (Address → Address → Uint256) → Address → Address → …` |
+| `getStorageArrayLength` / `getStorageArrayElement` / `setStorageArrayElement` | Dynamic in-storage arrays with `[StorageArrayElem α]` typeclass |
+| `pushStorageArray` / `popStorageArray` | Append / remove tail element of an in-storage array |
 
 ```verity
-def getStorage (s : StorageSlot Uint256) : Contract Uint256
-def setStorage (s : StorageSlot Uint256) (value : Uint256) : Contract Unit
-```
-
-**Description**
-
-Read/write a `Uint256` storage slot.
-
-**Example**
-
-```verity
-let x <- getStorage counterSlot
-setStorage counterSlot (x + 1)
-```
-
-**Proof lemmas**
-
-- `getStorage_run`, `setStorage_run` (`Verity/Core.lean`)
-- `getStorage_runState`, `getStorage_runValue`, `setStorage_getStorage` (`Verity/Proofs/Stdlib/Automation.lean`)
-
-### `getStorageAddr` / `setStorageAddr`
-
-**Signature**
-
-```verity
-def getStorageAddr (s : StorageSlot Address) : Contract Address
-def setStorageAddr (s : StorageSlot Address) (value : Address) : Contract Unit
-```
-
-**Description**
-
-Read/write an `Address` storage slot.
-
-**Example**
-
-```verity
-let owner <- getStorageAddr ownerSlot
-setStorageAddr ownerSlot newOwner
-```
-
-**Proof lemmas**
-
-- `getStorageAddr_run`, `setStorageAddr_run` (`Verity/Core.lean`)
-- Address-storage automation lemmas in `Verity/Proofs/Stdlib/Automation.lean`
-
-### `getMapping` / `setMapping`
-
-**Signature**
-
-```verity
-def getMapping (s : StorageSlot (Address -> Uint256)) (key : Address) : Contract Uint256
-def setMapping (s : StorageSlot (Address -> Uint256)) (key : Address) (value : Uint256) : Contract Unit
-```
-
-**Description**
-
-Read/write address-keyed mappings.
-
-**Example**
-
-```verity
-let bal <- getMapping balances msgSenderAddr
+let bal   <- getMapping balances msgSenderAddr
+let owner <- getMappingUintAddr tokenOwners tokenId
 setMapping balances msgSenderAddr (bal - amount)
-```
 
-**Proof lemmas**
-
-- `getMapping_run`, `setMapping_run` (`Verity/Core.lean`)
-- `getMapping_runState`, `getMapping_runValue`, `setMapping_runState` (`Verity/Proofs/Stdlib/MappingAutomation.lean`)
-
-### `getMappingUint` / `setMappingUint`
-
-**Signature**
-
-```verity
-def getMappingUint (s : StorageSlot (Uint256 -> Uint256)) (key : Uint256) : Contract Uint256
-def setMappingUint (s : StorageSlot (Uint256 -> Uint256)) (key : Uint256) (value : Uint256) : Contract Unit
-```
-
-**Description**
-
-Read/write uint256-keyed mappings.
-
-**Example**
-
-```verity
-let price <- getMappingUint oraclePrices tokenId
-setMappingUint oraclePrices tokenId newPrice
-```
-
-**Proof lemmas**
-
-- `getMappingUint_run`, `setMappingUint_run` (`Verity/Core.lean`)
-- `getMappingUint_runState`, `getMappingUint_runValue`, `setMappingUint_runState` (`Verity/Proofs/Stdlib/MappingAutomation.lean`)
-
-### `getMapping2` / `setMapping2`
-
-**Signature**
-
-```verity
-def getMapping2 (s : StorageSlot (Address -> Address -> Uint256)) (key1 key2 : Address) : Contract Uint256
-def setMapping2 (s : StorageSlot (Address -> Address -> Uint256)) (key1 key2 : Address) (value : Uint256) : Contract Unit
-```
-
-**Description**
-
-Read/write double mappings (for example, allowances).
-
-**Example**
-
-```verity
 let allow <- getMapping2 allowances owner spender
 setMapping2 allowances owner spender (allow - amount)
 ```
 
-**Proof lemmas**
+The `addressToWord` / `wordToAddress` helpers convert between the two representations; the `*Addr` mapping variants apply them automatically.
 
-- `getMapping2_run`, `setMapping2_run` (`Verity/Core.lean`)
-- `getMapping2_runState`, `getMapping2_runValue`, `setMapping2_runState` (`Verity/Proofs/Stdlib/MappingAutomation.lean`)
-
-## Control Flow
-
-### `require`
-
-**Signature**
+## Control flow
 
 ```verity
 def require (condition : Bool) (message : String) : Contract Unit
+def bind {α β : Type} (ma : Contract α) (f : α → Contract β) : Contract β
 ```
 
-**Description**
-
-Guard that reverts when `condition = false`.
-
-**Example**
-
-```lean
-require (amount > 0) "amount must be nonzero"
-```
-
-**Proof lemmas**
-
-- `require_true`, `require_false` (`Verity/Core.lean`)
-- `require_true_isSuccess`, `require_false_isSuccess` (`Verity/Proofs/Stdlib/Automation.lean`)
-
-### Revert behavior
-
-There is no separate `revert` primitive in the core API. Use:
-
-```lean
-require false "error message"
-```
-
-### `bind` / do-notation
-
-**Signature**
-
-```lean
-def bind {α β : Type} (ma : Contract α) (f : α -> Contract β) : Contract β
-```
-
-**Description**
-
-Monadic sequencing with short-circuit on revert.
-
-**Example**
+`require false msg` is the only revert primitive. Use it in place of an explicit `revert`. `bind` short-circuits on revert and powers do-notation.
 
 ```verity
+require (amount > 0) "amount must be nonzero"
 let x <- getStorage counterSlot
 setStorage counterSlot (x + 1)
 ```
 
-**Proof lemmas**
+### `Contract.tryCatch`
 
-- `Contract.bind_pure_left`, `Contract.bind_pure_right`, `Contract.bind_assoc` (`Verity/Core.lean`)
-- `bind_pure_left`, `bind_pure_right`, `bind_assoc` (`Verity/Proofs/Stdlib/Automation.lean`)
+```verity
+def Contract.tryCatch {α : Type} (attempt : Contract α) (handler : String → Contract Unit) : Contract α
+```
+
+If `attempt` reverts with message `msg`, `tryCatch` runs `handler msg` on the state *before* the revert and returns whatever `handler` returns (or the original revert if `handler` itself reverts). Useful for fallback paths inside a contract. See `Verity/Core.lean` for the exact semantics.
 
 ### `forEach`
 
-Bounded iteration is available as a language form in the macro/compilation model (`Stmt.forEach`).
+Bounded iteration in the compilation-model surface (`Stmt.forEach`). Accumulator-style loops use `Stmt.assignVar` inside `Stmt.forEach`; the macro path currently rejects mutating `let mut` locals from nested `forEach` bodies, so macro-authored contracts should use explicit memory scratch space for accumulators.
 
-```lean
+```verity
 forEach "i" count (do
   -- body
 )
 ```
 
-The compilation model supports accumulator-style loops by placing `Stmt.assignVar`
-inside `Stmt.forEach`; generated Yul preserves assignment to the outer local.
-The `verity_contract` source fallback currently rejects mutating a Lean
-`let mut` local from inside the nested `forEach` body term, so macro-authored
-contracts should use explicit memory scratch space for loop accumulators until
-that executable-path limitation is removed.
-
-Reference points:
-
-- `Stmt.forEach` in `Compiler/CompilationModel.lean`
-- Macro translation in `Verity/Macro/Translate.lean`
-
 ## Events
-
-### `emitEvent`
-
-**Signature**
 
 ```verity
 def emitEvent (name : String) (args : List Uint256) (indexedArgs : List Uint256 := []) : Contract Unit
-```
 
-**Description**
-
-Append an event entry to the execution state's event log.
-
-**Example**
-
-```verity
 emitEvent "Transfer" [amount] [fromAddr, toAddr]
 ```
 
-**Proof lemmas**
-
-- `emitEvent_run` (`Verity/Core.lean`)
-- `emitEvent_runState`, `emitEvent_runValue` (`Verity/Proofs/Stdlib/Automation.lean`)
-
 ## Arithmetic
 
-### Wrapping arithmetic (`Uint256`)
+### Wrapping (`Uint256`)
 
-**Signatures**
+`add`, `sub`, `mul`, `pow`, `div`, `mod` — EVM modular arithmetic. `pow a b` / `a ^ b` compiles to Yul `exp(a, b)`.
 
-```lean
-Verity.EVM.Uint256.add : Uint256 -> Uint256 -> Uint256
-Verity.EVM.Uint256.sub : Uint256 -> Uint256 -> Uint256
-Verity.EVM.Uint256.mul : Uint256 -> Uint256 -> Uint256
-Verity.EVM.Uint256.pow : Uint256 -> Uint256 -> Uint256
-Verity.EVM.Uint256.div : Uint256 -> Uint256 -> Uint256
-Verity.EVM.Uint256.mod : Uint256 -> Uint256 -> Uint256
-```
-
-These model EVM modular arithmetic. `pow a b` and `a ^ b` compile to Yul/EVM `exp(a, b)`.
-
-**Example**
-
-```lean
+```verity
 let z : Uint256 := add x y
 let scale : Uint256 := pow 10 decimals
 ```
 
-**Proof lemmas**
-
-- `add_eq_of_lt`, `sub_eq_of_le`, `sub_add_cancel` (`Verity/EVM/Uint256.lean`)
-
-### Checked arithmetic (`Stdlib.Math`)
-
-**Signatures**
+### Checked (`Stdlib.Math`)
 
 ```verity
 def safeAdd (a b : Uint256) : Option Uint256
@@ -299,324 +102,158 @@ def safeMul (a b : Uint256) : Option Uint256
 def safeDiv (a b : Uint256) : Option Uint256
 
 def requireSomeUint (opt : Option Uint256) (message : String) : Contract Uint256
-```
 
-**Example**
-
-```verity
-let sum <- requireSomeUint (safeAdd a b) "overflow"
+let sum     <- requireSomeUint (safeAdd a b) "overflow"
 let product <- requireSomeUint (safeMul a b) "overflow"
-let quotient <- requireSomeUint (safeDiv a b) "division by zero"
+let quot    <- requireSomeUint (safeDiv a b) "division by zero"
 ```
 
-`verity_contract` lowers `requireSomeUint` over `safeAdd`, `safeSub`, `safeMul`, and `safeDiv` to explicit compiled `require` guards before binding the arithmetic result. Bare `add`, `sub`, `mul`, and `div` remain wrapping EVM arithmetic.
+`verity_contract` lowers `requireSomeUint` over `safeAdd`/`Sub`/`Mul`/`Div` to explicit compiled `require` guards. Bare `add`/`sub`/`mul`/`div` stay wrapping.
 
-**Proof lemmas**
+### Fixed-point helpers
 
-- `safeAdd_some`, `safeAdd_none`, `safeSub_some`, `safeSub_none`, `safeMul_some`, `safeMul_none`, `safeDiv_some`, `safeDiv_none` (`Verity/Proofs/Stdlib/Math.lean`)
-- `requireSomeUint_some`, `requireSomeUint_none` (`Verity/Stdlib/Math.lean`)
+In `Stdlib.Math`: `mulDivDown`, `mulDivUp`, `wMulDown`, `wDivUp`, `SNARK_SCALAR_FIELD`, `modField`. Full-precision proof helpers: `mulDiv512Down?`, `mulDiv512Up?` (return `Option Uint256`; `none` on zero divisor or quotient overflow). First-class compiler lowering for a 512-bit division primitive is tracked separately.
 
-### `mulDivDown` / `mulDivUp` / `wMulDown` / `wDivUp`
-
-Fixed-point helpers live in `Stdlib.Math`:
-
-```lean
-def mulDivDown (a b c : Uint256) : Uint256
-
-def mulDivUp (a b c : Uint256) : Uint256
-
-def wMulDown (a b : Uint256) : Uint256
-
-def wDivUp (a b : Uint256) : Uint256
-
-def SNARK_SCALAR_FIELD : Uint256
-
-def modField (x : Uint256) : Uint256
-```
-
-**Proof lemmas**
-
-- `mulDivDown_nat_eq`, `mulDivUp_nat_eq`, `mulDivDown_le_mulDivUp`, `mulDivDown_antitone_divisor`, `mulDivUp_antitone_divisor`, `mulDivDown_comm`, `mulDivUp_comm`, `wMulDown_comm` (`Verity/Proofs/Stdlib/Math.lean`)
-- `SNARK_SCALAR_FIELD_val`, `modField_def` (`Verity/Stdlib/Math.lean`)
-- BN254 field lemmas: `SNARK_SCALAR_FIELD_ne_zero`, `SNARK_SCALAR_FIELD_lt_modulus`, `modField_nat_eq`, `modField_lt`, `modField_zero`, `modField_SNARK_SCALAR_FIELD`, `modField_eq_zero_iff`, `modField_eq_of_nat_mod_eq`, `modField_eq_iff_nat_mod_eq`, `modField_eq_self_of_lt`, `modField_nat_mod_eq`, `modField_idempotent` (`Verity/Proofs/Stdlib/Math.lean`)
-- Rounding-gap lemmas: `mulDivUp_le_mulDivDown_add_one`, `mulDivUp_eq_mulDivDown_or_succ`, `mulDivUp_eq_mulDivDown_of_dvd`, `mulDivUp_eq_mulDivDown_add_one_of_not_dvd` (`Verity/Proofs/Stdlib/Math.lean`)
-- Positivity lemmas: `mulDivDown_pos`, `mulDivUp_pos`, `wMulDown_pos`, `wDivUp_pos` (`Verity/Proofs/Stdlib/Math.lean`)
-- Zero-case lemmas: `mulDivDown_zero_left/right`, `mulDivUp_zero_left/right`, `wMulDown_zero_left/right`, `wDivUp_zero` (`Verity/Proofs/Stdlib/Math.lean`)
-- Exact cancellation and wad identity lemmas: `mulDivDown_cancel_right/left`, `mulDivUp_cancel_right/left`, `wMulDown_one_left/right`, `wDivUp_by_wad` (`Verity/Proofs/Stdlib/Math.lean`)
-- Wad-specialized helper lemmas: `wMulDown_nat_eq`, `wDivUp_nat_eq`, `wDivUp_antitone_right` (`Verity/Proofs/Stdlib/Math.lean`)
-
-### Full-precision `mulDiv512`
-
-Proof/modeling helpers for Solidity `Math.mulDiv` / `FullMath.mulDiv`
-semantics live in `Stdlib.Math`:
-
-```lean
-def mulDiv512Down? (a b c : Uint256) : Option Uint256
-
-def mulDiv512Up? (a b c : Uint256) : Option Uint256
-```
-
-These compute `a * b` in unbounded natural-number precision and return `none`
-only when the divisor is zero or the final floor/ceil quotient does not fit in
-`uint256`. They are EDSL proof helpers; first-class compiler lowering for a
-512-bit division primitive remains tracked separately.
-
-**Proof lemmas**
-
-- Fit/rejection lemmas: `mulDiv512Down?_some`, `mulDiv512Down?_none_of_zero_divisor`, `mulDiv512Down?_none_of_overflow`, `mulDiv512Down?_isSome_iff`, `mulDiv512Down?_isNone_iff`, `mulDiv512Up?_some`, `mulDiv512Up?_none_of_zero_divisor`, `mulDiv512Up?_none_of_overflow`, `mulDiv512Up?_isSome_iff`, `mulDiv512Up?_isNone_iff` (`Verity/Proofs/Stdlib/Math.lean`)
-- Result-characterization lemmas: `mulDiv512Down?_eq_some_iff`, `mulDiv512Up?_eq_some_iff` (`Verity/Proofs/Stdlib/Math.lean`)
-- Sandwich lemmas: `mulDiv512Down?_mul_le`, `mulDiv512Down?_lt_succ_mul`, `mulDiv512Down?_mul_lt_add`, `mulDiv512Up?_mul_ge`, `mulDiv512Up?_mul_le_add_pred`, `mulDiv512Up?_mul_lt_add` (`Verity/Proofs/Stdlib/Math.lean`)
-- Compatibility lemmas: `mulDiv512Down?_eq_mulDivDown_of_no_overflow`, `mulDiv512Up?_eq_mulDivUp_of_no_overflow` (`Verity/Proofs/Stdlib/Math.lean`)
-- Rounding and shape lemmas: `mulDiv512Down?_comm`, `mulDiv512Up?_comm`, `mulDiv512Down?_monotone_left/right`, `mulDiv512Up?_monotone_left/right`, `mulDiv512Down?_antitone_divisor`, `mulDiv512Up?_antitone_divisor`, `mulDiv512Down?_isSome_of_up_isSome`, `mulDiv512Up?_isNone_of_down_isNone`, `mulDiv512Down?_le_up`, `mulDiv512Up?_le_down_add_one`, `mulDiv512Up?_eq_down_or_succ`, `mulDiv512Up?_eq_down_of_dvd`, `mulDiv512Up?_some_succ_of_not_dvd`, `mulDiv512Down?_pos`, `mulDiv512Up?_pos`, `mulDiv512Down?_zero_left/right`, `mulDiv512Up?_zero_left/right`, `mulDiv512Down?_cancel_right/left`, `mulDiv512Up?_cancel_right/left` (`Verity/Proofs/Stdlib/Math.lean`)
-- Automation mirrors: `mulDiv512Down?_some_iff`, `mulDiv512Down?_none_iff`, `mulDiv512Up?_some_iff`, `mulDiv512Up?_none_iff` (`Verity/Proofs/Stdlib/Automation.lean`)
-
-## Same-Contract Helper Calls
-
-Inside `verity_contract`, call reusable same-contract helpers with ordinary function-call syntax. Do not write `internalCall` or `internalCallAssign` in source contracts; those names are compilation-model IR constructors used after macro lowering.
+## Context accessors
 
 ```verity
-verity_contract HelperExample where
-  storage
-    total : Uint256 := slot 0
-
-  function bump (x : Uint256) : Uint256 := do
-    return add x 1
-
-  function storeBump (x : Uint256) : Unit := do
-    let y ← bump x
-    setStorage total y
-
-  function applyBump (x : Uint256) : Unit := do
-    storeBump x
+def msgSender       : Contract Address
+def contractAddress : Contract Address
+def msgValue        : Contract Uint256
+def blockTimestamp  : Contract Uint256
+def blockNumber     : Contract Uint256
+def blobbasefee     : Contract Uint256
 ```
 
-Use the same direct-call form for helpers that return no value, one value, or a static tuple:
+## `verity_contract` authoring surface
 
-```lean
+### Local obligations
+
+```verity
+function unsafeEdge ()
+  local_obligations [manual_delegatecall_refinement := assumed "Caller proves the handwritten assembly path."]
+  : Unit := do
+  pure ()
+```
+
+Each entry lowers into `localObligations`, surfaces in `--trust-report`, and participates in `--deny-local-obligations`. Direct assembly-shaped primitives (raw low-level calls, returndata forwarding, manual memory/calldata) without a local obligation fail closed.
+
+### Same-contract helpers
+
+Call helpers with ordinary function-call syntax — do not write `internalCall` directly (those are post-lowering IR nodes).
+
+```verity
 storeBump x
 let y ← bump x
 let (assets, shares) ← preview seed
 ```
 
-The macro lowers effect-only helper calls such as `storeBump x` to `Stmt.internalCall`, helper result bindings such as `let y ← bump x` to `Stmt.internalCallAssign`, and expression-position helper calls to `Expr.internalCall`. Those IR nodes are useful when writing `CompilationModel` values by hand, but direct helper-call syntax is the supported `verity_contract` authoring surface.
+The macro lowers effect-only calls to `Stmt.internalCall`, result bindings to `Stmt.internalCallAssign`, expression-position calls to `Expr.internalCall`. Supports scalar parameters, static tuples/structs, direct `Bytes`/dynamic-array forwarding from caller ABI. Dynamic returns use explicit return surfaces only.
 
-Direct helper lowering supports the source shapes used by ordinary same-contract
-helpers, including scalar parameters, static tuple/struct payloads, and direct
-`Bytes` / dynamic-array parameter forwarding when those values come from the
-caller ABI. Dynamic returns still use the explicit supported return surfaces:
-single static values, static tuples via `return (..)`, and byte payloads through
-the dedicated bytes return path.
-
-For Solidity helper boundaries that include calldata-shaped dynamic payloads,
-preserve the helper when possible:
+### Tuple sugar
 
 ```verity
-function transferWithBalanceCheck
-    (permit : PermitTransferFrom, depositor : Address, signature : Bytes,
-     totalAmount : Uint256, witness : Bytes32) : Unit := do
-  ...
-```
-
-## Tuple Surface
-
-`verity_contract` now accepts tuple-shaped local sugar for the static tuple cases already supported by the compilation model:
-
-```lean
 let (first, second) := pair
 let (_, second) := pair
-let (lhs, rhs) := (seed, add seed 1)
-let (assets, shares) := preview seed
 let (assets, shares) ← preview seed
 let (supply, borrow, delegate_) := structMembers positions user [supplyShares, borrowShares, delegate]
 return (first, second)
-return structMembers2 approvals owner spender [allowance, nonce]
 ```
 
-Today this elaborates cleanly for tuple literals, tuple-typed parameters, internal helper multi-returns via either `let (...) := helper ...` or `let (...) ← helper ...`, and storage-backed mapping-struct reads via `structMembers` / `structMembers2`. `_` binders are accepted inside tuple destructuring and are discarded hygienically instead of entering scope. `return (..)` lowers to `Stmt.returnValues [...]`, tuple-parameter destructuring maps onto the ABI-flattened component names (`pair_0`, `pair_1`, ...), helper-call destructuring lowers to `Stmt.internalCallAssign [...]`, and struct-backed destructuring lowers to explicit `Expr.structMember` / `Expr.structMember2` reads, so the generated model stays explicit for debugging and proofs.
+Tuple-typed parameters stay shape-preserved as right-nested Lean products; ABI-flattened aliases (`pair_0`, `pair_1`, …) are injected so you can use them directly. `_` binders are accepted and discarded hygienically.
 
-For executable Lean definitions generated by `verity_contract`, tuple-typed parameters now stay tuple-shaped as right-nested Lean products instead of being erased to `Unit`. The same ABI-flattened component aliases are also injected into the executable body, so a parameter such as `pair : Tuple [Uint256, Uint256]` can be referenced directly as `pair_0` / `pair_1` inside the contract body without dropping back to manual destructuring.
-
-## Stateless Contracts
-
-`verity_contract` now accepts an empty `storage` block when a contract is purely functional or only depends on ambient values such as `msg.sender`:
+### Stateless contracts and payable / initializer constructors
 
 ```verity
 verity_contract Stateless where
-  storage
-
-  function echoWord (value : Uint256) : Uint256 := do
-    return value
+  storage   -- empty block is allowed
 
   function whoAmI () : Address := do
     let sender ← msgSender
     return sender
 ```
 
-This keeps the macro surface usable for helper-style and interface-shaped contracts without forcing a dummy storage slot. The generated `CompilationModel.fields` list is empty, ABI generation still works normally, and selectors remain computed from the external functions exactly as before.
-
-Constructors can also be marked payable directly in the macro surface:
-
 ```verity
-verity_contract PayableInit where
-  storage
-    owner : Address := slot 0
-
-  constructor (seedOwner : Address) payable := do
-    setStorageAddr owner seedOwner
-
-  function getOwner () : Address := do
-    let currentOwner ← getStorageAddr owner
-    return currentOwner
+constructor (seedOwner : Address) payable := do
+  setStorageAddr owner seedOwner
 ```
 
-This sets `spec.constructor.isPayable := true`, emits constructor ABI `stateMutability: "payable"`, and removes the deploy-time `callvalue` guard from generated Yul.
-
-Upgradeable-style initialization can also be guarded directly from the macro surface using an explicit version slot:
+`payable` removes the `callvalue` guard and emits `stateMutability: "payable"` in the ABI.
 
 ```verity
-verity_contract UpgradeableConfig where
-  storage
-    initializedVersion : Uint256 := slot 0
-    owner : Address := slot 1
-    paused : Uint256 := slot 2
-
-  function initOwner (seedOwner : Address) initializer(initializedVersion) : Unit := do
-    setStorageAddr owner seedOwner
-
-  function upgradeToV2 () reinitializer(initializedVersion, 2) : Unit := do
-    setStorage paused 1
+function initOwner (seedOwner : Address) initializer(initializedVersion) : Unit := ...
+function upgradeToV2 ()                 reinitializer(initializedVersion, 2) : Unit := ...
 ```
 
-`initializer(versionSlot)` prepends `require(versionSlot == 0, "initializer already run")` and then stores `1` into that slot before the user body runs. `reinitializer(versionSlot, n)` similarly requires the tracked version to be strictly less than `n`, then stores `n` before running the body. The guard slot must be a user-declared `Uint256` storage field, which keeps layout and proof state explicit instead of hiding upgrade metadata in an implicit slot.
+`initializer(slot)` prepends `require(slot == 0, ...)` then stores `1`. `reinitializer(slot, n)` requires the tracked version `< n`, then stores `n`. Guard slots must be user-declared `Uint256` fields.
 
-## Contract Constants
-
-`verity_contract` also supports contract-scoped compile-time constants that are shared between the executable fallback and the generated compilation model:
+### Constants and immutables
 
 ```verity
-verity_contract FeeConfig where
-  storage
+constants
+  basisPoints : Uint256 := 10000
+  mintFeeBps  : Uint256 := 30
+  treasury    : Address := (wordToAddress 42)
 
-  constants
-    basisPoints : Uint256 := 10000
-    mintFeeBps : Uint256 := 30
-    treasury : Address := (wordToAddress 42)
-
-  function feeOn (amount : Uint256) : Uint256 := do
-    let fee := div (mul amount mintFeeBps) basisPoints
-    return fee
-
-  function treasuryAddr () : Address := do
-    return treasury
+immutables
+  seededSupply : Uint256 := add seed offset
+  treasury     : Address := ownerSeed
+  paused       : Bool    := true
+  feeBps       : Uint8   := 7
+  domainTag    : Bytes32 := 42
 ```
 
-These declarations elaborate to ordinary Lean `def`s inside the generated contract namespace, so the executable path can reference them directly. On the compilation-model side, constant identifiers are inlined into `Expr` trees transitively, while ordinary parameter/local shadowing still wins if a function binds the same name later.
+Constants inline into `Expr` trees at compile time; constant bodies cannot reference runtime builtins (`blockTimestamp`, calldata reads, low-level opcodes, etc.) — those are rejected at elaboration. Immutables lower to read-only `__immutable_<name>` slots seeded in the constructor. Supported immutable types: `Uint256`, `Uint8`, `Address`, `Bytes32`, `Bool`.
 
-Constant bodies must stay compile-time-only. Runtime-dependent builtins such as `blockTimestamp`, `blockNumber`, `blobbasefee`, `contractAddress`, `chainid`, calldata/returndata size reads, and low-level memory/call opcodes are rejected in `constants` declarations so the executable and compilation-model paths cannot diverge.
+Storage, constants, immutables, and functions share one namespace; duplicate or cross-kind reuse is rejected with explicit diagnostics. Generated names (`spec`, `<name>_modelBody`, `<name>_model`, `<name>_bridge`, `<name>_semantic_preservation`) are reserved.
 
-Storage fields, constants, and functions also share the generated Lean namespace for a `verity_contract`. Duplicate declarations or cross-kind name reuse such as `owner` as both a storage field and a constant are rejected during macro elaboration with explicit diagnostics instead of falling through to raw duplicate-definition errors from Lean. Generated declarations are reserved too: `spec` and the per-function helpers `<name>_modelBody`, `<name>_model`, `<name>_bridge`, and `<name>_semantic_preservation` cannot be reused by contract declarations.
-
-## Contract Immutables
-
-`verity_contract` also supports contract-scoped immutables for deployment-time values that should become read-only at runtime:
+### Linked externals
 
 ```verity
-verity_contract ImmutableConfig where
-  storage
-    owner : Address := slot 0
+linked_externals
+  external echo(Uint256) -> (Uint256)
 
-  constants
-    offset : Uint256 := 2
-
-  immutables
-    seededSupply : Uint256 := add seed offset
-    treasury : Address := ownerSeed
-    paused : Bool := true
-    feeBps : Uint8 := 7
-    domainTag : Bytes32 := 42
-
-  constructor (seed : Uint256, ownerSeed : Address) := do
-    setStorageAddr owner ownerSeed
-
-  function supplyCap () : Uint256 := do
-    return seededSupply
-
-  function treasuryAddr () : Address := do
-    return treasury
-
-  function isPaused () : Bool := do
-    return paused
+function storeQuote (value : Uint256) : Unit := do
+  let quoted := externalCall "echo" [value]
+  setStorage lastQuote quoted
 ```
 
-In this parity slice, immutables are lowered to internal read-only slots named `__immutable_<name>`. `Uint256`, `Uint8`, `Bytes32`, and `Bool` immutables use word-backed hidden storage slots, while `Address` immutables keep the address-typed executable accessor. Constructor initialization is prepended automatically in the generated compilation-model constructor, and runtime functions load those slots into local bindings before the user body runs. Function parameters still shadow immutable names normally, and contracts with `immutables` but no explicit `constructor` receive a synthetic zero-argument constructor that seeds the immutable slots.
+Populates `spec.externals` with assumed foreign signatures. Single-word argument/return types only (`Uint256`, `Uint8`, `Address`, `Bytes32`, `Bool`); at most one return. Dynamic and tuple-shaped linked externals are rejected at elaboration.
 
-Immutable names must be unique within the `immutables` block and must not reuse a storage-field or contract-constant name. That keeps runtime name resolution unambiguous across the executable fallback and the generated compilation model.
-
-Immutable initializer bodies are also elaborated against the declared executable-facing type before translation. That means obviously ill-typed declarations such as `Uint256 := true` or `Address := true` are rejected up front instead of silently compiling into a mismatched spec.
-
-The current surface supports `Uint256`, `Uint8`, `Address`, `Bytes32`, and `Bool` immutables. Dynamic types still stay out of scope so the executable fallback and the compilation model remain aligned without pretending the repository already has native bytecode-embedded immutable lowering.
-
-## Linked Externals
-
-`verity_contract` can now declare linked external functions directly and use them from `externalCall` expressions:
+### Raw log surface
 
 ```verity
-verity_contract LinkedOracle where
-  storage
-    lastQuote : Uint256 := slot 0
-
-  linked_externals
-    external echo(Uint256) -> (Uint256)
-
-  function storeQuote (value : Uint256) : Unit := do
-    let quoted := externalCall "echo" [value]
-    setStorage lastQuote quoted
-```
-
-These declarations populate `spec.externals` with assumed foreign signatures so the existing compilation-model validation for `Expr.externalCall` works from the macro surface too. This first slice is intentionally narrow: it covers linked external declarations plus `externalCall` expression lowering, while richer statement-style bindings and ECM module declarations still remain separate follow-up work.
-
-On the executable Lean path, this surface is currently limited to single-word argument and return types: `Uint256`, `Uint8`, `Address`, `Bytes32`, and `Bool`, with at most one return value. Dynamic values (`String`, `Bytes`, arrays) and tuple-shaped linked externals are still rejected at macro elaboration time instead of falling through to opaque instance-resolution failures from the runtime stub, and multi-return linked externals remain deferred until statement-style external bindings are exposed from `verity_contract`.
-
-## Low-Level Log Surface
-
-`verity_contract` bodies can emit low-level runtime-dependent logs directly:
-
-```lean
 rawLog [topic0, add topic1 1] dataOffset dataSize
 ```
 
-`rawLog topics dataOffset dataSize` lowers to `Stmt.rawLog topics dataOffset dataSize`. Both the compiler and the executable fallback currently support 0 to 4 topics only (`log0` to `log4`); larger topic lists are rejected. On the executable path, successful calls append a low-level trace entry shaped like `{ name := "logN", args := [dataOffset, dataSize], indexedArgs := topics }`, so macro-authored contracts can round-trip observable log behavior instead of only compiling it.
+Lowers to `Stmt.rawLog`. Supports 0–4 topics (`log0`–`log4`). Classified as not-modeled event emission in the trust report — use `--deny-event-emission` for proof-strict runs.
 
-`rawLog` also remains outside the current proved interpreter semantics: the compiler lowers it directly, but the trust report still classifies it as not-modeled event emission rather than a fully proved event primitive. When it appears, archive `--trust-report` and use `--deny-event-emission` for proof-strict runs.
+### Transient storage (EIP-1153)
 
-## Transient Storage Surface
-
-`verity_contract` now exposes the EIP-1153 transient storage builtins directly:
-
-```lean
+```verity
 tstore slot value
 let warmed := tload slot
 ```
 
-`tstore slot value` lowers to `Stmt.tstore slot value`, and `tload slot` lowers to `Expr.tload slot`. The generated Yul uses the native `tstore(...)` / `tload(...)` builtins, and the trust report classifies them under `lowLevelMechanics` instead of hiding them behind ordinary storage reads/writes. On the executable path, `Contracts/Common.lean` keeps a separate `ContractState.transientStorage` map so transient reads do not alias persistent storage slots.
+Lowers to `Stmt.tstore` / `Expr.tload`. The executable path keeps a separate `ContractState.transientStorage` map. Classified under `lowLevelMechanics` in the trust report.
 
-## Dynamic Array Surface
+### Dynamic arrays
 
-Dynamic array parameters can be consumed directly from `verity_contract` bodies using the same helper names that lower into the compilation model:
-
-```lean
+```verity
 let count := arrayLength recipients
 let first := arrayElement recipients 0
 returnArray amounts
 ```
 
-`arrayLength arr` lowers to `Expr.arrayLength "arr"`, `arrayElement arr idx` lowers to `Expr.arrayElement "arr" idx`, and `returnArray arr` lowers to `Stmt.returnArray "arr"`. `arrayElement` supports word-sized scalar arrays and the ABI-decodable static/nested struct-array shapes used by Solidity calldata structs. Dynamic members inside a struct element should be accessed through field projection plus `arrayLength` / `arrayElement` on that member rather than treating the member as a scalar word. Dynamic-element arrays such as `Array Bytes` and `Array String` still support `arrayLength`, but indexed element reads and direct `returnArray` lowering are rejected until the compiler grows offset-aware element lowering for those payloads. `arrayElement` remains bounds-checked on the compiled path, and the executable fallback in `Contracts/Common.lean` now mirrors that by reverting on out-of-range indices instead of silently defaulting.
+`arrayElement` is bounds-checked (compiled path reverts on out-of-range; executable fallback mirrors). Supports scalar arrays and ABI-decodable static/nested struct arrays. Dynamic-element arrays (`Array Bytes`, `Array String`) support `arrayLength` only; indexed reads and `returnArray` are rejected for those until offset-aware lowering lands.
 
-String and bytes values remain intentionally bounded. ABI transport is supported (`returnBytes`, custom-error payloads, event payloads, parameter flow), and direct parameter `==` / `!=` checks lower through the dynamic-bytes equality helper. Other word-level operators such as `<`, `add`, or the numeric `logicalAnd` helpers still remain restricted to Bool or word-backed scalar values, and dynamic local aliases are still rejected on the compilation-model path, so unsupported `String` / `Bytes` expressions fail fast at macro elaboration time instead of silently lowering to bogus word comparisons. That validation applies uniformly to function bodies, constructor bodies, contract constants, and immutable initializers.
+`String`/`Bytes` support ABI transport (`returnBytes`, custom-error/event payloads, parameter flow) and direct `==`/`!=` checks. Other word-level operators (`<`, `add`, `logicalAnd`) on `String`/`Bytes` are rejected — applies to function bodies, constructor bodies, constants, and immutable initializers.
 
-## Custom Errors
+### Modifiers, structs, ADTs, and namespaced storage
 
-`verity_contract` now accepts custom error declarations and threads them into the generated `CompilationModel`/ABI surface:
+`verity_contract` also supports Solidity-style **modifiers** (`modifier onlyRelayer := do ...` then `with onlyRelayer`), **struct declarations** (including packed storage structs via `@word N packed(byteOffset, byteWidth)`), **algebraic data types**, **newtype wrappers**, **storage namespaces** (`storage_namespace erc7201 "myapp.storage.X"`), and **mapping-of-struct** sugar (`MappingStruct`, `MappingStruct2`). The full grammar lives in [`Verity/Macro/Syntax.lean`](https://github.com/lfglabs-dev/verity/blob/main/Verity/Macro/Syntax.lean); concrete usage shapes are in the [production Solidity patterns guide](/guides/production-solidity-patterns).
+
+### Custom errors
 
 ```verity
 errors
@@ -631,252 +268,108 @@ function rejectLarge (amount : Uint256) : Unit := do
     revert AmountTooLarge(amount, 100)
 ```
 
-These declarations populate `CompilationModel.errors`, and the macro now lowers guarded and unconditional custom-error exits to `Stmt.requireError` / `Stmt.revertError`. That keeps `#check_contract`, ABI generation, and the Yul compiler on the same custom-error surface authored in the macro contract.
+Populates `CompilationModel.errors`; guarded and unconditional custom-error exits lower to `Stmt.requireError` / `Stmt.revertError`.
 
 ## External Calls (ECM)
 
-### ERC-20 safe wrappers
+External calls are modeled as **Externally Callable Modules** (ECMs) — statement constructors that ABI-encode arguments, perform a `call` / `staticcall`, validate the return shape, and bind the result word. They carry explicit trust-report metadata; module-level `axioms` apply rather than pure `simp`-style contract lemmas.
 
-`ecmTransfer`/`ecmTransferFrom` naming is superseded by standard modules:
+### ERC-20 helpers
 
-```lean
-def Compiler.Modules.ERC20.safeTransfer (token to amount : Expr) : Stmt
-def Compiler.Modules.ERC20.safeTransferFrom (token fromAddr to amount : Expr) : Stmt
-def Compiler.Modules.ERC20.balanceOf
-  (resultVar : String) (token owner : Expr) : Stmt
-def Compiler.Modules.ERC20.allowance
-  (resultVar : String) (token owner spender : Expr) : Stmt
-def Compiler.Modules.ERC20.totalSupply
-  (resultVar : String) (token : Expr) : Stmt
-def Compiler.Modules.ERC4626.previewDeposit
-  (resultVar : String) (vault assets : Expr) : Stmt
-def Compiler.Modules.ERC4626.previewMint
-  (resultVar : String) (vault shares : Expr) : Stmt
-def Compiler.Modules.ERC4626.previewWithdraw
-  (resultVar : String) (vault assets : Expr) : Stmt
-def Compiler.Modules.ERC4626.previewRedeem
-  (resultVar : String) (vault shares : Expr) : Stmt
-def Compiler.Modules.ERC4626.convertToAssets
-  (resultVar : String) (vault shares : Expr) : Stmt
-def Compiler.Modules.ERC4626.convertToShares
-  (resultVar : String) (vault assets : Expr) : Stmt
-def Compiler.Modules.ERC4626.totalAssets
-  (resultVar : String) (vault : Expr) : Stmt
-def Compiler.Modules.ERC4626.asset
-  (resultVar : String) (vault : Expr) : Stmt
-def Compiler.Modules.ERC4626.maxDeposit
-  (resultVar : String) (vault receiver : Expr) : Stmt
-def Compiler.Modules.ERC4626.maxMint
-  (resultVar : String) (vault receiver : Expr) : Stmt
-def Compiler.Modules.ERC4626.maxWithdraw
-  (resultVar : String) (vault owner : Expr) : Stmt
-def Compiler.Modules.ERC4626.maxRedeem
-  (resultVar : String) (vault owner : Expr) : Stmt
-def Compiler.Modules.ERC4626.deposit
-  (resultVar : String) (vault assets receiver : Expr) : Stmt
-def Compiler.Modules.Oracle.oracleReadUint256
-  (resultVar : String) (target : Expr) (selector : Nat)
-  (staticArgs : List Expr) : Stmt
-def Compiler.Modules.Precompiles.sha256Memory
-  (resultVar : String) (inputOffset inputSize outputOffset : Expr) : Stmt
-def Compiler.Modules.Precompiles.sha256
-  (resultVar : String) (inputOffset inputSize outputOffset : Expr) : Stmt
-def Compiler.Modules.Calls.bubblingValueCall
-  (target value inputOffset inputSize outputOffset outputSize : Expr) : Stmt
-def Compiler.Modules.Calls.bubblingValueCallNoOutput
-  (target value inputOffset inputSize : Expr) : Stmt
-def Compiler.Modules.Hashing.abiEncodePackedWords
-  (resultVar : String) (words : List Expr) : Stmt
-def Compiler.Modules.Hashing.abiEncodePacked
-  (resultVar : String) (words : List Expr) : Stmt
-def Compiler.Modules.Hashing.sha256PackedWords
-  (resultVar : String) (words : List Expr) : Stmt
-def Compiler.Modules.Hashing.sha256Packed
-  (resultVar : String) (words : List Expr) : Stmt
-def Compiler.Modules.Hashing.abiEncodePackedStaticSegments
-  (resultVar : String) (segments : List (Expr × Nat)) : Stmt
-def Compiler.Modules.Hashing.sha256PackedStaticSegments
-  (resultVar : String) (segments : List (Expr × Nat)) : Stmt
-```
+Inside `verity_contract` bodies, the standard names lower directly:
 
-These are emitted as `Stmt.ecm ...` with explicit module metadata and trust assumptions.
-
-Inside `verity_contract` bodies, the standard ERC-20 helper names lower directly too:
-
-```lean
+```verity
 safeTransfer token to amount
 safeTransferFrom token fromAddr to amount
 safeApprove token spender amount
 
 let balance <- balanceOf token owner
 let current <- allowance token owner spender
-let supply <- totalSupply token
+let supply  <- totalSupply token
 ```
 
-Those forms compile to the corresponding `Compiler.Modules.ERC20.*Module` ECMs, so macro-only contracts can use the common token wrapper surface without dropping back to handwritten `CompilationModel` specs.
+These compile to `Compiler.Modules.ERC20.*Module` ECMs. If the contract defines a same-named function with matching arity, the helper form is rejected to avoid ambiguity.
 
-If the contract already defines a same-named function with the matching arity, the macro now rejects the direct ERC-20 helper form instead of silently reinterpreting it. That keeps `balanceOf` / `safeTransfer` helper syntax reserved for ECM lowering and avoids ambiguous model generation.
+### ERC-4626 vault helpers
 
-### Low-level `tryCatch`
+Twelve ECMs share one template: ABI-encode the selector + static args, `staticcall` (or `call` for state-changing), expect one 32-byte return word, bind it.
 
-`verity_contract` also accepts a low-level `tryCatch` do-element for call-style expressions that return a success word:
+```verity
+Compiler.Modules.ERC4626.previewDeposit  (resultVar : String) (vault assets   : Expr) : Stmt
+Compiler.Modules.ERC4626.previewMint     (resultVar : String) (vault shares   : Expr) : Stmt
+Compiler.Modules.ERC4626.previewWithdraw (resultVar : String) (vault assets   : Expr) : Stmt
+Compiler.Modules.ERC4626.previewRedeem   (resultVar : String) (vault shares   : Expr) : Stmt
+Compiler.Modules.ERC4626.convertToAssets (resultVar : String) (vault shares   : Expr) : Stmt
+Compiler.Modules.ERC4626.convertToShares (resultVar : String) (vault assets   : Expr) : Stmt
+Compiler.Modules.ERC4626.totalAssets     (resultVar : String) (vault          : Expr) : Stmt
+Compiler.Modules.ERC4626.asset           (resultVar : String) (vault          : Expr) : Stmt
+Compiler.Modules.ERC4626.maxDeposit      (resultVar : String) (vault receiver : Expr) : Stmt
+Compiler.Modules.ERC4626.maxMint         (resultVar : String) (vault receiver : Expr) : Stmt
+Compiler.Modules.ERC4626.maxWithdraw     (resultVar : String) (vault owner    : Expr) : Stmt
+Compiler.Modules.ERC4626.maxRedeem       (resultVar : String) (vault owner    : Expr) : Stmt
+Compiler.Modules.ERC4626.deposit         (resultVar : String) (vault assets receiver : Expr) : Stmt
+```
+
+`asset` masks the returned word to 160 bits. `deposit` uses `call` (state-changing). Each module records a corresponding `erc4626_<name>_interface` assumption in the trust report.
+
+### Precompiles and hashing
+
+```verity
+Compiler.Modules.Precompiles.ecrecover        -- `let signer <- ecrecover digest v r s` in macro surface
+Compiler.Modules.Precompiles.sha256Memory     -- aliased as `sha256`
+Compiler.Modules.Hashing.abiEncodePackedWords -- contiguous-word keccak256
+Compiler.Modules.Hashing.sha256PackedWords    -- contiguous-word SHA-256 via 0x02
+Compiler.Modules.Hashing.abiEncodePackedStaticSegments  -- mixed widths, 1–32 bytes each
+Compiler.Modules.Hashing.sha256PackedStaticSegments
+```
+
+```verity
+Compiler.Modules.Hashing.abiEncodePackedWords "digest"
+  [Expr.param "root", Expr.param "contextHash", Expr.param "nullifier"]
+```
+
+Segment widths in 1–32 bytes; sub-word values are left-aligned. Dynamic `bytes`/`string` packed encoding stays outside this core surface. Trust report records `evm_ecrecover_precompile`, `evm_sha256_precompile`, etc.
+
+### Oracle and generic calls
+
+```verity
+Compiler.Modules.Oracle.oracleReadUint256
+  (resultVar : String) (target : Expr) (selector : Nat) (staticArgs : List Expr) : Stmt
+
+Compiler.Modules.Calls.withReturn
+  (resultVar : String) (target : Expr) (selector : Nat) (args : List Expr) (isStatic : Bool := false) : Stmt
+
+Compiler.Modules.Calls.bubblingValueCall
+  (target value inputOffset inputSize outputOffset outputSize : Expr) : Stmt
+```
+
+`Oracle.oracleReadUint256` is the standard read-only oracle case; trust-report assumption `oracle_read_uint256_interface`.
+
+### `keccak256` primitive
+
+```verity
+let digest := keccak256 offset size
+```
+
+Elaborates to `Expr.keccak256`; lowers to Yul `keccak256(offset, size)`. The machine-readable trust report records the explicit primitive assumption `keccak256_memory_slice_matches_evm`.
+
+`Expr.keccak256` also remains an explicit proof boundary today: the compiler supports it directly, but the current proof stack still treats it as an axiomatized primitive instead of a fully modeled operation. When it appears, archive `--trust-report` and use `--deny-axiomatized-primitives` for proof-strict runs (see issue `#1411`).
+
+### `tryCatch`
 
 ```verity
 tryCatch (call gas target value inOffset inSize outOffset outSize) (do
   setStorage lastFailure 1)
 ```
 
-On the compilation-model path, this lowers to a synthetic `letVar` followed by an `ite` that enters the catch block when the result word is `0`. This currently covers low-level call-like expressions only. Higher-level external-call helpers / ECMs are still outside this surface, and catch-payload decoding is not modeled yet, so any named handler argument must currently be ignored.
-
-### Generic external call with return value
-
-```lean
-def Compiler.Modules.Calls.withReturn
-  (resultVar : String) (target : Expr) (selector : Nat)
-  (args : List Expr) (isStatic : Bool := false) : Stmt
-```
-
-### `keccak256` primitive
-
-`verity_contract` can hash a memory slice directly:
-
-```lean
-let digest := keccak256 offset size
-```
-
-This elaborates to `Compiler.CompilationModel.Expr.keccak256` and lowers to the Yul `keccak256(offset, size)` builtin. The machine-readable trust report records the explicit primitive assumption `keccak256_memory_slice_matches_evm`.
-
-`Expr.keccak256` also remains an explicit proof boundary today: the compiler supports it directly, but the current proof stack still treats it as an axiomatized primitive instead of a fully modeled operation. When it appears, archive `--trust-report` and use `--deny-axiomatized-primitives` for proof-strict runs (see issue `#1411`).
-
-### Static-word packed hashing
-
-For packed preimages where each item is already a full 32-byte word, use the
-standard hashing ECMs instead of open-coded offset arithmetic:
-
-```verity
-Compiler.Modules.Hashing.abiEncodePackedWords
-  "digest"
-  [Expr.param "root", Expr.param "contextHash", Expr.param "nullifier"]
-
-Compiler.Modules.Hashing.sha256PackedWords
-  "publicSignalDigest"
-  [Expr.param "root", Expr.param "contextHash"]
-```
-
-These helpers lower to contiguous `mstore` calls starting at scratch memory
-offset zero. The shorter `abiEncodePacked` and `sha256Packed` names are aliases
-for the same static-word semantics. `abiEncodePackedWords` binds
-`keccak256(0, wordCount * 32)`; `sha256PackedWords` calls precompile `0x02`,
-reverts on precompile failure, and binds the digest word.
-
-For static mixed-width preimages, use explicit byte-width segment helpers:
-
-```verity
-Compiler.Modules.Hashing.abiEncodePackedStaticSegments
-  "digest"
-  [(Expr.param "who", 20), (Expr.param "amount", 32)]
-
-Compiler.Modules.Hashing.sha256PackedStaticSegments
-  "publicSignalDigest"
-  [(Expr.param "who", 20), (Expr.param "contextHash", 32)]
-```
-
-Segment widths must be between 1 and 32 bytes. Sub-word values are left-aligned
-before `mstore`, and later segments are placed at byte-precise offsets. Dynamic
-`bytes` and `string` packed encoding remains outside this core helper surface.
-
-### `ecrecover` precompile
-
-`verity_contract` can bind the standard `ecrecover` precompile directly:
-
-```lean
-let signer <- ecrecover digest v r s
-```
-
-This elaborates to `Compiler.Modules.Precompiles.ecrecoverModule` and the trust report records the explicit assumption `evm_ecrecover_precompile`.
-
-`Compiler.Modules.Precompiles.sha256Memory` covers SHA-256 over an existing
-memory slice. The shorter `Compiler.Modules.Precompiles.sha256` name is an
-alias for the same ECM. It emits precompile `0x02`, reverts on precompile
-failure, binds `mload(outputOffset)`, and records the explicit assumption
-`evm_sha256_precompile`.
-
-`Compiler.Modules.Oracle.oracleReadUint256` covers the common read-only oracle case: it ABI-encodes the selector plus static arguments, performs a `staticcall`, requires exactly one 32-byte return word, and binds that word to a local result variable. The trust report records the explicit ECM assumption `oracle_read_uint256_interface`.
-
-`Compiler.Modules.ERC20.balanceOf` covers the common token-balance read case: it ABI-encodes `balanceOf(address)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned balance word to a local result variable. The trust report records the explicit ECM assumption `erc20_balanceOf_interface`.
-
-`Compiler.Modules.ERC20.allowance` covers the common ERC-20 allowance read case: it ABI-encodes `allowance(address,address)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned allowance word to a local result variable. The trust report records the explicit ECM assumption `erc20_allowance_interface`.
-
-`Compiler.Modules.ERC20.totalSupply` covers the common ERC-20 aggregate-supply read case: it ABI-encodes `totalSupply()`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned supply word to a local result variable. The trust report records the explicit ECM assumption `erc20_totalSupply_interface`.
-
-`Compiler.Modules.ERC4626.previewDeposit` covers the common vault preview case: it ABI-encodes `previewDeposit(uint256)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned share quote to a local result variable. The trust report records the explicit ECM assumption `erc4626_previewDeposit_interface`.
-
-`Compiler.Modules.ERC4626.previewMint` covers the complementary mint-quote case: it ABI-encodes `previewMint(uint256)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned asset quote to a local result variable. The trust report records the explicit ECM assumption `erc4626_previewMint_interface`.
-
-`Compiler.Modules.ERC4626.previewWithdraw` covers the asset-withdrawal quote case: it ABI-encodes `previewWithdraw(uint256)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned share quote to a local result variable. The trust report records the explicit ECM assumption `erc4626_previewWithdraw_interface`.
-
-`Compiler.Modules.ERC4626.previewRedeem` covers the complementary redeem-quote case: it ABI-encodes `previewRedeem(uint256)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned asset quote to a local result variable. The trust report records the explicit ECM assumption `erc4626_previewRedeem_interface`.
-
-`Compiler.Modules.ERC4626.convertToAssets` covers the canonical share-to-asset conversion case: it ABI-encodes `convertToAssets(uint256)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned asset amount to a local result variable. The trust report records the explicit ECM assumption `erc4626_convertToAssets_interface`.
-
-`Compiler.Modules.ERC4626.convertToShares` covers the canonical asset-to-share conversion case: it ABI-encodes `convertToShares(uint256)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned share amount to a local result variable. The trust report records the explicit ECM assumption `erc4626_convertToShares_interface`.
-
-`Compiler.Modules.ERC4626.totalAssets` covers the canonical vault-assets aggregate case: it ABI-encodes `totalAssets()`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned asset total to a local result variable. The trust report records the explicit ECM assumption `erc4626_totalAssets_interface`.
-
-`Compiler.Modules.ERC4626.asset` covers the canonical underlying-asset getter case: it ABI-encodes `asset()`, performs a `staticcall`, requires exactly one 32-byte return word, masks the returned word to 160 bits, and binds the resulting asset address to a local result variable. The trust report records the explicit ECM assumption `erc4626_asset_interface`.
-
-`Compiler.Modules.ERC4626.maxDeposit` covers the canonical receiver-scoped deposit ceiling case: it ABI-encodes `maxDeposit(address)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned asset limit to a local result variable. The trust report records the explicit ECM assumption `erc4626_maxDeposit_interface`.
-
-`Compiler.Modules.ERC4626.maxMint` covers the canonical receiver-scoped mint ceiling case: it ABI-encodes `maxMint(address)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned share limit to a local result variable. The trust report records the explicit ECM assumption `erc4626_maxMint_interface`.
-
-`Compiler.Modules.ERC4626.maxWithdraw` covers the canonical owner-scoped withdrawal ceiling case: it ABI-encodes `maxWithdraw(address)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned asset limit to a local result variable. The trust report records the explicit ECM assumption `erc4626_maxWithdraw_interface`.
-
-`Compiler.Modules.ERC4626.maxRedeem` covers the canonical owner-scoped redeem ceiling case: it ABI-encodes `maxRedeem(address)`, performs a `staticcall`, requires exactly one 32-byte return word, and binds the returned share limit to a local result variable. The trust report records the explicit ECM assumption `erc4626_maxRedeem_interface`.
-
-`Compiler.Modules.ERC4626.deposit` covers the canonical vault deposit path: it ABI-encodes `deposit(uint256,address)`, performs a `call`, requires exactly one 32-byte return word, and binds the returned share amount to a local result variable. The trust report records the explicit ECM assumption `erc4626_deposit_interface`.
+Lowers to a synthetic `letVar` + `ite` entering the catch block when the result word is `0`. Low-level call-like expressions only; catch-payload decoding is not modeled yet.
 
 ### Low-level `call` / `staticcall` / `delegatecall`
 
-First-class low-level forms exist in the compilation model (`Expr.call`, `Expr.staticcall`, `Expr.delegatecall`).
-
-They are not yet modeled by the current proof interpreters. In the machine-readable interpreter feature matrix, the spec interpreters still treat these forms as fallback-zero / not-modeled constructs, so low-level call plumbing and returndata behavior remain a compiler-and-testing trust boundary rather than a proved semantic feature today.
+First-class forms exist in the compilation model (`Expr.call`, `Expr.staticcall`, `Expr.delegatecall`). They are not yet modeled by the current proof interpreters. In the machine-readable interpreter feature matrix, low-level call plumbing and returndata behavior remain a compiler-and-testing trust boundary rather than a proved semantic feature today.
 
 When the low-level form is `delegatecall`, the trust report now also isolates it as a dedicated proxy / upgradeability boundary; archive `--trust-report` and use `--deny-proxy-upgradeability` for proof-strict runs (see issue `#1420`).
 
-Prefer ECM wrappers when they fit the use case, and see issue `#1332` plus [`docs/INTERPRETER_FEATURE_MATRIX.md`](../../docs/INTERPRETER_FEATURE_MATRIX.md) for the current proof boundary.
+First-class linear-memory forms (`Expr.mload`, `Stmt.mstore`, `Stmt.calldatacopy`, `Stmt.returndataCopy`, `Expr.returndataOptionalBoolAt`) also compile today, but they are still only partially modeled by the current proof interpreters. When they appear, treat them as an explicit memory/ABI trust boundary, archive `--trust-report`, and use `--deny-linear-memory-mechanics` for proof-strict runs (see issue `#1411`).
 
-Reference: `Compiler/CompilationModel.lean`.
-
-For the remaining migration cases where a tiny unsafe/assembly-shaped escape hatch is unavoidable, `FunctionSpec.localObligations` / `ConstructorSpec.localObligations` let the contract author attach a named local refinement obligation to that exact usage site. The trust report records these under `localObligations` and `proofStatus.*.localObligations`, and `--deny-local-obligations` fails closed unless every such obligation has been discharged to `proved`.
-
-First-class linear-memory forms (`Expr.mload`, `Stmt.mstore`, `Stmt.calldatacopy`, `Stmt.returndataCopy`, `Expr.returndataOptionalBoolAt`) also compile today, but they are still only partially modeled by the current proof interpreters. When these forms appear, treat them as an explicit memory/ABI trust boundary, archive `--trust-report`, and use `--deny-linear-memory-mechanics` for proof-strict runs (see issue `#1411`).
-
-## Context Accessors
-
-**Signatures**
-
-```verity
-def msgSender : Contract Address
-def contractAddress : Contract Address
-def msgValue : Contract Uint256
-def blockTimestamp : Contract Uint256
-def blockNumber : Contract Uint256
-def blobbasefee : Contract Uint256
-```
-
-**Example**
-
-```verity
-let from <- msgSender
-let value <- msgValue
-```
-
-**Proof lemmas**
-
-- `msgSender_run`, `contractAddress_run`, `msgValue_run`, `blockTimestamp_run` (`Verity/Core.lean`)
-- `msgSender_runState`, `msgSender_runValue` (`Verity/Proofs/Stdlib/Automation.lean`)
-
-## Notes
-
-- For proofs, prefer full-result `.run` lemmas in `Verity/Core.lean`, then use automation lemmas from `Verity/Proofs/Stdlib/Automation.lean` and `Verity/Proofs/Stdlib/MappingAutomation.lean`.
-- ECM calls intentionally carry module-level `axioms` metadata (see `Compiler/Modules/*.lean`) rather than pure `simp`-style contract lemmas.
+Prefer ECM wrappers when they fit. For the remaining unavoidable cases, attach a `localObligations` entry at the usage site and discharge it before shipping.

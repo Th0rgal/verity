@@ -1,0 +1,152 @@
+---
+title: Glossary
+description: Canonical one-paragraph definitions of Verity's load-bearing terminology.
+---
+
+# Glossary
+
+### Assumption inventory
+
+The `--assumption-report <path>` CLI output. A flat, machine-readable list of
+every assumption used by proofs in the selected contracts, grouped by
+contract and usage site. Use it alongside `--trust-report` when audit tooling
+needs a flattened view rather than the structured proof-boundary report.
+
+### CompilationModel
+
+The typed-IR layer between the EDSL and Yul, defined in
+`Compiler/CompilationModel.lean`. A `CompilationModel` value carries fields,
+events, errors, the constructor, function bodies as `Expr`/`Stmt`, externals,
+and local obligations. It is the declarative input the Verity compiler
+consumes to produce IR, Yul, ABI, and trust artifacts.
+
+### ContractResult
+
+The success/revert algebra used by all EDSL guards. `ContractResult α` is
+either `success a s` or `revert msg s`. Modeling `require` as `revert`
+explicitly (rather than as a `StateM` axiom) lets proofs reason about both the
+success path and the failure path without introducing axioms.
+
+### ContractState
+
+The EVM-shaped state model used by EDSL contracts. Carries six persistent
+storage spaces (uint256, address, address-keyed mapping, uint256-keyed
+mapping, double mapping, dynamic arrays), EIP-1153 transient storage, the
+transaction context (`sender`, `thisAddress`, `msgValue`, `selfBalance`,
+`blockTimestamp`, `blockNumber`, `chainId`, `blobBaseFee`), calldata,
+memory, tracked `knownAddresses` per slot for conservation proofs, and
+an append-only `events` log.
+
+### Differential test
+
+A CI tier that runs random transaction sequences against both the EDSL
+interpreter and the compiled contract (Yul → EVM via `solc` and Foundry),
+then diffs the resulting states. Enabled by `FOUNDRY_PROFILE=difftest`.
+Catches compilation regressions outside the proved fragment.
+
+### ECM (External Call Module)
+
+A packaged reusable external-call pattern. ECMs live in `Compiler/Modules/*.lean`
+(for example `Compiler.Modules.ERC20.safeTransfer`,
+`Compiler.Modules.Oracle.oracleReadUint256`, `Compiler.Modules.Precompiles.sha256`).
+Each module bundles ABI encoding, call mechanics, mutability metadata, and an
+explicit assumption that surfaces in the trust report (for example
+`erc20_balanceOf_interface`, `oracle_read_uint256_interface`).
+
+### EDSL
+
+The Lean-4 embedded domain-specific language used to write Verity contracts.
+Provided by `Verity/Core.lean` and the `verity_contract` macro; consumed by
+the elaborator to build both an executable Lean definition and a
+`CompilationModel`.
+
+### Implementation
+
+The executable EDSL body of a contract function, lowered from
+`verity_contract`. One of the four files in the standard contract shape (see
+*Spec / Invariant / Implementation / Proof*).
+
+### Invariant
+
+A property that should hold of `ContractState` at every reachable point —
+typically conservation, isolation, or well-formedness. Lives in
+`Contracts/<Name>/Invariants.lean` and is proved over the implementation.
+
+### Layer 1 / Layer 2 / Layer 3
+
+The three trust boundaries. **Layer 1** verifies the EDSL implementation
+matches its `CompilationModel`. **Layer 2** verifies that
+`CompilationModel.compile` produces IR with matching semantics for the
+supported fragment (generic whole-contract theorem in
+`Compiler/Proofs/IRGeneration/Contract.lean`). **Layer 3** verifies the
+`IR → Yul` step preserves semantics. See [`/trust-model`](/trust-model) for
+the full breakdown.
+
+### Layout report
+
+The `--layout-report <path>` CLI output. A JSON dump of resolved storage-slot
+metadata for each compiled contract, including effective alias writes and
+reserved-slot policies. Used by upgrade and layout audits. Pair with
+`--layout-compat-report` and `--deny-layout-incompatibility` for upgrade
+compatibility checks.
+
+### linked_externals
+
+A `verity_contract` block declaring external Yul helpers the EDSL can call
+via `externalCall`. Declarations populate `spec.externals` with assumed
+foreign signatures so the compiler's `Expr.externalCall` validation works
+from the macro surface. The bodies are spliced in at compile time via
+`--link`. Currently restricted to single-word arguments and at most one
+return.
+
+### local_obligations
+
+Per-function (or per-constructor) trust receipts attached to a small
+unsafe or refinement-shaped boundary inside a `verity_contract`. Each entry
+lowers into `FunctionSpec.localObligations` or `ConstructorSpec.localObligations`,
+shows up in the `--trust-report`, and participates in
+`--deny-local-obligations`. Functions that use direct assembly-shaped
+primitives without any `local_obligations [...]` fail closed. See
+[`/edsl-api-reference`](/edsl-api-reference) for syntax.
+
+### Property test
+
+A CI tier between unit tests and differential tests: randomized inputs
+exercised against expected algebraic properties (commutativity, idempotence,
+conservation). Lives in the Foundry test suite.
+
+### Proof
+
+The Lean term that establishes the contract's `Spec`. Lives under
+`Contracts/<Name>/Proofs/` (typically split across `Basic.lean`,
+`Correctness.lean`, `Conservation.lean`, `Supply.lean`, `Isolation.lean`).
+Checked by `lake build`; a broken proof is a broken build.
+
+### Spec
+
+The human-readable `Prop` statement of what each function should do. Lives in
+`Contracts/<Name>/Spec.lean` and uses the helpers from
+`Verity/Specs/Common.lean` (`sameStorage`, `sameContext`,
+`storageMapUnchangedExceptKeyAtSlot`, etc.) to avoid field-by-field
+conjunctions. Distinct from the *compiler* spec (a `CompilationModel`).
+
+### Spec / Invariant / Implementation / Proof
+
+The four-file shape of a Verity contract:
+
+- **Spec** — `Spec.lean`, the `Prop` statement of intended behavior.
+- **Invariant** — `Invariants.lean`, properties that should always hold.
+- **Implementation** — the executable EDSL in `<Name>.lean`.
+- **Proof** — the Lean term in `Proofs/` that ties the implementation to the
+  spec.
+
+### Trust report
+
+The `--trust-report <path>` CLI output. A structured JSON artifact recording
+the proof boundary for the selected contracts: which constructors and
+functions are proved, which carry `local_obligations`, which use
+not-modeled features (low-level memory, raw `rawLog`, axiomatized `keccak256`,
+delegatecall, etc.), and which ECM assumptions are active. Generate at audit
+time; pair with `--deny-*` flags for proof-strict builds.
+
+See also: [Architecture Overview](/architecture), [Trust Model](/trust-model).

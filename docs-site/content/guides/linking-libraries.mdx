@@ -5,99 +5,49 @@ description: How to use external Yul libraries (Poseidon, Groth16, etc.) with ve
 
 # Linking External Libraries
 
-**Time Required**: 30 minutes
-**Prerequisites**: Verity project builds (`lake build` passes)
+For cryptographic primitives (Poseidon, Groth16, etc.) that are impractical to implement in Lean, or for reusing audited Yul libraries. Your proofs verify contract logic against a placeholder; the real implementation is injected at compile time.
 
-## TL;DR
+## How it works
 
-**Step 1** — Write your Yul library (plain functions, no `object` wrapper):
-```bash
-mkdir -p examples/external-libs
-echo 'function myHash(a, b) -> result { result := add(xor(a, b), 0x42) }' > examples/external-libs/MyHash.yul
-```
+1. **Yul library** — plain function definitions, no `object` wrapper.
+2. **Lean placeholder** — used only by proofs; never appears in compiled Yul.
+3. **`externals` declaration on the `CompilationModel`** — the linker only injects into contracts that declare what they need.
+4. **`--link` flag** — pass `.yul` library files at compile time.
 
-**Step 2** — Use a placeholder in your Lean EDSL (for proofs):
-```verity
-def myHash (a b : Uint256) : Contract Uint256 := return add a b
-```
+## Walkthrough
 
-**Step 3** — Declare the external function and reference it in your CompilationModel:
-```verity
--- In your CompilationModel definition:
-externals := [
-  { name := "myHash"
-    params := [ParamType.uint256, ParamType.uint256]
-    returnType := some ParamType.uint256
-    proofStatus := .assumed
-    axiomNames := [] }
-]
--- In a function body:
-Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param "a", Expr.param "b"])
-```
-
-**Step 4** — Compile with linking:
-```bash
-lake exe verity-compiler --link examples/external-libs/MyHash.yul -o artifacts/yul
-```
-
-Your proofs verify the contract logic (using placeholders). Real implementations are injected at compile time.
-
----
-
-## When to Use This
-
-- You need **cryptographic primitives** (Poseidon hash, Groth16 verification, etc.) that are impractical to implement in Lean
-- You want to **reuse audited Yul libraries** without re-implementing them
-- You want to **prove contract logic** independently of complex library internals
-
-## Quick Start
-
-### 1. Write your library as a `.yul` file
-
-Create a file with plain Yul function definitions (no `object` wrapper):
+**Yul library** (`examples/external-libs/MyHash.yul`):
 
 ```yul
-// examples/external-libs/MyHash.yul
 function myHash(a, b) -> result {
-    // Your implementation here
     result := add(xor(a, b), 0x42)
 }
 ```
 
-### 2. Write a placeholder in your Lean contract
-
-In your EDSL contract, define a placeholder that models the same interface:
+**Lean placeholder** (used for proofs, ignored at compile time):
 
 ```verity
--- Placeholder for proofs: models the hash as addition
--- At compile time, replaced by the real myHash from MyHash.yul
-def myHash (a b : Uint256) : Contract Uint256 := do
-  return add a b
+def myHash (a b : Uint256) : Contract Uint256 := return add a b
 ```
 
-### 3. Declare externals and add the call to your CompilationModel
-
-In `Compiler/Specs.lean`, first declare the external function in the `externals` field of your CompilationModel, then use `Expr.externalCall` in the function body:
+**`CompilationModel`** (`Compiler/Specs.lean`):
 
 ```verity
 def myCompilationModel : CompilationModel := {
   name := "MyContract"
   fields := [...]
-  constructor := none
-  -- Declare external functions used by this contract
   externals := [
     { name := "myHash"
       params := [ParamType.uint256, ParamType.uint256]
       returnType := some ParamType.uint256
       proofStatus := .assumed
-      axiomNames := [] }  -- Add axiom names if modeling trust assumptions
+      axiomNames := [] }
   ]
   functions := [
     { name := "storeHash"
       params := [...]
       returnType := none
       body := [
-        -- Call the external function
         Stmt.letVar "h" (Expr.externalCall "myHash" [Expr.param "a", Expr.param "b"]),
         ...
       ]
@@ -106,241 +56,55 @@ def myCompilationModel : CompilationModel := {
 }
 ```
 
-> **Important**: The `externals` field is required. Without it, the linker will not inject library functions into this contract's Yul output, even if `--link` is passed. See `cryptoHashSpec` in `Compiler/Specs.lean` for a complete example.
+> **The `externals` field is required.** Without it, the linker silently skips this contract even if `--link` is passed. `Expr.param "a"` must match the parameter `name` declared in `params`.
 
-> **Tip**: `Expr.param` takes the parameter **name** as a string — it must match the `name` field in your function's `params` list. For example, if your function declares `{ name := "a", ty := ParamType.uint256 }`, use `Expr.param "a"`.
-
-### 4. Compile with `--link`
+**Compile**:
 
 ```bash
 lake exe verity-compiler --link examples/external-libs/MyHash.yul -o artifacts/yul
 ```
 
-The compiler validates that:
-- No duplicate function names across libraries
-- Library functions don't shadow generated code or Yul builtins
-- All external calls in contracts are satisfied by linked libraries
-
-If validation fails, you get a clear error message:
+The linker parses each `.yul`, validates (no duplicate names, no shadowing of Yul builtins or `mappingSlot`, all references resolved, correct arity), and injects functions into the runtime `code {}` block. Unresolved references fail closed:
 
 ```
 Unresolved external references: myHash
 ```
 
-This means you forgot to pass `--link examples/external-libs/MyHash.yul`.
+## Reference example: CryptoHash
 
----
+The repo includes a working setup in [`Contracts/CryptoHash/Contract.lean`](https://github.com/lfglabs-dev/verity/blob/main/Contracts/CryptoHash/Contract.lean) with libraries in [`examples/external-libs/`](https://github.com/lfglabs-dev/verity/tree/main/examples/external-libs). Look at `cryptoHashSpec` in `Compiler/Specs.lean` for a complete `externals` declaration.
 
-## Complete Example: CryptoHash Contract
+## Trust model
 
-Verity includes a working example in [`Verity/Examples/CryptoHash.lean`](https://github.com/Th0rgal/verity/blob/main/Verity/Examples/CryptoHash.lean) with libraries in [`examples/external-libs/`](https://github.com/Th0rgal/verity/tree/main/examples/external-libs).
+External libraries are **outside the formal verification boundary**. The linker validates *structure* (no shadowing, resolved references, correct arity); it does not verify *behavior*. Your proofs establish: *if the library functions behave like the placeholders, then the contract is correct*.
 
-**EDSL placeholder** (`Verity/Examples/CryptoHash.lean`):
-```verity
--- Placeholder: just adds the inputs (for proving logic)
-def hashTwo (a b : Uint256) : Contract Uint256 := do
-  return add a b
+In practice: a contract using `PoseidonT3_hash` via the linker has formally verified logic (storage, access control, arithmetic) but an *unverified* cryptographic core. The proof guarantees the contract correctly *uses* the hash; it does not guarantee the hash *is* Poseidon. Auditing the `.yul` library is the developer's responsibility.
 
-def hashThree (a b c : Uint256) : Contract Uint256 := do
-  return add (add a b) c
+To increase confidence: use audited implementations, add Foundry tests that exercise the linked contract end-to-end, compare library output against a reference, and document the assumption in [`TRUST_ASSUMPTIONS.md`](https://github.com/lfglabs-dev/verity/blob/main/TRUST_ASSUMPTIONS.md).
 
-def storeHashTwo (a b : Uint256) : Contract Unit := do
-  let h ← hashTwo a b
-  setStorage lastHash h
-
-def storeHashThree (a b c : Uint256) : Contract Unit := do
-  let h ← hashThree a b c
-  setStorage lastHash h
-```
-
-**External library** (`examples/external-libs/PoseidonT3.yul`):
-```yul
-function PoseidonT3_hash(a, b) -> result {
-    // Placeholder — real Poseidon uses field arithmetic and S-boxes
-    result := add(xor(a, b), 0x1234567890abcdef)
-}
-```
-
-> The EDSL function (`hashTwo`) is a placeholder used only in formal proofs — it never appears in the compiled Yul. The CompilationModel's `Expr.externalCall "PoseidonT3_hash"` is what the compiler actually emits, and the linker resolves it to the library function above.
-
-**Compile with linking**:
-```bash
-lake exe verity-compiler \
-    --link examples/external-libs/PoseidonT3.yul \
-    --link examples/external-libs/PoseidonT4.yul \
-    -o artifacts/yul
-```
-
----
-
-## How the Linker Works
-
-The linking process has three stages:
-
-### Stage 1: Parse libraries
-
-The linker reads each `.yul` file and extracts function definitions using a line-based parser. It tracks brace depth to capture complete function bodies:
+## CLI
 
 ```
-Input file:           Parsed output:
-function foo() {  ->  LibraryFunction { name: "foo", body: [...] }
-    sstore(0, 1)
-}
-```
-
-### Stage 2: Validate
-
-Four safety checks run before any code is injected:
-
-| Check | What it catches |
-|-------|-----------------|
-| `validateNoDuplicateNames` | Two libraries defining the same function |
-| `validateNoNameCollisions` | Library function shadowing `mappingSlot` or Yul builtins like `add`, `sstore` |
-| `validateExternalReferences` | Contract calling a function not provided by any library |
-| `validateCallArity` | Library function called with wrong number of arguments |
-
-### Stage 3: Inject
-
-Library functions are injected into the runtime `code {}` section of each compiled Yul contract, with proper indentation:
-
-```yul
-object "MyContract" {
-    code { /* deploy */ }
-    object "runtime" {
-        code {
-            // ... generated contract code ...
-
-            // Injected from MyHash.yul:
-            function myHash(a, b) -> result {
-                result := add(xor(a, b), 0x42)
-            }
-        }
-    }
-}
-```
-
----
-
-## Library File Format
-
-External library files must contain **plain Yul function definitions**:
-
-```yul
-// Good: plain function definitions
-function foo(x) -> y {
-    y := add(x, 1)
-}
-
-function bar(a, b) -> c {
-    c := mul(a, b)
-}
-```
-
-Do **not** wrap them in an `object` block:
-
-```yul
-// Bad: object wrapper not supported
-object "MyLib" {
-    code {
-        function foo(x) -> y { y := add(x, 1) }
-    }
-}
-```
-
----
-
-## Trust Model
-
-External libraries are **outside the formal verification boundary**. The Linker validates structural properties (no shadowing, all references resolved, correct arity) but does not verify the library's correctness.
-
-Your proofs establish: *"If the library functions behave like the placeholders, then the contract is correct."*
-
-**What this means in practice**: A contract using `PoseidonT3_hash` via the linker has formally verified *logic* (storage updates, access control, arithmetic) but an *unverified* cryptographic core. The Lean proof guarantees that IF `PoseidonT3_hash(a, b)` returns a consistent value, THEN the contract correctly stores and retrieves it. The proof does NOT guarantee the Poseidon implementation computes the correct hash — auditing the `.yul` library file is the developer's responsibility.
-
-> Without the `externals` field on a `CompilationModel`, the linker will skip that contract even if `--link` is passed. No injection occurs and no error is raised.
-
-To increase confidence in linked libraries:
-- Use audited, battle-tested implementations
-- Add Foundry fuzz tests that exercise the linked contract end-to-end
-- Compare library output against a known reference implementation
-- Document the trust assumption explicitly (see [`TRUST_ASSUMPTIONS.md`](https://github.com/Th0rgal/verity/blob/main/TRUST_ASSUMPTIONS.md))
-
----
-
-## Common Issues and Debugging
-
-### Function name mismatch
-
-If you see `Unresolved external references: myFunc`, check that:
-- The function name in your CompilationModel matches the Yul library exactly (case-sensitive)
-- The library file is properly formatted with plain function definitions
-
-### Arity mismatch
-
-If you see `Arity mismatch: myFunc: called with N args but library defines M params`:
-- The number of parameters in your `Expr.externalCall` must match the library function
-- Remember: return values don't count as parameters
-
-### Runtime errors with linked contracts
-
-If your verified contract works with placeholders but fails with linked libraries:
-1. **Check gas requirements**: Linked functions may use more gas than placeholders
-2. **Verify return types**: Ensure the library returns the expected type
-3. **Test with Foundry**: Add property tests that run against the linked contract
-
-### Debugging tips
-
-```bash
-# Generate Yul output to see how external calls are rendered
-lake exe verity-compiler --link examples/external-libs/MyLib.yul -o artifacts/yul -v
-
-# Check the generated Yul in artifacts/yul/
-cat artifacts/yul/*.yul
-```
-
----
-
-## CLI Reference
-
-```bash
 lake exe verity-compiler [options]
-lake exe verity-compiler-patched [patch-options]
 
-Options:
-  --link <path>      Link external Yul library (can be used multiple times)
-  --output <dir>     Output directory (default: artifacts/yul)
-  -o <dir>           Short form of --output
-  --abi-output <dir> Output ABI JSON artifacts (<Contract>.abi.json)
-  --backend-profile <semantic|solidity-parity-ordering>
-  --mapping-slot-scratch-base <n>  Scratch memory base for mappingSlot helper (default: 0)
-  --verbose          Enable verbose output
-  -v                 Short form of --verbose
-  --help             Show help message
+--link <path>           Link external Yul library (repeatable)
+-o, --output <dir>      Output directory (default: artifacts/yul)
+--abi-output <dir>      Output ABI JSON artifacts
+--backend-profile <p>   semantic (default) | solidity-parity-ordering
+--mapping-slot-scratch-base <n>   Scratch memory base for mappingSlot
+-v, --verbose
+--help
 ```
 
-`--backend-profile` controls deterministic output-shape normalization:
-- `semantic`: default behavior.
-- `solidity-parity-ordering`: sort dispatch `case` blocks by selector.
-
-Patch-enabled generation moved to `verity-compiler-patched`:
+Patch-enabled generation lives in `verity-compiler-patched`:
 
 ```bash
 lake exe verity-compiler-patched --backend-profile solidity-parity
 lake exe verity-compiler-patched --enable-patches --patch-report artifacts/patch-report.tsv
 ```
 
-**Examples**:
-```bash
-# Compile without libraries
-lake exe verity-compiler
+## Common errors
 
-# Compile with one library
-lake exe verity-compiler --link examples/external-libs/PoseidonT3.yul
-
-# Compile with multiple libraries, verbose output
-lake exe verity-compiler \
-    --link examples/external-libs/PoseidonT3.yul \
-    --link examples/external-libs/PoseidonT4.yul \
-    --link examples/external-libs/Groth16.yul \
-    -v -o output/
-```
+- `Unresolved external references: <name>` — missing `--link`, or the name doesn't match between `CompilationModel` and the `.yul` file (case-sensitive).
+- `Arity mismatch: <name>: called with N args but library defines M params` — return values don't count as parameters.
+- Contract works with the placeholder but reverts at runtime — usually gas, or the library returns an unexpected shape. Run Foundry tests against the linked Yul.

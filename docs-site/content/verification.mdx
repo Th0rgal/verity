@@ -1,456 +1,54 @@
 ---
-title: Formal Verification
-description: EDSL proofs plus compiler correctness proofs (IR + Yul)
+title: Verification Status
+description: Theorem inventory by contract, plus the compiler-proof structure.
 ---
 
-# Formal Verification
+# Verification Status
 
-The compiler is verified with IR preservation proofs and Yul equivalence proofs in `Compiler/Proofs/`. All three layers are complete and checked by `lake build`.
+All three pipeline layers (EDSL → CompilationModel → IR → Yul) are complete and machine-checked by `lake build`. Zero `sorry`. For *how* these proofs are built, see [Proof Techniques](/proof-techniques); for *what is trusted vs verified*, see [Trust Model](/trust-model). The authoritative axiom list lives in [AXIOMS.md](https://github.com/lfglabs-dev/verity/blob/main/AXIOMS.md).
 
-**Status**: See [docs/VERIFICATION_STATUS.md](https://github.com/Th0rgal/verity/blob/main/docs/VERIFICATION_STATUS.md) for the current theorem totals, test counts, exclusions, and proof-status snapshot. [AXIOMS.md](https://github.com/Th0rgal/verity/blob/main/AXIOMS.md) remains the source of truth for documented axioms.
+## Per-contract proof coverage
 
-- ERC721: 11 total (Basic 6, Correctness 5).
-- ReentrancyExample: 5 total (inline proofs: vulnerability existence, supply invariant).
-- Stdlib: 0 theorems (Math 25, Automation 56, MappingAutomation 37, ListSum 7, AddressAutomation 24; 2 shared between Automation and MappingAutomation).
+Counts are theorems in each module. Read the actual statements in [`Contracts/<Name>/Proofs/`](https://github.com/lfglabs-dev/verity/tree/main/Contracts) — Lean is the source of truth.
 
-## Compiler Proofs (IR + Yul)
+| Contract | Basic | Correctness | Conservation / Supply | Isolation | Native | Total |
+|----------|-------|-------------|----------------------|-----------|--------|-------|
+| SimpleStorage | 13 | 7 | — | — | — | 20 |
+| Counter | 19 | 9 | — | — | — | 28 |
+| SafeCounter | 20 | 8 | — | — | — | 28 |
+| Owned | 19 | 4 | — | — | — | 23 |
+| OwnedCounter | 33 | 6 | — | 14 | — | 53 |
+| Ledger | 24 | 6 | 7 (conservation) | — | — | 37 |
+| SimpleToken | 40 | 10 | 6 (supply) | 12 | — | 68 |
+| ERC20 | 15 | 7 | — | — | 3 | 25 |
+| ERC721 | 6 | 5 | — | — | — | 11 |
+| Vault (ERC-4626) | scaffold | scaffold | scaffold | — | 3 | 3 |
+| ReentrancyExample | 5 inline (vulnerability witness + safety proofs) | | | | | 5 |
 
-- **Generic whole-contract Layer 2 theorem**: `Compiler/Proofs/IRGeneration/Contract.lean` (`CompilationModel.compile` correctness for the current supported fragment)
-- **End-to-end proofs**: `Compiler/Proofs/EndToEnd.lean` (full pipeline correctness)
-- **Typed IR correctness**: `Compiler/TypedIRCompilerCorrectness.lean` (generic compilation-correctness theorem with 36 supported statement fragments, including ABI-head tuple/bytes/fixed-array/dynamic-array/string params as word-typed inputs)
-- **IR generation**: `Compiler/Proofs/IRGeneration/` (infrastructure + concrete IR proofs in `Expr.lean`)
-- **Yul semantics + preservation**: `Compiler/Proofs/YulGeneration/` (complete, PR #42)
+The **Native** column counts theorems that pin the IR / Yul lowering to the EVMYulLean-bridged backend (`Contracts/<Name>/Proofs/Native.lean`).
 
-## Structure
+Vault carries a verified surface spec and full IR-lowering coverage; the spec-level Basic/Correctness/Conservation proofs are intentionally scaffold (issue [#1163](https://github.com/lfglabs-dev/verity/issues/1163)).
 
-Each contract lives under `Contracts/{Name}/`:
+## Stdlib
 
-```
-Contracts/{Name}/
-├── {Name}.lean           # Implementation (EDSL via verity_contract)
-├── Spec.lean             # What each operation should do
-├── Invariants.lean       # Properties that should always hold
-├── SpecProofs.lean       # User-facing spec statements and re-exports
-└── Proofs/
-    ├── Basic.lean        # Spec conformance and lemmas
-    ├── Correctness.lean  # Composition and revert behavior
-    ├── Conservation.lean # Sum conservation (Ledger)
-    ├── Supply.lean       # Supply conservation (SimpleToken)
-    └── Isolation.lean    # Storage isolation (SimpleToken)
+Reusable proof infrastructure in `Verity/Proofs/Stdlib/`:
 
-Verity/Proofs/Stdlib/     # Reusable proof infrastructure (Math, Automation, etc.)
-```
+| Module | Theorems | What it covers |
+|--------|----------|----------------|
+| `Math` | ~148 | `safeAdd/Sub/Mul/Div`, `mulDivDown/Up`, `wMulDown/wDivUp`, full-precision `mulDiv512Down?/Up?`, `SNARK_SCALAR_FIELD` / `modField` |
+| `Automation` | ~108 | Full-result and `runState`/`runValue` lemmas for storage, address storage, context, events, require |
+| `MappingAutomation` | ~48 | Mapping, uint-keyed mapping, double-mapping automation |
+| `ListSum` | ~8 | Sum reasoning for conservation proofs (`countOcc`, `balanceSum`) |
 
-## Guard modeling
+## Compiler proofs
 
-The `ContractResult` type models Solidity's `require` explicitly:
+- **Generic whole-contract Layer 2 theorem**: `Compiler/Proofs/IRGeneration/Contract.lean` — `CompilationModel.compile` correctness for the supported fragment.
+- **End-to-end**: `Compiler/Proofs/EndToEnd.lean`.
+- **Typed IR**: `Compiler/TypedIRCompilerCorrectness.lean` — 36 supported statement fragments including ABI-head tuples, bytes, fixed/dynamic arrays, and strings as word-typed inputs.
+- **Yul semantics + preservation**: `Compiler/Proofs/YulGeneration/`, with an EVMYulLean-bridged native backend in `Compiler/Proofs/YulGeneration/Backends/`.
 
-```verity
-inductive ContractResult (α : Type) where
-  | success : α → ContractState → ContractResult α
-  | revert : String → ContractState → ContractResult α
+## See also
 
-def require (condition : Bool) (message : String) : Contract Unit :=
-  fun s => if condition
-           then ContractResult.success () s
-           else ContractResult.revert message s
-```
-
-This lets proofs reason about both the success path and the revert path of guard-protected operations.
-
-## Theorems by contract
-
-### SimpleStorage
-
-**Basic:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `setStorage_updates_slot` | Updates the correct storage slot |
-| 2 | `getStorage_reads_slot` | Reads the correct storage slot |
-| 3 | `setStorage_preserves_other_slots` | Other slots unchanged |
-| 4 | `setStorage_preserves_sender` | msg.sender preserved |
-| 5 | `setStorage_preserves_address` | Contract address preserved |
-| 6 | `setStorage_preserves_addr_storage` | Address storage unaffected |
-| 7 | `setStorage_preserves_map_storage` | Mapping storage unaffected |
-| 8 | `store_meets_spec` | Store satisfies formal specification |
-| 9 | `retrieve_meets_spec` | Retrieve satisfies formal specification |
-| 10 | `store_retrieve_correct` | After storing v, retrieve returns v |
-| 11 | `store_preserves_wellformedness` | Well-formed state maintained |
-| 12 | `retrieve_preserves_state` | Read doesn't modify state |
-| 13 | `retrieve_twice_idempotent` | Two consecutive retrieves are idempotent |
-
-**Correctness:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `store_retrieve_roundtrip_holds` | Roundtrip specification |
-| 2 | `store_preserves_storage_isolated` | Storage isolation |
-| 3 | `store_preserves_addr_storage` | Address storage preservation |
-| 4 | `store_preserves_map_storage` | Mapping storage preservation |
-| 5 | `store_preserves_context` | Context (sender, thisAddress) preservation |
-| 6 | `retrieve_preserves_context` | Read-only preserves context |
-| 7 | `retrieve_preserves_wellformedness` | Well-formedness preservation |
-
-### Counter
-
-**Basic:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `setStorage_updates_count` | Updates the count storage slot |
-| 2 | `getStorage_reads_count` | Reads the count storage slot |
-| 3 | `setStorage_preserves_other_slots` | Other slots unchanged |
-| 4 | `setStorage_preserves_context` | Sender and contract address preserved |
-| 5 | `setStorage_preserves_addr_storage` | Address storage unaffected |
-| 6 | `setStorage_preserves_map_storage` | Mapping storage unaffected |
-| 7 | `increment_meets_spec` | Increment satisfies formal specification |
-| 8 | `increment_adds_one` | Count increases by exactly 1 |
-| 9 | `decrement_meets_spec` | Decrement satisfies formal specification |
-| 10 | `decrement_subtracts_one` | Count decreases by exactly 1 |
-| 11 | `getCount_meets_spec` | getCount satisfies formal specification |
-| 12 | `getCount_reads_count_value` | Returns stored count value |
-| 13 | `increment_getCount_correct` | Increment then getCount returns count + 1 |
-| 14 | `decrement_getCount_correct` | Decrement then getCount returns count - 1 |
-| 15 | `increment_twice_adds_two` | Two increments add 2 |
-| 16 | `increment_decrement_cancel` | Increment then decrement equals identity |
-| 17 | `increment_preserves_wellformedness` | Well-formedness maintained |
-| 18 | `decrement_preserves_wellformedness` | Well-formedness maintained |
-| 19 | `getCount_preserves_state` | Read doesn't modify state |
-
-**Correctness:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `increment_state_preserved_except_count` | Only count slot changes |
-| 2 | `decrement_state_preserved_except_count` | Only count slot changes |
-| 3 | `getCount_state_preserved` | Read-only preserves state |
-| 4 | `increment_getCount_meets_spec` | Increment then getCount |
-| 5 | `decrement_getCount_meets_spec` | Decrement then getCount |
-| 6 | `two_increments_meets_spec` | Two increments composition |
-| 7 | `increment_decrement_meets_cancel` | Cancellation property |
-| 8 | `getCount_preserves_wellformedness` | Read-only well-formedness |
-| 9 | `decrement_getCount_correct` | Decrement then getCount equals count - 1 |
-| 10 | `decrement_at_zero_wraps_max` | Decrementing at zero wraps to MAX_UINT256 |
-
-### Owned
-
-**Basic:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `setStorageAddr_updates_owner` | setStorageAddr writes owner slot |
-| 2 | `getStorageAddr_reads_owner` | getStorageAddr reads owner slot |
-| 3 | `setStorageAddr_preserves_other_slots` | Other address slots unchanged |
-| 4 | `setStorageAddr_preserves_uint_storage` | Uint256 storage unchanged |
-| 5 | `setStorageAddr_preserves_map_storage` | Mapping storage unchanged |
-| 6 | `setStorageAddr_preserves_context` | Context unchanged |
-| 7 | `constructor_meets_spec` | Constructor sets owner to sender |
-| 8 | `constructor_sets_owner` | Owner equals deployer |
-| 9 | `getOwner_meets_spec` | getOwner reads correct slot |
-| 10 | `getOwner_returns_owner` | Returns stored owner |
-| 11 | `getOwner_preserves_state` | getOwner is read-only |
-| 12 | `isOwner_meets_spec` | isOwner meets specification |
-| 13 | `isOwner_returns_correct_value` | isOwner returns correct boolean |
-| 14 | `transferOwnership_meets_spec_when_owner` | Owner transfer satisfies spec |
-| 15 | `transferOwnership_changes_owner_when_allowed` | Owner successfully changed |
-| 16 | `transferOwnership_unfold` | Unfold lemma for transferOwnership when owner |
-| 17 | `constructor_getOwner_correct` | Constructor then getOwner equals sender |
-| 18 | `constructor_preserves_wellformedness` | Well-formedness maintained |
-| 19 | `getOwner_preserves_wellformedness` | getOwner preserves well-formedness |
-
-**Correctness:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `transferOwnership_reverts_when_not_owner` | Access control enforced |
-| 2 | `transferOwnership_preserves_wellformedness` | Well-formedness with non-empty owner |
-| 3 | `constructor_transferOwnership_getOwner` | Full lifecycle: create, transfer, read |
-| 4 | `transferred_owner_cannot_act` | Old owner is actually locked out |
-
-### SimpleToken
-
-**Basic:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `setStorageAddr_updates_owner` | setStorageAddr writes owner slot |
-| 2 | `setStorage_updates_supply` | setStorage writes supply slot |
-| 3 | `setMapping_updates_balance` | setMapping writes balance entry |
-| 4 | `getMapping_reads_balance` | getMapping reads balance entry |
-| 5 | `getStorage_reads_supply` | getStorage reads supply slot |
-| 6 | `getStorageAddr_reads_owner` | getStorageAddr reads owner slot |
-| 7 | `setMapping_preserves_other_addresses` | setMapping doesn't change other keys |
-| 8 | `constructor_meets_spec` | Constructor meets full specification |
-| 9 | `constructor_sets_owner` | Owner equals deployer |
-| 10 | `constructor_sets_supply_zero` | Initial supply is zero |
-| 11 | `isOwner_true_when_owner` | isOwner returns true for owner |
-| 12 | `mint_meets_spec_when_owner` | Owner mint satisfies full spec |
-| 13 | `mint_increases_balance` | Recipient balance increases by amount |
-| 14 | `mint_increases_supply` | Total supply increases by amount |
-| 15 | `mint_reverts_balance_overflow` | Mint reverts on balance overflow |
-| 16 | `mint_reverts_supply_overflow` | Mint reverts on supply overflow |
-| 17 | `transfer_meets_spec_when_sufficient` | Transfer satisfies spec |
-| 18 | `transfer_preserves_supply_when_sufficient` | Transfer doesn't change supply |
-| 19 | `transfer_decreases_sender_balance` | Sender balance decreases |
-| 20 | `transfer_increases_recipient_balance` | Recipient balance increases |
-| 21 | `transfer_self_preserves_balance` | Self-transfer is a no-op |
-| 22 | `transfer_reverts_recipient_overflow` | Transfer reverts on recipient overflow |
-| 23 | `balanceOf_meets_spec` | balanceOf meets specification |
-| 24 | `balanceOf_returns_balance` | balanceOf returns stored value |
-| 25 | `balanceOf_preserves_state` | balanceOf is read-only |
-| 26 | `getTotalSupply_meets_spec` | getTotalSupply meets specification |
-| 27 | `getTotalSupply_returns_supply` | getTotalSupply returns stored value |
-| 28 | `getTotalSupply_preserves_state` | getTotalSupply is read-only |
-| 29 | `getOwner_meets_spec` | getOwner meets specification |
-| 30 | `getOwner_returns_owner` | getOwner returns stored value |
-| 31 | `getOwner_preserves_state` | getOwner is read-only |
-| 32 | `constructor_getTotalSupply_correct` | Constructor then getTotalSupply correct |
-| 33 | `constructor_getOwner_correct` | Constructor then getOwner correct |
-| 34 | `constructor_preserves_wellformedness` | Constructor preserves well-formedness |
-| 35 | `balanceOf_preserves_wellformedness` | balanceOf preserves well-formedness |
-| 36 | `getTotalSupply_preserves_wellformedness` | getTotalSupply preserves well-formedness |
-| 37 | `getOwner_preserves_wellformedness` | getOwner preserves well-formedness |
-
-**Correctness:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `mint_reverts_when_not_owner` | Non-owners cannot mint |
-| 2 | `transfer_reverts_insufficient_balance` | No overdrafts |
-| 3 | `mint_preserves_wellformedness` | WellFormedState survives mint |
-| 4 | `transfer_preserves_wellformedness` | WellFormedState survives transfer |
-| 5 | `mint_preserves_owner` | Mint doesn't change owner |
-| 6 | `transfer_preserves_owner` | Transfer doesn't change owner |
-| 7 | `mint_then_balanceOf_correct` | After mint, balanceOf returns updated balance |
-| 8 | `mint_then_getTotalSupply_correct` | After mint, getTotalSupply returns updated supply |
-| 9 | `transfer_then_balanceOf_sender_correct` | After transfer, sender balance decreased |
-| 10 | `transfer_then_balanceOf_recipient_correct` | After transfer, recipient balance increased |
-
-**Supply Conservation:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `constructor_establishes_supply_bounds` | Constructor establishes supply invariant |
-| 2 | `mint_sum_equation` | `new_sum = old_sum + count(to) * amount` |
-| 3 | `transfer_sum_equation` | `new_sum + count(sender)*amt = old_sum + count(to)*amt` |
-| 4 | `mint_sum_singleton_to` | Mint sum equation for singleton recipient list |
-| 5 | `transfer_sum_preserved_unique` | For unique sender & to: `new_sum = old_sum` |
-
-Transfer proofs handle self-transfer by modeling it as a no-op (preloading balances and applying a zero delta), so `sender != to` is not required. Supply conservation uses exact sum equations rather than the `supply_bounds_balances` invariant, which cannot be preserved for lists with duplicate addresses.
-
-**Isolation:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `constructor_supply_storage_isolated` | Constructor only writes Uint256 slot 2 |
-| 2 | `constructor_balance_mapping_isolated` | Constructor doesn't write any mapping slot |
-| 3 | `constructor_owner_addr_isolated` | Constructor only writes Address slot 0 |
-| 4 | `mint_supply_storage_isolated` | Mint only writes Uint256 slot 2 |
-| 5 | `mint_balance_mapping_isolated` | Mint only writes Mapping slot 1 |
-| 6 | `mint_owner_addr_isolated` | Mint doesn't write any Address slot |
-| 7 | `transfer_supply_storage_isolated` | Transfer doesn't write any Uint256 slot |
-| 8 | `transfer_balance_mapping_isolated` | Transfer only writes Mapping slot 1 |
-| 9 | `transfer_owner_addr_isolated` | Transfer doesn't write any Address slot |
-
-### OwnedCounter
-
-**Basic:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `constructor_meets_spec` | Constructor meets specification |
-| 2 | `constructor_sets_owner` | Constructor sets owner correctly |
-| 3 | `constructor_preserves_count` | Constructor preserves count slot |
-| 4 | `getCount_meets_spec` | getCount meets specification |
-| 5 | `getCount_returns_count` | getCount returns stored count |
-| 6 | `getCount_preserves_state` | getCount is read-only |
-| 7 | `getOwner_meets_spec` | getOwner meets specification |
-| 8 | `getOwner_returns_owner` | getOwner returns stored owner |
-| 9 | `getOwner_preserves_state` | getOwner is read-only |
-| 10 | `isOwner_correct` | isOwner returns correct boolean |
-| 11 | `increment_meets_spec_when_owner` | Owner increment meets specification |
-| 12 | `increment_adds_one_when_owner` | Owner increment adds exactly 1 |
-| 13 | `increment_reverts_when_not_owner` | Non-owner increment reverts |
-| 14 | `decrement_meets_spec_when_owner` | Owner decrement meets specification |
-| 15 | `decrement_subtracts_one_when_owner` | Owner decrement subtracts exactly 1 |
-| 16 | `decrement_reverts_when_not_owner` | Non-owner decrement reverts |
-| 17 | `transferOwnership_meets_spec_when_owner` | Owner transfer meets specification |
-| 18 | `transferOwnership_changes_owner` | Owner successfully changed |
-| 19 | `transferOwnership_reverts_when_not_owner` | Non-owner transfer reverts |
-| 20 | `increment_preserves_owner` | Increment preserves owner |
-| 21 | `decrement_preserves_owner` | Decrement preserves owner |
-| 22 | `transferOwnership_preserves_count` | Transfer preserves count |
-| 23 | `constructor_preserves_wellformedness` | Constructor preserves well-formedness |
-| 24 | `increment_preserves_wellformedness` | Increment preserves well-formedness |
-| 25 | `decrement_preserves_wellformedness` | Decrement preserves well-formedness |
-| 26 | `constructor_increment_getCount` | Constructor then increment then getCount |
-| 27 | `increment_unfold` | Unfold increment under owner guard |
-| 28 | `decrement_unfold` | Unfold decrement under owner guard |
-| 29 | `transferOwnership_unfold` | Unfold transferOwnership under owner guard |
-
-**Correctness:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `transfer_then_increment_reverts` | Old owner locked out of increment |
-| 2 | `transfer_then_decrement_reverts` | Old owner locked out of decrement |
-| 3 | `transfer_then_transfer_reverts` | Old owner locked out of re-transfer |
-| 4 | `transferOwnership_preserves_wellformedness` | Well-formedness preservation |
-| 5 | `increment_survives_transfer` | Counter value survives ownership transfer |
-
-**Isolation:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `increment_count_preserves_owner` | Increment preserves owner address storage |
-| 2 | `decrement_count_preserves_owner` | Decrement preserves owner address storage |
-| 3 | `constructor_owner_preserves_count` | Constructor preserves counter storage |
-| 4 | `transferOwnership_owner_preserves_count` | Transfer preserves counter storage |
-| 5 | `constructor_context_preserved` | Constructor preserves sender/thisAddress |
-| 6 | `increment_context_preserved` | Increment preserves sender/thisAddress |
-| 7 | `decrement_context_preserved` | Decrement preserves sender/thisAddress |
-| 8 | `transferOwnership_context_preserved` | Transfer preserves sender/thisAddress |
-| 9 | `getCount_context_preserved` | getCount preserves sender/thisAddress |
-| 10 | `getOwner_context_preserved` | getOwner preserves sender/thisAddress |
-| 11 | `constructor_preserves_map_storage` | Constructor preserves mapping storage |
-| 12 | `increment_preserves_map_storage` | Increment preserves mapping storage |
-| 13 | `decrement_preserves_map_storage` | Decrement preserves mapping storage |
-| 14 | `transferOwnership_preserves_map_storage` | Transfer preserves mapping storage |
-
-### Ledger
-
-**Basic:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `getBalance_meets_spec` | getBalance meets specification |
-| 2 | `getBalance_returns_balance` | getBalance returns stored balance |
-| 3 | `getBalance_preserves_state` | getBalance is read-only |
-| 4 | `deposit_meets_spec` | Deposit meets specification |
-| 5 | `deposit_increases_balance` | Deposit increases sender balance |
-| 6 | `deposit_preserves_other_balances` | Deposit preserves other balances |
-| 7 | `withdraw_meets_spec` | Withdraw meets specification |
-| 8 | `withdraw_decreases_balance` | Withdraw decreases sender balance |
-| 9 | `withdraw_reverts_insufficient` | Withdraw reverts on insufficient balance |
-| 10 | `transfer_meets_spec` | Transfer meets specification |
-| 11 | `transfer_self_preserves_balance` | Self-transfer is a no-op |
-| 12 | `transfer_decreases_sender` | Transfer decreases sender balance |
-| 13 | `transfer_increases_recipient` | Transfer increases recipient balance |
-| 14 | `transfer_reverts_insufficient` | Transfer reverts on insufficient balance |
-| 15 | `transfer_succeeds_recipient_overflow` | Transfer succeeds on recipient overflow (wrap semantics) |
-| 16 | `deposit_preserves_non_mapping` | Deposit preserves non-mapping storage |
-| 17 | `withdraw_preserves_non_mapping` | Withdraw preserves non-mapping storage |
-| 18 | `deposit_preserves_wellformedness` | Deposit preserves well-formedness |
-| 19 | `withdraw_preserves_wellformedness` | Withdraw preserves well-formedness |
-| 20 | `deposit_getBalance_correct` | Deposit then getBalance returns updated balance |
-
-**Correctness:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `transfer_preserves_wellformedness` | Transfer preserves WellFormedState |
-| 2 | `transfer_preserves_non_mapping` | Transfer preserves non-mapping storage |
-| 3 | `withdraw_getBalance_correct` | After withdraw, getBalance returns decreased balance |
-| 4 | `transfer_getBalance_sender_correct` | After transfer, sender balance decreased |
-| 5 | `transfer_getBalance_recipient_correct` | After transfer, recipient balance increased |
-| 6 | `deposit_withdraw_cancel` | Deposit then withdraw cancellation |
-
-**Conservation:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `deposit_sum_equation` | `new_sum = old_sum + count(sender) * amount` |
-| 2 | `deposit_sum_singleton_sender` | For unique sender: `new_sum = old_sum + amount` |
-| 3 | `withdraw_sum_equation` | `new_sum + count(sender) * amount = old_sum` |
-| 4 | `withdraw_sum_singleton_sender` | For unique sender: `new_sum + amount = old_sum` |
-| 5 | `transfer_sum_equation` | `new_sum + count(sender)*amt = old_sum + count(to)*amt` |
-| 6 | `transfer_sum_preserved_unique` | For unique sender & to: `new_sum = old_sum` |
-| 7 | `deposit_withdraw_sum_cancel` | Deposit then withdraw preserves total sum |
-
-### SafeCounter
-
-**Basic:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `getCount_meets_spec` | getCount meets its specification |
-| 2 | `getCount_returns_count` | getCount returns the stored count |
-| 3 | `getCount_preserves_state` | getCount is read-only |
-| 4 | `evm_add_eq_of_no_overflow` | EVM addition equals natural addition when no overflow |
-| 5 | `increment_meets_spec` | increment meets its specification |
-| 6 | `increment_adds_one` | increment adds one to count |
-| 7 | `increment_preserves_other_slots` | increment preserves other storage slots |
-| 8 | `increment_reverts_overflow` | increment reverts on overflow |
-| 9 | `decrement_meets_spec` | decrement meets its specification |
-| 10 | `decrement_subtracts_one` | decrement subtracts one from count |
-| 11 | `decrement_preserves_other_slots` | decrement preserves other storage slots |
-| 12 | `decrement_reverts_underflow` | decrement reverts on underflow |
-| 13 | `increment_preserves_wellformedness` | increment preserves well-formedness |
-| 14 | `decrement_preserves_wellformedness` | decrement preserves well-formedness |
-| 15 | `increment_preserves_bounds` | increment preserves count bounds |
-| 16 | `decrement_preserves_bounds` | decrement preserves count bounds |
-| 17 | `increment_getCount_correct` | increment then getCount returns count + 1 |
-
-**Correctness:**
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `increment_preserves_context` | increment preserves context |
-| 2 | `decrement_preserves_context` | decrement preserves context |
-| 3 | `increment_preserves_storage_isolated` | increment preserves storage isolation |
-| 4 | `decrement_preserves_storage_isolated` | decrement preserves storage isolation |
-| 5 | `getCount_preserves_context` | getCount preserves context |
-| 6 | `getCount_preserves_wellformedness` | getCount preserves well-formedness |
-| 7 | `increment_decrement_cancel` | increment then decrement cancellation |
-| 8 | `decrement_getCount_correct` | decrement then getCount equals count - 1 |
-
-### Stdlib/Math
-
-| # | Theorem | Property |
-|---|---------|----------|
-| 1 | `safeAdd_some` | Returns sum when no overflow |
-| 2 | `safeAdd_none` | Returns none on overflow |
-| 3 | `safeAdd_zero_left` | 0 + b equals b when bounded |
-| 4 | `safeAdd_zero_right` | a + 0 equals a when bounded |
-| 5 | `safeAdd_comm` | Commutativity |
-| 6 | `safeAdd_result_bounded` | Successful result less than or equal to MAX_UINT256 |
-| 7 | `safeSub_some` | Returns difference when no underflow |
-| 8 | `safeSub_none` | Returns none on underflow |
-| 9 | `safeSub_zero` | a - 0 equals a |
-| 10 | `safeSub_self` | a - a equals 0 |
-| 11 | `safeSub_result_le` | Result never exceeds minuend |
-| 12 | `safeMul_some` | Returns product when no overflow |
-| 13 | `safeMul_none` | Returns none on overflow |
-| 14 | `safeMul_zero_left` | 0 * b equals 0, always safe |
-| 15 | `safeMul_zero_right` | a * 0 equals 0, always safe |
-| 16 | `safeMul_one_left` | 1 * b equals b when bounded |
-| 17 | `safeMul_one_right` | a * 1 equals a when bounded |
-| 18 | `safeMul_comm` | Commutativity |
-| 19 | `safeMul_result_bounded` | Successful result less than or equal to MAX_UINT256 |
-| 20 | `safeDiv_some` | Returns quotient when divisor nonzero |
-| 21 | `safeDiv_none` | Returns none on division by zero |
-| 22 | `safeDiv_zero_numerator` | 0 / b equals 0 |
-| 23 | `safeDiv_by_one` | a / 1 equals a |
-| 24 | `safeDiv_self` | a / a equals 1 (when a > 0) |
-| 25 | `safeDiv_result_le_numerator` | Result never exceeds numerator |
-
-## Proof techniques
-
-**Full unfolding**: For guarded operations, unfold the entire do-notation chain through bind/pure/Contract.run/ContractResult.snd, then `simp [h_guard]` to resolve the guard condition.
-
-**Private unfold helpers**: For complex operations, a private theorem pre-computes the exact result state when guards pass. Main proofs then `rw [op_unfold]` to get the concrete state.
-
-**Boolean equality conversion**: `beq_iff_eq` converts between `(x == y) = true` and `x = y`.
-
-**List sum reasoning**: `omega` cannot handle `List.sum` or nonlinear multiplication, so conservation proofs use explicit `Nat.add_assoc`/`Nat.add_comm`/`Nat.add_left_comm` rewrite chains.
-
-**countOcc helpers**: `simp [countOcc, if_pos rfl]` produces `if True then 1 else 0` which doesn't reduce. Pre-proven `countOcc_cons_eq`/`countOcc_cons_ne` helpers avoid this.
-
-## Known limitations
-
-1. Uint256 is a dedicated 256-bit modular type; `+`, `-`, `*`, `/`, and `%` wrap at `2^256`
-2. No multi-contract interaction
-3. No reentrancy modeling
-4. `supply_bounds_balances` not preserved for lists with duplicates; exact sum equations are proven instead
-5. No Mathlib: `set`, `ring`, `linarith` unavailable
+- [Proof Techniques](/proof-techniques) — guard modeling, unfolding, list-sum reasoning.
+- [Trust Model](/trust-model) — what each theorem rules out, what assumptions remain.
+- [Examples Gallery](/examples) — sources the theorems apply to.
