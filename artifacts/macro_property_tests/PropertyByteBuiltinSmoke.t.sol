@@ -44,7 +44,16 @@ contract PropertyByteBuiltinSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
-    // Property 4: TODO decode and assert `outOfBoundsByteConstant` result
+    // Property 4: TODO decode and assert `middleByteConstant` result
+    function testTODO_MiddleByteConstant_DecodeAndAssert() public {
+        vm.prank(alice);
+        (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("middleByteConstant()"));
+        require(ok, "middleByteConstant reverted unexpectedly");
+        assertEq(ret.length, 32, "middleByteConstant ABI return length mismatch (expected 32 bytes)");
+        // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
+        ret;
+    }
+    // Property 5: TODO decode and assert `outOfBoundsByteConstant` result
     function testTODO_OutOfBoundsByteConstant_DecodeAndAssert() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("outOfBoundsByteConstant()"));
@@ -53,7 +62,7 @@ contract PropertyByteBuiltinSmokeTest is YulTestBase {
         // TODO(#1011): decode `ret` and assert the concrete postcondition from Lean theorem.
         ret;
     }
-    // Property 5: TODO decode and assert `storeExtracted` result
+    // Property 6: TODO decode and assert `storeExtracted` result
     function testTODO_StoreExtracted_DecodeAndAssert() public {
         vm.prank(alice);
         (bool ok, bytes memory ret) = target.call(abi.encodeWithSignature("storeExtracted(uint256,uint256)", uint256(1), uint256(1)));
