@@ -27,7 +27,7 @@ checked-in builtin semantics surface.
   - Proves emitted Yul fragments satisfy native bridge predicates
 
 - **`Backends/EvmYulLeanBridgeLemmas.lean`** - Builtin agreement layer
-  - Proves the Verity-side builtin comparison oracle agrees with EVMYulLean
+  - Records native EVMYulLean builtin-routing facts used by bridge predicates
   - Covers the pure, environment, calldata, storage, and helper builtin cases
 
 - **`Backends/EvmYulLeanBridgePredicates.lean`** - Native bridge predicates
@@ -46,8 +46,8 @@ checked-in builtin semantics surface.
 The public compiler-correctness path does not compose through a custom Yul
 interpreter. It lowers generated runtime Yul into EVMYulLean and compares the
 projected native dispatcher result with IR/source semantics. Legacy builtin
-comparison lemmas are retained only to discharge bridge predicates for emitted
-fragments.
+comparison semantics have been removed; bridge predicates now discharge against
+native EVMYulLean routing facts.
 
 ## References
 

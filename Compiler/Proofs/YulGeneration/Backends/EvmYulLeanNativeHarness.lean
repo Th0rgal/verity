@@ -628,7 +628,7 @@ theorem buildSwitch_noFuncDefs_noFallback_noReceive
     yulStmtsContainFuncDef, yulSwitchCasesContainFuncDef] using hCases
 
 /-- Dispatch body emitted for one external function case. This native-harness
-copy avoids importing the legacy proof-interpreter `Codegen` module. -/
+copy avoids importing the executable `Codegen` module into the proof path. -/
 def switchCaseBody (fn : IRFunction) : List YulStmt :=
   Compiler.CodegenCommon.dispatchBody fn.payable s!"{fn.name}()"
     ([Compiler.CodegenCommon.calldatasizeGuard fn.params.length] ++ fn.body)

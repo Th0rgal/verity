@@ -1041,7 +1041,7 @@ def evalPureBuiltinViaEvmYulLean
     derivation used by the native proof boundary; both backend projections
     ultimately compute `keccak256(abi.encode(key, baseSlot))`. Remaining
     context-dependent builtins (`caller`, `address`, `timestamp`, ...) are
-    routed at the `evalBuiltinCallWithBackendContext` level. -/
+    routed by `evalBuiltinCallWithEvmYulLeanContext`. -/
 def evalBuiltinCallViaEvmYulLean
     (storage : IRStorageSlot → IRStorageWord)
     (_sender : Nat)

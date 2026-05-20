@@ -35,13 +35,13 @@ Wrapping semantics are **proven** (not assumed) across all three verification la
 | Layer 1 (EDSL) | `Verity/Core/Uint256.lean` | `Uint256.add`, `sub`, `mul`, `pow`, `div`, `mod` are wrapping modular |
 | Layer 1 (EDSL) | `Verity/Proofs/Stdlib/Math.lean` | `safeAdd`, `safeSub`, `safeMul` correctness |
 | Compiler | `Compiler/Proofs/ArithmeticProfile.lean` | `add_wraps`, `sub_wraps`, `mul_wraps`, `div_by_zero`, `mod_by_zero` |
-| EVMYulLean native builtins | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBuiltinSemantics.lean` | Native builtin dispatch for the proof interpreter |
+| EVMYulLean native builtins | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBuiltinSemantics.lean` | Native builtin dispatch for EVMYulLean proofs |
 | EVMYulLean routing facts | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean` | Native routing lemmas for all bridged builtins |
 | EVMYulLean bridge tests | `Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeTest.lean` | Smoke vectors for the native builtin routing surface |
 
 The EVMYulLean native builtin layer uses EVMYulLean's `Fin`-based `UInt256` operations directly. Current coverage:
 - universal bridge lemmas for 25 pure builtins: `add`, `sub`, `mul`, `div`, `mod`, `addmod`, `mulmod`, `exp`, `sdiv`, `smod`, `lt`, `gt`, `slt`, `sgt`, `eq`, `iszero`, `and`, `or`, `xor`, `not`, `shl`, `shr`, `sar`, `signextend`, and `byte`
-- context-lifted native routing theorems for all 36 covered builtin cases at the `evalBuiltinCallWithBackendContext` level
+- context-lifted native routing through `evalBuiltinCallWithEvmYulLeanContext` for all 36 covered builtin cases
 - concrete bridge smoke tests are no longer needed for any pure builtin
 
 The EDSL exposes `pow(a, b)` and `a ^ b` for EVM modular exponentiation. Macro lowering emits a reserved compiler builtin that compiles directly to Yul/EVM `exp(a, b)`.

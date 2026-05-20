@@ -393,6 +393,22 @@ private def runtimeIntrospectionTrustSurfaceSpec : CompilationModel := {
   ]
 }
 
+private def selfBalanceTrustSurfaceSpec : CompilationModel := {
+  name := "SelfBalanceTrustSurface"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "currentBalance"
+      params := []
+      returnType := none
+      returns := [ParamType.uint256]
+      body := [
+        Stmt.returnValues [Expr.selfBalance]
+      ]
+    }
+  ]
+}
+
 private def blobbasefeeTrustSurfaceSpec : CompilationModel := {
   name := "BlobbasefeeTrustSurface"
   fields := []
@@ -1371,6 +1387,18 @@ unsafe def runTests : IO Unit := do
     throw (IO.userError "✗ verbose trust report localizes partially modeled runtime-introspection primitives")
   IO.println "✓ trust report surfaces partially modeled runtime-introspection primitives"
 
+  let selfBalanceTrustReport := emitTrustReportJson [selfBalanceTrustSurfaceSpec]
+  if !contains selfBalanceTrustReport "\"contract\":\"SelfBalanceTrustSurface\"" then
+    throw (IO.userError "✗ selfBalance trust report emits contract name")
+  if !contains selfBalanceTrustReport "\"partiallyModeledRuntimeIntrospection\":[\"selfBalance\"]" then
+    throw (IO.userError "✗ selfBalance trust report emits partially modeled runtime-introspection primitive")
+  if !contains selfBalanceTrustReport "\"usageSites\":[{\"kind\":\"function\",\"name\":\"currentBalance\",\"modeledLowLevelMechanics\":[],\"notModeledEventEmission\":[],\"notModeledProxyUpgradeability\":[],\"partiallyModeledLinearMemoryMechanics\":[],\"partiallyModeledRuntimeIntrospection\":[\"selfBalance\"]" then
+    throw (IO.userError "✗ selfBalance trust report localizes partially modeled runtime-introspection primitive")
+  let selfBalanceVerboseUsageSiteReport := String.intercalate "\n" (emitVerboseUsageSiteLines [selfBalanceTrustSurfaceSpec])
+  if !contains selfBalanceVerboseUsageSiteReport "partially modeled runtime introspection: selfBalance" then
+    throw (IO.userError "✗ verbose trust report localizes selfBalance runtime-introspection primitive")
+  IO.println "✓ trust report surfaces selfBalance runtime-introspection boundary"
+
   let axiomatizedPrimitiveUsageSiteLines := emitAxiomatizedPrimitiveUsageSiteLines [trustSurfaceSpec]
   let axiomatizedPrimitiveUsageSiteReport := String.intercalate "\n" axiomatizedPrimitiveUsageSiteLines
   if !contains axiomatizedPrimitiveUsageSiteReport "- TrustSurfaceSmoke [function:exercise]: keccak256" then
@@ -1787,6 +1815,17 @@ unsafe def runTests : IO Unit := do
   if !deniedRuntimeIntrospectionTrustReportWritten then
     throw (IO.userError "✗ denied runtime-introspection compile still writes trust report file")
   IO.println "✓ denied runtime-introspection compile still writes trust report file"
+
+  -- Regression for issue #1836: selfBalance lowers to selfbalance(), whose
+  -- account-balance bridge is not yet proved in the native proof stack.
+  -- Strict runtime-introspection mode must reject it instead of accepting an
+  -- assumption-empty artifact.
+  let deniedSelfBalanceRuntimeReportPath := s!"{trustReportDir}/trust-report-denied-selfbalance-runtime.json"
+  expectFailureContains
+    "compileSpecsWithOptions rejects selfBalance under deny-runtime-introspection"
+    (compileSpecsWithOptions
+      [selfBalanceTrustSurfaceSpec] outDir false [] {} none (some deniedSelfBalanceRuntimeReportPath) none none false false false false false false false true false)
+    "Partially modeled runtime-introspection mechanics remain:\n- SelfBalanceTrustSurface [function:currentBalance]: selfBalance"
 
   -- Regression for issue #1829: blobbasefee must fail closed under
   -- --deny-runtime-introspection because the proof interpreters do not
