@@ -115,9 +115,10 @@ materializes pre-state storage for those slots.
   `lowerRuntimeContractNative_emitYul_noMapping_noInternals_noFallback_noReceive`
   in the native harness and by
   `lowerRuntimeContractNative_of_compile_ok_supported_noMapping` for compiled
-  supported contracts, reducing no-mapping runtimes to the single generated
-  dispatcher shell. Direct `nativeGeneratedCallDispatcherResultOf` theorems
-  consume these lowering witnesses internally while exposing the generated
+  supported contracts, reducing no-mapping runtimes to the generated
+  `initFreeMemoryPointer; buildSwitch` runtime shell. Direct
+  `nativeGeneratedCallDispatcherResultOf` theorems consume those concrete
+  init-prefixed lowering witnesses internally while exposing the generated
   `EvmYul.Yul.callDispatcher` result surface. The mapping-helper side of
   the same boundary is now named by `nativeMappingSlotFunctionDefinition` and
   `lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero`, which
@@ -127,9 +128,10 @@ materializes pre-state storage for those slots.
   `lowerRuntimeContractNative_emitYul_mapping_noInternals_noFallback_noReceive_reserved`
   in the native harness and by
   `lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved` for
-  compiled supported contracts, with the generated dispatcher lowered under the
-  full emitted-runtime reserved-name context. Direct native result theorems keep
-  the reserved-context emitted-runtime lowering internal and expose generated
+  compiled supported contracts, with the generated
+  `initFreeMemoryPointer; buildSwitch` dispatcher lowered under the full
+  emitted-runtime reserved-name context. Direct native result theorems keep the
+  reserved-context emitted-runtime lowering internal while exposing generated
   `EvmYul.Yul.callDispatcher` premises. Successful full native lowering
   can now also be peeled back to the concrete dispatcher lowering by
   `lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher`,

@@ -3340,7 +3340,7 @@ private partial def inferBindSourceType
       match stripParens args with
       | `(term| [ $[$xs],* ]) =>
           for x in xs do
-            requireWordLikeType x "ECM argument"
+            requireWordOrDirectArrayType x "ECM argument"
               (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
       | _ => throwErrorAt args "expected list literal [..]"
       pure .uint256
@@ -4374,6 +4374,44 @@ private def validateWordLikeExprListLiteral
           (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
   | _ => throwErrorAt args "expected list literal [..]"
 
+private def validateEcmExprListLiteral
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (externalDecls : Array ExternalDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (args : Term)
+    (context : String) : CommandElabM Unit := do
+  match stripParens args with
+  | `(term| [ $[$xs],* ]) =>
+      for x in xs do
+        if let some (_, _, fieldTy, _elemTy, _) := arrayElementDynamicMemberProjection? params x then
+          match fieldTy with
+          | .array elemTy =>
+              unless externalCallDynamicArgSupported (.array elemTy) do
+                throwErrorAt x s!"{context} dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+          | _ =>
+              throwErrorAt x s!"{context} dynamic-member argument requires an Array-typed member, got {renderValueType fieldTy}"
+        else if let some (_, _, fieldTy, _elemTy, _) := localArrayElementDynamicMemberProjection? locals x then
+          match fieldTy with
+          | .array elemTy =>
+              unless externalCallDynamicArgSupported (.array elemTy) do
+                throwErrorAt x s!"{context} dynamic-member alias argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+          | _ =>
+              throwErrorAt x s!"{context} dynamic-member alias argument requires an Array-typed member, got {renderValueType fieldTy}"
+        else if let some (_, fieldTy, _) := paramDynamicMemberProjection? params x then
+          match fieldTy with
+          | .array elemTy =>
+              unless externalCallDynamicArgSupported (.array elemTy) do
+                throwErrorAt x s!"{context} dynamic-member argument currently supports only Array<wordLike> members, got {renderValueType fieldTy}"
+          | _ =>
+              throwErrorAt x s!"{context} dynamic-member argument requires an Array-typed member, got {renderValueType fieldTy}"
+        else
+          requireWordOrDirectArrayType x context
+            (← inferPureExprType fields constDecls immutableDecls externalDecls params locals x)
+  | _ => throwErrorAt args "expected list literal [..]"
+
 private partial def syntaxMentionsIdent (stx : Syntax) (name : String) : Bool :=
   match stx with
   | .ident _ raw _ _ => raw.toString == name
@@ -5052,6 +5090,73 @@ private def expectExprList
       pure out
   | _ => throwErrorAt stx "expected list literal [..]"
 
+private def expectEcmExprList
+    (fields : Array StorageFieldDecl)
+    (constDecls : Array ConstantDecl)
+    (immutableDecls : Array ImmutableDecl)
+    (params : Array ParamDecl)
+    (locals : Array TypedLocal)
+    (stx : Term) : CommandElabM (Array Term) := do
+  match stripParens stx with
+  | `(term| [ $[$xs],* ]) =>
+      let mut out : Array Term := #[]
+      for x in xs do
+        match directParamNameWithType? params x with
+        | some (name, ty) =>
+            if externalCallDynamicArgSupported ty then
+              out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_data_offset")))
+              out := out.push (← `(Compiler.CompilationModel.Expr.param $(strTerm s!"{name}_length")))
+            else
+              match ← translateAbiEncodeProjection? fields constDecls immutableDecls params locals x with
+              | some exprs => out := out ++ exprs
+              | none => out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals x)
+        | none =>
+            if let some (paramName, index, fieldTy, _elemTy, wordOffset) :=
+                arrayElementDynamicMemberProjection? params x then
+              match fieldTy with
+              | .array _ =>
+                  let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+                  out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberDataOffset
+                    $(strTerm paramName)
+                    $indexExpr
+                    $(natTerm wordOffset)))
+                  out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+                    $(strTerm paramName)
+                    $indexExpr
+                    $(natTerm wordOffset)))
+              | _ => out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals x)
+            else if let some (paramName, index, fieldTy, _elemTy, wordOffset) :=
+                localArrayElementDynamicMemberProjection? locals x then
+              match fieldTy with
+              | .array _ =>
+                  let indexExpr ← translatePureExprWithTypes fields constDecls immutableDecls params locals index
+                  out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberDataOffset
+                    $(strTerm paramName)
+                    $indexExpr
+                    $(natTerm wordOffset)))
+                  out := out.push (← `(Compiler.CompilationModel.Expr.arrayElementDynamicMemberLength
+                    $(strTerm paramName)
+                    $indexExpr
+                    $(natTerm wordOffset)))
+              | _ => out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals x)
+            else if let some (paramName, fieldTy, wordOffset) :=
+                paramDynamicMemberProjection? params x then
+              match fieldTy with
+              | .array _ =>
+                  out := out.push (← `(Compiler.CompilationModel.Expr.paramDynamicMemberDataOffset
+                    $(strTerm paramName)
+                    $(natTerm wordOffset)))
+                  out := out.push (← `(Compiler.CompilationModel.Expr.paramDynamicMemberLength
+                    $(strTerm paramName)
+                    $(natTerm wordOffset)))
+              | _ => out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals x)
+            else
+              match ← translateAbiEncodeProjection? fields constDecls immutableDecls params locals x with
+              | some exprs => out := out ++ exprs
+              | none => out := out.push (← translatePureExprWithTypes fields constDecls immutableDecls params locals x)
+      pure out
+  | _ => throwErrorAt stx "expected list literal [..]"
+
 private def translateEmitArgExpr
     (fields : Array StorageFieldDecl)
     (constDecls : Array ConstantDecl)
@@ -5649,7 +5754,7 @@ private partial def validateDoElemExprTypes
       | `(doElem| ecmBind $names:term $module:term $args:term) =>
           let resultVars ← expectStringList names
           ensureFreshLocalNames (typedLocalNames locals) (resultVars.map some) names
-          validateWordLikeExprListLiteral fields constDecls immutableDecls externalDecls params locals
+          validateEcmExprListLiteral fields constDecls immutableDecls externalDecls params locals
             args "ECM argument"
           validateResultEcmModuleTerm module resultVars
           pure <| locals ++ resultVars.map (fun name => mkTypedLocal name .uint256)
@@ -5774,7 +5879,7 @@ private partial def validateEffectStmtExprTypes
       | _ => throwErrorAt values "expected list literal [..]"
       pure ()
   | `(term| ecmDo $_module:term $args:term) => do
-      validateWordLikeExprListLiteral fields constDecls immutableDecls externalDecls params locals
+      validateEcmExprListLiteral fields constDecls immutableDecls externalDecls params locals
         args "ECM argument"
       pure ()
   | `(term| returnArray $name:term) => do
@@ -6530,7 +6635,7 @@ private partial def translateDoElem
             throwErrorAt name s!"duplicate local variable '{varName}'"
           match stripParens rhs with
           | `(term| ecmCall $moduleFactory:term $args:term) =>
-              let argExprs ← expectExprList fields constDecls immutableDecls params locals args
+              let argExprs ← expectEcmExprList fields constDecls immutableDecls params locals args
               let moduleTerm ← `(term| (($moduleFactory) $(strTerm varName)))
               validateSingleResultEcmModuleTerm moduleTerm varName
               pure
@@ -6739,7 +6844,7 @@ private partial def translateDoElem
           let resultVars ← expectStringList names
           ensureFreshLocalNames localNames (resultVars.map some) names
           validateResultEcmModuleTerm module resultVars
-          let argExprs ← expectExprList fields constDecls immutableDecls params locals args
+          let argExprs ← expectEcmExprList fields constDecls immutableDecls params locals args
           let typedLocals := resultVars.map (fun name => mkTypedLocal name .uint256)
           pure
             (#[(← `(Compiler.CompilationModel.Stmt.ecm

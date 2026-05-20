@@ -16,17 +16,14 @@ macro_rules
   | `(term| ecmCall $_moduleFactory:term $_args:term) =>
       `(term| do
           let _ := $_moduleFactory
-          let _ := $_args
           pure (0 : Uint256))
   | `(term| ecmDo $_module:term $_args:term) =>
       `(term| do
           let _ := $_module
-          let _ := $_args
           pure ())
   | `(doElem| ecmBind [ $[$names:ident],* ] $_module:term $_args:term) =>
       `(doElem| do
           let _ := $_module
-          let _ := $_args
           $[let $names := (0 : Uint256)]*
           pure ())
   | `(doElem| unsafe $_reason:str do $body:doSeq) =>

@@ -7050,7 +7050,7 @@ private theorem compile_preserves_native_evmYulLean_of_interpretIRRuntimeNative_
     hNativeIR
 
 /-- Supported compiler output with no mapping helper reduces native runtime
-lowering to the single generated dispatcher shell. -/
+lowering to the generated `initFreeMemoryPointer; buildSwitch` runtime shell. -/
 theorem lowerRuntimeContractNative_of_compile_ok_supported_noMapping
     {spec : CompilationModel.CompilationModel} {selectors : List Nat}
     {irContract : IRContract}
