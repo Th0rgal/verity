@@ -135,14 +135,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           docsRepositoryBase="https://github.com/lfglabs-dev/verity/tree/main/docs-site"
           sidebar={{ defaultMenuCollapseLevel: 1 }}
           toc={{ backToTop: true }}
-          footer={
-            <p className="verity-footer">
-              Built by{' '}
-              <a href="https://lfglabs.dev" target="_blank" rel="noopener">
-                LFG Labs
-              </a>
-            </p>
-          }
         >
           {children}
         </Layout>

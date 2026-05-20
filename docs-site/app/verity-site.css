@@ -2495,22 +2495,3 @@ input:focus-visible,
     display: none !important;
   }
 }
-
-/* Subtle backlink to LFG Labs, styled to feel inline with page content */
-.verity-footer {
-  max-width: var(--nextra-content-width, 90rem);
-  margin: 0 auto;
-  padding: 2rem 0;
-  text-align: center;
-  font-size: 0.8125rem;
-  color: var(--verity-color-muted, #6b7c7c);
-}
-.verity-footer a {
-  color: inherit;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, currentColor 30%, transparent);
-  text-underline-offset: 3px;
-}
-.verity-footer a:hover {
-  color: var(--verity-color-accent, #0a7d7d);
-}
