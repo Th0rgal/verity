@@ -57,6 +57,7 @@ coverage.
 | Reference state re-export | removed | Removed in the cleanup PR | It had no direct imports and only re-exported `RuntimeTypes`. |
 | Removed retarget stack | `EvmYulLeanRetarget.lean`, older adapter-correctness modules | Already removed | Only mentioned in docs/comments. |
 | Stale build references | removed | Removed in the cleanup PR | Targeted verification and runner benchmarks now point at current native proof modules. |
+| Deprecated private EndToEnd compatibility wrappers | removed | Removed in the cleanup PR | The unused private generated-callDispatcher wrappers over the legacy dispatcher-exec target were deleted; callers use the direct `nativeGeneratedCallDispatcherResultOf` theorem stack. |
 
 ## Dependency Evidence
 

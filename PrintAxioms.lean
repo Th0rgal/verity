@@ -1343,9 +1343,6 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_mapping_canonical_ofIR_globalDefaults  -- private
   -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_mapping_canonical_preserved_ofIR_environment  -- private
   -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_selector_hit_ok_mapping_canonical_preserved_ofIR_globalDefaults  -- private
-  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match  -- private
-  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping  -- private
-  -- Compiler.Proofs.EndToEnd.compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping  -- private
   -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_project_match  -- private
   -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure  -- private
   -- Compiler.Proofs.EndToEnd.layers2_3_ir_matches_native_evmYulLean_of_generated_dispatcherExec_positive_body_closure_ofIR_environment  -- private
@@ -5642,4 +5639,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5353 theorems/lemmas (3640 public, 1713 private, 0 sorry'd)
+-- Total: 5350 theorems/lemmas (3640 public, 1710 private, 0 sorry'd)
