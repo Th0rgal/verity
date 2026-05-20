@@ -34,7 +34,7 @@ EXPECTED_EXPR_CASES = ["lit", "hex", "str", "ident", "call"]
 EXPECTED_STMT_CASES = ["comment", "let_", "letMany", "assign", "expr", "leave", "if_", "for_", "switch", "block", "funcDef"]
 
 CASE_RE = re.compile(r"^\s*\|\s*\.([A-Za-z0-9_']+)")
-GAP_RE = re.compile(r'\.error\s+"([^"]+)"')
+GAP_RE = re.compile(r'(?:\.error|throw)\s+(?:s!)?"([^"]+)"')
 EVAL_STUB_RE = re.compile(r"def\s+evalBuiltinCallViaEvmYulLean[\s\S]*?:\s*Option\s+Nat\s*:=\s*none")
 
 # Regex for lookupPrimOp string-keyed match arms: | "name" => some .OP
@@ -232,7 +232,7 @@ def _parse_cases(lines: list[str]) -> dict[str, str]:
         if not gaps:
             result[name] = "supported"
             continue
-        if "pure (" in body and (".error" in body):
+        if "pure (" in body and gaps:
             result[name] = "partial"
             continue
         result[name] = "gap"

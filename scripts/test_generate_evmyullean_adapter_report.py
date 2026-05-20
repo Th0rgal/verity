@@ -21,6 +21,29 @@ if str(SCRIPT_DIR) not in sys.path:
 import generate_evmyullean_adapter_report as gen
 
 
+class ParseNativeLoweringCasesTests(unittest.TestCase):
+    def test_parse_cases_marks_throw_interpolation_as_gap(self) -> None:
+        lines = textwrap.dedent("""\
+            def lowerStmtGroupNativeWithSwitchIds : YulStmt -> Except String Unit
+              | .comment _ => pure ()
+              | .funcDef name _ _ _ =>
+                  throw s!"native EVMYulLean statement lowering cannot inline function definition '{name}'"
+        """).splitlines()
+
+        self.assertEqual(
+            gen._parse_cases(lines),
+            {"comment": "supported", "funcDef": "gap"},
+        )
+        self.assertEqual(
+            gen._parse_gap_messages(lines),
+            {
+                "funcDef": [
+                    "native EVMYulLean statement lowering cannot inline function definition '{name}'"
+                ]
+            },
+        )
+
+
 class ParseBridgeLemmasTests(unittest.TestCase):
     """Tests for _parse_bridge_lemmas sorry detection."""
 
