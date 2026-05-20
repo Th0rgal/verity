@@ -46,23 +46,20 @@ materializes pre-state storage for those slots.
   composition theorem over that result surface,
   `nativeGeneratedCallDispatcherResultOf`,
   `nativeGeneratedCallDispatcherMatchesIROn`, the supported-compiler
-  generated direct `EvmYul.Yul.callDispatcher` theorem
-  `compile_preserves_native_evmYulLean_callDispatcher_of_generated_callDispatcher_match`, the
-  helper-free call-dispatcher lowering wrapper
-  `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping`,
-  the mapping-helper call-dispatcher lowering wrapper
-  `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping`,
-  and the concrete SimpleStorage native theorem. The dispatcher-exec
-  compatibility predicate and wrappers are file-local helpers; public generated
+  direct result theorem
+  `compile_preserves_native_evmYulLean_of_nativeGeneratedCallDispatcherResult_match`,
+  the selector-miss/selector-hit direct native result theorem family, and the
+  concrete SimpleStorage native theorem. The dispatcher-exec compatibility
+  predicate and lift lemmas are file-local helpers; public generated
   correctness exposes native `EvmYul.Yul.callDispatcher` premises and derives
   source/native agreement directly over the projected call-dispatcher result.
   The old generated runtime adapter wrappers have been removed rather than
   being retained as file-local `interpretIRRuntimeNative` compatibility
   theorems. On the
-  helper-free and mapping-helper paths, the public wrapper theorems still accept
-  the concrete generated-dispatcher lowering result while exposing the direct
-  projected `EvmYul.Yul.callDispatcher` result. The concrete SimpleStorage
-  native theorem now targets that direct projected call-dispatcher result too.
+  helper-free and mapping-helper paths, direct native result theorems consume
+  generated-runtime lowering witnesses internally while exposing the projected
+  `EvmYul.Yul.callDispatcher` result. The concrete SimpleStorage native theorem
+  now targets that direct projected call-dispatcher result too.
   The opaque arbitrary-fuel
   identity seams, generated dispatcher-exec lift facts, and fuel-indexed
   `nativeIRRuntimeMatchesIR` targets are file-local, and the older
@@ -119,11 +116,9 @@ materializes pre-state storage for those slots.
   in the native harness and by
   `lowerRuntimeContractNative_of_compile_ok_supported_noMapping` for compiled
   supported contracts, reducing no-mapping runtimes to the single generated
-  dispatcher shell. The public
-  `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_noMapping`
-  wrapper consumes that concrete dispatcher lowering directly, exposes the
-  generated `EvmYul.Yul.callDispatcher` result surface, and keeps the same full
-  emitted-runtime lowering equality internal. The mapping-helper side of
+  dispatcher shell. Direct `nativeGeneratedCallDispatcherResultOf` theorems
+  consume these lowering witnesses internally while exposing the generated
+  `EvmYul.Yul.callDispatcher` result surface. The mapping-helper side of
   the same boundary is now named by `nativeMappingSlotFunctionDefinition` and
   `lowerFunctionDefinitionNativeWithReserved_mappingSlotFuncAt_zero`, which
   package the concrete native lowering of the generated `mappingSlot` helper at
@@ -133,11 +128,9 @@ materializes pre-state storage for those slots.
   in the native harness and by
   `lowerRuntimeContractNative_of_compile_ok_supported_mapping_reserved` for
   compiled supported contracts, with the generated dispatcher lowered under the
-  full emitted-runtime reserved-name context. The public
-  `compile_preserves_native_evmYulLean_of_lowered_generated_callDispatcher_mapping`
-  wrapper consumes that reserved-context dispatcher lowering directly, keeps the
-  reserved-context emitted-runtime lowering internal, and exposes the generated
-  `EvmYul.Yul.callDispatcher` premise. Successful full native lowering
+  full emitted-runtime reserved-name context. Direct native result theorems keep
+  the reserved-context emitted-runtime lowering internal and expose generated
+  `EvmYul.Yul.callDispatcher` premises. Successful full native lowering
   can now also be peeled back to the concrete dispatcher lowering by
   `lowerRuntimeContractNative_emitYul_noMapping_ok_dispatcher`,
   `lowerRuntimeContractNative_of_compile_ok_supported_noMapping_ok_dispatcher`,
