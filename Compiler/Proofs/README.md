@@ -24,9 +24,9 @@ All three layers carry zero project-specific axioms.
 | [`IRGeneration/SourceSemantics.lean`](IRGeneration/SourceSemantics.lean) | Helper-aware source semantics |
 | [`IRGeneration/GenericInduction.lean`](IRGeneration/GenericInduction.lean) | Helper-aware induction interfaces |
 | [`YulGeneration/Backends/EvmYulLeanNativeHarness.lean`](YulGeneration/Backends/EvmYulLeanNativeHarness.lean) | Native EVMYulLean runtime lowering and dispatcher-exec harness |
-| [`YulGeneration/Backends/EvmYulLeanRetarget.lean`](YulGeneration/Backends/EvmYulLeanRetarget.lean) | Isolated backend-wrapper transition evidence for the bridged fragment |
-| [`YulGeneration/StatementEquivalence.lean`](YulGeneration/StatementEquivalence.lean) | Legacy custom-interpreter statement equivalence scaffolding |
-| [`YulGeneration/Preservation.lean`](YulGeneration/Preservation.lean) | Legacy custom-interpreter IR -> Yul preservation scaffolding |
+| [`YulGeneration/Backends/EvmYulLeanBodyClosure.lean`](YulGeneration/Backends/EvmYulLeanBodyClosure.lean) | Safe-body closure predicates and native bridge witnesses |
+| [`YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean`](YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean) | Builtin equivalence lemmas against EVMYulLean semantics |
+| [`YulGeneration/ReferenceOracle/Builtins.lean`](YulGeneration/ReferenceOracle/Builtins.lean) | Legacy builtin comparison oracle used below the native trust boundary |
 
 ## Layer 2 Boundary Status
 

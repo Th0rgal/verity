@@ -81,7 +81,7 @@ theorem good_induction (xs : List α) : xs.length = n := by
 
 ## Type errors
 
-`#check` is the fastest debugger. The error message usually shows expected vs got — read both sides carefully. For `Uint256`/`Nat` mismatches, extract `.val` or coerce with `ofNat`.
+`#check` is the fastest debugger. The error message usually shows expected vs got, read both sides carefully. For `Uint256`/`Nat` mismatches, extract `.val` or coerce with `ofNat`.
 
 ## `.run`, `.fst`, `.snd`
 
@@ -93,7 +93,7 @@ Verity contracts are `ContractState → ContractResult α`. Three projection pat
 | `((op).run s).fst` | Return value `α` | Prove what a getter returns |
 | `((op).run s).snd` | Output state | Prove how state changes |
 
-`.fst` returns `default` on revert — if the operation might revert, add a guard hypothesis or match the full result. Avoid `Contract.runState`/`Contract.runValue` in new proofs.
+`.fst` returns `default` on revert, if the operation might revert, add a guard hypothesis or match the full result. Avoid `Contract.runState`/`Contract.runValue` in new proofs.
 
 ## Storage reasoning
 
@@ -129,7 +129,7 @@ theorem retrieve_meets_spec (s : ContractState) :
   simp [retrieve, storedData, retrieve_spec]
 ```
 
-Single `simp` with operation + slot + spec — no `unfold` needed.
+Single `simp` with operation + slot + spec, no `unfold` needed.
 
 ### Multi-conjunct spec (Counter)
 
@@ -198,6 +198,6 @@ Prefer one-shot `simp [def, slot, spec]`. Use `unfold` only when `simp` can't ex
 
 ## See also
 
-- [First Contract](/first-contract) — the full workflow this guide drops into.
-- [Core Architecture](/core) — types and the `Contract` monad.
-- [EDSL API Reference](/edsl-api-reference) — every primitive with its simp lemma.
+- [First Contract](/first-contract), the full workflow this guide drops into.
+- [Core Architecture](/core), types and the `Contract` monad.
+- [EDSL API Reference](/edsl-api-reference), every primitive with its simp lemma.

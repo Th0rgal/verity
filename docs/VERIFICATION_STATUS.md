@@ -91,21 +91,16 @@ Key files:
 - [`Contract.lean`](../Compiler/Proofs/IRGeneration/Contract.lean)
 - [`EndToEnd.lean`](../Compiler/Proofs/EndToEnd.lean)
 
-## Layer 3: IR → Yul, GENERIC, WITH EXPLICIT AXIOM BOUNDARY
+## Layer 3: IR → Native EVMYulLean, GENERIC, WITH EXPLICIT AXIOM BOUNDARY
 
-**What it proves today**: Yul code generation preserves IR semantics through a generic statement/function equivalence stack, but the current full dispatch-preservation path still depends on 1 documented bridge hypothesis in [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean). The checked contract-level theorem surface now explicitly requires dispatch-guard safety for each selected function case: word-level zero `msg.value` on non-payable paths.
+**What it proves today**: generated runtime Yul is lowered into EVMYulLean and
+executed through the native `EvmYul.Yul.callDispatcher` theorem stack. The
+public EndToEnd surface compares the projected native dispatcher result with
+IR/source semantics on the observable storage/log/result surface. The old
+fuel-parametric custom Yul executor and preservation/equivalence files are no
+longer part of the checked-in proof tree.
 
-All 8 Yul statement types proven equivalent to IR counterparts. Universal dispatcher theorem:
-
-```lean
-theorem all_stmts_equiv : ∀ selector fuel stmt irState yulState,
-    statesAligned selector irState yulState →
-    execResultsAligned selector
-      (execIRStmt irState stmt)
-      (execYulStmtFuel fuel yulState stmt)
-```
-
-Key files: [`StatementEquivalence.lean`](../Compiler/Proofs/YulGeneration/StatementEquivalence.lean), [`Preservation.lean`](../Compiler/Proofs/YulGeneration/Preservation.lean), [`AXIOMS.md`](../AXIOMS.md)
+Key files: [`EndToEnd.lean`](../Compiler/Proofs/EndToEnd.lean), [`EvmYulLeanNativeHarness.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean), [`EvmYulLeanBodyClosure.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean), [`EvmYulLeanBridgeLemmas.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean), [`AXIOMS.md`](../AXIOMS.md)
 
 ### Phase 4: EVMYulLean Native Dispatcher (safe-body EndToEnd target)
 
@@ -147,11 +142,18 @@ closures unconditionally for the supported fragment.
 - `compileStmtList_internal_recursive_body_fragment_bridged`: mixed internal source-body fragments closed recursively under `Stmt.ite` compile to `BridgedStmts`
 - `compileStmtList_always_bridged`: universal aggregation theorem for `BridgedSafeStmts`; the external-call family (`internalCall`, `internalCallAssign`, `externalCallBind`, and `ecm`) remains outside the whitelist and behind explicit function-table hypotheses
 
-The backend-parameterized executor now has a proved `.verity = .evmYulLean` theorem for recursive statement targets constrained by `BridgedTarget`, and the generated runtime wrapper is proved to preserve that predicate and to execute equivalently under explicit body-closure hypotheses. Those backend-wrapper facts stay below EndToEnd in `EvmYulLeanRetarget.lean`. Body closure now has a universal safe-body aggregation theorem for `BridgedSafeStmts`, while the public EndToEnd theorem family targets native dispatcher execution through `interpretIRRuntimeNative` and keeps the external-call/function-table family carved out where needed.
+The backend-parameterized proof-interpreter bridge has been deleted. Body
+closure now has a universal safe-body aggregation theorem for
+`BridgedSafeStmts`, while the public EndToEnd theorem family targets native
+dispatcher execution through `interpretIRRuntimeNative` and keeps the
+external-call/function-table family carved out where needed.
 
 Native-runtime transition status: the public theorem target is native EVMYulLean dispatcher execution. The executable native EVMYulLean path lives in [`EvmYulLeanNativeHarness.lean`](../Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean), and the remaining theorem-transition plan is tracked in [`NATIVE_EVMYULLEAN_TRANSITION.md`](NATIVE_EVMYULLEAN_TRANSITION.md). The public native EndToEnd surface is the native result comparison/composition surface, the generated call-dispatcher and dispatcher-exec theorem family, and the concrete SimpleStorage theorem; the fuel-indexed `nativeIRRuntimeMatchesIR` seams and positive dispatcher-exec match family are file-local instead of public theorem authority. The no-mapping and mapping generated-dispatcher wrappers consume concrete dispatcher lowering and construct full emitted-runtime native lowering internally, while the call-dispatcher variants expose the actual generated `EvmYul.Yul.callDispatcher` premise and derive the dispatcher-exec projection internally.
 
-Trust boundary (public EndToEnd target): native `EvmYul.Yul.callDispatcher` execution is the public semantic target. The remaining backend-wrapper retargeting facts still mention private `execYulFuelWithBackend`/`interpretYulRuntimeWithBackend .evmYulLean` wrappers as lower-level transition evidence for the bridged safe-body fragment, but `EndToEnd.lean` does not export or privately compose compiler-correctness theorems over that target.
+Trust boundary (public EndToEnd target): native `EvmYul.Yul.callDispatcher`
+execution is the public semantic target. The retained `ReferenceOracle`
+module contains builtin comparison helpers used by bridge lemmas; it is not a
+runtime authority for public compiler correctness.
 
 Not yet proven in this module:
 - external-call/function-table body closure beyond the current `BridgedSafeStmts` whitelist

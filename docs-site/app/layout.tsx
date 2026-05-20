@@ -6,17 +6,38 @@ import './verity-site.css'
 import './verity-code.css'
 
 const SITE_URL = 'https://veritylang.com'
-const SITE_TITLE = 'Verity'
+const SITE_TITLE = 'Verity, Formally Verified Smart Contract Compiler (Lean 4)'
 const SITE_DESCRIPTION =
-  'A Lean-native EDSL for verified smart contracts. Write the spec, write the implementation, and prove they agree — every claim is machine-checked at compile time.'
+  'Verity is a formally verified smart contract compiler for Ethereum, written in Lean 4. Write the spec, write the implementation, and prove they agree. Every claim is machine-checked at compile time, and the compiler itself is proven to preserve semantics from EDSL to EVM bytecode.'
+const SITE_KEYWORDS = [
+  'Verity',
+  'Verity Lang',
+  'veritylang',
+  'formal verification',
+  'smart contract verification',
+  'verified compiler',
+  'Lean 4',
+  'Ethereum',
+  'EVM',
+  'Solidity alternative',
+  'theorem proving',
+  'EDSL',
+  'LFG Labs',
+]
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: SITE_TITLE,
-    template: '%s',
+    template: '%s · Verity',
   },
   description: SITE_DESCRIPTION,
+  keywords: SITE_KEYWORDS,
+  applicationName: 'Verity',
+  authors: [{ name: 'LFG Labs', url: 'https://lfglabs.dev' }],
+  creator: 'LFG Labs',
+  publisher: 'LFG Labs',
+  category: 'technology',
   icons: {
     icon: '/verity.svg',
     shortcut: '/verity.svg',
@@ -24,17 +45,71 @@ export const metadata = {
   },
   openGraph: {
     type: 'website',
-    siteName: SITE_TITLE,
+    siteName: 'Verity',
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     url: SITE_URL,
     locale: 'en_US',
+    images: [
+      {
+        url: '/og.png',
+        width: 1200,
+        height: 630,
+        alt: 'Verity, Formally Verified Smart Contract Compiler (Lean 4)',
+      },
+    ],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
+    images: ['/og.png'],
+    site: '@lfglabsdev',
+    creator: '@lfglabsdev',
   },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-snippet': -1,
+      'max-image-preview': 'large',
+      'max-video-preview': -1,
+    },
+  },
+}
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'SoftwareApplication',
+      name: 'Verity',
+      applicationCategory: 'DeveloperApplication',
+      operatingSystem: 'Cross-platform',
+      url: SITE_URL,
+      description: SITE_DESCRIPTION,
+      programmingLanguage: 'Lean 4',
+      license: 'https://github.com/lfglabs-dev/verity/blob/main/LICENSE.md',
+      codeRepository: 'https://github.com/lfglabs-dev/verity',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      author: {
+        '@type': 'Organization',
+        name: 'LFG Labs',
+        url: 'https://lfglabs.dev',
+      },
+    },
+    {
+      '@type': 'Organization',
+      name: 'LFG Labs',
+      url: 'https://lfglabs.dev',
+      sameAs: [
+        'https://github.com/lfglabs-dev',
+        'https://lfglabs.dev',
+      ],
+    },
+  ],
 }
 
 const navbar = (
@@ -63,6 +138,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
           {children}
         </Layout>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
       </body>
     </html>
   )

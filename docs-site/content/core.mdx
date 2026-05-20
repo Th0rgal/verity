@@ -63,7 +63,7 @@ inductive ContractResult (α : Type) where
 
 Every contract operation returns either `success` with a value and updated state, or `revert` with an error message and the state at the point of failure.
 
-> **Important**: On revert, the returned state may include mutations from operations that executed *before* the revert. This differs from EVM semantics where REVERT discards all state changes. Contracts must follow the **checks-before-effects pattern** — all `require` guards before any `setStorage`/`setMapping` calls — to ensure the revert state equals the original input state. See [TRUST_ASSUMPTIONS.md](https://github.com/lfglabs-dev/verity/blob/main/TRUST_ASSUMPTIONS.md) and [#254](https://github.com/lfglabs-dev/verity/issues/254) for details.
+> **Important**: On revert, the returned state may include mutations from operations that executed *before* the revert. This differs from EVM semantics where REVERT discards all state changes. Contracts must follow the **checks-before-effects pattern**, all `require` guards before any `setStorage`/`setMapping` calls, to ensure the revert state equals the original input state. See [TRUST_ASSUMPTIONS.md](https://github.com/lfglabs-dev/verity/blob/main/TRUST_ASSUMPTIONS.md) and [#254](https://github.com/lfglabs-dev/verity/issues/254) for details.
 
 ## Contract monad
 
@@ -84,7 +84,7 @@ This gives do-notation with automatic failure propagation. A failed `require` st
 
 ## Primitives
 
-The core types above are operated on by a small surface of EDSL primitives — storage get/set, mapping get/set, context accessors (`msgSender`, `msgValue`, `blockTimestamp`, `contractAddress`), event emission, and the `require` guard. Those are documented in the [EDSL API Reference](/edsl-api-reference); the prose here only covers the *type layer* and the monad, not the operation catalogue.
+The core types above are operated on by a small surface of EDSL primitives, storage get/set, mapping get/set, context accessors (`msgSender`, `msgValue`, `blockTimestamp`, `contractAddress`), event emission, and the `require` guard. Those are documented in the [EDSL API Reference](/edsl-api-reference); the prose here only covers the *type layer* and the monad, not the operation catalogue.
 
 The shape of every primitive is the same: it's a `Contract α` value, which is `ContractState → ContractResult α`. Read-only primitives like `msgSender` and `getStorage` always emit `ContractResult.success`; write primitives like `setStorage` return `success ()` with a modified `ContractState`. `require` is the one operation that may emit `ContractResult.revert`, preserving the original state.
 
@@ -106,11 +106,11 @@ Every storage operation, context accessor, and event function has a full-result 
   (require false msg).run s = ContractResult.revert msg s := rfl
 ```
 
-Older `_fst`/`_snd` projection lemmas also exist, but the full-result forms above are preferred — they prove success, value, and state in one shot. Most simple properties can be proven by `simp only [...]` with the right set of definitions.
+Older `_fst`/`_snd` projection lemmas also exist, but the full-result forms above are preferred, they prove success, value, and state in one shot. Most simple properties can be proven by `simp only [...]` with the right set of definitions.
 
 ## Why ContractResult instead of StateM
 
-A plain `StateM ContractState α` monad cannot model `require` failures — proofs would have to assume guards pass (introducing axioms). `ContractResult` makes success/failure explicit, so proofs reason about both paths with no axioms. The cost is a small amount of extra infrastructure (the `ContractResult` type, custom `bind`, and simp lemmas).
+A plain `StateM ContractState α` monad cannot model `require` failures, proofs would have to assume guards pass (introducing axioms). `ContractResult` makes success/failure explicit, so proofs reason about both paths with no axioms. The cost is a small amount of extra infrastructure (the `ContractResult` type, custom `bind`, and simp lemmas).
 
 ## Type safety
 
@@ -140,13 +140,13 @@ Specs express what a function **did not change**. `Verity/Specs/Common.lean` pro
 
 Three layers, narrowest first:
 
-- **Atomic** — one field at a time: `sameStorage`, `sameStorageAddr`, `sameStorageMap`, `sameStorageMapUint`, `sameStorageMap2`, `sameContext`.
-- **Mixed** (most common in practice) — two storage checks + `sameContext`:
-  - `sameAddrMapContext` — use when only `setStorage` (uint256 slot) writes.
-  - `sameStorageMapContext` — use when only `setStorageAddr` writes.
-  - `sameStorageAddrContext` — use when only `setMapping` writes.
-- **Composite** (strictest) — everything except one storage type: `sameExceptStorage`, `sameExceptStorageAddr`, `sameExceptStorageMap`, `sameExceptStorageMapUint`, `sameExceptStorageMap2`. `sameAllStorage` covers context-only writes. All composites include `sameContext`.
-- **Fine-grained** — for single-entry mapping updates: `storageUnchangedExcept slot`, `storageAddrUnchangedExcept slot`, `storageMapUnchangedExceptKeyAtSlot slot addr`, `storageMapUnchangedExceptKeysAtSlot slot a1 a2` (transfers), `storageMapUintUnchangedExceptSlot`, `storageMapUintUnchangedExceptKey`, `storageMap2UnchangedExceptSlot`.
+- **Atomic**, one field at a time: `sameStorage`, `sameStorageAddr`, `sameStorageMap`, `sameStorageMapUint`, `sameStorageMap2`, `sameContext`.
+- **Mixed** (most common in practice), two storage checks + `sameContext`:
+  - `sameAddrMapContext`, use when only `setStorage` (uint256 slot) writes.
+  - `sameStorageMapContext`, use when only `setStorageAddr` writes.
+  - `sameStorageAddrContext`, use when only `setMapping` writes.
+- **Composite** (strictest), everything except one storage type: `sameExceptStorage`, `sameExceptStorageAddr`, `sameExceptStorageMap`, `sameExceptStorageMapUint`, `sameExceptStorageMap2`. `sameAllStorage` covers context-only writes. All composites include `sameContext`.
+- **Fine-grained**, for single-entry mapping updates: `storageUnchangedExcept slot`, `storageAddrUnchangedExcept slot`, `storageMapUnchangedExceptKeyAtSlot slot addr`, `storageMapUnchangedExceptKeysAtSlot slot a1 a2` (transfers), `storageMapUintUnchangedExceptSlot`, `storageMapUintUnchangedExceptKey`, `storageMap2UnchangedExceptSlot`.
 
 A counter's `increment` writes only the uint256 count slot, so the unchanged-state predicate is `sameAddrMapContext`. An ERC20 `transfer` (two mapping keys) uses `storageMapUnchangedExceptKeysAtSlot balances.slot from to`.
 

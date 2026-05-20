@@ -1,6 +1,6 @@
 ---
-title: Verity
-description: A Lean-native language for verified smart contracts
+title: Verity, Formally Verified Smart Contract Compiler (Lean 4)
+description: Verity is a Lean-native language for verified smart contracts. Write the spec, write the implementation, and prove they agree, every claim is machine-checked at compile time, with the compiler itself proven to preserve semantics from EDSL to EVM bytecode.
 ---
 
 import { Callout } from 'nextra/components'
@@ -17,7 +17,7 @@ A small, audited Lean EDSL with example contracts that compile to EVM artifacts.
 Every claim is machine-checked and every assumption is documented. Compilation
 correctness rides on `Compiler/Proofs/IRGeneration/Contract.lean` (generic
 whole-contract `CompilationModel -> IR` theorem for the current supported
-fragment) — no per-contract bridge axioms. The full three-layer breakdown lives
+fragment), no per-contract bridge axioms. The full three-layer breakdown lives
 on the [Trust Model](/trust-model) page; the live theorem inventory is on
 [Verification Status](/verification).
 </ReportCallout>
@@ -80,3 +80,5 @@ import { ReadingList } from '../components/ReadingList'
 **For agents and tooling:** see [/llms.txt](/llms.txt), or add `.md` to any
 page URL for raw markdown.
 </Callout>
+
+Verity is a research project by [LFG Labs](https://lfglabs.dev).

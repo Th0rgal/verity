@@ -9,10 +9,10 @@ For cryptographic primitives (Poseidon, Groth16, etc.) that are impractical to i
 
 ## How it works
 
-1. **Yul library** — plain function definitions, no `object` wrapper.
-2. **Lean placeholder** — used only by proofs; never appears in compiled Yul.
-3. **`externals` declaration on the `CompilationModel`** — the linker only injects into contracts that declare what they need.
-4. **`--link` flag** — pass `.yul` library files at compile time.
+1. **Yul library**, plain function definitions, no `object` wrapper.
+2. **Lean placeholder**, used only by proofs; never appears in compiled Yul.
+3. **`externals` declaration on the `CompilationModel`**, the linker only injects into contracts that declare what they need.
+4. **`--link` flag**, pass `.yul` library files at compile time.
 
 ## Walkthrough
 
@@ -105,6 +105,6 @@ lake exe verity-compiler-patched --enable-patches --patch-report artifacts/patch
 
 ## Common errors
 
-- `Unresolved external references: <name>` — missing `--link`, or the name doesn't match between `CompilationModel` and the `.yul` file (case-sensitive).
-- `Arity mismatch: <name>: called with N args but library defines M params` — return values don't count as parameters.
-- Contract works with the placeholder but reverts at runtime — usually gas, or the library returns an unexpected shape. Run Foundry tests against the linked Yul.
+- `Unresolved external references: <name>`, missing `--link`, or the name doesn't match between `CompilationModel` and the `.yul` file (case-sensitive).
+- `Arity mismatch: <name>: called with N args but library defines M params`, return values don't count as parameters.
+- Contract works with the placeholder but reverts at runtime, usually gas, or the library returns an unexpected shape. Run Foundry tests against the linked Yul.

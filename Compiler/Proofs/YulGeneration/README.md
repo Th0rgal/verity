@@ -2,37 +2,23 @@
 
 This directory contains the verification proofs for Layer 3 (IR → Yul) of the Verity compiler pipeline.
 
-**Status**: Legacy reference-oracle stack complete; native EVMYulLean dispatcher
-retargeting is in progress. The public end-to-end native target is now the
-`EvmYul.Yul.callDispatcher` theorem stack in `Compiler/Proofs/EndToEnd.lean`,
-not the fuel-parametric proof-interpreter preservation theorem in this
-directory.
+**Status**: native EVMYulLean dispatcher execution is the public Layer 3
+target. The active end-to-end native surface is the
+`EvmYul.Yul.callDispatcher` theorem stack in `Compiler/Proofs/EndToEnd.lean`.
+The old fuel-parametric custom Yul executor, preservation stack, and
+`EvmYulLeanRetarget.lean` bridge have been removed. The remaining
+`ReferenceOracle` files are builtin comparison helpers used below the public
+trust boundary, not an alternate compiler-correctness target.
 
 ## File Overview
 
-- **`ReferenceOracle/Semantics.lean`** - Legacy executable oracle for Yul execution
-  - State model (variables, storage, mappings, memory, calldata)
-  - Expression evaluation (arithmetic, selectors, storage access)
-  - Statement execution with fuel-parametric recursion
+- **`ReferenceOracle/Builtins.lean`** - Legacy builtin comparison oracle
+  - Defines the Verity-side builtin evaluator used by bridge lemmas
+  - Proves agreement with the EVMYulLean-backed builtin evaluator
+  - Kept out of the public EndToEnd semantic target
 
-- **`Equivalence.lean`** - State alignment and result matching definitions
-  - `statesAligned` - Defines when IR and Yul states correspond
-  - `execResultsAligned` - Defines when execution results match
-  - `resultsMatch` - Final result equivalence predicate
-  - `execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv` - Statement list composition theorem
-
-- **`Preservation.lean`** - Legacy Layer 3 preservation theorem
-  - Proves Yul codegen preserves IR semantics for the reference-oracle path
-  - Kept as regression evidence while public compiler-correctness wrappers
-    route through the native dispatcher stack
-
-- **`StatementEquivalence.lean`** - Statement-level equivalence proofs
-  - All 8 statement types proven (assign, storage load/store, mapping load/store, conditional, return, revert)
-  - Universal dispatcher (`all_stmts_equiv`) via mutual recursion with `conditional_equiv`
-  - Statement list composition via `execIRStmtsFuel_equiv_execYulStmtsFuel_of_stmt_equiv` in Equivalence.lean
-
-- **`Codegen.lean`** - Yul code generation helper lemmas
-  - Switch case generation and selector mapping
+- **`ReferenceOracle/State.lean`** - Compatibility re-export for shared
+  runtime state types
 
 - **`Backends/EvmYulLeanNativeHarness.lean`** - Native EVMYulLean execution
   harness
@@ -40,27 +26,32 @@ directory.
   - Provides the native `callDispatcher` result surface used by the active
     end-to-end theorem stack
 
-- **`Backends/EvmYulLeanRetarget.lean`** - Bridged-fragment backend equivalence
-  evidence
-  - Keeps proof-interpreter/EVMYulLean backend equivalence isolated to the
-    bridged fragment
-  - Does not export contract-level proof-interpreter preservation as public
-    compiler-correctness authority
+- **`Backends/EvmYulLeanBodyClosure.lean`** - Native safe-body closure layer
+  - Packages supported source fragments into `BridgedSafeStmts`
+  - Proves emitted Yul fragments satisfy native bridge predicates
 
-- **`Lemmas.lean`** - General utility lemmas
+- **`Backends/EvmYulLeanBridgeLemmas.lean`** - Builtin agreement layer
+  - Proves the Verity-side builtin comparison oracle agrees with EVMYulLean
+  - Covers the pure, environment, calldata, storage, and helper builtin cases
+
+- **`Backends/EvmYulLeanBridgePredicates.lean`** - Native bridge predicates
+  for source expressions, statements, and generated bodies
+
+- **`Backends/EvmYulLeanCallClosure.lean`** - Function-table-aware closure
+  scaffolding for external-call families that are not yet admitted into the
+  public safe-body EndToEnd wrapper
 
 - **`PatchRulesProofs.lean`** - Proof hooks for deterministic Yul patch rules
   - Defines `ExprPatchPreservesUnder` backend-agnostic proof contract for patch correctness
   - Registers evaluator-law proof obligations for the foundation patch pack (`or(x,0)`, `or(0,x)`, `xor(x,0)`, `xor(0,x)`, `and(x,0)`)
 
-## Expression Equivalence Theorems
+## Native Boundary
 
-Two expression evaluation theorems in `StatementEquivalence.lean`, proven by mutual structural induction:
-
-1. `evalIRExpr_eq_evalYulExpr` - IR and Yul expression evaluation are identical when states are aligned
-2. `evalIRExprs_eq_evalYulExprs` - List version of the above
-
-These were previously axioms but were eliminated by making the IR interpreter total (PR #241). The proof works because both eval functions have identical structure and `yulStateOfIR` copies all fields (including `selector`).
+The public compiler-correctness path does not compose through a custom Yul
+interpreter. It lowers generated runtime Yul into EVMYulLean and compares the
+projected native dispatcher result with IR/source semantics. Legacy builtin
+comparison lemmas are retained only to discharge bridge predicates for emitted
+fragments.
 
 ## References
 
