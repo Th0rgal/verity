@@ -160,7 +160,8 @@ The cleanup path is to split this file into:
 - a small compatibility module imported only by tests or historical proofs.
 
 `FunctionBody.lean` now consumes direct native facts from
-`EvmYulLeanBuiltinSemantics.lean` and `EvmYulLeanPureBuiltinLemmas.lean`; the
+`EvmYulLeanBuiltinSemantics.lean` and `EvmYulLeanPureBuiltinLemmas.lean`, and the
+remaining direct native `byte` wrapper facts have moved out of this module. The
 remaining work is to decide whether the legacy comparison module should remain
 as test coverage or leave the axiom-report target entirely.
 

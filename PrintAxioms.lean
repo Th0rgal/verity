@@ -55,6 +55,7 @@ import Compiler.Proofs.StorageBounds
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBodyClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanCallClosure
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeLowering
@@ -3826,8 +3827,6 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.YulGeneration.Backends.verity_eval_byte_normalized  -- private
   -- Compiler.Proofs.YulGeneration.Backends.bridge_eval_byte_normalized  -- private
   Compiler.Proofs.YulGeneration.Backends.evalBuiltinCall_byte_bridge
-  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean_byte_uint256
-  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext_byte_uint256
   Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithBackend_evmYulLean_byte_bridge
   -- Compiler.Proofs.YulGeneration.Backends.verity_eval_slt_normalized  -- private
   -- Compiler.Proofs.YulGeneration.Backends.bridge_eval_slt_normalized  -- private
@@ -4069,6 +4068,10 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_log
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_singleton_funcDef
   Compiler.Proofs.YulGeneration.Backends.BridgedStmts_cons_funcDef
+
+  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBuiltinSemantics.lean
+  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallViaEvmYulLean_byte_uint256
+  Compiler.Proofs.YulGeneration.Backends.evalBuiltinCallWithEvmYulLeanContext_byte_uint256
 
   -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanCallClosure.lean
   Compiler.Proofs.YulGeneration.Backends.BridgedFunctionTable.bodies_bridged
