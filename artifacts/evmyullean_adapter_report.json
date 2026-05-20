@@ -216,6 +216,7 @@
   ],
   "missing_expr_cases": [],
   "missing_stmt_cases": [],
+  "native_lowering_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeLowering.lean",
   "schema_version": 7,
   "status": "ok",
   "stmt_gap_messages": {},
