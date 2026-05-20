@@ -6,9 +6,9 @@ import './verity-site.css'
 import './verity-code.css'
 
 const SITE_URL = 'https://veritylang.com'
-const SITE_TITLE = 'Verity — Formally Verified Smart Contract Compiler (Lean 4)'
+const SITE_TITLE = 'Verity, Formally Verified Smart Contract Compiler (Lean 4)'
 const SITE_DESCRIPTION =
-  'Verity is a formally verified smart contract compiler for Ethereum, written in Lean 4. Write the spec, write the implementation, and prove they agree — every claim is machine-checked at compile time, and the compiler itself is proven to preserve semantics from EDSL to EVM bytecode.'
+  'Verity is a formally verified smart contract compiler for Ethereum, written in Lean 4. Write the spec, write the implementation, and prove they agree. Every claim is machine-checked at compile time, and the compiler itself is proven to preserve semantics from EDSL to EVM bytecode.'
 const SITE_KEYWORDS = [
   'Verity',
   'Verity Lang',
@@ -55,7 +55,7 @@ export const metadata = {
         url: '/og.png',
         width: 1200,
         height: 630,
-        alt: 'Verity — Formally Verified Smart Contract Compiler (Lean 4)',
+        alt: 'Verity, Formally Verified Smart Contract Compiler (Lean 4)',
       },
     ],
   },

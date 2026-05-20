@@ -7,27 +7,27 @@ description: The canonical home for the Layer 1/2/3 framing, the trust boundary,
 
 What you trust when you trust a Verity contract: the Lean kernel, the Yul
 compiler, the deployment toolchain, the EVM specification itself, and the
-short list of axioms documented in `AXIOMS.md`. Everything else — the EDSL
+short list of axioms documented in `AXIOMS.md`. Everything else, the EDSL
 semantics, the `CompilationModel → IR` transformation, the `IR → Yul`
-preservation, and the per-contract specifications — is machine-checked.
+preservation, and the per-contract specifications, is machine-checked.
 
 ## The three layers
 
 Correctness is organized into three nested boundaries. Each layer states what
 is verified and what is explicitly *not* yet.
 
-### Layer 1 — spec ↔ EDSL
+### Layer 1, spec ↔ EDSL
 
 The frontend bridge. An EDSL implementation written in `Contracts/<Name>/` is
 proven equivalent to its `CompilationModel`, and per-contract proofs in
 `Contracts/<Name>/Proofs/` show that the EDSL satisfies a human-readable
 `Spec.lean`. **What's verified:** functional behavior of every supported
 primitive, success/revert paths via `ContractResult`, storage isolation and
-context preservation. **What's not:** the spec itself is a human artifact —
+context preservation. **What's not:** the spec itself is a human artifact ,
 Layer 1 cannot tell you that the spec is the *right* specification for your
 business problem.
 
-### Layer 2 — EDSL ↔ IR / CompilationModel
+### Layer 2, EDSL ↔ IR / CompilationModel
 
 The compiler middle. The generic whole-contract theorem in
 `Compiler/Proofs/IRGeneration/Contract.lean` proves that
@@ -37,12 +37,12 @@ eliminated; legacy contract-specific bridge theorems now sit above the generic
 compiler theorem as wrappers. **What's verified:** every statement and
 expression constructor in the supported fragment lowers to semantically
 equivalent IR. **What's not:** features marked as "not modeled" in the trust
-report — including parts of low-level call mechanics, linear-memory primitives
+report, including parts of low-level call mechanics, linear-memory primitives
 (`mload`/`mstore`/`calldatacopy`/`returndatacopy`), raw `rawLog` event
 emission, and `keccak256` (still axiomatized end-to-end). Each carries a
 `--deny-*` flag for proof-strict builds.
 
-### Layer 3 — IR ↔ Yul / EVM
+### Layer 3, IR ↔ Yul / EVM
 
 The backend. `IR → Yul` preservation is proved in
 `Compiler/Proofs/YulGeneration/`, with the remaining dispatcher bridge exposed
@@ -58,7 +58,7 @@ outside the proof envelope.
 
 What remains outside the proof envelope is **assumptions**, not axioms:
 
-- **Externally Callable Modules (ECMs)** in `Compiler/Modules/*.lean` carry named assumptions like `erc20_balanceOf_interface`, `evm_ecrecover_precompile`, `keccak256_memory_slice_matches_evm`. These are trust-report metadata, not Lean axioms — they document that the call mechanics depend on the EVM behaving as specified.
+- **Externally Callable Modules (ECMs)** in `Compiler/Modules/*.lean` carry named assumptions like `erc20_balanceOf_interface`, `evm_ecrecover_precompile`, `keccak256_memory_slice_matches_evm`. These are trust-report metadata, not Lean axioms, they document that the call mechanics depend on the EVM behaving as specified.
 - **`local_obligations`** declared on a constructor or function carry a named refinement obligation at that exact usage site.
 - **Not-modeled features** (parts of low-level call mechanics, linear-memory primitives, raw `rawLog`, dynamic `keccak256` over memory) compile but the proof interpreter does not yet model their full semantics.
 
@@ -97,6 +97,6 @@ The compiler exports the per-build view of all of this: `--assumption-report <pa
 
 ## See also
 
-- [Verification](/verification) — live theorem and proof-status inventory.
-- [Proof Techniques](/proof-techniques) — how proofs are structured, and what
+- [Verification](/verification), live theorem and proof-status inventory.
+- [Proof Techniques](/proof-techniques), how proofs are structured, and what
   is currently out of scope.

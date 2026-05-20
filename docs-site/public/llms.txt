@@ -60,30 +60,30 @@ The dominant pattern is `_meets_spec`: each EDSL operation has a `_spec` predica
 ## Documentation index
 
 Introduction:
-- https://veritylang.com/architecture — single-page system map
-- https://veritylang.com/trust-model — what is verified vs trusted
+- https://veritylang.com/architecture, single-page system map
+- https://veritylang.com/trust-model, what is verified vs trusted
 
 Tutorials:
-- https://veritylang.com/getting-started — local setup
-- https://veritylang.com/first-contract — guided spec→proof walkthrough (TipJar)
+- https://veritylang.com/getting-started, local setup
+- https://veritylang.com/first-contract, guided spec→proof walkthrough (TipJar)
 
 How-to:
 - https://veritylang.com/guides/add-contract
 - https://veritylang.com/guides/solidity-to-verity
-- https://veritylang.com/guides/production-solidity-patterns — modifiers, ERC-7201 namespaces, ECMs, oracle patterns
-- https://veritylang.com/guides/linking-libraries — `--link` for external Yul (Poseidon, etc.)
+- https://veritylang.com/guides/production-solidity-patterns, modifiers, ERC-7201 namespaces, ECMs, oracle patterns
+- https://veritylang.com/guides/linking-libraries, `--link` for external Yul (Poseidon, etc.)
 - https://veritylang.com/guides/debugging-proofs
 
 Reference:
-- https://veritylang.com/examples — SimpleStorage / Counter / SafeCounter / Owned / OwnedCounter / Ledger / SimpleToken / Vault / ERC721 / ReentrancyExample / CryptoHash / ERC20
-- https://veritylang.com/core — ContractState, Contract monad, spec helpers (`sameAddrMapContext` etc.)
-- https://veritylang.com/edsl-api-reference — every primitive, plus `verity_contract` macro features
-- https://veritylang.com/compiler — pipeline, CLI flags, audit artifacts
-- https://veritylang.com/verification — per-contract theorem inventory
+- https://veritylang.com/examples, SimpleStorage / Counter / SafeCounter / Owned / OwnedCounter / Ledger / SimpleToken / Vault / ERC721 / ReentrancyExample / CryptoHash / ERC20
+- https://veritylang.com/core, ContractState, Contract monad, spec helpers (`sameAddrMapContext` etc.)
+- https://veritylang.com/edsl-api-reference, every primitive, plus `verity_contract` macro features
+- https://veritylang.com/compiler, pipeline, CLI flags, audit artifacts
+- https://veritylang.com/verification, per-contract theorem inventory
 - https://veritylang.com/glossary
 
 Explanation:
-- https://veritylang.com/proof-techniques — guard modeling, unfolding, list-sum reasoning
+- https://veritylang.com/proof-techniques, guard modeling, unfolding, list-sum reasoning
 - https://veritylang.com/faq
 
 ## Working effectively in this codebase

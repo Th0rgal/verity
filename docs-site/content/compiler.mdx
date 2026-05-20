@@ -1,6 +1,6 @@
 ---
 title: Compiler & CLI
-description: The Verity compiler — pipeline, CLI usage, and the CompilationModel surface.
+description: The Verity compiler, pipeline, CLI usage, and the CompilationModel surface.
 ---
 
 # Compiler & CLI
@@ -16,8 +16,8 @@ EDSL Contract  →  CompilationModel  →  IR  →  Yul  →  EVM Bytecode
 `CompilationModel` is the declarative surface: storage fields, function bodies, constructor params, events. The compiler infers slots, looks up selectors, lowers expressions/statements to IR, generates Yul, and hands off to `solc` for the final bytecode step.
 
 > Verity has two **distinct** "spec" concepts:
-> 1. **Logical specs** in `Contracts/<Name>/Spec.lean` — `Prop` statements used for proofs.
-> 2. **Compiler specs** in `Compiler/Specs.lean` — `CompilationModel` values used for code generation.
+> 1. **Logical specs** in `Contracts/<Name>/Spec.lean`, `Prop` statements used for proofs.
+> 2. **Compiler specs** in `Compiler/Specs.lean`, `CompilationModel` values used for code generation.
 
 ### Modules
 
@@ -52,10 +52,10 @@ See the [Linking External Libraries](/guides/linking-libraries) guide.
 
 The CLI emits machine-readable audit artifacts alongside Yul/ABI:
 
-- `--trust-report <path>` — proof-boundary and assumption data.
-- `--assumption-report <path>` — flattened assumption inventory grouped by contract and usage site. Direct assembly-shaped primitives without any `local_obligations [...]` fail closed.
-- `--layout-report <path>` — resolved storage-slot metadata, alias writes, reserved-slot policy.
-- `--layout-compat-report <path>` — baseline vs candidate layout compatibility for upgrade reviews. Pair with `--deny-layout-incompatibility` to fail closed on incompatible upgrades.
+- `--trust-report <path>`, proof-boundary and assumption data.
+- `--assumption-report <path>`, flattened assumption inventory grouped by contract and usage site. Direct assembly-shaped primitives without any `local_obligations [...]` fail closed.
+- `--layout-report <path>`, resolved storage-slot metadata, alias writes, reserved-slot policy.
+- `--layout-compat-report <path>`, baseline vs candidate layout compatibility for upgrade reviews. Pair with `--deny-layout-incompatibility` to fail closed on incompatible upgrades.
 
 For proof-strict builds, deny flags lock down the trust surface. Each one fails the build closed when the corresponding category of assumption appears:
 
@@ -223,13 +223,13 @@ Not compiled: `ReentrancyExample` (inline proofs only). `CryptoHash` compiles vi
 
 ## Trust boundary
 
-Three verified layers — EDSL ↔ CompilationModel, CompilationModel ↔ IR, IR ↔ Yul. The `solc` Yul-to-bytecode step and the EVM execution model itself are trusted, not verified. See [Trust Model](/trust-model).
+Three verified layers, EDSL ↔ CompilationModel, CompilationModel ↔ IR, IR ↔ Yul. The `solc` Yul-to-bytecode step and the EVM execution model itself are trusted, not verified. See [Trust Model](/trust-model).
 
 **Layer 2 boundary today**: the generic whole-contract `CompilationModel -> IR` theorem is proved for the current explicit supported fragment. The former exact-state body-simulation axiom has been eliminated; the remaining dispatcher bridge is an explicit theorem hypothesis rather than a Lean axiom, so legacy contract-specific bridge theorems are wrappers above the generic theorem rather than independent assumptions.
 
 ## See also
 
-- [Trust Model](/trust-model) — what the audit artifacts bound.
-- [Verification Status](/verification) — theorem inventory.
-- [Examples](/examples) — the validated contract set with code excerpts.
+- [Trust Model](/trust-model), what the audit artifacts bound.
+- [Verification Status](/verification), theorem inventory.
+- [Examples](/examples), the validated contract set with code excerpts.
 - [Linking External Libraries](/guides/linking-libraries).

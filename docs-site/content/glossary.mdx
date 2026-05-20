@@ -68,7 +68,7 @@ The executable EDSL body of a contract function, lowered from
 
 ### Invariant
 
-A property that should hold of `ContractState` at every reachable point —
+A property that should hold of `ContractState` at every reachable point ,
 typically conservation, isolation, or well-formedness. Lives in
 `Contracts/<Name>/Invariants.lean` and is proved over the implementation.
 
@@ -134,10 +134,10 @@ conjunctions. Distinct from the *compiler* spec (a `CompilationModel`).
 
 The four-file shape of a Verity contract:
 
-- **Spec** — `Spec.lean`, the `Prop` statement of intended behavior.
-- **Invariant** — `Invariants.lean`, properties that should always hold.
-- **Implementation** — the executable EDSL in `<Name>.lean`.
-- **Proof** — the Lean term in `Proofs/` that ties the implementation to the
+- **Spec**, `Spec.lean`, the `Prop` statement of intended behavior.
+- **Invariant**, `Invariants.lean`, properties that should always hold.
+- **Implementation**, the executable EDSL in `<Name>.lean`.
+- **Proof**, the Lean term in `Proofs/` that ties the implementation to the
   spec.
 
 ### Trust report

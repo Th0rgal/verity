@@ -9,20 +9,20 @@ All three pipeline layers (EDSL → CompilationModel → IR → Yul) are complet
 
 ## Per-contract proof coverage
 
-Counts are theorems in each module. Read the actual statements in [`Contracts/<Name>/Proofs/`](https://github.com/lfglabs-dev/verity/tree/main/Contracts) — Lean is the source of truth.
+Counts are theorems in each module. Read the actual statements in [`Contracts/<Name>/Proofs/`](https://github.com/lfglabs-dev/verity/tree/main/Contracts), Lean is the source of truth.
 
 | Contract | Basic | Correctness | Conservation / Supply | Isolation | Native | Total |
 |----------|-------|-------------|----------------------|-----------|--------|-------|
-| SimpleStorage | 13 | 7 | — | — | — | 20 |
-| Counter | 19 | 9 | — | — | — | 28 |
-| SafeCounter | 20 | 8 | — | — | — | 28 |
-| Owned | 19 | 4 | — | — | — | 23 |
-| OwnedCounter | 33 | 6 | — | 14 | — | 53 |
-| Ledger | 24 | 6 | 7 (conservation) | — | — | 37 |
-| SimpleToken | 40 | 10 | 6 (supply) | 12 | — | 68 |
-| ERC20 | 15 | 7 | — | — | 3 | 25 |
-| ERC721 | 6 | 5 | — | — | — | 11 |
-| Vault (ERC-4626) | scaffold | scaffold | scaffold | — | 3 | 3 |
+| SimpleStorage | 13 | 7 |, |, |, | 20 |
+| Counter | 19 | 9 |, |, |, | 28 |
+| SafeCounter | 20 | 8 |, |, |, | 28 |
+| Owned | 19 | 4 |, |, |, | 23 |
+| OwnedCounter | 33 | 6 |, | 14 |, | 53 |
+| Ledger | 24 | 6 | 7 (conservation) |, |, | 37 |
+| SimpleToken | 40 | 10 | 6 (supply) | 12 |, | 68 |
+| ERC20 | 15 | 7 |, |, | 3 | 25 |
+| ERC721 | 6 | 5 |, |, |, | 11 |
+| Vault (ERC-4626) | scaffold | scaffold | scaffold |, | 3 | 3 |
 | ReentrancyExample | 5 inline (vulnerability witness + safety proofs) | | | | | 5 |
 
 The **Native** column counts theorems that pin the IR / Yul lowering to the EVMYulLean-bridged backend (`Contracts/<Name>/Proofs/Native.lean`).
@@ -42,13 +42,13 @@ Reusable proof infrastructure in `Verity/Proofs/Stdlib/`:
 
 ## Compiler proofs
 
-- **Generic whole-contract Layer 2 theorem**: `Compiler/Proofs/IRGeneration/Contract.lean` — `CompilationModel.compile` correctness for the supported fragment.
+- **Generic whole-contract Layer 2 theorem**: `Compiler/Proofs/IRGeneration/Contract.lean`, `CompilationModel.compile` correctness for the supported fragment.
 - **End-to-end**: `Compiler/Proofs/EndToEnd.lean`.
-- **Typed IR**: `Compiler/TypedIRCompilerCorrectness.lean` — 36 supported statement fragments including ABI-head tuples, bytes, fixed/dynamic arrays, and strings as word-typed inputs.
+- **Typed IR**: `Compiler/TypedIRCompilerCorrectness.lean`, 36 supported statement fragments including ABI-head tuples, bytes, fixed/dynamic arrays, and strings as word-typed inputs.
 - **Yul semantics + preservation**: `Compiler/Proofs/YulGeneration/`, with an EVMYulLean-bridged native backend in `Compiler/Proofs/YulGeneration/Backends/`.
 
 ## See also
 
-- [Proof Techniques](/proof-techniques) — guard modeling, unfolding, list-sum reasoning.
-- [Trust Model](/trust-model) — what each theorem rules out, what assumptions remain.
-- [Examples Gallery](/examples) — sources the theorems apply to.
+- [Proof Techniques](/proof-techniques), guard modeling, unfolding, list-sum reasoning.
+- [Trust Model](/trust-model), what each theorem rules out, what assumptions remain.
+- [Examples Gallery](/examples), sources the theorems apply to.

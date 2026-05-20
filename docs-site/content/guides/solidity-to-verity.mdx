@@ -1,6 +1,6 @@
 ---
 title: Solidity to Verity
-description: Practical mappings for porting a Solidity contract into the verity_contract surface — first-pass syntax, restructuring patterns, and a worked walkthrough.
+description: Practical mappings for porting a Solidity contract into the verity_contract surface, first-pass syntax, restructuring patterns, and a worked walkthrough.
 ---
 
 # Solidity-to-Verity Translation Guide
@@ -225,7 +225,7 @@ def transfer (to : Address) (amount : Uint256) : Contract Unit := do
   emitEvent "Transfer" [amount] [addressToWord sender, addressToWord to]
 ```
 
-Use `getMapping` / `setMapping` for individual entries — there is no whole-mapping read or function-shaped write in the EDSL. Keep `require` guards before any `setMapping` mutation so the revert state equals the input state.
+Use `getMapping` / `setMapping` for individual entries, there is no whole-mapping read or function-shaped write in the EDSL. Keep `require` guards before any `setMapping` mutation so the revert state equals the input state.
 
 ### Step C: Write the spec shape
 
@@ -252,7 +252,7 @@ Pick the right "unchanged" helper from [`Verity.Specs.Common`](/core#spec-helper
 
 ### Step D: Prove with existing automation
 
-Use the `_meets_spec` convention — single `simp` with the operation, slot names, spec definition, and any guard hypothesis:
+Use the `_meets_spec` convention, single `simp` with the operation, slot names, spec definition, and any guard hypothesis:
 
 ```verity
 theorem transfer_meets_spec (s : ContractState) (to : Address) (amount : Uint256)

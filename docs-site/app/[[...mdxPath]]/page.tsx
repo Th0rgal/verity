@@ -16,7 +16,7 @@ export async function generateMetadata(props: { params: Promise<{ mdxPath?: stri
     ? {
         title: {
           absolute:
-            'Verity — Formally Verified Smart Contract Compiler (Lean 4)',
+            'Verity, Formally Verified Smart Contract Compiler (Lean 4)',
         },
       }
     : {}

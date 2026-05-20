@@ -86,7 +86,7 @@ emitEvent "Transfer" [amount] [fromAddr, toAddr]
 
 ### Wrapping (`Uint256`)
 
-`add`, `sub`, `mul`, `pow`, `div`, `mod` — EVM modular arithmetic. `pow a b` / `a ^ b` compiles to Yul `exp(a, b)`.
+`add`, `sub`, `mul`, `pow`, `div`, `mod`, EVM modular arithmetic. `pow a b` / `a ^ b` compiles to Yul `exp(a, b)`.
 
 ```verity
 let z : Uint256 := add x y
@@ -140,7 +140,7 @@ Each entry lowers into `localObligations`, surfaces in `--trust-report`, and par
 
 ### Same-contract helpers
 
-Call helpers with ordinary function-call syntax — do not write `internalCall` directly (those are post-lowering IR nodes).
+Call helpers with ordinary function-call syntax, do not write `internalCall` directly (those are post-lowering IR nodes).
 
 ```verity
 storeBump x
@@ -203,7 +203,7 @@ immutables
   domainTag    : Bytes32 := 42
 ```
 
-Constants inline into `Expr` trees at compile time; constant bodies cannot reference runtime builtins (`blockTimestamp`, calldata reads, low-level opcodes, etc.) — those are rejected at elaboration. Immutables lower to read-only `__immutable_<name>` slots seeded in the constructor. Supported immutable types: `Uint256`, `Uint8`, `Address`, `Bytes32`, `Bool`.
+Constants inline into `Expr` trees at compile time; constant bodies cannot reference runtime builtins (`blockTimestamp`, calldata reads, low-level opcodes, etc.), those are rejected at elaboration. Immutables lower to read-only `__immutable_<name>` slots seeded in the constructor. Supported immutable types: `Uint256`, `Uint8`, `Address`, `Bytes32`, `Bool`.
 
 Storage, constants, immutables, and functions share one namespace; duplicate or cross-kind reuse is rejected with explicit diagnostics. Generated names (`spec`, `<name>_modelBody`, `<name>_model`, `<name>_bridge`, `<name>_semantic_preservation`) are reserved.
 
@@ -226,7 +226,7 @@ Populates `spec.externals` with assumed foreign signatures. Single-word argument
 rawLog [topic0, add topic1 1] dataOffset dataSize
 ```
 
-Lowers to `Stmt.rawLog`. Supports 0–4 topics (`log0`–`log4`). Classified as not-modeled event emission in the trust report — use `--deny-event-emission` for proof-strict runs.
+Lowers to `Stmt.rawLog`. Supports 0–4 topics (`log0`–`log4`). Classified as not-modeled event emission in the trust report, use `--deny-event-emission` for proof-strict runs.
 
 ### Transient storage (EIP-1153)
 
@@ -247,7 +247,7 @@ returnArray amounts
 
 `arrayElement` is bounds-checked (compiled path reverts on out-of-range; executable fallback mirrors). Supports scalar arrays and ABI-decodable static/nested struct arrays. Dynamic-element arrays (`Array Bytes`, `Array String`) support `arrayLength` only; indexed reads and `returnArray` are rejected for those until offset-aware lowering lands.
 
-`String`/`Bytes` support ABI transport (`returnBytes`, custom-error/event payloads, parameter flow) and direct `==`/`!=` checks. Other word-level operators (`<`, `add`, `logicalAnd`) on `String`/`Bytes` are rejected — applies to function bodies, constructor bodies, constants, and immutable initializers.
+`String`/`Bytes` support ABI transport (`returnBytes`, custom-error/event payloads, parameter flow) and direct `==`/`!=` checks. Other word-level operators (`<`, `add`, `logicalAnd`) on `String`/`Bytes` are rejected, applies to function bodies, constructor bodies, constants, and immutable initializers.
 
 ### Modifiers, structs, ADTs, and namespaced storage
 
@@ -272,7 +272,7 @@ Populates `CompilationModel.errors`; guarded and unconditional custom-error exit
 
 ## External Calls (ECM)
 
-External calls are modeled as **Externally Callable Modules** (ECMs) — statement constructors that ABI-encode arguments, perform a `call` / `staticcall`, validate the return shape, and bind the result word. They carry explicit trust-report metadata; module-level `axioms` apply rather than pure `simp`-style contract lemmas.
+External calls are modeled as **Externally Callable Modules** (ECMs), statement constructors that ABI-encode arguments, perform a `call` / `staticcall`, validate the return shape, and bind the result word. They carry explicit trust-report metadata; module-level `axioms` apply rather than pure `simp`-style contract lemmas.
 
 ### ERC-20 helpers
 

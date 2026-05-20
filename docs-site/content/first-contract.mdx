@@ -30,13 +30,13 @@ python3 scripts/generate_contract.py TipJar \
 ```
 
 This creates all required files:
-- `Contracts/TipJar/Spec.lean` — formal specification
-- `Contracts/TipJar/Invariants.lean` — state invariants
-- `Contracts/TipJar/SpecProofs.lean` — compilation correctness re-export
-- `Contracts/TipJar/TipJar.lean` — EDSL implementation
-- `Contracts/TipJar/Proofs/Basic.lean` — basic correctness proofs
-- `Contracts/TipJar/Proofs/Correctness.lean` — advanced correctness proofs
-- `test/PropertyTipJar.t.sol` — Foundry tests
+- `Contracts/TipJar/Spec.lean`, formal specification
+- `Contracts/TipJar/Invariants.lean`, state invariants
+- `Contracts/TipJar/SpecProofs.lean`, compilation correctness re-export
+- `Contracts/TipJar/TipJar.lean`, EDSL implementation
+- `Contracts/TipJar/Proofs/Basic.lean`, basic correctness proofs
+- `Contracts/TipJar/Proofs/Correctness.lean`, advanced correctness proofs
+- `test/PropertyTipJar.t.sol`, Foundry tests
 
 Our goal: users deposit a tip (adding to their balance) via `tip(uint256)`, anyone reads a balance via `getBalance(address)`. Balances use EVM modular arithmetic; for Solidity ^0.8 checked behavior, add `require` guards (see `SafeCounter`).
 
@@ -204,11 +204,11 @@ import Contracts.TipJar.Proofs.Basic
 import Contracts.TipJar.Proofs.Correctness
 ```
 
-The scaffold generator prints these exact lines — copy them directly.
+The scaffold generator prints these exact lines, copy them directly.
 
 ## Next steps
 
-- Add access control with `require` + owner pattern — see `Contracts/OwnedCounter/`.
-- Add a `withdraw` with balance checks — see `Contracts/Ledger/`.
+- Add access control with `require` + owner pattern, see `Contracts/OwnedCounter/`.
+- Add a `withdraw` with balance checks, see `Contracts/Ledger/`.
 - Study `SimpleStorage`, `Counter`, `Ledger`, `OwnedCounter` for progressive patterns.
 - [Core Architecture](/core) and [EDSL API Reference](/edsl-api-reference) for the full surface.

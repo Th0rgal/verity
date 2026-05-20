@@ -60,7 +60,7 @@ cd verity
 lake build                # Downloads dependencies and verifies the current proof set
 ```
 
-The first build downloads Mathlib and compiles everything — expect **20–45 minutes** on first run (Mathlib is large). Subsequent builds are incremental and much faster (seconds to minutes).
+The first build downloads Mathlib and compiles everything, expect **20–45 minutes** on first run (Mathlib is large). Subsequent builds are incremental and much faster (seconds to minutes).
 
 ## Explore a proof
 
@@ -73,9 +73,9 @@ lake exe verity-compiler                            # writes artifacts/yul/Simpl
 
 Three directories to keep in mind:
 
-1. `Contracts/<Name>/<Name>.lean` — EDSL implementation, executable Lean code.
-2. `Contracts/<Name>/Spec.lean`, `Invariants.lean`, `Proofs/` — logical specs (`Prop`) and proofs.
-3. `Compiler/Specs.lean` — `CompilationModel` values that generate IR/Yul.
+1. `Contracts/<Name>/<Name>.lean`, EDSL implementation, executable Lean code.
+2. `Contracts/<Name>/Spec.lean`, `Invariants.lean`, `Proofs/`, logical specs (`Prop`) and proofs.
+3. `Compiler/Specs.lean`, `CompilationModel` values that generate IR/Yul.
 
 ## 4. Run the test suite
 
@@ -116,7 +116,7 @@ See the [Linking Libraries guide](/guides/linking-libraries) for details.
 
 ## What to read next
 
-1. **[Example Contracts](/examples)** — Progressive examples from single-slot storage to token transfers
-2. **[Core Architecture](/core)** — The Contract monad, state model, and design decisions
-3. **[First Contract tutorial](/first-contract)** — Hands-on guide building a TipJar from scratch
-4. **[Compiler reference](/compiler)** — Full CompilationModel DSL documentation
+1. **[Example Contracts](/examples)**, Progressive examples from single-slot storage to token transfers
+2. **[Core Architecture](/core)**, The Contract monad, state model, and design decisions
+3. **[First Contract tutorial](/first-contract)**, Hands-on guide building a TipJar from scratch
+4. **[Compiler reference](/compiler)**, Full CompilationModel DSL documentation

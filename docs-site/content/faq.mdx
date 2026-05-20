@@ -16,7 +16,7 @@ system and one kernel.
 Coq and Isabelle have older ecosystems and more developed libraries, but their
 metaprogramming stories make embedding a usable contract DSL substantially
 harder. Dafny is a verification-oriented language rather than a proof
-assistant — it relies on SMT for automation, which is fast for shallow
+assistant, it relies on SMT for automation, which is fast for shallow
 properties but opaque when proofs require nonlinear arithmetic, induction
 over storage state, or precise EVM-shaped reasoning. Lean's tradeoff is more
 manual proof, but the proofs are kernel-checked and the trust base is smaller.
@@ -24,7 +24,7 @@ manual proof, but the proofs are kernel-checked and the trust base is smaller.
 ## Why an EDSL, not a new language?
 
 Building a new language means building a new parser, a new type checker, a
-new elaborator, a new editor integration, and a new proof checker — and then
+new elaborator, a new editor integration, and a new proof checker, and then
 re-justifying that all of those are correct. Embedding the language inside
 Lean 4 inherits all of that for free: the same toolchain that elaborates
 contracts also checks the proofs about them.
@@ -32,8 +32,8 @@ contracts also checks the proofs about them.
 The core is intentionally small (`Verity/Core.lean`): six storage spaces plus transient, a
 `Contract` monad, a `require` guard, and a curated set of `@[simp]` lemmas.
 Every primitive is shallow enough that the standard unfolding-then-`simp`
-recipe works for most properties. New surface syntax — `verity_contract`,
-`local_obligations`, `linked_externals`, ECM helpers — is added via macros
+recipe works for most properties. New surface syntax, `verity_contract`,
+`local_obligations`, `linked_externals`, ECM helpers, is added via macros
 that lower to the same core.
 
 ## What's verified vs what's trusted?
@@ -44,7 +44,7 @@ and invariants. Trusted: the Lean kernel, the Yul compiler (`solc`), the EVM
 specification, the deployment toolchain, and the named external assumptions
 listed in `--trust-report` (ECM interface signatures, precompile semantics,
 any `local_obligations`). [`AXIOMS.md`](https://github.com/lfglabs-dev/verity/blob/main/AXIOMS.md)
-itself lists **zero active project-level Lean axioms** today — the residual
+itself lists **zero active project-level Lean axioms** today, the residual
 ones have been eliminated. The full breakdown lives at [`/trust-model`](/trust-model).
 
 ## How is Verity different from Certora, Halmos, or K?
@@ -66,7 +66,7 @@ in the Verity EDSL, not in Solidity.
 
 ## Can I use existing Solidity?
 
-Not directly — Verity contracts are written in the Lean-embedded EDSL. There
+Not directly, Verity contracts are written in the Lean-embedded EDSL. There
 are translation guides that walk through common Solidity patterns and how to
 express them in Verity: see [`/guides/solidity-to-verity`](/guides/solidity-to-verity)
 and [`/guides/production-solidity-patterns`](/guides/production-solidity-patterns)
@@ -85,7 +85,7 @@ create`, `cast`, raw RPC, etc.
 
 ## Is this production-ready?
 
-Verity verifies a precisely-scoped class of contracts today — not a drop-in replacement for general Solidity. Inside the supported fragment, you get strong machine-checked guarantees; outside it, the trust report tells you exactly which assumptions are doing the work. Several features compile but are not yet end-to-end modeled (low-level call mechanics, linear-memory primitives, `rawLog`, `keccak256`); each has a `--deny-*` flag for proof-strict builds. There is no multi-contract interaction model, no reentrancy semantics, and no gas modeling.
+Verity verifies a precisely-scoped class of contracts today, not a drop-in replacement for general Solidity. Inside the supported fragment, you get strong machine-checked guarantees; outside it, the trust report tells you exactly which assumptions are doing the work. Several features compile but are not yet end-to-end modeled (low-level call mechanics, linear-memory primitives, `rawLog`, `keccak256`); each has a `--deny-*` flag for proof-strict builds. There is no multi-contract interaction model, no reentrancy semantics, and no gas modeling.
 
 ## Where can I see verified contracts?
 
@@ -94,4 +94,4 @@ for the live theorem inventory by contract.
 
 ## Can AI agents write Verity proofs?
 
-That question is the explicit purpose of [`verity-benchmark`](https://github.com/lfglabs-dev/verity-benchmark) — a fixed set of 30 proof tasks across six real-world protocols (Ethereum deposit contract, Lido VaultHub, Nexus Mutual RAMM, Kleros sortition, Paladin Votes, Damn Vulnerable DeFi). Each task hands an agent a contract, a spec, and a single theorem to prove, with no placeholders allowed (`sorry`, `admit`, `axiom`). The shallow EDSL surface and the `_meets_spec` proof pattern make this a tractable benchmark for measuring agent capability, not a vibe-check.
+That question is the explicit purpose of [`verity-benchmark`](https://github.com/lfglabs-dev/verity-benchmark), a fixed set of 30 proof tasks across six real-world protocols (Ethereum deposit contract, Lido VaultHub, Nexus Mutual RAMM, Kleros sortition, Paladin Votes, Damn Vulnerable DeFi). Each task hands an agent a contract, a spec, and a single theorem to prove, with no placeholders allowed (`sorry`, `admit`, `axiom`). The shallow EDSL surface and the `_meets_spec` proof pattern make this a tractable benchmark for measuring agent capability, not a vibe-check.
