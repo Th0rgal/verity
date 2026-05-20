@@ -609,6 +609,9 @@ verity_contract MutabilitySmoke where
     let ownerAddr ← getStorageAddr owner
     return ownerAddr
 
+  function pure double (value : Uint256) : Uint256 := do
+    return (add value value)
+
 verity_contract SpecialEntrypointSmoke where
   storage
     receiveCount : Uint256 := slot 0

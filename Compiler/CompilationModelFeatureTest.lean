@@ -2968,6 +2968,86 @@ private def ceiInitialInternalCallAllowedSpec : CompilationModel := {
   ]
 }
 
+private def viewInternalReadInferenceSpec : CompilationModel := {
+  name := "ViewInternalReadInference"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "helper"
+      params := []
+      returnType := some FieldType.uint256
+      isInternal := true
+      body := [Stmt.return (Expr.storage "value")]
+    },
+    { name := "peek"
+      params := []
+      returnType := some FieldType.uint256
+      isView := true
+      body := [Stmt.return (Expr.internalCall "helper" [])]
+    }
+  ]
+}
+
+private def viewInternalWriteRejectedSpec : CompilationModel := {
+  name := "ViewInternalWriteRejected"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "helper"
+      params := []
+      returnType := none
+      isInternal := true
+      body := [Stmt.setStorage "value" (Expr.literal 1), Stmt.stop]
+    },
+    { name := "peek"
+      params := []
+      returnType := none
+      isView := true
+      body := [Stmt.internalCall "helper" [], Stmt.stop]
+    }
+  ]
+}
+
+private def pureInternalCallInferenceSpec : CompilationModel := {
+  name := "PureInternalCallInference"
+  fields := []
+  «constructor» := none
+  functions := [
+    { name := "helper"
+      params := [{ name := "value", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      isInternal := true
+      body := [Stmt.return (Expr.add (Expr.param "value") (Expr.literal 1))]
+    },
+    { name := "next"
+      params := [{ name := "value", ty := ParamType.uint256 }]
+      returnType := some FieldType.uint256
+      isPure := true
+      body := [Stmt.return (Expr.internalCall "helper" [Expr.param "value"])]
+    }
+  ]
+}
+
+private def pureInternalReadRejectedSpec : CompilationModel := {
+  name := "PureInternalReadRejected"
+  fields := [{ name := "value", ty := FieldType.uint256 }]
+  «constructor» := none
+  functions := [
+    { name := "helper"
+      params := []
+      returnType := some FieldType.uint256
+      isInternal := true
+      body := [Stmt.return (Expr.storage "value")]
+    },
+    { name := "peek"
+      params := []
+      returnType := some FieldType.uint256
+      isPure := true
+      body := [Stmt.return (Expr.internalCall "helper" [])]
+    }
+  ]
+}
+
 private def ceiEcmWriteAfterCallRejectedSpec : CompilationModel := {
   name := "CEIEcmWriteAfterCallRejected"
   fields := [{ name := "value", ty := FieldType.uint256 }]
@@ -4499,6 +4579,12 @@ set_option maxRecDepth 4096 in
   expectTrue "macro payable constructor ABI reports payable state mutability"
     (contains payableCtorAbi "\"type\": \"constructor\"" &&
       contains payableCtorAbi "\"stateMutability\": \"payable\"")
+  expectTrue "macro pure function preserves model pure flag"
+    Contracts.Smoke.MutabilitySmoke.double_model.isPure
+  let mutabilityAbi := Compiler.ABI.emitContractABIJson Contracts.Smoke.MutabilitySmoke.spec
+  expectTrue "macro pure function ABI reports pure state mutability"
+    (contains mutabilityAbi "\"name\": \"double\"" &&
+      contains mutabilityAbi "\"stateMutability\": \"pure\"")
   let payableCtorContract ← expectCompile
     "macro payable constructor compiles"
     MacroPayableConstructorSmoke.MacroPayableConstructor.spec
@@ -4692,6 +4778,28 @@ set_option maxRecDepth 4096 in
     | .error _ => false
   expectTrue "CEI allows an initial internal-call statement without a prior interaction"
     ceiInitialInternalCallCompiled
+  let viewInternalReadInferenceCompiled :=
+    match Compiler.CompilationModel.compile viewInternalReadInferenceSpec
+        (selectorsFor viewInternalReadInferenceSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "view mutability accepts internal helpers inferred to only read state"
+    viewInternalReadInferenceCompiled
+  expectCompileErrorContains
+    "view mutability rejects internal helpers inferred to write state"
+    viewInternalWriteRejectedSpec
+    "function 'peek' is marked view but writes state"
+  let pureInternalCallInferenceCompiled :=
+    match Compiler.CompilationModel.compile pureInternalCallInferenceSpec
+        (selectorsFor pureInternalCallInferenceSpec) with
+    | .ok _ => true
+    | .error _ => false
+  expectTrue "pure mutability accepts internal helpers inferred to be pure"
+    pureInternalCallInferenceCompiled
+  expectCompileErrorContains
+    "pure mutability rejects internal helpers inferred to read state"
+    pureInternalReadRejectedSpec
+    "function 'peek' is marked pure but reads state/environment"
   expectCompileErrorContains
     "CEI rejects writing ECMs after an external call"
     ceiEcmWriteAfterCallRejectedSpec

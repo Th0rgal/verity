@@ -49,10 +49,24 @@ def mkViewTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
   let modelName ← mkSuffixedIdent fnDecl.ident "_model"
   `(command|
     /-- Auto-generated: this function is declared `view` and its model
-        records that intent. The corresponding `stmtWritesState` validation
-        guarantees the body contains no state-writing statements. -/
+        records that intent. Function-effect validation guarantees the body and
+        any internal callees do not write state. -/
     @[simp] theorem $viewName :
         (Compiler.CompilationModel.FunctionSpec.isView
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = true := rfl)
+
+/-- Auto-generated `_is_pure` theorem for pure functions.
+    Emits a `@[simp]` lemma stating the model's `isPure` flag is `true`, making this
+    fact available to downstream proof automation. Only called when `fnDecl.isPure`. -/
+def mkPureTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
+  let pureName ← mkSuffixedIdent fnDecl.ident "_is_pure"
+  let modelName ← mkSuffixedIdent fnDecl.ident "_model"
+  `(command|
+    /-- Auto-generated: this function is declared `pure` and its model
+        records that intent. Function-effect validation guarantees the body and
+        any internal callees do not read or write state/environment. -/
+    @[simp] theorem $pureName :
+        (Compiler.CompilationModel.FunctionSpec.isPure
           ($modelName : Compiler.CompilationModel.FunctionSpec)) = true := rfl)
 
 /-- Auto-generated `_no_calls` theorem for functions with a `no_external_calls` annotation
@@ -192,13 +206,14 @@ def mkFrameDefCommand
 /-- Count how many effect annotations are active on a function declaration. -/
 def effectAnnotationCount (fnDecl : FunctionDecl) : Nat :=
   (if fnDecl.isView then 1 else 0) +
+  (if fnDecl.isPure then 1 else 0) +
   (if fnDecl.noExternalCalls then 1 else 0) +
   (if !fnDecl.modifies.isEmpty then 1 else 0)
 
 /-- Auto-generated `_effects` conjunction theorem for functions with multiple
     effect annotations (#1729, Axis 3 Step 1d).  Bundles all individual effect
-    theorems (`_is_view`, `_no_calls`, `_modifies`) into a single `And` fact so
-    downstream proofs can obtain all guarantees in one `exact`. -/
+    theorems (`_is_view`, `_is_pure`, `_no_calls`, `_modifies`) into a single
+    `And` fact so downstream proofs can obtain all guarantees in one `exact`. -/
 def mkEffectsTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
   let effectsName ← mkSuffixedIdent fnDecl.ident "_effects"
   let modelName ← mkSuffixedIdent fnDecl.ident "_model"
@@ -211,6 +226,12 @@ def mkEffectsTheoremCommand (fnDecl : FunctionDecl) : CommandElabM Cmd := do
         (Compiler.CompilationModel.FunctionSpec.isView
           ($modelName : Compiler.CompilationModel.FunctionSpec)) = true))
     proofs := proofs.push (← `($viewName))
+  if fnDecl.isPure then
+    let pureName ← mkSuffixedIdent fnDecl.ident "_is_pure"
+    conjuncts := conjuncts.push (← `(
+        (Compiler.CompilationModel.FunctionSpec.isPure
+          ($modelName : Compiler.CompilationModel.FunctionSpec)) = true))
+    proofs := proofs.push (← `($pureName))
   if fnDecl.noExternalCalls then
     let noCallsName ← mkSuffixedIdent fnDecl.ident "_no_calls"
     conjuncts := conjuncts.push (← `(
