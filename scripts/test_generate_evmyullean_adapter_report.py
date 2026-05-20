@@ -501,7 +501,7 @@ class ParseCorrectnessProofsTests(unittest.TestCase):
 
     def test_reports_present_native_harness_markers(self) -> None:
         p = self._write_correctness_file("""\
-            def lowerProgramNative := 1
+            def lowerRuntimeContractNative := 1
             inductive NativeGeneratedSelectorHitSuccessBridge where
               | done
         """)

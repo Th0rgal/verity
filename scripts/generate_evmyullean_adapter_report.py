@@ -493,7 +493,7 @@ def _parse_correctness_proofs() -> dict[str, object]:
     code = _strip_lean_strings(_strip_lean_comments(text))
     return {
         "file": str(CORRECTNESS_FILE.relative_to(ROOT)),
-        "runtime_lowering": "present" if "lowerProgramNative" in code else "missing",
+        "runtime_lowering": "present" if "lowerRuntimeContractNative" in code else "missing",
         "dispatcher_tail": (
             "present" if "NativeGeneratedSelectorHitSuccessBridge" in code else "missing"
         ),

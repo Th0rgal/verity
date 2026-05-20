@@ -179,7 +179,7 @@
   "native_harness_status": {
     "dispatcher_tail": "missing",
     "file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean",
-    "runtime_lowering": "missing"
+    "runtime_lowering": "present"
   },
   "native_lowering_file": "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeLowering.lean",
   "schema_version": 7,
