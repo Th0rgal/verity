@@ -412,6 +412,7 @@ verity_contract ByteBuiltinSmoke where
 
   constants
     highByte : Uint256 := (byte 0 (shl 248 0xab))
+    middleByte : Uint256 := (byte 15 (shl 128 0xcd))
     lowByte : Uint256 := (byte 31 0xff)
     outOfBoundsByte : Uint256 := (byte 32 0xff)
 
@@ -423,6 +424,9 @@ verity_contract ByteBuiltinSmoke where
 
   function lowByteConstant () : Uint256 := do
     return lowByte
+
+  function middleByteConstant () : Uint256 := do
+    return middleByte
 
   function outOfBoundsByteConstant () : Uint256 := do
     return outOfBoundsByte
@@ -462,6 +466,14 @@ def byteBuiltinExecutableExtractsHighByte : Bool :=
 
 example : byteBuiltinExecutableExtractsHighByte = true := by decide
 
+def byteBuiltinExecutableExtractsMiddleByte : Bool :=
+  match ByteBuiltinSmoke.extract 15 (shl 128 0xcd) Verity.defaultState with
+  | .success result state =>
+      result == (0xcd : Uint256) && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : byteBuiltinExecutableExtractsMiddleByte = true := by decide
+
 def byteBuiltinExecutableExtractsLowByte : Bool :=
   match ByteBuiltinSmoke.extract 31 (0xff : Uint256) Verity.defaultState with
   | .success result state =>
@@ -478,13 +490,25 @@ def byteBuiltinExecutableZeroesOutOfBoundsIndex : Bool :=
 
 example : byteBuiltinExecutableZeroesOutOfBoundsIndex = true := by decide
 
+def byteBuiltinExecutableZeroesMaxIndex : Bool :=
+  match ByteBuiltinSmoke.extract (Verity.Core.MAX_UINT256 : Uint256) (0xff : Uint256) Verity.defaultState with
+  | .success result state =>
+      result == (0 : Uint256) && state.sender == Verity.defaultState.sender
+  | .revert _ _ => false
+
+example : byteBuiltinExecutableZeroesMaxIndex = true := by decide
+
 def byteBuiltinConstantsUseByteSemantics : Bool :=
   match ByteBuiltinSmoke.highByteConstant Verity.defaultState,
+      ByteBuiltinSmoke.middleByteConstant Verity.defaultState,
       ByteBuiltinSmoke.lowByteConstant Verity.defaultState,
       ByteBuiltinSmoke.outOfBoundsByteConstant Verity.defaultState with
-  | .success high _, .success low _, .success outOfBounds _ =>
-      high == (0xab : Uint256) && low == (0xff : Uint256) && outOfBounds == (0 : Uint256)
-  | _, _, _ => false
+  | .success high _, .success middle _, .success low _, .success outOfBounds _ =>
+      high == (0xab : Uint256) &&
+      middle == (0xcd : Uint256) &&
+      low == (0xff : Uint256) &&
+      outOfBounds == (0 : Uint256)
+  | _, _, _, _ => false
 
 example : byteBuiltinConstantsUseByteSemantics = true := by decide
 
