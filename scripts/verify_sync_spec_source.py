@@ -614,7 +614,7 @@ SPEC = {'check_only_paths': ['.github/workflows/**',
                                       'python3 scripts/check_rewrite_proof_metadata.py',
                                       'python3 scripts/generate_evmyullean_capability_report.py '
                                       '--check',
-                                      'python3 scripts/generate_evmyullean_adapter_report.py '
+                                      'python3 scripts/generate_evmyullean_native_lowering_report.py '
                                       '--check',
                                       'python3 scripts/generate_print_axioms.py --check',
                                       'python3 scripts/check_proof_length.py',

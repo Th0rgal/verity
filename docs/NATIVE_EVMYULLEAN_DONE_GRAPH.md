@@ -19,8 +19,9 @@ source DSL
 -> public end-to-end theorem
 ```
 
-The custom Verity Yul interpreter may remain as a regression oracle, but it
-must not carry the public theorem claim.
+The native EVMYulLean runtime is the sole theorem-facing Yul semantics for the
+public end-to-end claim; historical interpreter scaffolding is not a regression
+oracle for this boundary.
 
 ## Critical Path
 

@@ -9,7 +9,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "evmyullean-fork-conformance.yml"
 TRUST_ASSUMPTIONS = ROOT / "TRUST_ASSUMPTIONS.md"
 AXIOMS = ROOT / "AXIOMS.md"
 MAKEFILE = ROOT / "Makefile"
-NATIVE_LOWERING_REPORT = ROOT / "artifacts" / "evmyullean_adapter_report.json"
+NATIVE_LOWERING_REPORT = ROOT / "artifacts" / "evmyullean_native_lowering_report.json"
 ROADMAP = ROOT / "docs" / "ROADMAP.md"
 
 
@@ -50,9 +50,9 @@ class EvmYulLeanForkConformanceWorkflowTests(unittest.TestCase):
         self.assertNotIn("continue-on-error", text)
         for path in [
             "Compiler/Proofs/EndToEnd.lean",
-            "scripts/generate_evmyullean_adapter_report.py",
+            "scripts/generate_evmyullean_native_lowering_report.py",
             "scripts/test_evmyullean_fork_conformance_workflow.py",
-            "artifacts/evmyullean_adapter_report.json",
+            "artifacts/evmyullean_native_lowering_report.json",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeLowering.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBodyClosure.lean",
             "Compiler/Proofs/YulGeneration/Backends/EvmYulLeanBridgeLemmas.lean",
@@ -96,7 +96,7 @@ class EvmYulLeanForkConformanceWorkflowTests(unittest.TestCase):
         self.assertIn("github.rest.issues.create({", text)
         self.assertIn("make test-evmyullean-fork", text)
         makefile_text = MAKEFILE.read_text(encoding="utf-8")
-        self.assertIn("python3 scripts/generate_evmyullean_adapter_report.py --check", makefile_text)
+        self.assertIn("python3 scripts/generate_evmyullean_native_lowering_report.py --check", makefile_text)
         self.assertIn("lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness", makefile_text)
         self.assertIn("lake build Compiler.Proofs.EndToEnd", makefile_text)
 

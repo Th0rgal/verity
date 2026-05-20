@@ -1731,7 +1731,7 @@ class VerifySyncTests(unittest.TestCase):
         \tpython3 scripts/check_solc_pin.py
         \tpython3 scripts/check_rewrite_proof_metadata.py
         \tpython3 scripts/generate_evmyullean_capability_report.py --check
-        \tpython3 scripts/generate_evmyullean_adapter_report.py --check
+        \tpython3 scripts/generate_evmyullean_native_lowering_report.py --check
         \tpython3 scripts/generate_print_axioms.py --check
         \tpython3 scripts/check_issue_1060_integrity.py
         \tpython3 -m unittest discover -s scripts -p 'test_*.py' -v
@@ -1748,7 +1748,7 @@ class VerifySyncTests(unittest.TestCase):
                 "python3 scripts/check_solc_pin.py",
                 "python3 scripts/check_rewrite_proof_metadata.py",
                 "python3 scripts/generate_evmyullean_capability_report.py --check",
-                "python3 scripts/generate_evmyullean_adapter_report.py --check",
+                "python3 scripts/generate_evmyullean_native_lowering_report.py --check",
                 "python3 scripts/generate_print_axioms.py --check",
                 "python3 scripts/check_issue_1060_integrity.py",
             ],
@@ -1779,7 +1779,7 @@ class VerifySyncTests(unittest.TestCase):
                 "python3 scripts/check_solc_pin.py",
                 "python3 scripts/check_rewrite_proof_metadata.py",
                 "python3 scripts/generate_evmyullean_capability_report.py --check",
-                "python3 scripts/generate_evmyullean_adapter_report.py --check",
+                "python3 scripts/generate_evmyullean_native_lowering_report.py --check",
                 "python3 scripts/generate_print_axioms.py --check",
                 "python3 scripts/check_issue_1060_integrity.py",
                 "python3 -m unittest discover -s scripts -p 'test_*.py' -v",
@@ -1790,7 +1790,7 @@ class VerifySyncTests(unittest.TestCase):
             "Makefile check target is missing required commands: "
             "python3 scripts/check_rewrite_proof_metadata.py, "
             "python3 scripts/generate_evmyullean_capability_report.py --check, "
-            "python3 scripts/generate_evmyullean_adapter_report.py --check, "
+            "python3 scripts/generate_evmyullean_native_lowering_report.py --check, "
             "python3 scripts/generate_print_axioms.py --check, "
             "python3 scripts/check_issue_1060_integrity.py",
             err,
@@ -1840,7 +1840,7 @@ class VerifySyncTests(unittest.TestCase):
         \tpython3 scripts/check_solc_pin.py
         \tpython3 scripts/check_rewrite_proof_metadata.py
         \tpython3 scripts/generate_evmyullean_capability_report.py --check
-        \tpython3 scripts/generate_evmyullean_adapter_report.py --check
+        \tpython3 scripts/generate_evmyullean_native_lowering_report.py --check
         \tpython3 scripts/generate_print_axioms.py --check
         \tpython3 scripts/check_issue_1060_integrity.py
         \tpython3 -m unittest discover -s scripts -p 'test_*.py' -v
@@ -1879,7 +1879,7 @@ class VerifySyncTests(unittest.TestCase):
                 "python3 scripts/check_yul.py --builtin-boundary-only",
                 "python3 scripts/check_rewrite_proof_metadata.py",
                 "python3 scripts/generate_evmyullean_capability_report.py --check",
-                "python3 scripts/generate_evmyullean_adapter_report.py --check",
+                "python3 scripts/generate_evmyullean_native_lowering_report.py --check",
                 "python3 scripts/generate_print_axioms.py --check",
                 "python3 scripts/check_proof_length.py",
                 "python3 scripts/check_issue_1060_integrity.py",

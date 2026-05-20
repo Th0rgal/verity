@@ -16489,9 +16489,9 @@ theorem compileStmtList_mappingPackedWordMultiSlotNonzero_noFuncDefs
 /-!
 ## Universal safe-body closure
 
-`BridgedSafeStmts` is the source-level whitelist used by the EVMYulLean
-retargeting report: it collects the statement-list fragments that this module
-has proved to compile into `BridgedStmts`. The external-call family
+`BridgedSafeStmts` is the source-level whitelist used by the EVMYulLean native
+lowering report: it collects the statement-list fragments that this module has
+proved to compile into `BridgedStmts`. The external-call family
 (`internalCall`, `internalCallAssign`, `externalCallBind`, and `ecm`) is
 intentionally absent; those statements still need function-table simulation
 before they can be discharged without explicit hypotheses.

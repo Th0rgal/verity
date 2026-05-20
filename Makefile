@@ -109,7 +109,7 @@ test-evmyullean-fork: ## Probe EVMYulLean fork conformance (audit + native lower
 	@echo "Checking EVMYulLean fork pin + drift audit..."
 	python3 scripts/generate_evmyullean_fork_audit.py --check
 	@echo "Checking EVMYulLean native lowering report..."
-	python3 scripts/generate_evmyullean_adapter_report.py --check
+	python3 scripts/generate_evmyullean_native_lowering_report.py --check
 	@echo "Building EVMYulLean bridge lemmas, native harness, and 0 concrete bridge tests..."
 	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 	lake build Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeTest
@@ -154,7 +154,7 @@ check: ## Run local CI-equivalent checks job (no Lean build, no solc)
 	python3 scripts/check_yul.py --builtin-boundary-only
 	python3 scripts/check_rewrite_proof_metadata.py
 	python3 scripts/generate_evmyullean_capability_report.py --check
-	python3 scripts/generate_evmyullean_adapter_report.py --check
+	python3 scripts/generate_evmyullean_native_lowering_report.py --check
 	python3 scripts/generate_evmyullean_fork_audit.py --check
 	python3 scripts/generate_print_axioms.py --check
 	python3 scripts/check_proof_length.py

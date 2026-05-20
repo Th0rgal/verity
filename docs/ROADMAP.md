@@ -30,7 +30,7 @@ This tracker is the execution order for migration-oriented compiler work. Later 
 Current P0 baseline artifact coverage:
 - `artifacts/evmyullean_capability_report.json` tracks builtin overlap boundaries and explicit unsupported native-lowering nodes.
 - `artifacts/evmyullean_unsupported_nodes.json` provides a dedicated machine-readable unsupported-node list for native-lowering gaps.
-- `artifacts/evmyullean_adapter_report.json` tracks native AST-lowering coverage (`supported`/`partial`/`gap`) and runtime boundary status.
+- `artifacts/evmyullean_native_lowering_report.json` tracks native AST-lowering coverage (`supported`/`partial`/`gap`) and runtime boundary status.
 
 Current P1 foundation coverage (Issue #582):
 - Deterministic expression patch DSL + pass engine in `Compiler/Yul/PatchFramework.lean`
@@ -274,7 +274,7 @@ Execution priorities:
 | 3 | EVM Semantics | Strong testing + documented assumption | Ongoing | ⚪ TODO |
 
 **Yul/EVM Semantics Bridge** (Issue [#1722](https://github.com/lfglabs-dev/verity/issues/1722)): EVMYulLean (NethermindEth) provides formally-defined Yul AST types and UInt256 operations. Current integration status:
-- AST adapter: all 11 statement types + 5 expression types lower to EVMYulLean AST (0 gaps)
+- native AST lowering: all 11 statement types + 5 expression types lower to EVMYulLean AST (0 gaps)
 - Builtin bridge: 36 of 36 builtins bridged (25 pure + 11 context/env/storage/helper), with all 36 fully proven and 0 sorry'd
 - Native bridge smoke tests + 36 context-lifted native routing theorems + 0 concrete bridge tests
 - `bridgedBuiltins` definition enumerates all 36 builtins covered by the native EVMYulLean dispatch surface

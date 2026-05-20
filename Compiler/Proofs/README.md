@@ -9,7 +9,7 @@ See [TRUST_ASSUMPTIONS.md](../../TRUST_ASSUMPTIONS.md) for the full trust bounda
 
 - **Layer 1: EDSL = CompilationModel** -- Frontend semantic bridge. Generic typed-IR core in [`TypedIRCompilerCorrectness.lean`](../../Compiler/TypedIRCompilerCorrectness.lean); contract-level bridges are per-contract.
 - **Layer 2: CompilationModel -> IR** -- Generic whole-contract theorem in [`Contract.lean`](IRGeneration/Contract.lean). 0 sorry, 0 axioms.
-- **Native Layer 3: IR -> native EVMYulLean** -- Runtime lowering and dispatcher execution through [`YulGeneration/Backends/EvmYulLeanNativeHarness.lean`](YulGeneration/Backends/EvmYulLeanNativeHarness.lean), composed in [`EndToEnd.lean`](EndToEnd.lean). The public Layer 3 theorem target is native EVMYulLean; retained reference-oracle code is builtin comparison scaffolding below that trust boundary.
+- **Native Layer 3: IR -> native EVMYulLean** -- Runtime lowering and dispatcher execution through [`YulGeneration/Backends/EvmYulLeanNativeHarness.lean`](YulGeneration/Backends/EvmYulLeanNativeHarness.lean), composed in [`EndToEnd.lean`](EndToEnd.lean). The public Layer 3 theorem target is native EVMYulLean; the old builtin comparison path has been removed.
 
 All three layers carry zero project-specific axioms.
 

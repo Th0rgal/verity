@@ -8,9 +8,9 @@ open Compiler.Yul
 
 /-! ## Fuel-Parametric IR Aliases
 
-These names are shared by the source-to-IR proof stack and the legacy IR/Yul
-equivalence stack. They are intentionally kept free of the reference-oracle Yul
-interpreter so IR-generation compiler-correctness modules do not need to import
+These names are shared by the source-to-IR proof stack and Yul-facing proof
+modules. They are intentionally kept free of Yul execution dependencies so
+IR-generation compiler-correctness modules do not need to import
 `Compiler.Proofs.YulGeneration.Equivalence` just to talk about fuel-indexed IR
 execution.
 -/

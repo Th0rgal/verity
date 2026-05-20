@@ -28,9 +28,8 @@
   `EvmYul.Yul.callDispatcher` execution through
   `Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness`.
 
-Historical EVMYulLean backend-fuel retargeting lemmas remain isolated outside
-this public theorem spine; this file no longer exposes or composes EndToEnd
-wrappers over that older transition target.
+The removed backend-fuel transition target is not part of this public theorem
+spine; this file composes only the native dispatcher result surface.
 
   Run: lake build Compiler.Proofs.EndToEnd
 -/
@@ -93,7 +92,7 @@ def sourceResultMatchesNativeOn
   | .error _ => False
 
 /-- Compose Layer 2 source-to-IR correctness with native EVMYulLean runtime
-correctness, without mentioning the legacy Yul interpreter. -/
+correctness. -/
 private theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_nativeResultsMatchOn
     {observableSlots : List Nat}
     {source : SourceSemantics.SourceContractResult}
@@ -121,7 +120,7 @@ private theorem sourceResultMatchesNativeOn_of_sourceResultMatchesIRResult_of_na
       · exact hSourceEvents.trans hNativeEvents
 
 /-- File-local supported-compiler correctness theorem over native EVMYulLean
-runtime adapter execution.
+runtime execution.
 
 The theorem target is the native runtime harness backed by
 `EvmYul.Yul.callDispatcher`; the only Layer 3 premise is a direct native-vs-IR
@@ -20506,10 +20505,10 @@ private theorem NativeGeneratedSelectedUserBodyExecOnlyBridgeAtFuelRevived.of_br
 /-- Selected user bodies containing only `leave` execute as a native checkpoint
 and project to the same observable result as `execIRFunction`.
 
-The native interpreter records `leave` as a revivable checkpoint, while the
-legacy IR function interpreter treats it as a normal fall-through. After
-`reviveJump`, both paths have the same observable storage, return value, and
-events at the transaction-entry state. -/
+The native runtime records `leave` as a revivable checkpoint, while source-side
+IR execution observes the same fall-through result after `reviveJump`. Both
+paths have the same observable storage, return value, and events at the
+transaction-entry state. -/
 private theorem nativeResultsMatchOn_execIRFunction_leave_body_markedPrefix
     (irContract : IRContract)
     (tx : IRTransaction)
@@ -41396,8 +41395,8 @@ The older `nativeIRRuntimeMatchesIR` and generated dispatcher-exec theorem
 families remain file-local transition evidence. EndToEnd no longer defines
 compatibility wrappers over the older backend-parameterized transition surface.
 
-The private retargeting module that previously recorded bridge-history facts
-has been removed (DoD 5 of the EVMYulLean transition).
+The private backend-fuel transition module that previously recorded
+bridge-history facts has been removed (DoD 5 of the EVMYulLean transition).
 The file-local `runtimeCode_bridged_local` lemma in this module retains the
 emitted-runtime closure witness, and the SupportedSpec-discharged variants
 `emitYul_runtimeCode_bridged_of_compile_ok_supported` and
@@ -41460,9 +41459,9 @@ expose the public surface this file needs.
   and needs separate simulation work before it can be admitted into the
   safe-body EndToEnd wrapper.
 
-The Phase 4 retargeting module has been removed; the equivalent backend-fuel
-retargeting theorems are no longer needed because the public EndToEnd surface
-targets EVMYulLean's native dispatcher execution directly via
+The Phase 4 backend-fuel module has been removed; the equivalent transition
+theorems are no longer needed because the public EndToEnd surface targets
+EVMYulLean's native dispatcher execution directly via
 `nativeGeneratedCallDispatcherResultOf`.
 -/
 
