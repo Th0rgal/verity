@@ -66,6 +66,7 @@ syntax ident " := " ident ppSpace str : verityLocalObligation
 syntax "local_obligations " "[" sepBy(verityLocalObligation, ",") "]" : verityLocalObligations
 syntax "payable" : verityMutability
 syntax "view" : verityMutability
+syntax pureMutabilityMarker := &"pure"
 syntax "no_external_calls" : verityMutability
 syntax "allow_post_interaction_writes" : verityMutability
 syntax "nonreentrant(" ident ")" : verityMutability
@@ -102,7 +103,7 @@ syntax "receive" (ppSpace verityLocalObligations)? " := " term : veritySpecialEn
 syntax "fallback" (ppSpace verityLocalObligations)? " := " term : veritySpecialEntrypoint
 syntax "modifier " ident " := " term : verityModifier
 syntax "with " sepBy1(ident, ",") : verityModifierUse
-syntax "function " verityMutability* ident " (" sepBy(verityParam, ",") ")" (ppSpace verityInitGuard)? (ppSpace verityModifierUse)? (ppSpace verityRequiresRole)? (ppSpace verityModifies)? (ppSpace verityLocalObligations)? " : " term " := " term : verityFunction
+syntax "function " verityMutability* (pureMutabilityMarker)? verityMutability* ident " (" sepBy(verityParam, ",") ")" (ppSpace verityInitGuard)? (ppSpace verityModifierUse)? (ppSpace verityRequiresRole)? (ppSpace verityModifies)? (ppSpace verityLocalObligations)? " : " term " := " term : verityFunction
 
 syntax (name := verityContractCmd)
   "verity_contract " ident " where "

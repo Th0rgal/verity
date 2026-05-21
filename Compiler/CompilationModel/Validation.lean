@@ -1029,6 +1029,419 @@ termination_by bs => sizeOf bs
 decreasing_by all_goals simp_wf; all_goals omega
 end
 
+structure FunctionEffect where
+  writesState : Bool := false
+  readsStateOrEnv : Bool := false
+deriving BEq, Repr
+
+private def unknownFunctionEffect : FunctionEffect :=
+  { writesState := true, readsStateOrEnv := true }
+
+private def lookupFunctionEffect
+    (effects : List (String × FunctionEffect)) (name : String) : FunctionEffect :=
+  match effects.find? (fun entry => entry.fst == name) with
+  | some (_, effect) => effect
+  | none => unknownFunctionEffect
+
+mutual
+def exprWritesStateWithFunctionEffects
+    (effects : List (String × FunctionEffect)) : Expr → Bool
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+  | Expr.mod a b | Expr.smod a b |
+    Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
+  | Expr.sar a b | Expr.signextend a b | Expr.byte a b |
+    Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b |
+    Expr.logicalAnd a b | Expr.logicalOr a b |
+    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b |
+    Expr.ceilDiv a b =>
+      exprWritesStateWithFunctionEffects effects a ||
+        exprWritesStateWithFunctionEffects effects b
+  | Expr.mulDivDown a b c | Expr.mulDivUp a b c
+  | Expr.mulDiv512Down a b c | Expr.mulDiv512Up a b c =>
+      exprWritesStateWithFunctionEffects effects a ||
+        exprWritesStateWithFunctionEffects effects b ||
+        exprWritesStateWithFunctionEffects effects c
+  | Expr.bitNot a | Expr.logicalNot a =>
+      exprWritesStateWithFunctionEffects effects a
+  | Expr.ite cond thenVal elseVal =>
+      exprWritesStateWithFunctionEffects effects cond ||
+        exprWritesStateWithFunctionEffects effects thenVal ||
+        exprWritesStateWithFunctionEffects effects elseVal
+  | Expr.mapping _ key | Expr.mappingWord _ key _ | Expr.mappingPackedWord _ key _ _ | Expr.mappingUint _ key
+  | Expr.structMember _ key _ =>
+      exprWritesStateWithFunctionEffects effects key
+  | Expr.mappingChain _ keys =>
+      exprListWritesStateWithFunctionEffects effects keys
+  | Expr.mapping2 _ key1 key2 | Expr.mapping2Word _ key1 key2 _
+  | Expr.structMember2 _ key1 key2 _ =>
+      exprWritesStateWithFunctionEffects effects key1 ||
+        exprWritesStateWithFunctionEffects effects key2
+  | Expr.call _ _ _ _ _ _ _ => true
+  | Expr.staticcall gas target inOffset inSize outOffset outSize =>
+      exprWritesStateWithFunctionEffects effects gas ||
+        exprWritesStateWithFunctionEffects effects target ||
+        exprWritesStateWithFunctionEffects effects inOffset ||
+        exprWritesStateWithFunctionEffects effects inSize ||
+        exprWritesStateWithFunctionEffects effects outOffset ||
+        exprWritesStateWithFunctionEffects effects outSize
+  | Expr.delegatecall _ _ _ _ _ _ => true
+  | Expr.mload offset | Expr.tload offset =>
+      exprWritesStateWithFunctionEffects effects offset
+  | Expr.calldataload offset =>
+      exprWritesStateWithFunctionEffects effects offset
+  | Expr.keccak256 offset size =>
+      exprWritesStateWithFunctionEffects effects offset ||
+        exprWritesStateWithFunctionEffects effects size
+  | Expr.returndataOptionalBoolAt outOffset =>
+      exprWritesStateWithFunctionEffects effects outOffset
+  | Expr.dynamicBytesEq _ _ =>
+      false
+  | Expr.externalCall name args =>
+      if name == builtinExpName then
+        exprListWritesStateWithFunctionEffects effects args
+      else
+        true
+  | Expr.internalCall name args =>
+      (lookupFunctionEffect effects name).writesState ||
+        exprListWritesStateWithFunctionEffects effects args
+  | Expr.adtConstruct _ _ args =>
+      exprListWritesStateWithFunctionEffects effects args
+  | Expr.extcodesize addr =>
+      exprWritesStateWithFunctionEffects effects addr
+  | Expr.storageArrayLength _ =>
+      false
+  | Expr.storageArrayElement _ index =>
+      exprWritesStateWithFunctionEffects effects index
+  | Expr.arrayElement _ index | Expr.memoryArrayElement _ index
+  | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicDataOffset _ index
+  | Expr.arrayElementDynamicMemberDataOffset _ index _
+  | Expr.arrayElementDynamicMemberLength _ index _ =>
+      exprWritesStateWithFunctionEffects effects index
+  | Expr.arrayElementDynamicMemberElement _ index _ innerIndex =>
+      exprWritesStateWithFunctionEffects effects index ||
+        exprWritesStateWithFunctionEffects effects innerIndex
+  | Expr.literal _ | Expr.param _ | Expr.constructorArg _ | Expr.storage _ | Expr.storageAddr _
+  | Expr.caller | Expr.contractAddress | Expr.chainid | Expr.msgValue | Expr.selfBalance
+  | Expr.blockTimestamp | Expr.blockNumber | Expr.blobbasefee
+  | Expr.calldatasize | Expr.returndataSize | Expr.localVar _ | Expr.arrayLength _
+  | Expr.memoryArrayLength _
+  | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _
+  | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ =>
+      false
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprWritesStateWithFunctionEffects effects innerIndex
+termination_by e => sizeOf e
+decreasing_by all_goals simp_wf; all_goals omega
+
+def exprListWritesStateWithFunctionEffects
+    (effects : List (String × FunctionEffect)) : List Expr → Bool
+  | [] => false
+  | e :: es =>
+      exprWritesStateWithFunctionEffects effects e ||
+        exprListWritesStateWithFunctionEffects effects es
+termination_by es => sizeOf es
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtWritesStateWithFunctionEffects
+    (effects : List (String × FunctionEffect)) : Stmt → Bool
+  | Stmt.letVar _ value | Stmt.assignVar _ value =>
+      exprWritesStateWithFunctionEffects effects value
+  | Stmt.setStorage _ _ | Stmt.setStorageAddr _ _ | Stmt.setStorageWord _ _ _
+  | Stmt.storageArrayPush _ _ | Stmt.storageArrayPop _ | Stmt.setStorageArrayElement _ _ _
+  | Stmt.setMapping _ _ _ | Stmt.setMappingWord _ _ _ _ | Stmt.setMappingPackedWord _ _ _ _ _ | Stmt.setMappingUint _ _ _
+  | Stmt.setMappingChain _ _ _
+  | Stmt.setMapping2 _ _ _ _ | Stmt.setMapping2Word _ _ _ _ _
+  | Stmt.setStructMember _ _ _ _ | Stmt.setStructMember2 _ _ _ _ _ => true
+  | Stmt.require cond _ =>
+      exprWritesStateWithFunctionEffects effects cond
+  | Stmt.requireError cond _ args =>
+      exprWritesStateWithFunctionEffects effects cond ||
+        exprListWritesStateWithFunctionEffects effects args
+  | Stmt.revertError _ args =>
+      exprListWritesStateWithFunctionEffects effects args
+  | Stmt.return value =>
+      exprWritesStateWithFunctionEffects effects value
+  | Stmt.returnValues values =>
+      exprListWritesStateWithFunctionEffects effects values
+  | Stmt.returnArray _ =>
+      false
+  | Stmt.returnBytes _ =>
+      false
+  | Stmt.returnStorageWords _ =>
+      false
+  | Stmt.mstore offset value =>
+      exprWritesStateWithFunctionEffects effects offset ||
+        exprWritesStateWithFunctionEffects effects value
+  | Stmt.tstore _ _ =>
+      true
+  | Stmt.calldatacopy destOffset sourceOffset size =>
+      exprWritesStateWithFunctionEffects effects destOffset ||
+        exprWritesStateWithFunctionEffects effects sourceOffset ||
+        exprWritesStateWithFunctionEffects effects size
+  | Stmt.returndataCopy destOffset sourceOffset size =>
+      exprWritesStateWithFunctionEffects effects destOffset ||
+        exprWritesStateWithFunctionEffects effects sourceOffset ||
+        exprWritesStateWithFunctionEffects effects size
+  | Stmt.revertReturndata =>
+      false
+  | Stmt.stop =>
+      false
+  | Stmt.ite cond thenBranch elseBranch =>
+      exprWritesStateWithFunctionEffects effects cond ||
+        stmtListWritesStateWithFunctionEffects effects thenBranch ||
+        stmtListWritesStateWithFunctionEffects effects elseBranch
+  | Stmt.forEach _ count body =>
+      exprWritesStateWithFunctionEffects effects count ||
+        stmtListWritesStateWithFunctionEffects effects body
+  | Stmt.unsafeBlock _ body =>
+      stmtListWritesStateWithFunctionEffects effects body
+  | Stmt.emit _ _ | Stmt.rawLog _ _ _
+  | Stmt.externalCallBind _ _ _ | Stmt.tryExternalCallBind _ _ _ _ => true
+  | Stmt.internalCall name args | Stmt.internalCallAssign _ name args =>
+      (lookupFunctionEffect effects name).writesState ||
+        exprListWritesStateWithFunctionEffects effects args
+  | Stmt.ecm mod args =>
+      mod.writesState || exprListWritesStateWithFunctionEffects effects args
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprWritesStateWithFunctionEffects effects scrutinee ||
+        matchBranchesWriteStateWithFunctionEffects effects branches
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListWritesStateWithFunctionEffects
+    (effects : List (String × FunctionEffect)) : List Stmt → Bool
+  | [] => false
+  | s :: ss =>
+      stmtWritesStateWithFunctionEffects effects s ||
+        stmtListWritesStateWithFunctionEffects effects ss
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesWriteStateWithFunctionEffects
+    (effects : List (String × FunctionEffect)) :
+    List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListWritesStateWithFunctionEffects effects body ||
+        matchBranchesWriteStateWithFunctionEffects effects rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+mutual
+def exprReadsStateOrEnvWithFunctionEffects
+    (effects : List (String × FunctionEffect)) : Expr → Bool
+  | Expr.literal _ => false
+  | Expr.param _ => false
+  | Expr.constructorArg _ => false
+  | Expr.storage _ | Expr.storageAddr _ => true
+  | Expr.mapping _ _ | Expr.mappingWord _ _ _ | Expr.mappingPackedWord _ _ _ _
+  | Expr.mapping2 _ _ _ | Expr.mapping2Word _ _ _ _
+  | Expr.mappingUint _ _
+  | Expr.mappingChain _ _
+  | Expr.structMember _ _ _ | Expr.structMember2 _ _ _ _ => true
+  | Expr.caller => true
+  | Expr.contractAddress => true
+  | Expr.chainid => true
+  | Expr.extcodesize _ => true
+  | Expr.msgValue => true
+  | Expr.selfBalance => true
+  | Expr.blockTimestamp => true
+  | Expr.blockNumber => true
+  | Expr.blobbasefee => true
+  | Expr.calldatasize => true
+  | Expr.calldataload _ => true
+  | Expr.mload offset => exprReadsStateOrEnvWithFunctionEffects effects offset
+  | Expr.tload _ => true
+  | Expr.keccak256 offset size =>
+      exprReadsStateOrEnvWithFunctionEffects effects offset ||
+        exprReadsStateOrEnvWithFunctionEffects effects size
+  | Expr.call _ _ _ _ _ _ _ | Expr.staticcall _ _ _ _ _ _
+  | Expr.delegatecall _ _ _ _ _ _ => true
+  | Expr.returndataSize => true
+  | Expr.returndataOptionalBoolAt _ => true
+  | Expr.dynamicBytesEq _ _ => false
+  | Expr.localVar _ => false
+  | Expr.externalCall name args =>
+      if name == builtinExpName then
+        exprListReadsStateOrEnvWithFunctionEffects effects args
+      else
+        true
+  | Expr.internalCall name args =>
+      (lookupFunctionEffect effects name).readsStateOrEnv ||
+        exprListReadsStateOrEnvWithFunctionEffects effects args
+  | Expr.arrayLength _ | Expr.memoryArrayLength _ => false
+  | Expr.paramDynamicHeadWord _ _
+  | Expr.paramDynamicStaticComposite _ _
+  | Expr.paramDynamicMemberLength _ _
+  | Expr.paramDynamicMemberDataOffset _ _ => false
+  | Expr.paramDynamicMemberElement _ _ innerIndex =>
+      exprReadsStateOrEnvWithFunctionEffects effects innerIndex
+  | Expr.storageArrayLength _ => true
+  | Expr.storageArrayElement _ index => true || exprReadsStateOrEnvWithFunctionEffects effects index
+  | Expr.arrayElement _ index | Expr.memoryArrayElement _ index
+  | Expr.arrayElementWord _ index _ _ | Expr.arrayElementDynamicWord _ index _
+  | Expr.arrayElementDynamicDataOffset _ index
+  | Expr.arrayElementDynamicMemberDataOffset _ index _
+  | Expr.arrayElementDynamicMemberLength _ index _ =>
+      exprReadsStateOrEnvWithFunctionEffects effects index
+  | Expr.arrayElementDynamicMemberElement _ index _ innerIndex =>
+      exprReadsStateOrEnvWithFunctionEffects effects index ||
+        exprReadsStateOrEnvWithFunctionEffects effects innerIndex
+  | Expr.add a b | Expr.sub a b | Expr.mul a b | Expr.div a b | Expr.sdiv a b
+  | Expr.mod a b | Expr.smod a b |
+    Expr.bitAnd a b | Expr.bitOr a b | Expr.bitXor a b | Expr.shl a b | Expr.shr a b
+  | Expr.sar a b | Expr.signextend a b | Expr.byte a b |
+    Expr.eq a b | Expr.ge a b | Expr.gt a b | Expr.sgt a b | Expr.lt a b | Expr.slt a b | Expr.le a b |
+    Expr.logicalAnd a b | Expr.logicalOr a b |
+    Expr.wMulDown a b | Expr.wDivUp a b | Expr.min a b | Expr.max a b |
+    Expr.ceilDiv a b =>
+      exprReadsStateOrEnvWithFunctionEffects effects a ||
+        exprReadsStateOrEnvWithFunctionEffects effects b
+  | Expr.mulDivDown a b c | Expr.mulDivUp a b c
+  | Expr.mulDiv512Down a b c | Expr.mulDiv512Up a b c =>
+      exprReadsStateOrEnvWithFunctionEffects effects a ||
+        exprReadsStateOrEnvWithFunctionEffects effects b ||
+        exprReadsStateOrEnvWithFunctionEffects effects c
+  | Expr.bitNot a | Expr.logicalNot a =>
+      exprReadsStateOrEnvWithFunctionEffects effects a
+  | Expr.ite cond thenVal elseVal =>
+      exprReadsStateOrEnvWithFunctionEffects effects cond ||
+        exprReadsStateOrEnvWithFunctionEffects effects thenVal ||
+        exprReadsStateOrEnvWithFunctionEffects effects elseVal
+  | Expr.adtConstruct _ _ args =>
+      exprListReadsStateOrEnvWithFunctionEffects effects args
+  | Expr.adtTag _ _ | Expr.adtField _ _ _ _ _ => true
+termination_by e => sizeOf e
+decreasing_by all_goals simp_wf; all_goals omega
+
+def exprListReadsStateOrEnvWithFunctionEffects
+    (effects : List (String × FunctionEffect)) : List Expr → Bool
+  | [] => false
+  | e :: es =>
+      exprReadsStateOrEnvWithFunctionEffects effects e ||
+        exprListReadsStateOrEnvWithFunctionEffects effects es
+termination_by es => sizeOf es
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtReadsStateOrEnvWithFunctionEffects
+    (effects : List (String × FunctionEffect)) : Stmt → Bool
+  | Stmt.letVar _ value | Stmt.assignVar _ value | Stmt.setStorage _ value | Stmt.setStorageAddr _ value
+  | Stmt.setStorageWord _ _ value |
+    Stmt.return value | Stmt.require value _ =>
+      exprReadsStateOrEnvWithFunctionEffects effects value
+  | Stmt.storageArrayPush _ value =>
+      true || exprReadsStateOrEnvWithFunctionEffects effects value
+  | Stmt.setStorageArrayElement _ index value =>
+      true || exprReadsStateOrEnvWithFunctionEffects effects index ||
+        exprReadsStateOrEnvWithFunctionEffects effects value
+  | Stmt.storageArrayPop _ =>
+      true
+  | Stmt.requireError cond _ args =>
+      exprReadsStateOrEnvWithFunctionEffects effects cond ||
+        exprListReadsStateOrEnvWithFunctionEffects effects args
+  | Stmt.revertError _ args | Stmt.emit _ args | Stmt.returnValues args =>
+      exprListReadsStateOrEnvWithFunctionEffects effects args
+  | Stmt.returnArray _ | Stmt.returnBytes _ =>
+      false
+  | Stmt.returnStorageWords _ =>
+      true
+  | Stmt.mstore offset value =>
+      exprReadsStateOrEnvWithFunctionEffects effects offset ||
+        exprReadsStateOrEnvWithFunctionEffects effects value
+  | Stmt.tstore offset value =>
+      exprReadsStateOrEnvWithFunctionEffects effects offset ||
+        exprReadsStateOrEnvWithFunctionEffects effects value
+  | Stmt.calldatacopy _ _ _ | Stmt.returndataCopy _ _ _ => true
+  | Stmt.revertReturndata =>
+      true
+  | Stmt.stop =>
+      false
+  | Stmt.setMapping _ _ _ | Stmt.setMappingWord _ _ _ _ | Stmt.setMappingPackedWord _ _ _ _ _ | Stmt.setMappingUint _ _ _
+  | Stmt.setMappingChain _ _ _
+  | Stmt.setMapping2 _ _ _ _ | Stmt.setMapping2Word _ _ _ _ _
+  | Stmt.setStructMember _ _ _ _ | Stmt.setStructMember2 _ _ _ _ _ => true
+  | Stmt.ite cond thenBranch elseBranch =>
+      exprReadsStateOrEnvWithFunctionEffects effects cond ||
+        stmtListReadsStateOrEnvWithFunctionEffects effects thenBranch ||
+        stmtListReadsStateOrEnvWithFunctionEffects effects elseBranch
+  | Stmt.forEach _ count body =>
+      exprReadsStateOrEnvWithFunctionEffects effects count ||
+        stmtListReadsStateOrEnvWithFunctionEffects effects body
+  | Stmt.unsafeBlock _ body =>
+      stmtListReadsStateOrEnvWithFunctionEffects effects body
+  | Stmt.rawLog topics dataOffset dataSize =>
+      topics.any (exprReadsStateOrEnvWithFunctionEffects effects) ||
+        exprReadsStateOrEnvWithFunctionEffects effects dataOffset ||
+        exprReadsStateOrEnvWithFunctionEffects effects dataSize
+  | Stmt.externalCallBind _ _ _ | Stmt.tryExternalCallBind _ _ _ _ => true
+  | Stmt.internalCall name args | Stmt.internalCallAssign _ name args =>
+      (lookupFunctionEffect effects name).readsStateOrEnv ||
+        exprListReadsStateOrEnvWithFunctionEffects effects args
+  | Stmt.ecm mod args =>
+      mod.readsState || mod.writesState ||
+        exprListReadsStateOrEnvWithFunctionEffects effects args
+  | Stmt.matchAdt _ scrutinee branches =>
+      exprReadsStateOrEnvWithFunctionEffects effects scrutinee ||
+        matchBranchesReadStateOrEnvWithFunctionEffects effects branches
+termination_by s => sizeOf s
+decreasing_by all_goals simp_wf; all_goals omega
+
+def stmtListReadsStateOrEnvWithFunctionEffects
+    (effects : List (String × FunctionEffect)) : List Stmt → Bool
+  | [] => false
+  | s :: ss =>
+      stmtReadsStateOrEnvWithFunctionEffects effects s ||
+        stmtListReadsStateOrEnvWithFunctionEffects effects ss
+termination_by ss => sizeOf ss
+decreasing_by all_goals simp_wf; all_goals omega
+
+def matchBranchesReadStateOrEnvWithFunctionEffects
+    (effects : List (String × FunctionEffect)) :
+    List (String × List String × List Stmt) → Bool
+  | [] => false
+  | (_, _, body) :: rest =>
+      stmtListReadsStateOrEnvWithFunctionEffects effects body ||
+        matchBranchesReadStateOrEnvWithFunctionEffects effects rest
+termination_by bs => sizeOf bs
+decreasing_by all_goals simp_wf; all_goals omega
+end
+
+private def functionEffectWithFunctionEffects
+    (effects : List (String × FunctionEffect)) (fn : FunctionSpec) : FunctionEffect :=
+  { writesState := stmtListWritesStateWithFunctionEffects effects fn.body
+    readsStateOrEnv := stmtListReadsStateOrEnvWithFunctionEffects effects fn.body }
+
+private def inferFunctionEffectsStep
+    (functions : List FunctionSpec) (effects : List (String × FunctionEffect)) :
+    List (String × FunctionEffect) :=
+  functions.map fun fn => (fn.name, functionEffectWithFunctionEffects effects fn)
+
+private def iterateFunctionEffects
+    (functions : List FunctionSpec) : Nat → List (String × FunctionEffect) →
+    List (String × FunctionEffect)
+  | 0, effects => effects
+  | fuel + 1, effects =>
+      iterateFunctionEffects functions fuel (inferFunctionEffectsStep functions effects)
+
+def inferFunctionEffects (functions : List FunctionSpec) : List (String × FunctionEffect) :=
+  let initial := functions.map fun fn => (fn.name, { writesState := false, readsStateOrEnv := false })
+  iterateFunctionEffects functions (functions.length + 1) initial
+
+def validateFunctionSpecMutability
+    (effects : List (String × FunctionEffect)) (spec : FunctionSpec) : Except String Unit := do
+  let effect := functionEffectWithFunctionEffects effects spec
+  if spec.isView && effect.writesState then
+    throw s!"Compilation error: function '{spec.name}' is marked view but writes state ({issue734Ref})"
+  if spec.isPure && effect.writesState then
+    throw s!"Compilation error: function '{spec.name}' is marked pure but writes state ({issue734Ref})"
+  if spec.isPure && effect.readsStateOrEnv then
+    throw s!"Compilation error: function '{spec.name}' is marked pure but reads state/environment ({issue734Ref})"
+
 mutual
 /-- Check whether a single statement contains a persistent-storage write (recursively).
     This covers all `setStorage*`, `setMapping*`, `storageArray*`, `setStructMember*`,
@@ -1380,12 +1793,6 @@ def validateFunctionSpec (spec : FunctionSpec) : Except String Unit := do
     throw s!"Compilation error: function '{spec.name}' cannot be both payable and view/pure ({issue586Ref})"
   if spec.isView && spec.isPure then
     throw s!"Compilation error: function '{spec.name}' cannot be both view and pure; use exactly one mutability marker ({issue586Ref})"
-  if spec.isView && spec.body.any stmtWritesState then
-    throw s!"Compilation error: function '{spec.name}' is marked view but writes state ({issue734Ref})"
-  if spec.isPure && spec.body.any stmtWritesState then
-    throw s!"Compilation error: function '{spec.name}' is marked pure but writes state ({issue734Ref})"
-  if spec.isPure && spec.body.any stmtReadsStateOrEnv then
-    throw s!"Compilation error: function '{spec.name}' is marked pure but reads state/environment ({issue734Ref})"
   if spec.body.any stmtContainsUnsafeLogicalCallLike then
     throw s!"Compilation error: function '{spec.name}' uses Expr.logicalAnd/Expr.logicalOr/Expr.ite or arithmetic helpers (mulDivUp/wDivUp/min/max) with call-like operand(s) that would be duplicated in Yul output ({issue748Ref}). Move call-like expressions into Stmt.letVar before combining."
   validateAdtPayloadParamNameCollisions s!"function '{spec.name}'" spec.params spec.body

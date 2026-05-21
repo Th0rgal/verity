@@ -87,6 +87,11 @@ def elabVerityContract : CommandElab := fun stx => do
       if fn.isView then
         elabCommand (← mkViewTheoremCommand fn)
 
+    -- Emit per-function _is_pure theorems for pure functions.
+    for fn in functions do
+      if fn.isPure then
+        elabCommand (← mkPureTheoremCommand fn)
+
     -- Emit per-function _no_calls theorems for no_external_calls functions (#1729, Axis 3 Step 1c).
     for fn in functions do
       if fn.noExternalCalls then

@@ -168,6 +168,7 @@ structure FunctionDecl where
   returnTy : ValueType
   isPayable : Bool := false
   isView : Bool := false
+  isPure : Bool := false
   noExternalCalls : Bool := false
   /-- When true, the function is annotated `allow_post_interaction_writes` and
       CEI (Checks-Effects-Interactions) enforcement is bypassed.  This is the
@@ -1029,6 +1030,7 @@ private def parseLocalObligation (stx : Syntax) : CommandElabM LocalObligationDe
 private structure ParsedMutability where
   isPayable : Bool := false
   isView : Bool := false
+  isPure : Bool := false
   noExternalCalls : Bool := false
   allowPostInteractionWrites : Bool := false
   nonReentrantLock : Option Ident := none
@@ -1149,8 +1151,9 @@ private def parseModifierUse (stx : TSyntax `verityModifierUse) : CommandElabM (
 
 private def parseFunction (newtypes : Array NewtypeDecl) (structDecls : Array StructDecl := #[]) (adtDecls : Array AdtDecl := #[]) (stx : Syntax) : CommandElabM FunctionDecl := do
   match stx with
-  | `(verityFunction| function $[$mods:verityMutability]* $name:ident ($[$params:verityParam],*) $[$guard?:verityInitGuard]? $[$modifierUse?:verityModifierUse]? $[$requiresRoleClause?:verityRequiresRole]? $[$modifiesClause?:verityModifies]? $[$localObligations?:verityLocalObligations]? : $retTy:term := $body:term) => do
-      let mut_ ← parseMutabilityModifiers mods stx
+  | `(verityFunction| function $[$modsBefore:verityMutability]* $[$pureMod?:pureMutabilityMarker]? $[$modsAfter:verityMutability]* $name:ident ($[$params:verityParam],*) $[$guard?:verityInitGuard]? $[$modifierUse?:verityModifierUse]? $[$requiresRoleClause?:verityRequiresRole]? $[$modifiesClause?:verityModifies]? $[$localObligations?:verityLocalObligations]? : $retTy:term := $body:term) => do
+      let mut_ ← parseMutabilityModifiers (modsBefore ++ modsAfter) stx
+      let mut_ := { mut_ with isPure := pureMod?.isSome }
       let parsedParams ← params.mapM (parseParam newtypes structDecls adtDecls)
       let parsedReturnTy ← valueTypeFromSyntax newtypes structDecls adtDecls retTy
       match parsedReturnTy with
@@ -1187,6 +1190,7 @@ private def parseFunction (newtypes : Array NewtypeDecl) (structDecls : Array St
         returnTy := parsedReturnTy
         isPayable := mut_.isPayable
         isView := mut_.isView
+        isPure := mut_.isPure
         noExternalCalls := mut_.noExternalCalls
         allowPostInteractionWrites := mut_.allowPostInteractionWrites
         nonReentrantLock := mut_.nonReentrantLock
@@ -7438,6 +7442,7 @@ private def mkSpecCommand
       let localObligationTerms ← fn.localObligations.mapM mkModelLocalObligationTerm
       let payableTerm ← if fn.isPayable then `(true) else `(false)
       let viewTerm ← if fn.isView then `(true) else `(false)
+      let pureTerm ← if fn.isPure then `(true) else `(false)
       let noExternalCallsTerm ← if fn.noExternalCalls then `(true) else `(false)
       let allowPostInteractionWritesTerm ← if fn.allowPostInteractionWrites then `(true) else `(false)
       let nonReentrantLockTerm ← match fn.nonReentrantLock with
@@ -7457,6 +7462,7 @@ private def mkSpecCommand
         «returns» := $returnsTerm
         isPayable := $payableTerm
         isView := $viewTerm
+        isPure := $pureTerm
         noExternalCalls := $noExternalCallsTerm
         allowPostInteractionWrites := $allowPostInteractionWritesTerm
         nonReentrantLock := $nonReentrantLockTerm
@@ -7483,6 +7489,7 @@ private def mkSpecCommand
         «returns» := []
         isPayable := false
         isView := false
+        isPure := false
         noExternalCalls := false
         allowPostInteractionWrites := false
         nonReentrantLock := none
@@ -8053,6 +8060,8 @@ def validateFunctionDeclsPublic
     -- view functions must not use modifies (they already imply no writes)
     if fn.isView && !fn.modifies.isEmpty then
       throwErrorAt fn.ident s!"function '{fn.name}' is marked view and modifies(...); view already guarantees no state writes"
+    if fn.isPure && !fn.modifies.isEmpty then
+      throwErrorAt fn.ident s!"function '{fn.name}' is marked pure and modifies(...); pure already guarantees no state writes"
     -- Validate nonreentrant lock field references a valid storage field of scalar uint256 type
     match fn.nonReentrantLock with
     | some lockField =>
@@ -8097,6 +8106,7 @@ def mkFunctionCommandsPublic
   let localObligationTerms ← fn.localObligations.mapM mkModelLocalObligationTerm
   let payableTerm ← if fn.isPayable then `(true) else `(false)
   let viewTerm ← if fn.isView then `(true) else `(false)
+  let pureTerm ← if fn.isPure then `(true) else `(false)
   let noExternalCallsTerm ← if fn.noExternalCalls then `(true) else `(false)
   let allowPostInteractionWritesTerm ← if fn.allowPostInteractionWrites then `(true) else `(false)
   let nonReentrantLockTerm ← match fn.nonReentrantLock with
@@ -8119,6 +8129,7 @@ def mkFunctionCommandsPublic
     «returns» := $returnsTerm
     isPayable := $payableTerm
     isView := $viewTerm
+    isPure := $pureTerm
     noExternalCalls := $noExternalCallsTerm
     allowPostInteractionWrites := $allowPostInteractionWritesTerm
     nonReentrantLock := $nonReentrantLockTerm
