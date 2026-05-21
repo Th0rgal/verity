@@ -57,6 +57,7 @@ import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgeLemmas
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBridgePredicates
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanBuiltinSemantics
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanCallClosure
+import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeCalldata
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeHarness
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeLowering
 import Compiler.Proofs.YulGeneration.Backends.EvmYulLeanNativeSignedArithLemmas
@@ -3916,7 +3917,7 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.YulGeneration.Backends.G3Smoke.smoke_internalCall_bridged  -- private
   Compiler.Proofs.YulGeneration.Backends.G3Smoke.smoke_compileStmt_internalCall_bridged
 
-  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean
+  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeCalldata.lean
   -- Compiler.Proofs.YulGeneration.Backends.Native.byteArray_get?_append_left  -- private
   Compiler.Proofs.YulGeneration.Backends.Native.readBytes_zero_get?_of_lt_source
   Compiler.Proofs.YulGeneration.Backends.Native.readBytes_get?_of_lt_source
@@ -3931,11 +3932,11 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.YulGeneration.Backends.Native.list_reverse_eq_drop4_reverse_append_four  -- private
   Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_selectorPrefix
   Compiler.Proofs.YulGeneration.Backends.Native.selectorBytesAsNat
-  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_append  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_lt  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_append
+  Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_lt
   -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_eq_mk  -- private
   -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_eq_of_toNat_eq  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_toNat_of_lt  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.uint256_ofNat_toNat_of_lt
   -- Compiler.Proofs.YulGeneration.Backends.Native.uint256_shiftRight_224_mk_toNat  -- private
   Compiler.Proofs.YulGeneration.Backends.Native.uint256_shiftRight_224_ofNat_toNat
   -- Compiler.Proofs.YulGeneration.Backends.Native.fromBytes'_four  -- private
@@ -3959,7 +3960,7 @@ end Verity.AxiomAudit
   -- Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_loop_size  -- private
   -- Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_loop_data_toList  -- private
   -- Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_size  -- private
-  -- Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_data_toList  -- private
+  Compiler.Proofs.YulGeneration.Backends.Native.list_toByteArray_data_toList
   Compiler.Proofs.YulGeneration.Backends.Native.uint256_toByteArray_size
   Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_arg0Bytes
   Compiler.Proofs.YulGeneration.Backends.Native.initialState_calldataReadWord_argBytes_of_drop_eq_cons
@@ -3971,6 +3972,8 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_value_of_readBytes_size
   Compiler.Proofs.YulGeneration.Backends.Native.initialState_selectorExpr_native_uint256
   Compiler.Proofs.YulGeneration.Backends.Native.lowerExprNative_selectorExpr
+
+  -- Compiler/Proofs/YulGeneration/Backends/EvmYulLeanNativeHarness.lean
   Compiler.Proofs.YulGeneration.Backends.Native.step_calldataload_ok
   Compiler.Proofs.YulGeneration.Backends.Native.step_shr_ok
   Compiler.Proofs.YulGeneration.Backends.Native.step_add_ok
@@ -5451,4 +5454,4 @@ end Verity.AxiomAudit
   Compiler.Proofs.YulGeneration.YulTransaction.ofIR_args
 ]
 
--- Total: 5162 theorems/lemmas (3579 public, 1583 private, 0 sorry'd)
+-- Total: 5162 theorems/lemmas (3583 public, 1579 private, 0 sorry'd)
