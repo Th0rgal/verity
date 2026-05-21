@@ -41208,9 +41208,7 @@ private theorem simpleStorageNativeStoreHitMatchBridge_proved
             haltState = [] := by
         subst hHaltState
         simp only [Compiler.Proofs.YulGeneration.Backends.Native.projectLogsFromState,
-          Compiler.Proofs.YulGeneration.Backends.Native.initialState,
-          Compiler.Proofs.YulGeneration.Backends.StateBridge.toSharedState,
-          YulState.initial, EvmYul.Yul.State.sharedState,
+          EvmYul.Yul.State.sharedState,
           EvmYul.Yul.State.setState, EvmYul.Yul.State.toState,
           EvmYul.Yul.State.insert, EvmYul.State.sstore,
           EvmYul.State.setAccount, EvmYul.State.lookupAccount,
